@@ -4,6 +4,21 @@ Append-only log. Never delete entries. Seed entries marked `[ANTICIPATED]` are s
 
 ---
 
+## [OBSERVED 2026-05-24] Scope correction reveals the surviving candidate is itself wrongly sized
+
+After the closure swarm's verifications and additions, one surviving candidate (a security-migration fork) was approved for execution. The plan's Step 1 was a blast-radius audit (Pre-flight 1) that the Critic had explicitly surfaced as a deferred verification. Running the audit produced two material findings:
+
+1. **The original cost estimate was off by ~2-3×** — the migration's blast radius spanned 3 tables (not 1) and required SQLite's table-rebuild pattern (`CREATE TABLE new` → `INSERT INTO new SELECT *` → `DROP old` → `ALTER RENAME` → re-create all indexes/FTS/triggers), not the simpler `ALTER TABLE ADD CONSTRAINT` the plan assumed.
+2. **One acceptance criterion was structurally N/A** — it referenced an "init schema mirror" that doesn't contain the relevant tables. The AC was withdrawn.
+
+Honest cost: 8-12h substrate vs. plan's 3h+1h. The user deferred the candidate based on the corrected scope.
+
+**Rule:** When the transition's scope-correction step ([transition.md](transition.md) §2) returns a value materially different from the original frame's cost estimate, do NOT just rescope-and-proceed. Surface the corrected scope and re-check whether the candidate would have been picked at all under the new scope. Frame-rejection applies recursively at the candidate level, not just the frame-set level. If the answer changes ("we wouldn't have approved this if we'd known it was 3×"), that is a defer signal, not a continue signal.
+
+**Recognition:** if your scope-correction step produces a delta of >1.5× the original estimate, OR reveals an architectural surprise the original plan didn't account for (e.g., a platform constraint like SQLite's no-`ADD CONSTRAINT` rule), treat the corrected candidate as a fresh candidate-set decision rather than just a rescoped execution. Sometimes the right move is "defer; that's a different sprint now."
+
+**Pairs well with:** the deadlock-escalation case in [transition.md](transition.md). Both are situations where the discipline produces a result the user must arbitrate, not invent an answer for. Scope-correction-defer is the milder cousin of deadlock.
+
 ## [OBSERVED 2026-05-24] Closure→build transition collapse — synthesis into menu
 
 After running the closure swarm (5 SMEs on a sprint fork pick), the agent synthesized the SMEs' action list into a multi-voice A/B/C menu and handed it back to the user. The SMEs had produced concrete verifications (a phantom-dep grep, a blast-radius INSERT-site audit, a pre-flight requirement on a schema-CHECK migration, a missing-feature addition), none of which were executed. The "revised frame" presented was the original frame with team commentary attached. See [case-study.md](case-study.md) for the full failure trace.
