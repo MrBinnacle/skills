@@ -1,5 +1,7 @@
 # Formalization — wiring closure mode into the lock terminal step
 
+> **Live adoption example:** the reference project (Writ) ships this formalization as Step 8 of its `phase-lock` skill — see [github.com/MrBinnacle/writ](https://github.com/MrBinnacle/writ/blob/main/.claude/skills/phase-lock/SKILL.md). The wiring follows the discipline-vs-executor split named below.
+
 Closure mode currently runs only when invoked manually. The minimum-cost change to make it the default at workflow boundaries is to extend whichever skill or hook owns your project's terminal lock step.
 
 ## Current terminal step (typical)
