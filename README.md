@@ -1,8 +1,24 @@
-# Skills
+# skills
 
-Reusable agent skills for Claude Code and compatible runtimes. Each skill is a focused workflow discipline that adds itself to your agent's tool surface and triggers on the situations it fits.
+**Confidence is not evidence.**
 
-Authored by [Matthew Gruber](https://github.com/MrBinnacle). Repo layout inspired by [github.com/mattpocock/skills](https://github.com/mattpocock/skills).
+Most agent failures at the judgment layer are not reasoning failures or missing
+context. They are verification failures: the agent's confidence stood in for a
+check that never happened. These are composable disciplines that put the check
+back in the loop — verify before asserting, separate a decision from its
+ratification, distrust an instrument that disagrees with itself, log each failure
+mode so the next run does not relearn it.
+
+Documentation and context frameworks keep an agent oriented to where the work
+goes. These skills govern whether its judgment can be trusted to get there:
+orchestration, decision quality, and engineering rhythm, each a standalone
+discipline you can drop into Claude Code or any compatible runtime.
+
+Every skill carries its own append-only `gotchas.md`: the observed and
+anticipated failure modes that produced the discipline.
+
+Authored by [Matthew Gruber](https://github.com/MrBinnacle). Layout inspired by
+[github.com/mattpocock/skills](https://github.com/mattpocock/skills).
 
 ## Available skills
 
