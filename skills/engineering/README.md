@@ -26,5 +26,3 @@ Workflow disciplines for shipping software. Each skill represents a focused deci
   - executes a consolidated remediation or adjustment list
   - produces a revised final frame before completion
 
-- **azimuth**  
-  Placeholder for directional context management. Defined separately in `azimuth/README.md`.

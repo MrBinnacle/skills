@@ -25,7 +25,6 @@ Authored by [Matthew Gruber](https://github.com/MrBinnacle). Layout inspired by
 ### Engineering — workflow disciplines for shipping software
 
 - [**closure-mode-at-boundaries**](skills/engineering/closure-mode-at-boundaries/SKILL.md) — codifies the closure→build transition at sprint/phase boundaries. Dispatch a parallel SME swarm, then execute the swarm's action list before presenting a revised frame. Prevents the failure mode of forwarding multi-voice menus instead of executed verifications.
-- [**azimuth**](skills/engineering/azimuth/README.md) — *placeholder; added separately.*
 
 ## Install
 
@@ -73,6 +72,7 @@ skills/
       prerequisites.md            runtime + project surface requirements
       prompt-templates.md         copy-pasteable per-role prompts
       gotchas.md                  append-only failure-mode log
+  in-progress/                  ← unshipped skills; not listed under Available skills
     azimuth/
       README.md                   placeholder
 ```
