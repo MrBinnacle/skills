@@ -18,10 +18,10 @@ deliberately when contemplating a skill. That is the framework applied to itself
 - Auditing an existing skill for whether it earns its context cost.
 - Deciding skill vs CLAUDE.md vs memory vs MCP vs pre-tool hook vs named workflow.
 - A skill library feels bloated (see Mode B in [absence-detection.md](absence-detection.md)).
-- **Before building any instrument** — harness, miner, metric, oracle, dashboard, eval
-  protocol. Instruments are skill-shaped bets and run the same gates (GD-11): prior-art
-  sweep at Gate 0, "will the question recur?" at Gate 1, and at Gate 2 **name the pending
-  decision the output would change** — no decision, no build.
+- **Before building any instrument** (harness, miner, metric, oracle, eval): instruments
+  are skill-shaped bets and run the same gates (GD-11) — prior-art sweep at Gate 0,
+  recurrence at Gate 1, and at Gate 2 **name the pending decision the output would
+  change**; no decision, no build.
 
 ## Mode A — Gate a candidate (the core procedure)
 
@@ -33,9 +33,8 @@ and route it where the gate says. Earlier gates are cheaper and reject more.
 - Is it **access to a system/data** (API, DB, service)? → MCP / connector. NOT a skill.
 - Is it **trivially discoverable from the codebase** (which build tool, file layout)? → let
   the agent read the repo. NOT a skill and NOT CLAUDE.md — encoding it elsewhere rots.
-- Is it **already supplied by the harness at point of use** (tool guidance, workflow
-  prompts)? → re-encoding pays budget for redundancy and rots against harness updates.
-- Is it a **recurring fan-out orchestration**? → a named workflow script, not a skill.
+- Is it **already supplied by the harness at point of use**, or a **recurring fan-out
+  orchestration**? → nothing (redundant, rots) / a named workflow script. NOT a skill.
 - Is it a **multi-step procedure / reusable capability**? → continue.
 - Then: relevant **every** session (→ push into CLAUDE.md, accept always-on cost) or only
   **sometimes** (→ a skill's on-demand "pull" is the right instrument)? Only "sometimes" continues.
@@ -106,15 +105,12 @@ instructions (→ hook).
 
 ## Discipline vs implementation
 
-The **discipline** (stable contract): the six ordered gates, the refusal predicate, the
-default-to-"not a skill" posture, measure-don't-argue, and GD-11 (instruments run the gates too).
-
-The **implementation surface** (illustrative, swap for your runtime): the ~100-token /
-1%-of-context budget numbers (Claude Code, 2026 — re-verify for your runtime), the
-frontmatter flag names, `/loop` semantics, and the specific tools named in examples.
+The **discipline** (stable contract): six ordered gates, refusal predicate,
+default-to-"not a skill", measure-don't-argue, GD-11. The **implementation surface**
+(illustrative — swap for your runtime): the ~100-token / 1%-of-context numbers (Claude
+Code, 2026), frontmatter flag names, `/loop` semantics, tools named in examples.
 
 ## Provenance
-Governing dynamics + the evidence behind every gate (Matt Pocock's skills methodology,
-triangulated against Anthropic's official skill docs + the IFScale instruction-count study):
-[governing-dynamics.md](governing-dynamics.md).
-Record surprises in [gotchas.md](gotchas.md) (append-only).
+Evidence behind every gate (Matt Pocock's methodology triangulated against Anthropic's
+skill docs + IFScale): [governing-dynamics.md](governing-dynamics.md). Record surprises
+in [gotchas.md](gotchas.md) (append-only).
