@@ -26,6 +26,10 @@ Authored by [Matthew Gruber](https://github.com/MrBinnacle). Layout inspired by
 
 - [**closure-mode-at-boundaries**](skills/engineering/closure-mode-at-boundaries/SKILL.md) — codifies the closure→build transition at sprint/phase boundaries. Dispatch a parallel SME swarm, then execute the swarm's action list before presenting a revised frame. Prevents the failure mode of forwarding multi-voice menus instead of executed verifications.
 
+### Meta — skills about the skill system itself
+
+- [**skill-necessity-gate**](skills/meta/skill-necessity-gate/SKILL.md) — six-gate procedure deciding whether a proposed capability should become a skill (most shouldn't). Layer triage → recurrence → measured worth → invocation topology → statefulness → low-cost shape, plus library-audit and absence-detection modes. Grounded in Matt Pocock's methodology triangulated against Anthropic's official skill docs; includes the reflexive rule that eval harnesses and other instruments run the same gates before being built.
+
 ## Install
 
 ### Claude Code
@@ -71,6 +75,14 @@ skills/
       formalization.md            wire into your lock-skill terminal step
       prerequisites.md            runtime + project surface requirements
       prompt-templates.md         copy-pasteable per-role prompts
+      gotchas.md                  append-only failure-mode log
+  meta/                         ← skills about the skill system itself
+    README.md                     bucket index
+    skill-necessity-gate/
+      SKILL.md                    entry point — the six gates
+      governing-dynamics.md       the evidence behind each gate (GD-1…11)
+      absence-detection.md        library-audit + missing-skill modes
+      loops-and-autonomy.md       GD-10 supplement for autonomous loops
       gotchas.md                  append-only failure-mode log
   in-progress/                  ← unshipped skills; not listed under Available skills
     azimuth/
