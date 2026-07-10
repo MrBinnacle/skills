@@ -1,34 +1,15 @@
-## Core Observation
+# Engineering skills
 
-Humans already perform closure reasoning naturally.
+Workflow disciplines for shipping software. Each one fires at a specific moment — before a
+risky `git pull`, at the end of a work phase — rather than sitting in every conversation.
 
-In enterprise environments, this responsibility is distributed across roles such as QA, UX, security, and operations.
+- [**git-pull-rebase-trap**](git-pull-rebase-trap/SKILL.md) — if git is configured with
+  `pull.rebase=true`, then `git pull --no-ff` silently ignores your flag and rewrites every
+  local commit with a new ID. This skill checks the setting before pulling and shows the safe
+  alternative. Born from a real incident that rewrote 22 commits
+  ([the receipt](git-pull-rebase-trap/EVIDENCE.md)).
 
-Existing tooling partially approximates these behaviors, but no unified system consistently implements them as:
-
-- explicit
-- context-aware
-- phase-triggered
-- lightweight at runtime
-
----
-
-## Engineering Skills
-
-Workflow disciplines for shipping software. Each skill represents a focused decision or execution discipline that activates under specific conditions.
-
-### Skills
-
-- [**git-pull-rebase-trap**](git-pull-rebase-trap/SKILL.md)
-  `git pull --no-ff` is silently ignored when `pull.rebase=true` — the rebase proceeds
-  and rewrites every local SHA. Pre-flight config check, explicit fetch+merge
-  alternative, and the SHA-backfill recovery protocol. Born from an observed
-  22-commit rewrite incident ([EVIDENCE.md](git-pull-rebase-trap/EVIDENCE.md)).
-
-- **closure-mode-at-boundaries**  
-  Discipline applied at sprint or lifecycle boundaries. Triggers a structured closure phase that:
-  - activates parallel SME-style review perspectives
-  - surfaces high-impact omissions and risks
-  - executes a consolidated remediation or adjustment list
-  - produces a revised final frame before completion
-
+- [**closure-mode-at-boundaries**](closure-mode-at-boundaries/SKILL.md) — the moment one phase
+  of work finishes is exactly when an assistant is most tempted to charge into the next thing.
+  This skill forces a structured wrap-up first: parallel reviewers look for what was missed,
+  their fixes actually get executed, and only then is the next step decided.

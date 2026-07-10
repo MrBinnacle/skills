@@ -97,7 +97,8 @@ The part most collections lack: **models improve, and a skill only matters again
 still need it.** When a major model release lands, skills get re-screened with
 [skill-harness](https://github.com/MrBinnacle/skill-harness) — a tool that runs the same task
 with and without the skill and honestly reports the difference. A skill the new model no longer
-needs gets retired in public, evidence record intact. Model progress becomes collection
+needs gets retired in public, evidence record intact — see the [retirement log](RETIRED.md).
+Model progress becomes collection
 history, not silent rot.
 
 Two skills carry full evidence records today; the rest of the collection is being brought under

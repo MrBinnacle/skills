@@ -11,6 +11,7 @@ more of these. Status: 5/7 core laws supported against non-Pocock (Anthropic) so
 - **Reflexive**: GD-11 (the gate applies to instruments, not just skills).
 
 ## GD-1 · A skill is a bet that a pattern recurs
+A skill saves work only if you use it repeatedly — in shorthand:
 Value ≈ (re-derivation cost + transcription cost) × recurrence × stability. Frequency — not
 complexity — is the criterion; Pocock's "too simple to require a skill" prompts often warrant
 skills. Anthropic (code.claude.com/docs/en/skills): "Create a skill when you keep pasting the

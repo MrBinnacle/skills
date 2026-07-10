@@ -9,12 +9,11 @@ date: 2026-05-29
 
 ## Problem
 
-When you dispatch many isolated agents to review the SAME set of findings from different
-lenses, isolation is a feature (anti-cascade — they can't groupthink). But isolation makes
-their outputs hard to JOIN: each seat writes free-form prose, two seats use the same word for
-different concepts (false-agreement), and you (the synthesizer/hub) spend the synthesis pass
-reconciling formats instead of substance. The default failure is mush — N strong individual
-reviews that don't compose into one decision.
+Five reviewers send back five good analyses that don't add up to one decision. That is the
+default outcome when you dispatch isolated agents to review the same set of findings:
+isolation is what keeps them from groupthinking each other, but it also means each one
+answers in its own free-form prose, two of them use the same word for different concepts, and
+you spend the synthesis pass reconciling formats instead of substance.
 
 The fix is upstream, in the dispatch: isolated outputs are synthesizable only if you
 pre-impose a shared output schema + a fixed decision vocabulary. You can't recover

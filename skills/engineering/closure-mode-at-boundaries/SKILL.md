@@ -7,7 +7,10 @@ description: Closure-mode discipline at workflow boundaries. Use when a sprint, 
 
 ## The Insight
 
-**Orchestration without closure intelligence is just workflow sequencing.** A system that cannot reliably transition INTO closure-mode reasoning, then BACK to "ok, what do we need to do now that X is done" mode, cannot meaningfully orchestrate work — because it cannot define termination conditions. Termination conditions are the load-bearing artifact of orchestration.
+The moment a phase of work finishes is exactly when you (or your agent) are most tempted to
+charge into the next thing without review. Nothing can be called "done" until someone has
+deliberately tried to break it — and you can't move to the next phase until this one is
+certified. That deliberate try-to-break-it pass is **closure mode**.
 
 Three cognitive modes:
 

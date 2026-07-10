@@ -6,12 +6,14 @@ disable-model-invocation: true
 
 # skill-necessity-gate
 
-A discipline for deciding whether a capability should become a skill. It is intentionally
-directive: most candidates should be routed to "not a skill." The goal is a correct
-decision, not an approved one.
+Most ideas for new skills should not become skills. Every skill you add costs context space
+in every conversation, and most candidates are better served by a different layer — or by
+nothing. This checklist catches them: six gates, run in order, and a candidate must pass all
+six. The default answer is "not a skill," and the goal is a correct decision, not an
+approved one.
 
-This skill is itself a **procedure** (`disable-model-invocation: true`) — you invoke it
-deliberately when contemplating a skill. That is the framework applied to itself.
+This skill is itself a deliberately-invoked **procedure** (`disable-model-invocation: true`)
+— you run it when contemplating a skill. That is the framework applied to itself.
 
 ## When to run
 - Someone (incl. you) says "let's make a skill for X" / "should this be a skill?"
@@ -37,7 +39,7 @@ and route it where the gate says. Earlier gates are cheaper and reject more.
   orchestration**? → nothing (redundant, rots) / a named workflow script. NOT a skill.
 - Is it a **multi-step procedure / reusable capability**? → continue.
 - Then: relevant **every** session (→ push into CLAUDE.md, accept always-on cost) or only
-  **sometimes** (→ a skill's on-demand "pull" is the right instrument)? Only "sometimes" continues.
+  **sometimes** (→ a skill, loaded only when needed, is the right home)? Only "sometimes" continues.
 
 ### Gate 1 · Recurrence — does the pattern actually recur?
 - Criterion is **frequency, not complexity.** Reject the "too simple" fallacy — trivial
