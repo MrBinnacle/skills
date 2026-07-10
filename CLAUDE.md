@@ -37,6 +37,25 @@ Every bucket folder must have a `README.md` that lists every skill in the bucket
 
 The top-level `README.md` must list every shipped skill under its bucket. Skills not in any bucket README are not shipped — move them to an `in-progress/` bucket or remove them.
 
+## De-personalization gate
+
+Skills are extracted from a private source tree that legitimately carries private-project
+provenance — project codenames, ticket-style IDs, a private repo directory and link. None of
+that may reach this public collection. A fail-closed pre-push check enforces the boundary:
+`.pre-commit-config.yaml` runs regex hooks over every `*.md` and **refuses the commit/push**
+if a known residue pattern appears, reporting the file, line, and the suggested generic
+replacement (carried in the hook name).
+
+It does **not** auto-rewrite — by design. A silent scrub would hide the source↔publish
+divergence and paper over the root cause; the block forces a conscious de-personalization edit
+so the decision stays audited. Keep the evidentiary story (e.g. "a personal production
+project's phase-2 security-audit lock"); drop only the unverifiable private identifier.
+
+- **Activate once per clone:** `pre-commit install --hook-type pre-commit --hook-type pre-push`
+- **Full-tree sweep on demand:** `pre-commit run --all-files`
+- **Maintainer name/email are deliberately NOT in the committed config** — publishing them in a
+  public block-list would itself de-anonymize. Add them to a git-ignored local overlay if wanted.
+
 ## License
 
 MIT. See `LICENSE`.
