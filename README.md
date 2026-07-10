@@ -2,6 +2,14 @@
 
 **A small collection of agent skills that have to earn their keep — with the receipts to prove it.**
 
+```bash
+npx skills add MrBinnacle/skills
+```
+
+That's the whole install — works with Claude Code and [70+ other agents](https://github.com/vercel-labs/skills).
+You'll be shown the four skills and can pick which to take. Prefer to copy files by hand? See
+[Install](#install) below.
+
 ## What this is
 
 AI coding assistants like Claude Code can be given **skills** — small instruction files that
