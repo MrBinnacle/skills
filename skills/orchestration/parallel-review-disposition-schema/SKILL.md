@@ -69,7 +69,7 @@ Two discipline notes that pair with the schema:
 
 ## Verification
 
-Writ SEC-013 Phase 2 lock (2026-05-29): a 12-seat fire (6 security postures + Architect + Planner
+A personal production project's phase-2 security-audit lock (2026-05-29): a 12-seat fire (6 security postures + Architect + Planner
 + 4 domain SMEs) each given the same disposition enum + per-finding block + ownership + status
 line returned outputs that synthesized into one clean 8-section document with five cleanly-classified
 disagreements — because the decisions were directly comparable. Two cross-builds (a wrong entropy

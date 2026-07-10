@@ -1,6 +1,6 @@
 # Template — Adversarial-Verify Seat (upstream stage: "are the findings real?")
 
-Extracted 2026-07-04 from 22 mined dispatch instances (skills_research perf-miner;
+Extracted 2026-07-04 from 22 mined dispatch instances (the author's research-project dispatch miner;
 two live variants: Workflow refute-pattern, teammate verifier-seat). SKILL.md's
 disposition schema assumes findings are already verified — this template is how they
 get verified. Same joinability principle, applied one stage earlier.

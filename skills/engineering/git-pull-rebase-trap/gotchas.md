@@ -16,4 +16,4 @@
 
 *(Append observed gotchas here as they surface in future sessions. Do not delete entries — gotchas are stress-test signal.)*
 
-- **2026-05-25 / Writ:** Hit on `git pull origin main --no-commit --no-ff` during SEC-009 push divergence. `pull.rebase=true` configured globally. Rewrote 22 commits, required 111 SHA substitutions across 5 state files. User authorized "accept rebase + backfill" recovery path. Direct trigger that produced this skill.
+- **2026-05-25 / a personal production project:** Hit on `git pull origin main --no-commit --no-ff` during a push-divergence incident. `pull.rebase=true` configured globally. Rewrote 22 commits, required 111 SHA substitutions across 5 state files. User authorized "accept rebase + backfill" recovery path. Direct trigger that produced this skill.
