@@ -106,8 +106,11 @@ still need it.** When a major model release lands, skills get re-screened with
 [skill-harness](https://github.com/MrBinnacle/skill-harness) — a tool that runs the same task
 with and without the skill and honestly reports the difference. A skill the new model no longer
 needs gets retired in public, evidence record intact — see the [retirement log](RETIRED.md).
-Model progress becomes collection
-history, not silent rot.
+Model progress becomes collection history, not silent rot.
+
+That mechanism has already fired once: in July 2026, four of the author's own candidate
+skills were tested at the admission gate and **the model passed every run without them** —
+so none got in. [The full record, receipts included →](RETIRED.md)
 
 Two skills carry full evidence records today; the rest of the collection is being brought under
 the same standard. The methodology — and why most "this skill scored 1.0!" benchmarks mislead —
