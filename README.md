@@ -25,10 +25,34 @@ Authored by [Matthew Gruber](https://github.com/MrBinnacle). Layout inspired by
 ### Engineering — workflow disciplines for shipping software
 
 - [**closure-mode-at-boundaries**](skills/engineering/closure-mode-at-boundaries/SKILL.md) — codifies the closure→build transition at sprint/phase boundaries. Dispatch a parallel SME swarm, then execute the swarm's action list before presenting a revised frame. Prevents the failure mode of forwarding multi-voice menus instead of executed verifications.
+- [**git-pull-rebase-trap**](skills/engineering/git-pull-rebase-trap/SKILL.md) — `git pull --no-ff` is silently ignored when `pull.rebase=true`: the rebase proceeds and rewrites every local SHA. Pre-flight config check, explicit fetch+merge alternative, SHA-backfill recovery. Born from an observed 22-commit rewrite incident — [evidence record](skills/engineering/git-pull-rebase-trap/EVIDENCE.md).
+
+### Orchestration — disciplines for multi-agent work
+
+- [**parallel-review-disposition-schema**](skills/orchestration/parallel-review-disposition-schema/SKILL.md) — dispatch discipline for 3+ parallel agents adjudicating a shared finding-set: fixed decision-vocabulary enum, shared per-item output block, explicit item ownership, mandatory status line — so isolated outputs JOIN at synthesis instead of returning N strong reviews that don't compose. Two documented instantiations — [evidence record](skills/orchestration/parallel-review-disposition-schema/EVIDENCE.md).
 
 ### Meta — skills about the skill system itself
 
 - [**skill-necessity-gate**](skills/meta/skill-necessity-gate/SKILL.md) — six-gate procedure deciding whether a proposed capability should become a skill (most shouldn't). Layer triage → recurrence → measured worth → invocation topology → statefulness → low-cost shape, plus library-audit and absence-detection modes. Grounded in Matt Pocock's methodology triangulated against Anthropic's official skill docs; includes the reflexive rule that eval harnesses and other instruments run the same gates before being built.
+
+## Evidence records
+
+*Confidence is not evidence* applies to this collection itself. Skills here are
+progressively moving to carrying an `EVIDENCE.md` — a provenance record stating, per
+skill: the dated **observed origin failure** (or "conviction; no observed origin",
+stated plainly) · what it has been **validated against** · its **screen / paired-eval
+result**, with **UNMEASURED as a first-class value** rather than a gap to hide · its
+**standing context cost** · and a named **re-screen trigger**.
+
+The re-screen rule is the part most collections lack: frontier models improve, and a
+trap skill is only valid against models that still fall into the trap. Major model
+releases trigger a cheap re-screen; a skill the new model no longer needs gets publicly
+**retired with its evidence record updated** — model progress becomes collection
+history, not silent rot. Methodology (paired Full-vs-Null evaluation, admissibility,
+the ceiling problem) lives in the companion repo:
+[skill-harness](https://github.com/MrBinnacle/skill-harness) — see its registered
+[v0.2 pre-registration](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md)
+for why naive "the skill scored 1.0" benchmarks mislead.
 
 ## Install
 

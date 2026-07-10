@@ -7,6 +7,12 @@ This repo is a collection of reusable agent skills. When you (Claude) are loaded
 Skills are organized into bucket folders under `skills/`:
 
 - `engineering/` — workflow disciplines for shipping software
+- `orchestration/` — disciplines for multi-agent work (dispatch, joinability, synthesis)
+- `meta/` — skills about the skill system itself
+
+Shipped skills progressively carry an `EVIDENCE.md` provenance record (origin incident,
+validated-against, screen/paired result with UNMEASURED first-class, standing cost,
+re-screen trigger). New promotions MUST include one; see top-level README → "Evidence records".
 
 Each bucket has a `README.md` listing every skill in that bucket with a one-line description, linking the skill name to its `SKILL.md`. Promote and demote skills by adding or removing them from the bucket README.
 

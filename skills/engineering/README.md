@@ -19,6 +19,12 @@ Workflow disciplines for shipping software. Each skill represents a focused deci
 
 ### Skills
 
+- [**git-pull-rebase-trap**](git-pull-rebase-trap/SKILL.md)
+  `git pull --no-ff` is silently ignored when `pull.rebase=true` — the rebase proceeds
+  and rewrites every local SHA. Pre-flight config check, explicit fetch+merge
+  alternative, and the SHA-backfill recovery protocol. Born from an observed
+  22-commit rewrite incident ([EVIDENCE.md](git-pull-rebase-trap/EVIDENCE.md)).
+
 - **closure-mode-at-boundaries**  
   Discipline applied at sprint or lifecycle boundaries. Triggers a structured closure phase that:
   - activates parallel SME-style review perspectives
