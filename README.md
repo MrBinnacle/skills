@@ -52,7 +52,12 @@ history, not silent rot. Methodology (paired Full-vs-Null evaluation, admissibil
 the ceiling problem) lives in the companion repo:
 [skill-harness](https://github.com/MrBinnacle/skill-harness) — see its registered
 [v0.2 pre-registration](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md)
-for why naive "the skill scored 1.0" benchmarks mislead.
+for why naive "the skill scored 1.0" benchmarks mislead, and the
+[double-ceiling case study](https://github.com/MrBinnacle/skill-harness/blob/main/docs/case-studies/double-ceiling-structurally-unmeasured.md)
+for why these evidence records treat UNMEASURED as a result, not a failure:
+a frontier agent passed 14/14 no-skill epochs on two deliberately-hardened
+synthetic tasks — on that task class there is nothing for a skill to improve,
+and any benchmark claiming otherwise owes you its Null-arm pass rate first.
 
 ## Install
 
