@@ -1,0 +1,27 @@
+# De-personalization gate — CI enforcement at the public boundary.
+#
+# The local pre-commit/pre-push hooks (.pre-commit-config.yaml) only protect a clone
+# where `pre-commit install` has been run. Git hooks are not version-controlled, so a
+# fresh clone is dormant. This workflow re-runs the SAME gate on every push/PR to main
+# — committed, always enforced, independent of anyone's local setup. It is the belt to
+# the local hooks' suspenders.
+name: de-personalization gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  residue-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - uses: pre-commit/action@v3.0.1
+        # Runs `pre-commit run --all-files` — the full-tree residue sweep.
