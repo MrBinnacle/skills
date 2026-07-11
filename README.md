@@ -142,35 +142,40 @@ almost nobody tests whether a skill still changes the outcome.
 
 The complete reference. Skills marked **⊙ receipt** carry a full dated
 [`EVIDENCE.md`](skills/engineering/git-pull-rebase-trap/EVIDENCE.md); the two that don't say so
-plainly and are being brought under the same standard.
+plainly and are being brought under the same standard. Within each group, skills are ordered
+by **how soon the failure is likely to bite you** — the top entry is the one most people hit
+first.
 
 **Engineering** — disciplines for shipping software
 
 - [**git-pull-rebase-trap**](skills/engineering/git-pull-rebase-trap/SKILL.md) — check
-  `pull.rebase` before any pull; `--no-ff` won't save you.
+  `pull.rebase` before any pull; `--no-ff` won't save you. Every repo, every day.
   [⊙ receipt](skills/engineering/git-pull-rebase-trap/EVIDENCE.md)
+- [**closure-mode-at-boundaries**](skills/engineering/closure-mode-at-boundaries/SKILL.md) —
+  structured wrap-up at phase boundaries before any "what's next." Every session has a phase
+  end. *(receipt owed — [#1](https://github.com/MrBinnacle/skills/issues/1))*
 - [**github-pages-deploy-verification**](skills/engineering/github-pages-deploy-verification/SKILL.md) —
-  verify a deploy by polling for content that didn't exist pre-push. Origin incident is on a
-  public repo — independently checkable.
+  verify a deploy by polling for content that didn't exist pre-push. Anyone shipping a
+  CDN-fronted static site. Origin incident is on a public repo — independently checkable.
   [⊙ receipt](skills/engineering/github-pages-deploy-verification/EVIDENCE.md)
 - [**claude-code-stop-hook-envelope**](skills/engineering/claude-code-stop-hook-envelope/SKILL.md) —
   Stop hooks get an envelope, not the reply; read `transcript_path`, and prove your hook is
-  alive. [⊙ receipt](skills/engineering/claude-code-stop-hook-envelope/EVIDENCE.md)
-- [**closure-mode-at-boundaries**](skills/engineering/closure-mode-at-boundaries/SKILL.md) —
-  structured wrap-up at phase boundaries before any "what's next." *(receipt owed —
-  [#1](https://github.com/MrBinnacle/skills/issues/1))*
+  alive. For anyone writing Claude Code hooks.
+  [⊙ receipt](skills/engineering/claude-code-stop-hook-envelope/EVIDENCE.md)
 
 **Orchestration** — disciplines for multi-agent work
 
+- [**downstream-instruction-framing**](skills/orchestration/downstream-instruction-framing/SKILL.md) —
+  handoffs as proposals with revisit-conditions, never orders. Fires whenever one session
+  writes instructions for the next.
+  [⊙ receipt](skills/orchestration/downstream-instruction-framing/EVIDENCE.md)
 - [**subagent-research-reliability**](skills/orchestration/subagent-research-reliability/SKILL.md) —
-  verify tools before dispatch, citations after return.
+  verify tools before dispatch, citations after return. For anyone delegating research to
+  helper agents.
   [⊙ receipt](skills/orchestration/subagent-research-reliability/EVIDENCE.md)
 - [**parallel-review-disposition-schema**](skills/orchestration/parallel-review-disposition-schema/SKILL.md) —
-  one fixed answer format so parallel verdicts actually merge.
+  one fixed answer format so parallel verdicts actually merge. For fan-out review at scale.
   [⊙ receipt](skills/orchestration/parallel-review-disposition-schema/EVIDENCE.md)
-- [**downstream-instruction-framing**](skills/orchestration/downstream-instruction-framing/SKILL.md) —
-  handoffs as proposals with revisit-conditions, never orders.
-  [⊙ receipt](skills/orchestration/downstream-instruction-framing/EVIDENCE.md)
 
 **Meta** — skills about the skill system itself
 

@@ -2,6 +2,7 @@
 
 Workflow disciplines for shipping software. Each one fires at a specific moment — before a
 risky `git pull`, at the end of a work phase — rather than sitting in every conversation.
+Ordered by how soon the failure is likely to bite you.
 
 - [**git-pull-rebase-trap**](git-pull-rebase-trap/SKILL.md) — if git is configured with
   `pull.rebase=true`, then `git pull --no-ff` silently ignores your flag and rewrites every
