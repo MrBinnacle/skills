@@ -7,7 +7,7 @@ npx skills add MrBinnacle/skills
 ```
 
 That's the whole install — works with Claude Code and [70+ other agents](https://github.com/vercel-labs/skills).
-You'll be shown the seven skills and can pick which to take. Prefer to copy files by hand? See
+You'll be shown the eight skills and can pick which to take. Prefer to copy files by hand? See
 [Install](#install) below.
 
 ## What this is
@@ -29,7 +29,7 @@ incident behind it (`EVIDENCE.md`), and when new AI models get smart enough to n
 card, we test for that and retire it — publicly. A skill you install from here is one that
 still does something.
 
-It is also **small on purpose**. Seven skills, not seven hundred. Adding a skill costs you
+It is also **small on purpose**. Eight skills, not eight hundred. Adding a skill costs you
 context space in every conversation, so each one here had to clear a bar most ideas fail.
 
 ## Install
@@ -40,7 +40,7 @@ One command, works with Claude Code and [70+ other agents](https://github.com/ve
 npx skills add MrBinnacle/skills
 ```
 
-You'll be shown the seven skills and can pick which to install. Prefer to do it by hand? Each
+You'll be shown the eight skills and can pick which to install. Prefer to do it by hand? Each
 skill is just a folder — copy it into your skills directory:
 
 ```bash
@@ -104,6 +104,16 @@ it done. Rare bonus: the origin incident is on a public repo, so
 [the receipt →](skills/engineering/github-pages-deploy-verification/EVIDENCE.md) is
 independently checkable.
 
+### [claude-code-stop-hook-envelope](skills/engineering/claude-code-stop-hook-envelope/SKILL.md)
+
+Claude Code can run a small script every time the assistant finishes replying — useful for
+checks like "flag any reply that contains X." The catch: that script does not receive the
+reply. It receives a short JSON note *about* the session, so a script that searches its input
+for X finds nothing, reports no error, and looks perfectly healthy while doing nothing at all.
+Two real checks sat dead exactly this way — wired, green, and silent — until an audit asked
+"has this ever fired?" This skill shows how to reach the actual reply text and how to prove
+your hook is alive. [The receipt →](skills/engineering/claude-code-stop-hook-envelope/EVIDENCE.md)
+
 ## Is it safe to install these?
 
 The right first question for anything you hand to an AI agent. Plainly:
@@ -137,7 +147,7 @@ That mechanism has already fired once: in July 2026, four of the author's own ca
 skills were tested at the admission gate and **the model passed every run without them** —
 so none got in. [The full record, receipts included →](RETIRED.md)
 
-Five of the seven skills carry full evidence records today; the rest of the collection is being
+Six of the eight skills carry full evidence records today; the rest of the collection is being
 brought under the same standard. The methodology — and why most "this skill scored 1.0!" benchmarks mislead —
 lives in the harness repo:
 [why naive skill benchmarks mislead](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/why-naive-skill-benchmarks-mislead.md) ·

@@ -19,3 +19,10 @@ risky `git pull`, at the end of a work phase — rather than sitting in every co
   polling for content that did not exist pre-deploy, and use poll patterns the agent harness
   won't block. Origin incident is on a public repo — the receipt is independently checkable
   ([the receipt](github-pages-deploy-verification/EVIDENCE.md)).
+
+- [**claude-code-stop-hook-envelope**](claude-code-stop-hook-envelope/SKILL.md) — a Claude Code
+  `Stop` hook receives a JSON envelope on stdin, **not** the assistant's reply — so a hook that
+  greps stdin for reply text never fires and never errors. Two production checks sat dead this
+  way, wired and green, until an audit asked "has this ever fired?" Shows the
+  envelope → transcript → last-turn fix and a harness that proves a hook is alive
+  ([the receipt](claude-code-stop-hook-envelope/EVIDENCE.md)).
