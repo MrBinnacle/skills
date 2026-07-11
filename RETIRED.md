@@ -1,11 +1,17 @@
 # Retired skills
 
-When a major AI model release makes a skill unnecessary (the model just does the thing now),
-the skill gets re-tested with [skill-harness](https://github.com/MrBinnacle/skill-harness).
-If the model no longer needs it, the skill is retired: removed from the collection, recorded
-here with its evidence intact. Model progress becomes collection history, not silent rot.
+Most collections only ever grow. This one also turns skills away — including its own.
 
-Most collections only ever grow. This log is what shrinking honestly looks like.
+Before a skill gets in here, it has to prove the current model still needs it: the same task,
+run with the skill and without it, scored by a deterministic check
+([skill-harness](https://github.com/MrBinnacle/skill-harness)). If the model passes without the
+skill, there's nothing left for the skill to improve, and it doesn't earn a place. The same test
+retires skills already in the collection when a newer model outgrows them — removed, but recorded
+here with the evidence intact.
+
+Turning away your own work costs something: it makes the collection look smaller. That cost is the
+point. A list that shrinks when the models improve is the one telling you the truth about which
+skills still earn their keep. Model progress becomes collection history, not silent rot.
 
 ## Retired from the collection
 
