@@ -7,7 +7,7 @@ npx skills add MrBinnacle/skills
 ```
 
 That's the whole install — works with Claude Code and [70+ other agents](https://github.com/vercel-labs/skills).
-You'll be shown the four skills and can pick which to take. Prefer to copy files by hand? See
+You'll be shown the seven skills and can pick which to take. Prefer to copy files by hand? See
 [Install](#install) below.
 
 ## What this is
@@ -29,7 +29,7 @@ incident behind it (`EVIDENCE.md`), and when new AI models get smart enough to n
 card, we test for that and retire it — publicly. A skill you install from here is one that
 still does something.
 
-It is also **small on purpose**. Four skills, not four hundred. Adding a skill costs you
+It is also **small on purpose**. Seven skills, not seven hundred. Adding a skill costs you
 context space in every conversation, so each one here had to clear a bar most ideas fail.
 
 ## Install
@@ -40,7 +40,7 @@ One command, works with Claude Code and [70+ other agents](https://github.com/ve
 npx skills add MrBinnacle/skills
 ```
 
-You'll be shown the four skills and can pick which to install. Prefer to do it by hand? Each
+You'll be shown the seven skills and can pick which to install. Prefer to do it by hand? Each
 skill is just a folder — copy it into your skills directory:
 
 ```bash
@@ -79,6 +79,31 @@ The moment one phase of work finishes is exactly when an assistant is most tempt
 into the next thing. This skill forces a structured wrap-up first — checks actually run, loose
 ends actually verified — before any "what's next" decision is made.
 
+### [subagent-research-reliability](skills/orchestration/subagent-research-reliability/SKILL.md)
+
+When an assistant sends out helper agents to do web research, two things go silently wrong: the
+helper may not actually have search tools (so it makes up citations from memory), and even a
+real search can return fabricated references. This skill adds a check before dispatch and a
+verification pass after — both failure modes were caught in one real session.
+[The receipt →](skills/orchestration/subagent-research-reliability/EVIDENCE.md)
+
+### [downstream-instruction-framing](skills/orchestration/downstream-instruction-framing/SKILL.md)
+
+When one AI session writes instructions for the next one, it tends to write orders — "do not
+question these decisions" — to a reader who can see the actual code and knows better. This skill
+flips the framing: prior decisions arrive as proposals with explicit conditions for revisiting
+them, so the better-informed reader keeps their judgment.
+[The receipt →](skills/orchestration/downstream-instruction-framing/EVIDENCE.md)
+
+### [github-pages-deploy-verification](skills/engineering/github-pages-deploy-verification/SKILL.md)
+
+"The deploy went green" is not the same as "the site actually changed." This skill makes the
+assistant verify a static-site deploy by polling for content that genuinely didn't exist before
+the push — the origin incident's verification loop passed instantly on *old* content and called
+it done. Rare bonus: the origin incident is on a public repo, so
+[the receipt →](skills/engineering/github-pages-deploy-verification/EVIDENCE.md) is
+independently checkable.
+
 ## Is it safe to install these?
 
 The right first question for anything you hand to an AI agent. Plainly:
@@ -112,8 +137,8 @@ That mechanism has already fired once: in July 2026, four of the author's own ca
 skills were tested at the admission gate and **the model passed every run without them** —
 so none got in. [The full record, receipts included →](RETIRED.md)
 
-Two skills carry full evidence records today; the rest of the collection is being brought under
-the same standard. The methodology — and why most "this skill scored 1.0!" benchmarks mislead —
+Five of the seven skills carry full evidence records today; the rest of the collection is being
+brought under the same standard. The methodology — and why most "this skill scored 1.0!" benchmarks mislead —
 lives in the harness repo:
 [why naive skill benchmarks mislead](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/why-naive-skill-benchmarks-mislead.md) ·
 [the double-ceiling case study](https://github.com/MrBinnacle/skill-harness/blob/main/docs/case-studies/double-ceiling-structurally-unmeasured.md).
