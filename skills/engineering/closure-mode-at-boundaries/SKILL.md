@@ -57,7 +57,7 @@ The **discipline** is the stable contract:
 
 The **implementation surface** is illustrative and adapts to your project:
 
-- Specific subagent IDs (OMC plugin, native Anthropic, Codex, Gemini, prompt-a-role-into-a-general-agent) — see the mapping table in [swarm-composition.md](swarm-composition.md).
+- Specific subagent IDs (the oh-my-claudecode ("OMC") plugin, native Anthropic, Codex, Gemini, prompt-a-role-into-a-general-agent) — see the mapping table in [swarm-composition.md](swarm-composition.md).
 - Specific next-step authority paths (state file, kanban top card, issue tracker query, roadmap section) — see [prerequisites.md](prerequisites.md).
 - Specific lock-skill names (`phase-lock`, post-merge CI hook, retro template, `/done` slash command) — see [formalization.md](formalization.md).
 

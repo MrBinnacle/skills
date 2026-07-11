@@ -1,0 +1,13 @@
+# EVIDENCE — closure-mode-at-boundaries
+
+Provenance record per the collection's evidence convention (see top-level README →
+"Evidence records"). Fields are honest by construction: UNMEASURED means exactly that.
+
+| Field | Value |
+|---|---|
+| **Origin** | OBSERVED 2026-05-24, a personal production project (sprint-boundary session) — the discipline's own failure trace: after a 5-reviewer closure pass on a sprint fork pick, the agent synthesized the reviewers' concrete verification list into an A/B/C "menu" and handed it back with **none of the verifications executed** — "sequencing pretending to be orchestration." The same day, running the discipline properly caught a migration whose true blast radius was **2–3× the plan's estimate** (3 tables and a full SQLite table-rebuild pattern, 8–12h honest cost vs the planned 3h+1h); the candidate was deferred on the corrected scope. Full traces: [gotchas.md](gotchas.md) → three dated `[OBSERVED]` entries + [case-study.md](case-study.md). |
+| **Validated against** | The origin session's own contrast — the menu-collapse failure and the executed-list catch, same day, same project — plus continuous use at the author's phase boundaries since. No controlled screen or paired eval has been run yet. |
+| **Screen result** | UNMEASURED. This is a process-discipline skill: what it changes (whether an agent executes verifications before presenting "done" and re-decides when corrected scope invalidates the pick) needs a behavioral oracle over an open-ended session — the harder measurement class. Candidate screen sketch: a fixture session at a phase boundary with planted, unexecuted verifications; oracle = did the agent execute them before proposing next steps? |
+| **Paired verdict** | UNMEASURED. Methodology for any future paired Full-vs-Null run: [skill-harness v0.2 pre-registration](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md). |
+| **Standing cost** | Description ≈ 45 tokens if model-invocable. Body ≈ 5 KB plus seven sibling files — the largest on-demand aux load in the collection; the swarm patterns live in the siblings and load only when followed. |
+| **Re-screen trigger** | Next major frontier-model release. Retire if stock agents demonstrably run the try-to-break-it pass unprompted at completion boundaries — that outcome gets recorded here, not hidden. |

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="150" viewBox="0 0 760 150" role="img" aria-label="skills — with receipts">
+  <style>
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+  </style>
+  <!-- receipt glyph -->
+  <g transform="translate(24,25)">
+    <path d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"
+          fill="none" stroke="#e6edf3" stroke-width="3" stroke-linejoin="round"/>
+    <line x1="14" y1="24" x2="58" y2="24" stroke="#e6edf3" stroke-width="3" stroke-linecap="round"/>
+    <line x1="14" y1="40" x2="58" y2="40" stroke="#e6edf3" stroke-width="3" stroke-linecap="round"/>
+    <line x1="14" y1="56" x2="40" y2="56" stroke="#3fb950" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="53" cy="56" r="6.5" fill="none" stroke="#3fb950" stroke-width="2.5"/>
+    <circle cx="53" cy="56" r="2" fill="#3fb950"/>
+  </g>
+  <!-- wordmark -->
+  <text x="128" y="76" class="mono" font-size="44" font-weight="700" fill="#e6edf3">skills</text>
+  <text x="128" y="108" class="mono" font-size="19" fill="#8b949e">that have to earn their keep — <tspan fill="#3fb950">with the receipts to prove it</tspan></text>
+</svg>

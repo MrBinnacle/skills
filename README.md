@@ -1,3 +1,10 @@
+<p>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+    <img alt="skills — that have to earn their keep, with the receipts to prove it" src="assets/banner-light.svg" width="620">
+  </picture>
+</p>
+
 # skills
 
 **A small collection of agent skills that have to earn their keep — with the receipts to prove it.**
@@ -107,15 +114,17 @@ which can see the actual code and knows better — not to question anything.
 
 ### #3: Momentum past the finish line
 
+> "Synthesizing into a menu without executing is sequencing pretending to be orchestration."
+>
+> — [gotchas.md, closure-mode-at-boundaries](skills/engineering/closure-mode-at-boundaries/gotchas.md) (2026-05-24)
+
 **The problem.** The moment one phase of work ends is exactly when an agent is most tempted to
 charge into the next thing — leaving checks unrun and loose ends "probably fine."
 
 **The fix:** [`closure-mode-at-boundaries`](skills/engineering/closure-mode-at-boundaries/SKILL.md)
 forces a structured wrap-up first — checks actually run, loose ends actually verified — before
-any "what's next" decision is made.
-
-*(No epigraph on this one: it hasn't earned its receipt yet. It's one of two skills still owing
-an evidence record — tracked in the open, [issue #1](https://github.com/MrBinnacle/skills/issues/1).)*
+any "what's next" decision is made. The origin session caught a migration whose real cost was
+2–3× the plan's estimate, exactly at that boundary.
 
 ### #4: Most skills shouldn't exist
 
@@ -140,11 +149,9 @@ almost nobody tests whether a skill still changes the outcome.
 
 ## The skills
 
-The complete reference. Skills marked **⊙ receipt** carry a full dated
-[`EVIDENCE.md`](skills/engineering/git-pull-rebase-trap/EVIDENCE.md); the two that don't say so
-plainly and are being brought under the same standard. Within each group, skills are ordered
-by **how soon the failure is likely to bite you** — the top entry is the one most people hit
-first.
+The complete reference. Every skill carries a dated evidence record — follow any **⊙ receipt**
+link. Within each group, skills are ordered by **how soon the failure is likely to bite you** —
+the top entry is the one most people hit first.
 
 **Engineering** — disciplines for shipping software
 
@@ -153,7 +160,7 @@ first.
   [⊙ receipt](skills/engineering/git-pull-rebase-trap/EVIDENCE.md)
 - [**closure-mode-at-boundaries**](skills/engineering/closure-mode-at-boundaries/SKILL.md) —
   structured wrap-up at phase boundaries before any "what's next." Every session has a phase
-  end. *(receipt owed — [#1](https://github.com/MrBinnacle/skills/issues/1))*
+  end. [⊙ receipt](skills/engineering/closure-mode-at-boundaries/EVIDENCE.md)
 - [**github-pages-deploy-verification**](skills/engineering/github-pages-deploy-verification/SKILL.md) —
   verify a deploy by polling for content that didn't exist pre-push. Anyone shipping a
   CDN-fronted static site. Origin incident is on a public repo — independently checkable.
@@ -180,8 +187,8 @@ first.
 **Meta** — skills about the skill system itself
 
 - [**skill-necessity-gate**](skills/meta/skill-necessity-gate/SKILL.md) — should this even be a
-  skill? Six questions; most ideas correctly fail. *(receipt owed —
-  [#1](https://github.com/MrBinnacle/skills/issues/1))*
+  skill? Six questions; most ideas correctly fail.
+  [⊙ receipt](skills/meta/skill-necessity-gate/EVIDENCE.md)
 
 ## Is it safe to install these?
 
@@ -212,8 +219,8 @@ with and without the skill and honestly reports the difference. A skill the new 
 needs gets retired in public, evidence record intact — see the [retirement log](RETIRED.md).
 Model progress becomes collection history, not silent rot.
 
-Six of the eight skills carry full evidence records today; the rest of the collection is being
-brought under the same standard. The methodology — and why most "this skill scored 1.0!" benchmarks mislead —
+Every skill in the collection carries an evidence record — down to honest **UNMEASURED**
+fields where no controlled test has run yet. The methodology — and why most "this skill scored 1.0!" benchmarks mislead —
 lives in the harness repo:
 [why naive skill benchmarks mislead](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/why-naive-skill-benchmarks-mislead.md) ·
 [the double-ceiling case study](https://github.com/MrBinnacle/skill-harness/blob/main/docs/case-studies/double-ceiling-structurally-unmeasured.md).
@@ -228,12 +235,14 @@ skills/
   in-progress/     unshipped; not listed above
 ```
 
-Each skill folder contains `SKILL.md` (the entry point), usually `gotchas.md` (an append-only
-log of observed failure modes — the skill's memory), and `EVIDENCE.md` where earned.
+Each skill folder contains `SKILL.md` (the entry point), `gotchas.md` (an append-only
+log of observed failure modes — the skill's memory), and `EVIDENCE.md` (every shipped
+skill carries one).
 
 ## Contributing
 
-Issues and PRs welcome. New skills run the same gauntlet as ours:
+Issues and PRs welcome — the full guide is [CONTRIBUTING.md](CONTRIBUTING.md). New skills run
+the same gauntlet as ours:
 
 1. It must pass the [skill-necessity-gate](skills/meta/skill-necessity-gate/SKILL.md) — most
    ideas correctly fail it.
