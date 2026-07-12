@@ -212,6 +212,20 @@ real failure that justified the skill, what it has been validated against, and i
 result — including **UNMEASURED** stated plainly when something can't be measured yet, rather
 than a made-up score.
 
+Evidence in these records comes in named tiers, so you always know which one you are
+reading. **Controlled results** (the Screen / Paired-verdict fields) come from with-vs-without
+runs under the pre-registered harness protocol. **Origin incidents** are the dated real-world
+failures that justified each skill. The weakest tier, **Observed in use (self-reported)**, is
+field observation from the author's own sessions: events mined from private work logs by the
+author's own AI assistant and re-checked by a second instance of the same AI system — a process
+that catches extraction errors, not self-favoring selection, and involves no independent
+verification. Admission bar for that tier: every event traces to a dated artifact, carries its
+model ID, and states plainly what is observed versus not measured; events that cannot meet the
+bar stay out. Self-reported rows never fill or color the controlled fields — those stay
+UNMEASURED until a real screen runs. (Aviation's incident-reporting system and clinical case
+reports work the same way: self-report the reader cannot re-check is a legitimate evidence
+class exactly as long as it is labeled as such.)
+
 The part most collections lack: **models improve, and a skill only matters against models that
 still need it.** When a major model release lands, skills get re-screened with
 [skill-harness](https://github.com/MrBinnacle/skill-harness) — a tool that runs the same task
