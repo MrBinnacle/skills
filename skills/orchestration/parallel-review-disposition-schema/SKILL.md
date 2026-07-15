@@ -1,8 +1,6 @@
 ---
 name: parallel-review-disposition-schema
-description: Use when dispatching parallel agents to verify or adjudicate findings — adversarial verify seats, security disposition, design triage, council fires. Imposes decision-vocabulary enum, shared per-item output block, item ownership + status line so seat outputs synthesize; includes the adversarial-verify seat template.
-version: 1.0.0
-date: 2026-05-29
+description: Use when dispatching parallel agents to verify/adjudicate findings — adversarial verify, security disposition, design triage, council fires. Shared disposition schema so seat outputs join cleanly.
 ---
 
 # Parallel Review / Disposition Schema

@@ -1,6 +1,7 @@
 ---
 name: closure-mode-at-boundaries
 description: Closure-mode discipline at workflow boundaries. Use when a sprint, phase, or vertical slice locks clean, or when a multi-candidate "what next" decision arises. Owns the closure→build transition.
+disable-model-invocation: true
 ---
 
 # Closure Mode at Boundaries

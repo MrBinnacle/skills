@@ -22,7 +22,8 @@ Each skill is a directory containing `SKILL.md` (entry point) plus sibling files
 
 ## Authoring conventions
 
-- **Frontmatter** — `name:` + `description:` only. Description ≤ 200 chars. Triggers baked into the description sentence ("Use when X, Y, Z"). Add `disable-model-invocation: true` only when the skill is opt-in-only and should never auto-trigger.
+- **Frontmatter** — `name:` + `description:` only. Description ≤ 200 chars, written as a *router* ("Use when X, Y, Z") not a summary. Topology (`disable-model-invocation`) is set per the rule below.
+- **Topology is a choice, not a default** — decide per skill: model-invocable (a *background reference* safe to auto-pull) vs **procedure** (`disable-model-invocation: true`, human-invoked, zero standing cost). A skill that *dictates strategic work* — planning, what/how, an orchestration swarm, a decision the human should own — is a procedure, not an auto-firing ability. Default to model-invocable only for background references; when unsure, run `skill-necessity-gate` Gate 3.
 - **Naming** — `UPPERCASE-NAMED.md` for documents/templates/formats (e.g., `AGENT-BRIEF.md`, `OUT-OF-SCOPE.md`). `lowercase-named.md` for concepts/aspects/principles (e.g., `transition.md`, `mocking.md`). `SKILL.md` is always uppercase.
 - **Sizes** — `SKILL.md` 400 bytes to ~7 KB. Aux files 400 B to ~3 KB each. If `SKILL.md` is over 5 KB, split.
 - **Cross-references** — inline at moment-of-need. No trailing "Related" / "See also" section.
