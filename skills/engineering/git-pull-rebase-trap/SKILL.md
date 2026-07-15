@@ -1,6 +1,6 @@
 ---
 name: git-pull-rebase-trap
-description: Use before running `git pull` (especially after divergence) on any repo where `pull.rebase` may be `true`. `git pull --no-ff` does NOT prevent a rebase when `pull.rebase=true` is configured — the flag is silently ignored. This causes every local commit to be rewritten with a new SHA, which cascades into state-file backfills, broken references, and force-push pressure. Check config first, prefer `git fetch + git merge --no-ff` for explicit merges.
+description: Use before `git pull` where `pull.rebase` may be `true`. `--no-ff` does NOT stop a rebase under `pull.rebase=true` (silently ignored); it rewrites every local commit SHA. Check config first.
 ---
 
 # git-pull-rebase-trap
