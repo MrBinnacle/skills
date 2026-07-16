@@ -9,15 +9,37 @@ skill, there's nothing left for the skill to improve, and it doesn't earn a plac
 retires skills already in the collection when a newer model outgrows them — removed, but recorded
 here with the evidence intact.
 
+A skill can also leave a second way. Some carry a **pre-registered retirement trigger** in their
+evidence record — a specific platform change that would make the underlying failure impossible,
+named in advance so the call can't be rationalized after the fact. When that change ships, the
+skill retires against its own stated criterion, no screen required: the problem is gone, not
+merely outgrown. The first retirement below is one of these.
+
 Turning away your own work costs something: it makes the collection look smaller. That cost is the
 point. A list that shrinks when the models improve is the one telling you the truth about which
 skills still earn their keep. Model progress becomes collection history, not silent rot.
 
 ## Retired from the collection
 
-| Skill | Retired | Model release that made it unnecessary | Evidence |
+| Skill | Retired | What made it unnecessary | Evidence |
 |---|---|---|---|
-| *(none yet)* | | | |
+| `claude-code-stop-hook-envelope` | 2026-07 | Claude Code now delivers the assistant's final turn inline as `last_assistant_message` on `Stop`/`SubagentStop`, and the docs recommend it *instead of* reading the transcript — the exact "response text delivered inline" trigger the skill pre-registered | [receipt (at `v1.0`)](https://github.com/MrBinnacle/skills/blob/v1.0/skills/engineering/claude-code-stop-hook-envelope/EVIDENCE.md) |
+
+### Retired — July 2026
+
+`claude-code-stop-hook-envelope` taught how to recover the assistant's final response text inside
+a Claude Code `Stop` hook. At the time that meant resolving `transcript_path` and reading the last
+message out of the transcript file — because the hook's stdin envelope did not carry the reply.
+Claude Code has since added a `last_assistant_message` field that delivers that text inline, and
+its [hooks documentation](https://code.claude.com/docs/en/hooks) now recommends using it *instead
+of* reading the transcript (which "is written asynchronously and may lag"). That is precisely the
+"response text delivered inline" condition the skill's
+[evidence record](https://github.com/MrBinnacle/skills/blob/v1.0/skills/engineering/claude-code-stop-hook-envelope/EVIDENCE.md)
+had pre-registered as its retirement trigger — so it retires, platform-fixed, record intact.
+
+One general lesson outlives it, as ordinary hook hygiene rather than a skill: a `Stop` hook's stdin
+is a JSON envelope, so a hook that greps it blindly can sit green and never fire. Worth a one-line
+test when you write one — no longer worth a dedicated card.
 
 ## Screened out at the gate — July 2026
 

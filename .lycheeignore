@@ -1,0 +1,6 @@
+# Placeholder / template URLs that appear inside example snippets, not real links.
+# One regex per line (matched against the full URL).
+^https?://your\.site/?
+^https?://(www\.)?example\.(com|org|net)
+^https?://localhost
+^https?://127\.0\.0\.1

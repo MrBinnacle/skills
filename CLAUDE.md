@@ -30,6 +30,7 @@ Each skill is a directory containing `SKILL.md` (entry point) plus sibling files
 - **Cross-references** — inline at moment-of-need. No trailing "Related" / "See also" section.
 - **`gotchas.md` is required** — append-only log of OBSERVED + ANTICIPATED failure modes. Seed with `[ANTICIPATED]` entries; replace or supplement with observed gotchas. Never delete entries — gotchas are stress-test signal, not failure evidence.
 - **Discipline vs implementation** — make explicit in `SKILL.md` which parts of the skill are the stable contract vs. illustrative. Adopters need to know what they can swap.
+- **Factual claims are dated and checkable — verify them before shipping AND before correcting.** A skill that asserts platform behavior (a flag, a hook payload, an API) rots when the platform changes. Verify against live docs or an empirical repro before you ship a claim, and again before you "fix" one — a wrong correction to an evidence-first repo is worse than the original error. Record the check (version, date) where it's load-bearing.
 
 ## Bucket README discipline
 
@@ -38,6 +39,24 @@ Every bucket folder must have a `README.md` that lists every skill in the bucket
 ## Top-level README
 
 The top-level `README.md` must list every shipped skill under its bucket. Skills not in any bucket README are not shipped — move them to an `in-progress/` bucket or remove them.
+
+## Retirement
+
+Retirement is a first-class event, not an afterthought — the collection's credibility comes
+from shrinking honestly. A skill leaves two ways:
+
+- **Screen null** — a newer model passes the skill's task with-and-without at the ceiling
+  (skill-harness); nothing is left for the skill to improve.
+- **Pre-registered platform-fix** — the skill's `EVIDENCE.md` re-screen trigger names a
+  specific platform change that would make the underlying failure impossible; when that change
+  ships, the skill retires against its own stated criterion, no screen required.
+
+Execute a retirement as: remove the skill directory; drop it from its bucket README and the
+top-level README; decrement the count copy ("N skills, not N hundred"); add a row + a short
+narrative to `RETIRED.md` with the cause stated plainly; and link the evidence at the **last
+release tag** (`blob/<tag>/…`) so "record intact" survives the file's removal. If a general
+lesson outlives the skill, name it in the retirement note as ordinary hygiene rather than
+resurrecting the card.
 
 ## De-personalization gate
 

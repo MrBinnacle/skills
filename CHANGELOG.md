@@ -3,6 +3,24 @@
 All notable changes to the collection. The `npx skills add` installer tracks `main`, so
 tags and this file are informational — a reading aid, not a pin.
 
+## 2026-07-15
+
+First retirement, and a round of repository hardening.
+
+- **Retired `claude-code-stop-hook-envelope`** — the collection's first retirement of a
+  *shipped* skill. Claude Code now delivers the assistant's final turn inline via
+  `last_assistant_message` on `Stop`/`SubagentStop` and recommends it over reading the
+  transcript — the exact platform change the skill's evidence record pre-registered as its
+  retirement trigger. Removed from the collection (7 skills remain), recorded in
+  [RETIRED.md](RETIRED.md) with the evidence intact at the `v1.0` tag.
+- **Corrected `git-pull-rebase-trap`** — the `--ff-only` claim was wrong: under
+  `pull.rebase=true`, `--ff-only` refuses a diverged pull outright (a loud abort) rather than
+  silently rebasing. `--no-ff` and no-flag pulls still rebase silently. Verified empirically
+  (git 2.55.0).
+- Repository hygiene: added `.gitignore`, `.editorconfig`, `CODE_OF_CONDUCT.md`, a pull-request
+  template, and a link-check CI workflow (lychee, on every PR + weekly). Removed the empty
+  `in-progress/` placeholder.
+
 ## v1.0 — 2026-07-11
 
 The collection reaches its first complete shape: **8 skills, every one carrying an

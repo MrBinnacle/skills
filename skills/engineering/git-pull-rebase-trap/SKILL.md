@@ -19,7 +19,7 @@ Any of these conditions:
 - `git config branch.<current>.rebase` is `true`
 - A `[pull] rebase = true` block exists in `.git/config` or `~/.gitconfig`
 
-The trap fires regardless of whether you pass `--no-ff`, `--ff-only`, or no flag at all (in the case of `--ff-only`, the rebase still runs because the pull strategy is rebase, not merge).
+The trap fires whether you pass `--no-ff` or no flag at all: the configured pull strategy is rebase, so a merge-side flag is simply ignored and your commits are rebased. **`--ff-only` is the exception** — on diverged history it refuses outright (git aborts with a "cannot fast-forward" message; the exact wording varies by git version) instead of silently rebasing. That makes `--ff-only` a loud guard rail rather than a silent SHA rewrite — but not a usable everyday pull, since it also refuses every legitimate diverged sync.
 
 ## Pre-flight (before `git pull`)
 
