@@ -64,7 +64,7 @@ GD-4's frequency test (the demand side).
 ## GD-9 · Positive procedures + deterministic enforcement over prohibitions
 Negative instructions ("do not use npm") burn budget on non-goals and are non-deterministic
 (the model may do it anyway). For hard rules use a **deterministic pre-tool hook** (intercept
-npm→pnpm via bash), not a prompt-based taboo. Badly designed skills are "balls of mud" of
+npm→pnpm via bash), not a prompt-based taboo. Badly designed skills become balls of mud —
 abstract stylistic rules the model can't prioritize; well-designed skills are concise and
 force a single posture.
 

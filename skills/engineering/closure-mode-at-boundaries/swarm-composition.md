@@ -16,14 +16,14 @@ The named SME for any in-scope domain MUST be in the swarm. Generic agents do no
 
 ## Role-to-runtime mapping
 
-Different agent runtimes have different built-in role subagents. Map closure-mode roles to your runtime's nearest equivalent.
+Different agent runtimes expose role subagents differently — a plugin like OMC ships them; Claude Code has you define your own in `.claude/agents/`. Map closure-mode roles to your runtime's nearest equivalent.
 
-| Role | OMC plugin (oh-my-claudecode) | Native Anthropic Claude Code | Codex / Gemini | Fallback: prompt a general agent into the role |
+| Role | OMC plugin (oh-my-claudecode) | Claude Code (define as a project subagent) | Codex / Gemini | Fallback: prompt a general agent into the role |
 |---|---|---|---|---|
-| Architect | `oh-my-claudecode:architect` | named `architect` subagent | architect mode / role prompt | "You are a strategic architect. Evaluate each candidate for initiative-level risk and cross-fork sequencing. Apply a primary-reference check: is the citation the best work, or the first thing found?" |
-| Security | `oh-my-claudecode:security-reviewer` | named `security-reviewer` subagent | security review mode | "You are a security lead. Evaluate each candidate's trust-contract clause impact, residual-risk delta, and any pre-flight pressure-test requirement before drafting." |
-| Planner | `oh-my-claudecode:planner` | named `planner` subagent | planning mode | "You are a sprint planner. Evaluate each candidate's sequencing, base-rate fit, and natural pairings with open work items. Flag muscle-memory window decay where relevant." |
-| Critic | `oh-my-claudecode:critic` | named `critic` subagent | adversarial review mode | "You are an adversarial critic. Reject the FRAME, not just rank within it: what is MISSING from this candidate list? Then run a false-precision check on every cost estimate and verify any dependency claim by grep." |
+| Architect | `oh-my-claudecode:architect` | `.claude/agents/architect.md` (you define it) | architect mode / role prompt | "You are a strategic architect. Evaluate each candidate for initiative-level risk and cross-fork sequencing. Apply a primary-reference check: is the citation the best work, or the first thing found?" |
+| Security | `oh-my-claudecode:security-reviewer` | `.claude/agents/security-reviewer.md` (you define it) | security review mode | "You are a security lead. Evaluate each candidate's trust-contract clause impact, residual-risk delta, and any pre-flight pressure-test requirement before drafting." |
+| Planner | `oh-my-claudecode:planner` | `.claude/agents/planner.md` (you define it) | planning mode | "You are a sprint planner. Evaluate each candidate's sequencing, base-rate fit, and natural pairings with open work items. Flag muscle-memory window decay where relevant." |
+| Critic | `oh-my-claudecode:critic` | `.claude/agents/critic.md` (you define it) | adversarial review mode | "You are an adversarial critic. Reject the FRAME, not just rank within it: what is MISSING from this candidate list? Then run a false-precision check on every cost estimate and verify any dependency claim by grep." |
 | Domain SME | varies per domain | varies per domain | varies per domain | "You are the named SME for {domain}. Apply first-principles reasoning to each candidate; refuse if you would not stake your reputation on the recommendation." |
 
 Concrete copy-pasteable prompts for each role with brackets for project-specific context are in [prompt-templates.md](prompt-templates.md).

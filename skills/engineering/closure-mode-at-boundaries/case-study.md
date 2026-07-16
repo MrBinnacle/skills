@@ -1,6 +1,6 @@
 # Case Study — Closure→Build Transition Collapse
 
-A worked example showing both the failure case and the correct execution of closure mode at a sprint boundary. Drawn from one project's incident in 2026; identifiers simplified for portability. The failure shape is what matters.
+A worked example showing both the failure case and the correct execution of closure mode at a sprint boundary. Drawn from one project's incident in 2026; identifiers simplified and the migration mechanism generalized for portability (the literal measured figures — 3 tables, a SQLite table-rebuild, 8–12h — are recorded in [gotchas.md](gotchas.md) and [EVIDENCE.md](EVIDENCE.md)). The failure shape is what matters.
 
 ## Setup
 
@@ -18,7 +18,7 @@ The user invoked "the entire product team should be consulted." Five SMEs were d
 The substantive output was a list of actions to execute, not opinions to forward:
 
 - **Critic**: the dependency named in Fork B is NOT in the project's dependency manifests — verifiable via grep in seconds.
-- **Critic**: the symbol Fork A's migration touches appears in 11 files (Fork A actual cost is 6-8h, not 3h+1h) — verifiable via grep plus an audit in minutes.
+- **Critic**: Fork A's migration touches far more of the schema than the frame assumed — its true cost is ~2–3× the estimate (8–12h, not 3h+1h) — verifiable via grep plus an audit in minutes.
 - **Critic**: a named-but-missing feature lives in project memory as "next planned" — propose as Fork E.
 - **Security**: Fork A schema constraints against existing rows require a pressure-test pre-flight on backfill policy (structurally different from prior add-column migrations).
 - **Architect**: Fork A must sequence BEFORE Fork C to avoid governance friction on a security ship.
@@ -40,7 +40,7 @@ The "revised frame" presented was the original frame with team commentary attach
 A correct closure→build transition would have:
 
 1. **Verification** — grep dependency manifests (seconds) → confirm phantom → DROP Fork B outright.
-2. **Scope correction** — grep affected symbol across source (minutes) → confirm 11 sites → rescope Fork A to 6-8h.
+2. **Scope correction** — grep the affected schema/symbol across source (minutes) → confirm the true blast radius → rescope Fork A to 8–12h (~2–3×).
 3. **Pre-flight scheduling** — either run the backfill-policy pressure-test on Fork A OR mark Fork A as "pre-flight required, not shovel-ready."
 4. **Frame addition** — surface a sizing question or run a quick scope pass to add Fork E as a sized candidate.
 5. **Revised frame presented** — Fork A (rescoped, pre-flight required), Fork C (deferred to a governance cycle), Fork D (with additive-panel design), Fork E (sized). Three to four candidates, NONE phantom, EACH with verified scope.
