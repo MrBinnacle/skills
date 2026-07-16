@@ -8,7 +8,7 @@ Before invoking closure mode for the first time, confirm your runtime and projec
 |---|---|---|
 | **Parallel agent dispatch in a single message** | The swarm cost model assumes N agents run concurrently. Serial dispatch is N× slower and discourages defaulting closure mode at every boundary. | Parallel preferred; serial acceptable for low-volume use. |
 | **≥2 role-suitable subagents** | Critic + Architect is the minimum viable swarm. Below this, closure mode collapses to "ask one agent to play 5 roles," which loses independence and reduces frame-rejection signal. | 2 distinct agents minimum. 5 preferred. |
-| **Agent invocation that accepts a self-contained prompt** | Closure-mode SMEs start cold and need the candidate set plus project context inline. Runtimes that require the agent to share the parent context window are inefficient but workable. | Self-contained prompt acceptance with ≥4k token context per agent. |
+| **Agent invocation that accepts a self-contained prompt** | Closure-mode SMEs start cold and need the candidate set plus project context inline. Runtimes that require the agent to share the parent context window are inefficient but workable. | Self-contained prompt acceptance; enough context to hold the candidate set plus a project brief. |
 
 If your runtime fails any of these, see [swarm-composition.md](swarm-composition.md) for the role-to-runtime mapping table and serial-dispatch fallback.
 

@@ -14,7 +14,7 @@ npx skills add MrBinnacle/skills
 ```
 
 That's the whole install — works with Claude Code and [70+ other agents](https://github.com/vercel-labs/skills).
-You'll be shown the eight skills and can pick which to take.
+You'll be shown the seven skills and can pick which to take.
 
 ## What this is
 
@@ -32,7 +32,7 @@ incident behind it (`EVIDENCE.md`), and when new AI models get smart enough to n
 card, we test for that and retire it — publicly. A skill you install from here is one that
 still does something.
 
-It is also **small on purpose**. Eight skills, not eight hundred. Adding a skill costs you
+It is also **small on purpose**. Seven skills, not seven hundred. Adding a skill costs you
 context space in every conversation, so each one here had to clear a bar most ideas fail.
 
 ## Quickstart
@@ -83,10 +83,6 @@ thing you actually wanted did not happen, and nothing anywhere errors.
 - [`github-pages-deploy-verification`](skills/engineering/github-pages-deploy-verification/SKILL.md) —
   "the deploy went green" is not "the site changed." The origin incident's verification loop
   passed instantly on *old* content. Poll for content that didn't exist before the push.
-- [`claude-code-stop-hook-envelope`](skills/engineering/claude-code-stop-hook-envelope/SKILL.md) —
-  a Claude Code Stop hook receives a JSON envelope on stdin, **not** the assistant's reply. A
-  hook that greps stdin never fires and never errors: two production checks sat wired, green,
-  and dead until an audit asked "has this *ever* fired?"
 
 ### #2: Help that quietly makes things up
 
@@ -143,9 +139,10 @@ almost nobody tests whether a skill still changes the outcome.
   It's the gate this very collection uses to stay small. Grounded in
   [Matt Pocock's methodology](https://github.com/mattpocock/skills) and Anthropic's official
   skill-authoring guidance.
-- [RETIRED.md](RETIRED.md) — the exit, in public. It has already fired: in July 2026, four of
-  the author's own candidates were tested at the admission gate and **the model passed every
-  run without them** — so none got in.
+- [RETIRED.md](RETIRED.md) — the exit, in public. It has already fired both ways: in July 2026,
+  four of the author's own candidates were tested at the admission gate and **the model passed
+  every run without them**, so none got in — and one skill that *had* shipped was retired
+  outright when a Claude Code change made it unnecessary, evidence record intact.
 
 ## The skills
 
@@ -165,10 +162,6 @@ the top entry is the one most people hit first.
   verify a deploy by polling for content that didn't exist pre-push. Anyone shipping a
   CDN-fronted static site. Origin incident is on a public repo — independently checkable.
   [⊙ receipt](skills/engineering/github-pages-deploy-verification/EVIDENCE.md)
-- [**claude-code-stop-hook-envelope**](skills/engineering/claude-code-stop-hook-envelope/SKILL.md) —
-  Stop hooks get an envelope, not the reply; read `transcript_path`, and prove your hook is
-  alive. For anyone writing Claude Code hooks.
-  [⊙ receipt](skills/engineering/claude-code-stop-hook-envelope/EVIDENCE.md)
 
 **Orchestration** — disciplines for multi-agent work
 
@@ -226,12 +219,13 @@ UNMEASURED until a real screen runs. (Aviation's incident-reporting system and c
 reports work the same way: self-report the reader cannot re-check is a legitimate evidence
 class exactly as long as it is labeled as such.)
 
-The part most collections lack: **models improve, and a skill only matters against models that
-still need it.** When a major model release lands, skills get re-screened with
+The part most collections lack: **the ground moves — models improve, and so does the platform
+they run on — and a skill only matters while something still needs it.** When a major model
+release lands, skills get re-screened with
 [skill-harness](https://github.com/MrBinnacle/skill-harness) — a tool that runs the same task
 with and without the skill and honestly reports the difference. A skill the new model no longer
-needs gets retired in public, evidence record intact — see the [retirement log](RETIRED.md).
-Model progress becomes collection history, not silent rot.
+needs — or one the platform has fixed outright — gets retired in public, evidence record intact:
+see the [retirement log](RETIRED.md). Progress becomes collection history, not silent rot.
 
 Every skill in the collection carries an evidence record — down to honest **UNMEASURED**
 fields where no controlled test has run yet. The methodology — and why most "this skill scored 1.0!" benchmarks mislead —
@@ -246,7 +240,6 @@ skills/
   engineering/     workflow disciplines for shipping software
   orchestration/   disciplines for multi-agent work
   meta/            skills about the skill system itself
-  in-progress/     unshipped; not listed above
 ```
 
 Each skill folder contains `SKILL.md` (the entry point), `gotchas.md` (an append-only

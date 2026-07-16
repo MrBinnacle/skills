@@ -8,6 +8,7 @@ more of these. Status: 5/7 core laws supported against non-Pocock (Anthropic) so
 - **Economic** (should it exist at all): GD-1, GD-2, GD-3, GD-4.
 - **Architectural** (what kind, once justified): GD-5, GD-6, GD-7.
 - **Design-quality**: GD-8 (measure worth), GD-9 (positive procedures + hooks).
+- **Autonomy** (what changes when the human turn is removed): GD-10 (loops relocate control).
 - **Reflexive**: GD-11 (the gate applies to instruments, not just skills).
 
 ## GD-1 · A skill is a bet that a pattern recurs
@@ -63,7 +64,7 @@ GD-4's frequency test (the demand side).
 ## GD-9 · Positive procedures + deterministic enforcement over prohibitions
 Negative instructions ("do not use npm") burn budget on non-goals and are non-deterministic
 (the model may do it anyway). For hard rules use a **deterministic pre-tool hook** (intercept
-npm→pnpm via bash), not a prompt-based taboo. Badly designed skills are "balls of mud" of
+npm→pnpm via bash), not a prompt-based taboo. Badly designed skills become balls of mud —
 abstract stylistic rules the model can't prioritize; well-designed skills are concise and
 force a single posture.
 
@@ -83,7 +84,7 @@ synthetic oracle, dashboard — is itself a skill-shaped bet and must pass the s
 BEFORE it is built: prior-art sweep first (Gate 0 — assume the field has this instrument
 until a search says otherwise), "will this question recur?" (Gate 1), and **name the pending
 decision the output would change** (Gate 2 — cheaper compute does not create value; a
-pending decision does). Evidence (author's skills-research project, 2026-07): every
+pending decision does). Evidence (author's research program, 2026-07): every
 instrument that skipped the gates was superseded or degenerated — a bespoke A/B falsified by
 a 40-minute prior-art sweep; a synthetic bug-fix oracle whose own test docstring leaked the
 gold fix to every arm. Every instrument that passed survived (passive telemetry, corpus

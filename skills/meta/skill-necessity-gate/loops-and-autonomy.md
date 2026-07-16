@@ -7,8 +7,9 @@ it relocates. Run this supplement whenever a candidate skill will (or might) run
 ## The decisive mechanism
 A skill fires inside a loop ONLY if the loop or the model can trigger it without a human command.
 In Claude Code specifically: **a `disable-model-invocation` skill passed to `/loop` does not
-execute — it arrives as plain text.** So the GD-6 control move (lock it to human-only) makes a
-procedure **inert in autonomy**. Invocation topology therefore determines loop-compatibility.
+execute — it arrives as plain text** (current, version-dependent platform behavior — re-verify
+against your Claude Code version rather than assuming it as a permanent invariant). So the GD-6
+control move (lock it to human-only) makes a procedure **inert in autonomy**. Invocation topology therefore determines loop-compatibility.
 
 ## The three ways a procedure can trigger unattended
 1. **Model-selection from a sharp `description`** (metadata is the trigger surface — Anthropic
