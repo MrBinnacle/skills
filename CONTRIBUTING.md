@@ -19,6 +19,14 @@ issue template. The short version of the gauntlet:
    `EVIDENCE.md` — the dated real incident behind it, or "conviction; no observed origin"
    stated plainly. Honest UNMEASURED fields are expected; invented scores are rejected.
 
+## Opening a PR
+
+- Branch from `main`; keep each PR to one skill or one coherent change.
+- CI must pass: the de-personalization gate (no private residue in any `.md`) and the link check.
+- Add a changeset: `npx changeset`, pick the bump, write a one-paragraph human-readable summary.
+  The changeset file is committed with your PR and becomes the changelog entry when a maintainer
+  cuts the next release (`npm run version` — a manual step, no auto-release CI).
+
 ## Reporting a gotcha
 
 A skill misfired or bit you in a way its `gotchas.md` doesn't cover? Use the
