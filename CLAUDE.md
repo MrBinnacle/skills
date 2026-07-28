@@ -20,6 +20,41 @@ Each bucket has a `README.md` listing every skill in that bucket with a one-line
 
 Each skill is a directory containing `SKILL.md` (entry point) plus sibling files (aux disciplines, templates, gotchas, case studies). Layout is FLAT — no `references/` / `templates/` subdirectories unless the skill genuinely needs multiple distinct domains.
 
+## Source of truth & maintainer workflow
+
+For the **published** skills in this repo, the repo — not any local install — is the source of
+truth. Maintainers install the published skills as **symlinks back into a clone** so a `git pull`
+updates every installed copy and local↔repo drift is structurally impossible:
+
+- `scripts/link-skills.ps1` (Windows) iterates the skills in this repo and replaces each local
+  install dir with a symlink into the clone. It is a maintainer dev tool, not the supported
+  end-user installer (end users use `npx skills add`). It dry-runs by default and backs up any
+  real dir it replaces; Windows symlinks need Developer Mode or an elevated shell.
+- Private, unpublished skills in a maintainer's local library are never symlinked and never enter
+  this repo. Only what lives here is linked.
+
+**Every change is a branch → PR → gate → merge:**
+
+1. Branch from `main`. Edit the skill *in the clone* (the clone is the source of truth).
+2. Open a PR. CI runs the **de-personalization gate** (residue scan, fail-closed) and the **link
+   check**. A PR that trips the residue gate is told the file, line, and generic replacement.
+3. Add a **changeset** (`npx changeset`) describing the change — this generates the changelog
+   entry and the version bump.
+4. Merge to `main`. Cutting a release is a **manual** step (no auto-release CI): run
+   `npm run version` to roll pending changesets into a version bump + `CHANGELOG.md` update,
+   commit it, and tag by hand if wanted.
+
+**Promotion of a new skill** (private → published):
+
+1. Author and prove the skill privately. It must pass `skill-necessity-gate` and the README's
+   "would a frontier model still fail this?" bar before it is eligible.
+2. Copy it into the correct bucket, **de-personalize** (the gate blocks residue), flatten to the
+   per-skill flat layout, and add `EVIDENCE.md` + `gotchas.md`.
+3. PR → gate → merge (with a changeset).
+4. **Then** replace the maintainer's local real dir with a symlink to the repo copy
+   (`link-skills.ps1`), so from that point the published skill has exactly one copy and cannot
+   drift.
+
 ## Authoring conventions
 
 - **Frontmatter** — `name:` + `description:` only. Description ≤ 200 chars, written as a *router* ("Use when X, Y, Z") not a summary. Topology (`disable-model-invocation`) is set per the rule below.
