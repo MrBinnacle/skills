@@ -2,7 +2,8 @@
 
 Derived from Matt Pocock's skills methodology (152-source corpus), triangulated against
 Anthropic's official docs and one academic study. Each gate in SKILL.md implements one or
-more of these. Status: 5/7 core laws supported against non-Pocock (Anthropic) sources.
+more of these. Status: 5 of the 7 core laws (GD-1–GD-7) supported against non-Pocock
+(Anthropic) sources.
 
 ## The families
 - **Economic** (should it exist at all): GD-1, GD-2, GD-3, GD-4.
