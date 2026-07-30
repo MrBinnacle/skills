@@ -4,9 +4,9 @@
   so `git pull` keeps the installed copy current and drift is structurally impossible.
 
 .DESCRIPTION
-  Windows PowerShell counterpart to the Bash `link-skills.sh` pattern. For every skill
-  in this repo (each directory containing a SKILL.md), it replaces the local install
-  directory with a symlink pointing back into the repo.
+  Windows PowerShell symlink installer. For every skill in this repo (each directory
+  containing a SKILL.md), it replaces the local install directory with a symlink pointing
+  back into the repo.
 
   IMPORTANT — scope. This links ONLY the skills that live in THIS repo. The repo is the
   curated, de-personalized *published* subset; any private, unpublished skills in the

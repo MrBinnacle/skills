@@ -29,7 +29,7 @@ The substantive output was a list of actions to execute, not opinions to forward
 The agent synthesized the SME output into an A/B/C menu and handed it back to the user. Specifically:
 
 - The dependency-manifest grep was NEVER run.
-- The 11-site symbol audit was NEVER run.
+- The schema/symbol scope audit was NEVER run.
 - The pre-flight on Fork A backfill was NEVER run.
 - The missing-feature Fork E was NEVER sized.
 

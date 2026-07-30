@@ -3,7 +3,7 @@
 All notable changes to the collection. The `npx skills add` installer tracks `main`, so
 tags and this file are informational — a reading aid, not a pin.
 
-## 2026-07-15
+## v1.1.0 — 2026-07-15
 
 First retirement, and a round of repository hardening.
 

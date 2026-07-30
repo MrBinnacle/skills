@@ -240,11 +240,18 @@ skills/
   engineering/     workflow disciplines for shipping software
   orchestration/   disciplines for multi-agent work
   meta/            skills about the skill system itself
+templates/
+  global-CLAUDE.md a portable base-operating-rules template for ~/.claude/CLAUDE.md
 ```
 
 Each skill folder contains `SKILL.md` (the entry point), `gotchas.md` (an append-only
 log of observed failure modes — the skill's memory), and `EVIDENCE.md` (every shipped
 skill carries one).
+
+`templates/global-CLAUDE.md` is the reusable *global* operating-rules layer these skills
+assume — the project-agnostic disciplines (Bannister anti-anchoring, decision escalation,
+layer placement, verification, context hygiene) distilled from practice. Copy it to
+`~/.claude/CLAUDE.md`, then keep each repo's own `./CLAUDE.md` thin.
 
 ## Contributing
 
