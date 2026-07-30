@@ -12,9 +12,11 @@ Skills are organized into bucket folders under `skills/`:
 
 Shipped skills progressively carry an `EVIDENCE.md` provenance record (origin incident,
 validated-against, screen/paired result with UNMEASURED first-class, standing cost,
-re-screen trigger). New promotions MUST include one; see top-level README → "Evidence records".
+re-screen trigger). New promotions MUST include one; see top-level README → "The receipts, explained".
 
 Each bucket has a `README.md` listing every skill in that bucket with a one-line description, linking the skill name to its `SKILL.md`. Promote and demote skills by adding or removing them from the bucket README.
+
+Beyond `skills/`, the repo ships `templates/global-CLAUDE.md` — a portable base-operating-rules template adopters copy to their own `~/.claude/CLAUDE.md`. It is distinct from *this* file: `templates/global-CLAUDE.md` is global doctrine for any project, while this root `CLAUDE.md` governs how Claude works *inside this repo*.
 
 ## Per-skill layout
 
@@ -46,8 +48,9 @@ updates every installed copy and local↔repo drift is structurally impossible:
 
 **Promotion of a new skill** (private → published):
 
-1. Author and prove the skill privately. It must pass `skill-necessity-gate` and the README's
-   "would a frontier model still fail this?" bar before it is eligible.
+1. Author and prove the skill privately. It must pass `skill-necessity-gate` and clear the
+   collection's transformative-value bar — would a current frontier model still get this wrong
+   without it? — before it is eligible.
 2. Copy it into the correct bucket, **de-personalize** (the gate blocks residue), flatten to the
    per-skill flat layout, and add `EVIDENCE.md` + `gotchas.md`.
 3. PR → gate → merge (with a changeset).
