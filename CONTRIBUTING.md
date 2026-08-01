@@ -36,7 +36,7 @@ template. Dated, quoted observations become append-only `gotchas.md` entries, cr
 ## House rules
 
 - **No private residue.** CI runs a fail-closed de-personalization gate over every `.md`
-  (see [CLAUDE.md](CLAUDE.md)). If it blocks your PR, it names the fix.
+  (see [AGENTS.md](AGENTS.md)). If it blocks your PR, it names the fix.
 - **Plain language.** Every file should read cleanly to someone who has never seen this
   repo. Jargon needs a definition at first use or it doesn't ship.
 - **Security concerns** go through [SECURITY.md](SECURITY.md), not the issue tracker.
