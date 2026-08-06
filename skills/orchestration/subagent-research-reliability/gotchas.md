@@ -29,3 +29,17 @@ stress-test signal.)*
   cross-reference — real Cursor CVEs (CVE-2025-54136/54135) attributed to an arXiv paper that
   does not cite them. The CVEs were real, the linkage was invented. Direct trigger for Check 2's
   "verify the cross-reference, not just the ID" wording.
+- **2026-08-04 / a personal research project — relocated here from that project's checkpoint.**
+  Background research subagents **go idle WITHOUT delivering their final summary** (the idle
+  notification carries nothing), and `SendMessage` sometimes gets no reply → **read their FILES
+  rather than waiting for a handback.** Second half, and it is the pre-dispatch one: dispatch every
+  web-research scout with an explicit `ToolSearch select:WebSearch,WebFetch` first step plus a
+  STOP-if-unavailable clause — **web tools are DEFERRED in this harness, so they are absent from
+  the agent's schema until fetched, and a scout without them answers from memory** while looking
+  exactly like a scout that searched. This sharpens the skill's pre-dispatch check: a `tools:`
+  grant naming web tools is necessary but NOT sufficient when the harness defers tool schemas.
+- **2026-08-04 / a personal research project.** A background agent's file is **not final when you
+  first read it** — a verifier idled at 253 lines and later reached 494. An md5 that matches current disk
+  proves nothing if you only READ half of it. Re-check length before relying on any summary of a
+  subagent's file. (Also recorded in `cite-verified-research-sweep/gotchas.md`; kept here too
+  because it fires on ANY background-subagent read, not only during a research sweep.)
