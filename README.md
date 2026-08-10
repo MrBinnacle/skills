@@ -67,7 +67,7 @@ Seven of these skills answer a failure that actually happened. The other two I b
 wanted them. They all fall into the same four failure modes, and where a skill has earned its
 receipt, the section opens with a line from it.
 
-### #1: Silent Failure
+### #1: Silent failure
 
 > "…the rebase silently proceeded, rewriting **22 local commits**…"
 >
@@ -90,7 +90,7 @@ thing you actually wanted did not happen, and nothing anywhere errors.
   repo, tests every claim, won't run commands the packet hands it, and rejects a stale packet.
   The side that wrote it doesn't get to mark its own work.
 
-### #2: Help that quietly makes things up
+### #2: Mini peer review (aka don't get your research (in)validated by a confused subagent)
 
 > "…attributed to an arXiv paper that does not cite them — a fabricated cross-reference on real IDs."
 >
@@ -114,7 +114,7 @@ which can see the actual code and knows better — not to question anything.
   prior decisions arrive as proposals with explicit "revisit if" conditions, so the
   better-informed reader keeps their judgment.
 
-### #3: Momentum past the finish line
+### #3: Carrying too much momentum past the finish line
 
 > "Synthesizing into a menu without executing is sequencing pretending to be orchestration."
 >
