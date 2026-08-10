@@ -1,6 +1,6 @@
 # AGENTS.md — skills repo conventions
 
-This repo is a collection of reusable agent skills. When you (an agent — Claude or otherwise) are working with this repo as the working directory, follow these conventions. The root [`CLAUDE.md`](CLAUDE.md) is a *template* this repo publishes for adopters to copy — not a description of how this repo operates; this file is what actually governs work inside it.
+This repo is a collection of reusable agent skills. When you (an agent — Claude or otherwise) are working with this repo as the working directory, follow these conventions. The root [`CLAUDE.md`](CLAUDE.md) is this repo's project delta — thin, repo-local, and safe to load as the rules of this clone, because that is what it is. The published template for adopters lives at [`templates/BASE-OPERATING-RULES.md`](templates/BASE-OPERATING-RULES.md) and describes no repo. This file carries the working conventions the delta deliberately does not repeat.
 
 ## Repository layout
 
@@ -16,9 +16,11 @@ re-screen trigger). New promotions MUST include one; see top-level README → "T
 
 Each bucket has a `README.md` listing every skill in that bucket with a one-line description, linking the skill name to its `SKILL.md`. Promote and demote skills by adding or removing them from the bucket README.
 
-Beyond `skills/`, the repo's root `CLAUDE.md` is the base-operating-rules template adopters copy to their own `~/.claude/CLAUDE.md`. It is distinct from *this* file: root `CLAUDE.md` is a starting point any project can adopt, while this `AGENTS.md` governs how an agent works *inside this repo*.
+Beyond `skills/`, the repo publishes the base-operating-rules template at `templates/BASE-OPERATING-RULES.md`, which adopters copy to their own `~/.claude/CLAUDE.md`. Three files, three jobs, and they must not absorb each other: the **template** is a starting point any project can adopt and describes no repo; the root **`CLAUDE.md`** is this repo's own thin delta, which also serves as the worked example the template points at; this **`AGENTS.md`** governs how an agent works *inside this repo*.
 
-⚠ **The template's numbered sections name no skill, and that is load-bearing — keep it that way when you edit them.** The file is copied wholesale into an adopter's `~/.claude/CLAUDE.md`, so a skill named inside a *rule* dangles for a reader who installed none of this collection — which is precisely what the template's own §14 tells them not to do ("list only what the reader can actually run"). Skill names belong below the horizontal rule, under **Companion skills in this repo**, where the heading scopes them. This file has no such constraint: naming a skill here is fine, because `AGENTS.md` is never copied anywhere.
+⚠ **Keep the template off any path that is loaded automatically.** A file named `CLAUDE.md` is picked up as the operating rules of the directory it sits in, so a template parked at the repo root hands every agent that opens this clone a set of rules that were never about this clone — with a prose disclaimer as the only correction. That is the layer-placement error this collection exists to catch, and the repo shipped it for several releases. If the template ever needs a different home, keep the new one equally unloadable.
+
+⚠ **The template's numbered sections name no skill, and that is load-bearing — keep it that way when you edit them.** The file is copied wholesale into an adopter's `~/.claude/CLAUDE.md`, so a skill named inside a *rule* dangles for a reader who installed none of this collection — which is precisely what the template's own §14 tells them not to do ("list only what the reader can actually run"). Skill names belong below the horizontal rule, under **Companion skills in this repo**, where the heading scopes them. Neither this file nor the root delta has that constraint: both are copied nowhere, so naming a skill in either is fine.
 
 ## Per-skill layout
 
