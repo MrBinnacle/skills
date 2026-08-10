@@ -1,7 +1,7 @@
 # EVIDENCE — subagent-research-reliability
 
 Provenance record per the collection's evidence convention (see top-level README →
-"Evidence records"). Fields are honest by construction: UNMEASURED means exactly that.
+"The receipts, explained"). Fields are honest by construction: UNMEASURED means exactly that.
 
 | Field | Value |
 |---|---|

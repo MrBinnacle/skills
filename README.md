@@ -23,13 +23,14 @@ teach the assistant how to handle a specific situation. Think of a skill as a re
 pinned above the stove: when that situation comes up, the assistant reads the card and follows
 it instead of improvising.
 
-This repo is a collection of those cards. Each one exists because an AI assistant actually got
-something wrong — or nearly did — and the card stops it happening again.
+This repo is a collection of those cards. Most exist because an AI assistant actually got
+something wrong — or nearly did — and the card stops it happening again. Two exist because I
+wanted a better way to hand work between sessions, so I built one. Their records say that.
 
 **What makes this collection different: every card has to earn its keep.** Most skill
-collections only ever grow. This one also shrinks. Each card carries a plain record of the real
-incident behind it (`EVIDENCE.md`), and when new AI models get smart enough to no longer need a
-card, we test for that and retire it — publicly. A skill you install from here is one that
+collections only ever grow. This one also shrinks. Each card carries a plain record of where it
+came from (`EVIDENCE.md`), and when new AI models get smart enough to no longer need a
+card, I test for that and retire it — publicly. A skill you install from here is one that
 still does something.
 
 It is also **small on purpose**. Nine skills, not nine hundred. Adding a skill costs you
@@ -62,8 +63,9 @@ cp -r /tmp/mr-skills/skills/engineering/git-pull-rebase-trap ~/.claude/skills/
 >
 > Richard Feynman, [Cargo Cult Science](https://calteches.library.caltech.edu/51/2/CargoCult.htm) (1974)
 
-Every skill here answers a failure that actually happened. They cluster into four failure
-modes — and where a skill has earned its receipt, the section opens with a line from it.
+Seven of these skills answer a failure that actually happened. The other two I built because I
+wanted them. They all fall into the same four failure modes, and where a skill has earned its
+receipt, the section opens with a line from it.
 
 ### #1: Green lights you didn't earn
 
@@ -83,6 +85,10 @@ thing you actually wanted did not happen, and nothing anywhere errors.
 - [`github-pages-deploy-verification`](skills/engineering/github-pages-deploy-verification/SKILL.md) —
   "the deploy went green" is not "the site changed." The origin incident's verification loop
   passed instantly on *old* content. Poll for content that didn't exist before the push.
+- [`im-up`](skills/engineering/im-up/SKILL.md) — a handoff note saying the state was checked is
+  not the same as state that was checked. The receiver re-checks branch and HEAD against the
+  repo, tests every claim, won't run commands the packet hands it, and rejects a stale packet.
+  The side that wrote it doesn't get to mark its own work.
 
 ### #2: Help that quietly makes things up
 
@@ -117,10 +123,15 @@ which can see the actual code and knows better — not to question anything.
 **The problem.** The moment one phase of work ends is exactly when an agent is most tempted to
 charge into the next thing — leaving checks unrun and loose ends "probably fine."
 
-**The fix:** [`closure-mode-at-boundaries`](skills/engineering/closure-mode-at-boundaries/SKILL.md)
-forces a structured wrap-up first — checks actually run, loose ends actually verified — before
-any "what's next" decision is made. The origin session caught a migration whose real cost was
-2–3× the plan's estimate, exactly at that boundary.
+**The fix**, at two scales:
+
+- [`closure-mode-at-boundaries`](skills/engineering/closure-mode-at-boundaries/SKILL.md) — forces
+  a structured wrap-up at a *phase* boundary: checks actually run, loose ends actually verified,
+  before any "what's next" decision is made. The origin session caught a migration whose real
+  cost was 2–3× the plan's estimate, exactly at that boundary.
+- [`im-down`](skills/engineering/im-down/SKILL.md) — the same idea at the end of a whole session:
+  write the repo's actual state into one packet and check it before you sign off, so the next
+  session starts from something verified instead of from memory.
 
 ### #4: Most skills shouldn't exist
 
@@ -140,7 +151,7 @@ almost nobody tests whether a skill still changes the outcome.
   [Matt Pocock's methodology](https://github.com/mattpocock/skills) and Anthropic's official
   skill-authoring guidance.
 - [RETIRED.md](RETIRED.md) — the exit, in public. It has already fired both ways: in July 2026,
-  four of the author's own candidates were tested at the admission gate and **the model passed
+  four of my own candidates were tested at the admission gate and **the model passed
   every run without them**, so none got in — and one skill that *had* shipped was retired
   outright when a Claude Code change made it unnecessary, evidence record intact.
 
@@ -207,18 +218,21 @@ See [SECURITY.md](SECURITY.md) for the full policy and how to report a concern.
 
 ## The receipts, explained
 
-*Confidence is not evidence* — including ours. So skills here carry an
-[`EVIDENCE.md`](skills/engineering/git-pull-rebase-trap/EVIDENCE.md): a dated record of the
-real failure that justified the skill, what it has been validated against, and its measured
+*Confidence is not evidence* — including mine. So skills here carry an
+[`EVIDENCE.md`](skills/engineering/git-pull-rebase-trap/EVIDENCE.md): a dated record of
+where the skill came from, what it has been validated against, and its measured
 result — including **UNMEASURED** stated plainly when something can't be measured yet, rather
 than a made-up score.
 
 Evidence in these records comes in named tiers, so you always know which one you are
 reading. **Controlled results** (the Screen / Paired-verdict fields) come from with-vs-without
 runs under the pre-registered harness protocol. **Origin incidents** are the dated real-world
-failures that justified each skill. The weakest tier, **Observed in use (self-reported)**, is
-field observation from the author's own sessions: events mined from private work logs by the
-author's own AI assistant and re-checked by a second instance of the same AI system — a process
+failures behind most of these skills, marked `OBSERVED` with the date. Two records say
+`DESIGNED` instead: I built the session-boundary pair because I wanted it, not because
+something broke. Different thing, different label. The weakest tier,
+**Observed in use (self-reported)**, is
+field observation from my own sessions: events mined from my private work logs by my
+own AI assistant and re-checked by a second instance of the same AI system — a process
 that catches extraction errors, not self-favoring selection, and involves no independent
 verification. Admission bar for that tier: every event traces to a dated artifact, carries its
 model ID, and states plainly what is observed versus not measured; events that cannot meet the
@@ -265,7 +279,7 @@ this repo itself runs on; copy it to `~/.claude/CLAUDE.md`, then keep each repo'
 ## Contributing
 
 Issues and PRs welcome — the full guide is [CONTRIBUTING.md](CONTRIBUTING.md). New skills run
-the same gauntlet as ours:
+the same gauntlet as mine:
 
 1. It must pass the [skill-necessity-gate](skills/meta/skill-necessity-gate/SKILL.md) — most
    ideas correctly fail it.
@@ -275,8 +289,8 @@ the same gauntlet as ours:
    contains `: `), `SKILL.md` stays lean, and aux detail goes in sibling files.
 
 Authored by [Matthew Gruber](https://github.com/MrBinnacle). Structure inspired by
-[mattpocock/skills](https://github.com/mattpocock/skills) — the epigraphs here quote our own
-evidence records instead of the classics, because that's the shelf we stock.
+[mattpocock/skills](https://github.com/mattpocock/skills) — the epigraphs here quote my own
+evidence records instead of the classics, because that's the shelf I stock.
 
 ## License
 
