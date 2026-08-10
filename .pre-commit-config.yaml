@@ -16,7 +16,7 @@
 #   Runs on *.md only, so this .yaml config can never trip its own patterns.
 #   The maintainer's name/email are intentionally NOT listed here — putting them in a
 #   public block-list would itself de-anonymize. Keep those in a git-ignored local
-#   overlay if wanted (see CLAUDE.md "De-personalization gate").
+#   overlay if wanted (see AGENTS.md "De-personalization gate").
 #
 # ACTIVATE (once per clone):
 #   pre-commit install --hook-type pre-commit --hook-type pre-push

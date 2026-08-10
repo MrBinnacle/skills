@@ -398,18 +398,28 @@ skills/
   engineering/     workflow disciplines for shipping software
   orchestration/   disciplines for multi-agent work
   meta/            skills about the skill system itself
-CLAUDE.md          my global operating-rules template, for ~/.claude/CLAUDE.md
+templates/         my global operating-rules template, to copy to ~/.claude/CLAUDE.md
+CLAUDE.md          the rules for working in this repo — and a worked example of a delta
 AGENTS.md          conventions for agents working inside this repo
 ```
 
 Each skill folder contains `SKILL.md` (the entry point), `gotchas.md` (an append-only log of
 observed failure modes — the skill's memory), and `EVIDENCE.md`.
 
-[`CLAUDE.md`](CLAUDE.md) is a **template**, not documentation of this repo. It is the global
-operating-rules layer I actually run — the project-agnostic disciplines (anti-anchoring,
-decision escalation, layer placement, verification, context hygiene) distilled from practice,
-with the project-specific half left as a labelled placeholder for you to fill. Copy it to
-`~/.claude/CLAUDE.md`, then keep each repo's own `./CLAUDE.md` thin.
+The operating rules come in two layers, and the repo ships one of each.
+
+[`templates/BASE-OPERATING-RULES.md`](templates/BASE-OPERATING-RULES.md) is the **global**
+layer — the project-agnostic disciplines (anti-anchoring, decision escalation, layer placement,
+verification, context hygiene) distilled from practice. Copy it to `~/.claude/CLAUDE.md` and it
+applies to every project you work on. It is filed under `templates/` rather than at the repo
+root on purpose: a file named `CLAUDE.md` is loaded automatically as the rules of whatever repo
+it sits in, and a template is not this repo's rules.
+
+[`CLAUDE.md`](CLAUDE.md) is the **project** layer — the thin, repo-local delta that actually
+governs work in this clone. It is also the worked example, since the honest way to show what a
+delta should look like is to point at a real one rather than a placeholder. The part most worth
+copying is **Question routing**: every question has a respondent, and the human is the last rung
+rather than the first.
 
 ## Contributing
 
