@@ -16,7 +16,7 @@ section and keep the rest.
 
 ## Checklist
 
-- [ ] It passes the [skill-necessity-gate](../skills/meta/skill-necessity-gate/SKILL.md) — this is a bet a pattern recurs, not a one-off convenience.
+- [ ] It passes the [admission policy](../ADMISSION.md) — this is a bet a pattern recurs, not a one-off convenience.
 - [ ] `SKILL.md` stays lean; aux detail lives in sibling files (`gotchas.md`, references).
 - [ ] Ships a `gotchas.md`, and — for any real-incident origin — an `EVIDENCE.md` with the dated story and honest **UNMEASURED** where nothing has been screened yet.
 - [ ] Frontmatter is minimal: `name:` + `description:` (≤ 200 chars, quoted if it contains `: `).

@@ -52,9 +52,9 @@ updates every installed copy and local↔repo drift is structurally impossible:
 
 **Promotion of a new skill** (private → published):
 
-1. Author and prove the skill privately. It must pass `skill-necessity-gate` and clear the
-   collection's transformative-value bar — would a current frontier model still get this wrong
-   without it? — before it is eligible.
+1. Author and prove the skill privately. It must pass the [admission policy](ADMISSION.md) and
+   clear the collection's transformative-value bar — would a current frontier model still get
+   this wrong without it? — before it is eligible.
 2. Copy it into the correct bucket, **de-personalize** (the gate blocks residue), flatten to the
    per-skill flat layout, and add `EVIDENCE.md` + `gotchas.md`.
 3. PR → gate → merge (with a changeset).
