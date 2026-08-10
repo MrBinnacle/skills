@@ -1,6 +1,8 @@
 # Admission policy
 
-`admission-policy v1`
+The declared version and the bump rule are in [Version](#version) below. They are
+stated there once and nowhere else in this file, so that a version bump cannot be
+applied to some copies and missed on others.
 
 This file is the binding rule for what skills may enter this collection. It is
 whole and versioned on purpose: past decisions can name the edition they were
@@ -53,7 +55,7 @@ Naming this policy makes a third. The convention:
 
 | Prefer | Means | Lives |
 |---|---|---|
-| **admission policy** | the binding four-question rule for what may enter | this file (`admission-policy v1`) |
+| **admission policy** | the binding four-question rule for what may enter | this file; see [Version](#version) for the edition |
 | **gate card** / **skill-necessity-gate** | the reference procedure for answering the four questions | `skills/meta/skill-necessity-gate/` |
 | **screen** / **admission screen** | the empirical with/without-skill measurement that produces ceiling and turned-away outcomes | recorded in [`RETIRED.md`](RETIRED.md); instrument upstream of this collection |
 

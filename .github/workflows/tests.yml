@@ -2,16 +2,20 @@ name: tests
 
 # Two skills in this collection ship executable code: the session-boundary pair
 # validates the packet that carries one session's state into the next. That
-# validator had a passing test suite and no job that ran it.
+# validator had a passing test suite and no job that ran it. The same job also
+# runs the repo-level scoreboard validator (front-page kept/retired/turned-away
+# counts plus the admission-policy version pin on the gate card).
 #
-# It is invoked directly, not through pytest, and that is deliberate. The suites
-# drive their cases from `if __name__ == "__main__"` and their functions are not
-# `test_`-prefixed, so `pytest` collects nothing from them and reports
-# "no tests ran" — a green line that means the opposite of what it looks like.
-# Running the real entrypoint and asserting the PASS line is what makes this job
-# honest about whether anything executed.
+# Validators are invoked directly, not through pytest, and that is deliberate.
+# The skill suites drive their cases from `if __name__ == "__main__"` and their
+# functions are not `test_`-prefixed, so `pytest` collects nothing from them and
+# reports "no tests ran" — a green line that means the opposite of what it looks
+# like. Running the real entrypoint and asserting the PASS line is what makes
+# this job honest about whether anything executed.
 #
 # Windows is in the matrix because that is where these skills are actually used.
+# Scoreboard validator output is ASCII-only so a cp1252 console cannot kill the
+# Windows cell on a status line.
 
 on:
   pull_request:
@@ -72,3 +76,47 @@ jobs:
           grep -q 'REJECTED' control.log \
             || { echo "::error::stale fixture failed for the wrong reason"; cat control.log; exit 1; }
           echo "control: stale packet rejected as expected"
+
+      - name: Scoreboard validator
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_scoreboard.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::scoreboard validator emitted no PASS line — it did not run"; exit 1; }
+
+      # A gate that cannot fail guards nothing. A scoreboard that disagrees with
+      # the derived counts must be rejected, so this asserts the shipped
+      # validator still refuses one.
+      - name: Poison control — a disagreeing scoreboard must be rejected
+        run: |
+          set -euo pipefail
+          if python scripts/validate_scoreboard.py \
+               --root scripts/fixtures/scoreboard-mismatch \
+               > control-scoreboard.log 2>&1; then
+            echo "::error::mismatch fixture was ACCEPTED — the validator no longer rejects a disagreeing scoreboard"
+            cat control-scoreboard.log
+            exit 1
+          fi
+          grep -q 'scoreboard' control-scoreboard.log \
+            || { echo "::error::mismatch fixture failed for the wrong reason"; cat control-scoreboard.log; exit 1; }
+          echo "control: disagreeing scoreboard rejected as expected"
+
+      # The version half needs its own control. The mismatch fixture above fails
+      # on the scoreboard and returns before the version check runs, so it proves
+      # nothing about version drift. This fixture has a CORRECT scoreboard and a
+      # gate card pinned to a different edition than ADMISSION.md declares, so the
+      # only thing it can fail on is the assertion under test.
+      - name: Poison control - a drifted policy version must be rejected
+        run: |
+          set -euo pipefail
+          if python scripts/validate_scoreboard.py \
+               --root scripts/fixtures/admission-version-drift \
+               > control-version.log 2>&1; then
+            echo "::error::version-drift fixture was ACCEPTED - the validator no longer refuses policy version drift"
+            cat control-version.log
+            exit 1
+          fi
+          grep -q 'admission policy version drift' control-version.log \
+            || { echo "::error::version-drift fixture failed for the wrong reason"; cat control-version.log; exit 1; }
+          echo "control: drifted policy version rejected as expected"

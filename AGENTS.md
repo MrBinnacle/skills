@@ -94,11 +94,26 @@ from shrinking honestly. A skill leaves two ways:
   ships, the skill retires against its own stated criterion, no screen required.
 
 Execute a retirement as: remove the skill directory; drop it from its bucket README and the
-top-level README; decrement the count copy ("N skills, not N hundred"); add a row + a short
-narrative to `RETIRED.md` with the cause stated plainly; and link the evidence at the **last
-release tag** (`blob/<tag>/…`) so "record intact" survives the file's removal. If a general
-lesson outlives the skill, name it in the retirement note as ordinary hygiene rather than
-resurrecting the card.
+top-level README; update every scoreboard site that asserts the kept/retired/turned-away
+counts so they match the repository after the removal; add a row + a short narrative to
+`RETIRED.md` with the cause stated plainly; and link the evidence at the **last release tag**
+(`blob/<tag>/…`) so "record intact" survives the file's removal. If a general lesson outlives
+the skill, name it in the retirement note as ordinary hygiene rather than resurrecting the
+card.
+
+The scoreboard is asserted in **five places across three files** — keep them in lockstep:
+
+1. `assets/banner-light.svg` — `aria-label`
+2. `assets/banner-light.svg` — rendered scoreboard `<text>`
+3. `assets/banner-dark.svg` — `aria-label`
+4. `assets/banner-dark.svg` — rendered scoreboard `<text>`
+5. `README.md` — banner `<img alt>`
+
+`scripts/validate_scoreboard.py` (run in the `validator` job) derives kept / retired /
+turned-away from the skill directories and `RETIRED.md` and refuses a partial edit. A miss
+turns the build red; do not treat any single prose line as the checklist. The front-page
+slogan ("N cards, not N hundred") is rhetoric, not a scoreboard site — update it only if the
+voice still fits.
 
 ## De-personalization gate
 
