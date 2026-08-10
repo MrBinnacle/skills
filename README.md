@@ -67,7 +67,7 @@ Seven of these skills answer a failure that actually happened. The other two I b
 wanted them. They all fall into the same four failure modes, and where a skill has earned its
 receipt, the section opens with a line from it.
 
-### #1: Green lights you didn't earn
+### #1: Silent Failure
 
 > "…the rebase silently proceeded, rewriting **22 local commits**…"
 >
