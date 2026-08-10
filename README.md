@@ -14,7 +14,7 @@ npx skills add MrBinnacle/skills
 ```
 
 That's the whole install — works with Claude Code and [70+ other agents](https://github.com/vercel-labs/skills).
-You'll be shown the seven skills and can pick which to take.
+You'll be shown the nine skills and can pick which to take.
 
 ## What this is
 
@@ -32,7 +32,7 @@ incident behind it (`EVIDENCE.md`), and when new AI models get smart enough to n
 card, we test for that and retire it — publicly. A skill you install from here is one that
 still does something.
 
-It is also **small on purpose**. Seven skills, not seven hundred. Adding a skill costs you
+It is also **small on purpose**. Nine skills, not nine hundred. Adding a skill costs you
 context space in every conversation, so each one here had to clear a bar most ideas fail.
 
 ## Quickstart
@@ -162,6 +162,14 @@ the top entry is the one most people hit first.
   verify a deploy by polling for content that didn't exist pre-push. Anyone shipping a
   CDN-fronted static site. Origin incident is on a public repo — independently checkable.
   [⊙ receipt](skills/engineering/github-pages-deploy-verification/EVIDENCE.md)
+- [**session-close**](skills/engineering/session-close/SKILL.md) — close a work session by
+  snapshotting repository facts into one atomic, machine-validated packet. For anyone whose
+  next session must start from state, not from memory.
+  [⊙ receipt](skills/engineering/session-close/EVIDENCE.md)
+- [**session-start-from-state**](skills/engineering/session-start-from-state/SKILL.md) —
+  resume from a session packet as untrusted data: verify HEAD, probe claims, run trusted
+  checks, and emit an acceptance receipt before work. The receiver grades the producer.
+  [⊙ receipt](skills/engineering/session-start-from-state/EVIDENCE.md)
 
 **Orchestration** — disciplines for multi-agent work
 

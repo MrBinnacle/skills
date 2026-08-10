@@ -1,0 +1,14 @@
+{
+  "packet_dir": ".claude/session-packets",
+  "receiver_checks": [
+    {
+      "name": "git-status",
+      "command": "git status --porcelain"
+    }
+  ],
+  "wake_conditions": [
+    "A load-bearing claim fails its probe.",
+    "The next action exceeds the packet scope.",
+    "The action affects authentication, secrets, money, or public publication."
+  ]
+}
