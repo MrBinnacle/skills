@@ -5,7 +5,7 @@ Most collections only ever grow. This one also turns skills away — including i
 Before a skill gets in here, it has to prove the current model still needs it: the same task,
 run with the skill and without it, scored by a deterministic check
 ([skill-harness](https://github.com/MrBinnacle/skill-harness)). If the model passes without the
-skill, there's nothing left for the skill to improve, and it doesn't earn a place. The same test
+skill, there's nothing left for the skill to improve, and it stays out. The same test
 retires skills already in the collection when a newer model outgrows them — removed, but recorded
 here with the evidence intact.
 
@@ -17,7 +17,7 @@ merely outgrown. The first retirement below is one of these.
 
 Turning away your own work costs something: it makes the collection look smaller. That cost is the
 point. A list that shrinks when the models improve is the one telling you the truth about which
-skills still earn their keep. Model progress becomes collection history, not silent rot.
+skills the model still needs. Model progress becomes collection history, not silent rot.
 
 ## Retired from the collection
 

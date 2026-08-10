@@ -1,10 +1,15 @@
 # CLAUDE.md — Base Operating Rules
 
 A project-agnostic set of operating rules for Claude Code, distilled from sustained
-real-world practice. This file is both the doctrine this repo runs on and the portable
-artifact adopters take: copy it to `~/.claude/CLAUDE.md` so it applies to every project,
-then add a thin, repo-local delta in each project's own `./CLAUDE.md` for the grounding
-that belongs to that repo alone.
+real-world practice. It is a template, not documentation of how this repo works: copy it to
+`~/.claude/CLAUDE.md` so it applies to every project, then add a thin, repo-local delta in
+each project's own `./CLAUDE.md` for the grounding that belongs to that repo alone.
+
+The numbered sections are the part you copy. They name no skill, on purpose — so they still
+read correctly for someone who installed none of this collection. Below them,
+**Companion skills in this repo** is this repo's own worked example of §14; delete it and
+write your own, since it lists skills you may not have. **Project delta** is a stub for you
+to fill in, not an example — see §1 for what belongs there.
 
 Design intent: **thin global doctrine + thin project delta.** Reusable disciplines live
 here; repo-specific facts live in the project delta; reusable *workflows* live in Skills.
@@ -19,9 +24,9 @@ sections stay valid. Adapt freely — this is a starting point, not a contract.
 ## Section 0 — Session Discipline
 
 At session start, load the project's canonical state surfaces (checkpoint / state doc /
-project rules) **before** acting — do not reconstruct state from memory. `im-up` (in this
-repo) is one implementation of that load; its sibling `im-down` writes the packet it reads
-(§11). Standing gates for every session:
+project rules) **before** acting — do not reconstruct state from memory. This load and the
+write that produces it (§11) are one mechanism in two halves: build them together, or the
+read side comes up with nothing to read. Standing gates for every session:
 
 - **Context monitoring is active.** Performance degrades as context fills; treat ~40% as
   a ceiling — clear and reload from state rather than pushing a saturated window (§9).
@@ -120,8 +125,9 @@ Before expanding a workflow, place the knowledge in the correct layer:
 - **Prompts** — thin task-launch surfaces.
 
 If the knowledge should outlive the project, it is probably a Skill. If it governs one repo,
-it is a project delta. Use `skill-necessity-gate` (in this repo) to decide whether something
-should become a skill at all before you author one.
+it is a project delta. Settle whether something should be a skill *at all* before authoring
+one: a skill that fails that question still taxes context in every session and returns
+nothing for it.
 
 **A discipline you *require* to fire cannot live only in the skill layer.** Skill retrieval
 is model-pull, and model-pull is unreliable — the binding constraint on a skill's value is
@@ -239,13 +245,14 @@ specific outcome, not a vague direction) · **SUCCESS CRITERIA** (falsifiable pa
   segment through audited evidence, not granted globally.
 - Always include success criteria (prevents infinite loops) and a return condition
   (prevents an agent that never hands back). Summarize context — never dump raw content.
-- Frame handoffs with `downstream-instruction-framing` (in this repo): no blanket
-  "don't re-litigate" framing; attach a per-decision "revisit-if" instead.
-- When dispatching parallel verifiers/adjudicators, give them a shared output schema
-  (`parallel-review-disposition-schema`, in this repo) so their results join cleanly.
+- Never frame a handoff with blanket "don't re-litigate" language. Attach a per-decision
+  "revisit-if" instead, so the reader can tell which conclusions are settled and which are
+  merely current.
+- When dispatching parallel verifiers or adjudicators, fix a shared output schema *before*
+  they run, so their answers add up instead of needing reconciliation by hand afterwards.
 - For web-research subagents, confirm the tool grant actually includes web tools *before*
-  dispatch, and verify every returned citation *after* — see `subagent-research-reliability`
-  (in this repo).
+  dispatch — one that lacks them answers from memory and reads identically — and verify
+  every returned citation *after*.
 
 ## Section 5 — Plan Mode Protocol
 
@@ -295,8 +302,9 @@ after changes — e.g. `cargo test` / `cargo check` (Rust), `npm test` / `tsc --
 After each phase or milestone, fold working state into your canonical state surfaces:
 current phase · test status · blockers · exact next steps. Checkpoint *before* starting the
 next phase, and immediately on hitting a usage or token limit. Keep sessions bounded (a few
-phases at most). A durable checkpoint is what makes clear-and-reload cheap (§9). `im-down`
-(in this repo) is one implementation of the write side; `im-up` reads it back (§0).
+phases at most). A durable checkpoint is what makes clear-and-reload cheap (§9). It is the
+write half of the session-open load in §0, and it is worth exactly as much as that load can
+recover — so write it for the reader who has lost everything else.
 
 ## Section 12 — Tool Installation Gate
 
