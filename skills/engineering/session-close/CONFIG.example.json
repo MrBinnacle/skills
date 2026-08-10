@@ -2,10 +2,11 @@
   "packet_dir": ".claude/session-packets",
   "receiver_checks": [
     {
-      "name": "git-status",
-      "command": "git status --porcelain"
+      "name": "clean-tree",
+      "command": "git diff --quiet && git diff --cached --quiet"
     }
   ],
+  "trusted_probe_commands": [],
   "wake_conditions": [
     "A load-bearing claim fails its probe.",
     "The next action exceeds the packet scope.",

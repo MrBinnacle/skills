@@ -31,6 +31,7 @@ The receiver contract in `PACKET-FORMAT.md` defines the producer output.
 5. Record decisions with their reasons.
 6. Add each load-bearing claim with `verified` or `unverified` status.
 7. Use typed `path`, `commit`, or `command` probes for verified claims.
+7a. Use a `command` probe only when the config authorises that exact command. An unlisted command probe rejects the packet.
 8. Label `skills_dispatched` as `telemetry` only when an event source exists.
 9. Otherwise use `model-reported` and preserve that evidence limit.
 10. Reference source artifacts. Do not copy their contents.
@@ -52,12 +53,17 @@ python <skill-dir>/snapshot_state.py \
 Example validation:
 
 ```bash
-python <skill-dir>/validate_packet.py <packet.md> --mode produce --repo-root .
+python <skill-dir>/validate_packet.py <packet.md> \
+  --mode produce \
+  --repo-root . \
+  --config .claude/session-boundary.json
 ```
 
 ## Boundary limits
 
 Do not run `/clear`. The operator controls session creation.
+
+Produce the packet after the session's final commit. A later commit moves HEAD and the receiver rejects the packet as stale. Keep the packet directory out of version control.
 
 Do not install a Stop hook in this version. A Stop hook fires after ordinary responses and misses interrupts.
 
