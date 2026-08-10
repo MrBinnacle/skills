@@ -1,10 +1,14 @@
-# Evidence
+# EVIDENCE — im-up
 
-- **Status:** UNMEASURED.
-- **Origin:** A production repository used a receiver ritual that loaded canonical state, emitted a hash-stamped read contract, and rejected false handoff claims.
-- **Observed failure:** A prior session asserted a wrong file location, hook predicate, or sequence. The receiver caught the conflict against repository truth.
-- **Validated against:** a personal production project's `resume` ritual skill, read in full on 2026-08-09 (private repo; commit pinned in the source tree).
-- **Controlled result:** Not run.
-- **Re-screen trigger:** Claude Code provides a native, project-configurable, repository-verified resume contract with typed claim probes.
-- **Fixture classes:** RUN and passing on 2026-08-10 — nine classes, not the four this record first named (clean, stale, incomplete, failed-probe, placeholder, unfailable-check, command-probe, receive-mode-config, no-drift). Executed by CI on Linux and Windows from this date. This half of the blocker is discharged.
-- **Promotion blocker:** One real producer-to-receiver cutover. Not yet run.
+Provenance record per the collection's evidence convention (see top-level README →
+"The receipts, explained"). Fields are honest by construction: UNMEASURED means exactly that.
+
+| Field | Value |
+|---|---|
+| **Origin** | DESIGNED 2026-08-09 → 2026-08-10. Built on purpose, not after an incident: the author wanted a better session start than the one they had, designed it over those two days, and had it built alongside its producer `im-down`. Most skills here exist because something went wrong; this pair exists because the author wanted it. There is a real problem behind it — a previous session can state a wrong file location, hook predicate or sequence, and only a receiver that checks those claims against the repo catches it ([gotchas.md](gotchas.md) → `[OBSERVED 2026-06-11]`). |
+| **Validated against** | The author's own production resume ritual skill, read in full 2026-08-09 (private repo; commit pinned in the source tree). Then reviewed by reproduction on 2026-08-10, which found four holes: an unexecuted command probe that kept its `verified` status, a shipped example check that could not fail, a placeholder scan that rejected prose merely discussing placeholders, and a receive mode that skipped every configured check when `--config` was omitted. All four fixed ([gotchas.md](gotchas.md) → the `[OBSERVED 2026-08-10]` entries). Nine fixture classes pass — clean, stale, incomplete, failed-probe, placeholder, unfailable-check, command-probe, receive-mode-config, no-drift — run by CI on Linux and Windows since 2026-08-10. **This record previously said four; nine is the measured figure.** |
+| **Screen result** | UNMEASURED. Registered screen task: one real producer-to-receiver cutover — receive an `im-down` packet at a genuine cold start and emit an acceptance receipt before any work. It spans a session boundary, so it can't be run inside one session. Not yet run. |
+| **Paired verdict** | UNMEASURED. Method for any future paired Full-vs-Null run: [skill-harness v0.2 pre-registration](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md). No prior claimed either way. |
+| **Standing cost** | Zero standing context cost. Ships `disable-model-invocation: true`, so it is human-invoked and its description never sits in the model's always-on context. Body 2.3 KB; `PACKET-FORMAT.md`, the validator and the fixtures load only when you invoke it. |
+| **Enforcement note** | This is the half that is actually enforced. The receiver treats the packet as untrusted data: it checks branch and HEAD against the repo, will not run commands the packet supplies, runs only the checks the repo itself configures, and rejects a stale or incomplete packet (exit 2). The producer does not grade itself — the receiving end decides whether a packet is good enough. A check that cannot fail is not a check, so CI also runs a poison case: a stale packet must still be rejected. |
+| **Re-screen trigger** | Claude Code ships a native, project-configurable, repository-verified resume contract with typed claim probes. If that happens, retire this skill publicly with this record intact. |

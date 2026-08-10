@@ -1,9 +1,14 @@
-# Evidence
+# EVIDENCE — im-down
 
-- **Status:** UNMEASURED.
-- **Origin:** Multiple research sessions ended without the required narrative packet because the write step was skippable.
-- **Observed comparison:** A production repository already preserves checkpoint, blocker, test state, exact next action, and dispatched-skill records.
-- **Validated against:** a personal production project's `session-end` and `resume` ritual skills, read in full on 2026-08-09 (private repo; commit pinned in the source tree).
-- **Controlled result:** Not run.
-- **Re-screen trigger:** Claude Code provides a native atomic state packet with receiver verification and abnormal-exit coverage.
-- **Promotion blocker:** One complete producer-to-receiver acceptance receipt without legacy-state loss.
+Provenance record per the collection's evidence convention (see top-level README →
+"The receipts, explained"). Fields are honest by construction: UNMEASURED means exactly that.
+
+| Field | Value |
+|---|---|
+| **Origin** | DESIGNED 2026-08-09 → 2026-08-10. Built on purpose, not after an incident: the author's old session-close ritual wasn't good enough, so they designed a replacement over those two days and had it built. Most skills here exist because something went wrong; this one and `im-up` exist because the author wanted them. There is a real problem behind it — a close step you could skip left several sessions with no packet at all ([gotchas.md](gotchas.md) → `[OBSERVED 2026-08-07]`). |
+| **Validated against** | The author's own production session-end and resume ritual skills, read in full 2026-08-09 (private repo; commit pinned in the source tree). Then reviewed by reproduction on 2026-08-10: four verification holes were found against throwaway git repos and fixed ([gotchas.md](gotchas.md) → the `[OBSERVED 2026-08-10]` entries). Nine fixture classes pass — clean, stale, incomplete, failed-probe, placeholder, unfailable-check, command-probe, receive-mode-config, no-drift — run by CI on Linux and Windows since 2026-08-10. |
+| **Screen result** | UNMEASURED. Registered screen task: one full producer-to-receiver cutover — write a packet at a close, receive it at a cold start, get an acceptance receipt without losing the state the old ritual wrote. It spans a session boundary, so it can't be run inside one session. Not yet run. |
+| **Paired verdict** | UNMEASURED. Method for any future paired Full-vs-Null run: [skill-harness v0.2 pre-registration](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md). No prior claimed either way. |
+| **Standing cost** | Zero standing context cost. Ships `disable-model-invocation: true`, so it is human-invoked and its description never sits in the model's always-on context. Body 2.6 KB; `PACKET-FORMAT.md`, the validator and the fixtures load only when you invoke it. |
+| **Enforcement note** | It only fires when a human invokes it — the same gap its origin names, a close step you can skip. The skill does not fix that. The real check is at the other end: `im-up` validates the packet and rejects a stale or incomplete one (exit 2), so a skipped or bad close shows up at the next session's start. If you need the close itself to fire, back it with a hook in your own setup. |
+| **Re-screen trigger** | Claude Code ships a native atomic state packet with receiver verification and abnormal-exit coverage. If that happens, retire this skill publicly with this record intact. |
