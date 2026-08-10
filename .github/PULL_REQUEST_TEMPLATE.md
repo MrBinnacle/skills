@@ -1,6 +1,6 @@
 <!--
 Thanks for contributing. This collection stays small on purpose — every skill taxes
-context in every conversation, so each one has to earn its keep. The checklist mirrors
+context in every conversation, whether or not it fires. The checklist mirrors
 CONTRIBUTING.md; if this PR isn't a new skill (docs, fix, tooling), delete the skill
 section and keep the rest.
 -->

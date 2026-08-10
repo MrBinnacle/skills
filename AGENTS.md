@@ -1,6 +1,6 @@
 # AGENTS.md — skills repo conventions
 
-This repo is a collection of reusable agent skills. When you (an agent — Claude or otherwise) are working with this repo as the working directory, follow these conventions. The root [`CLAUDE.md`](CLAUDE.md) is the *global operating doctrine* this repo runs on (and the portable artifact adopters copy); this file is the repo-local layer beneath it.
+This repo is a collection of reusable agent skills. When you (an agent — Claude or otherwise) are working with this repo as the working directory, follow these conventions. The root [`CLAUDE.md`](CLAUDE.md) is a *template* this repo publishes for adopters to copy — not a description of how this repo operates; this file is what actually governs work inside it.
 
 ## Repository layout
 
@@ -16,7 +16,9 @@ re-screen trigger). New promotions MUST include one; see top-level README → "T
 
 Each bucket has a `README.md` listing every skill in that bucket with a one-line description, linking the skill name to its `SKILL.md`. Promote and demote skills by adding or removing them from the bucket README.
 
-Beyond `skills/`, the repo's root `CLAUDE.md` is the portable base-operating-rules doctrine adopters copy to their own `~/.claude/CLAUDE.md`. It is distinct from *this* file: root `CLAUDE.md` is global doctrine for any project, while this `AGENTS.md` governs how an agent works *inside this repo*.
+Beyond `skills/`, the repo's root `CLAUDE.md` is the base-operating-rules template adopters copy to their own `~/.claude/CLAUDE.md`. It is distinct from *this* file: root `CLAUDE.md` is a starting point any project can adopt, while this `AGENTS.md` governs how an agent works *inside this repo*.
+
+⚠ **The template's numbered sections name no skill, and that is load-bearing — keep it that way when you edit them.** The file is copied wholesale into an adopter's `~/.claude/CLAUDE.md`, so a skill named inside a *rule* dangles for a reader who installed none of this collection — which is precisely what the template's own §14 tells them not to do ("list only what the reader can actually run"). Skill names belong below the horizontal rule, under **Companion skills in this repo**, where the heading scopes them. This file has no such constraint: naming a skill here is fine, because `AGENTS.md` is never copied anywhere.
 
 ## Per-skill layout
 
