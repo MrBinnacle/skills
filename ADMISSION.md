@@ -19,8 +19,8 @@ depending on section offsets inside a larger document.
 A candidate enters only when all four are true:
 
 1. An **unaided failure exists** — a current frontier model, given the situation
-   the skill is for and *without* the skill, still fails (or should plausibly
-   still fail) the job the skill claims to fix.
+   the skill is for and *without* the skill, still fails the job the skill
+   claims to fix. Observed, not predicted: run it unaided first.
 2. The failure **recurs independently** — it is not a one-off; occasions are
    counted, not predicted, and not inflated by fan-out from a single run.
 3. A **skill is the correct control surface** for it — not a project rule, not
