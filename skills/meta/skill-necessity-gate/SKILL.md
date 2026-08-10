@@ -4,6 +4,10 @@ description: Decide whether a capability should become a skill. Use when asking 
 disable-model-invocation: true
 ---
 
+> **Normative status.** The admission policy is [`ADMISSION.md`](../../../ADMISSION.md)
+> (`admission-policy v1`). This skill is the reference method for answering it —
+> not the binding rule.
+
 # skill-necessity-gate
 
 Most ideas for new skills should not become skills. Every skill you add costs context space
