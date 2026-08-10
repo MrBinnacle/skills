@@ -12,6 +12,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 SCOREBOARD_RE = re.compile(
     r"(\d+)\s+kept\b.*?(\d+)\s+retired\b.*?(\d+)\s+turned away\b",
@@ -27,8 +28,11 @@ GATE_HEADER_VERSION_RE = re.compile(
 )
 
 
-def fail(msg: str) -> None:
+def fail(msg: str) -> NoReturn:
     # ASCII only: no em dash, curly quotes, or middle dots.
+    # NoReturn is not decoration: it tells a type checker that every `m.group()`
+    # after a `if not m: fail(...)` is reachable only when m is not None, which is
+    # what makes the guard clauses below type-safe without redundant asserts.
     print(f"REJECTED: {msg}", file=sys.stderr)
     raise SystemExit(1)
 
@@ -67,7 +71,6 @@ def table_row_count(text: str, heading_prefix: str) -> int:
             j += 1
         return count
     fail(f"heading not found: {heading_prefix!r}")
-    return 0  # unreachable
 
 
 def derive_counts(root: Path) -> tuple[int, int, int]:
@@ -131,17 +134,45 @@ def check_scoreboard_sites(root: Path, expected: tuple[int, int, int]) -> None:
 
 
 def policy_version(root: Path) -> str:
+    """Return the ONE authoritative version declared in ADMISSION.md.
+
+    Two properties are asserted here, and both are load-bearing:
+
+      1. The canonical declaration EXISTS. There is deliberately no fallback to
+         "any version string in the file". A fallback makes the check pass after
+         the canonical line is deleted, which is a silent downgrade to a weaker
+         guarantee than the one this function claims to provide.
+      2. It is the ONLY occurrence. The governing decision on this was that
+         fewer declaration sites beat a smarter checker: with one site, a partial
+         bump cannot be expressed, so it cannot be missed. Restating the string
+         elsewhere in the file re-creates exactly the drift this guards against.
+
+    Tradeoff, stated because it is real: this refuses a legitimate quotation of a
+    historical version inside ADMISSION.md (a migration example, or "what v1 used
+    to say"). That failure is loud and self-explaining rather than silent, and the
+    fix is to reference the declaration instead of restating the string.
+    """
     path = root / "ADMISSION.md"
     if not path.is_file():
         fail(f"missing {path}")
     text = path.read_text(encoding="utf-8")
     m = DECLARED_VERSION_RE.search(text)
-    if m:
-        return m.group(1)
-    m = POLICY_VERSION_RE.search(text)
     if not m:
-        fail("ADMISSION.md: no admission-policy version string")
-    return m.group(0)
+        fail(
+            "ADMISSION.md: no canonical '**Declared version:** `admission-policy vN`' "
+            "line. That line is the single authoritative declaration; without it "
+            "there is nothing for the gate card to agree with."
+        )
+    declared = m.group(1)
+    occurrences = POLICY_VERSION_RE.findall(text)
+    if len(occurrences) != 1:
+        fail(
+            f"ADMISSION.md: expected exactly 1 admission-policy version string, "
+            f"found {len(occurrences)} ({', '.join(sorted(set(occurrences)))}). "
+            f"Keep one canonical declaration and reference it in prose elsewhere "
+            f"rather than restating the version, so a partial bump cannot happen."
+        )
+    return declared
 
 
 def gate_card_version(root: Path) -> str:
@@ -149,14 +180,18 @@ def gate_card_version(root: Path) -> str:
     if not path.is_file():
         fail(f"missing gate card at {path}")
     text = path.read_text(encoding="utf-8")
-    # Prefer the normative-status header so a stray mention elsewhere cannot mask drift.
+    # The normative-status header is the only place the card may pin the policy
+    # version. No fallback to "any version string on the card": that would let a
+    # passing mention in body prose stand in for the header, so deleting the
+    # header would silently keep the check green.
     m = GATE_HEADER_VERSION_RE.search(text)
-    if m:
-        return m.group(2)
-    m = POLICY_VERSION_RE.search(text)
     if not m:
-        fail("gate card SKILL.md: no admission-policy version in normative-status header")
-    return m.group(0)
+        fail(
+            "gate card SKILL.md: no admission-policy version in the normative-status "
+            "header. The header is where the card pins the policy edition it "
+            "describes; a mention elsewhere on the card is not a substitute."
+        )
+    return m.group(2)
 
 
 def check_policy_version(root: Path) -> None:

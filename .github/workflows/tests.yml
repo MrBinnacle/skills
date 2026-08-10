@@ -98,6 +98,25 @@ jobs:
             cat control-scoreboard.log
             exit 1
           fi
-          grep -q 'REJECTED' control-scoreboard.log \
+          grep -q 'scoreboard' control-scoreboard.log \
             || { echo "::error::mismatch fixture failed for the wrong reason"; cat control-scoreboard.log; exit 1; }
           echo "control: disagreeing scoreboard rejected as expected"
+
+      # The version half needs its own control. The mismatch fixture above fails
+      # on the scoreboard and returns before the version check runs, so it proves
+      # nothing about version drift. This fixture has a CORRECT scoreboard and a
+      # gate card pinned to a different edition than ADMISSION.md declares, so the
+      # only thing it can fail on is the assertion under test.
+      - name: Poison control - a drifted policy version must be rejected
+        run: |
+          set -euo pipefail
+          if python scripts/validate_scoreboard.py \
+               --root scripts/fixtures/admission-version-drift \
+               > control-version.log 2>&1; then
+            echo "::error::version-drift fixture was ACCEPTED - the validator no longer refuses policy version drift"
+            cat control-version.log
+            exit 1
+          fi
+          grep -q 'admission policy version drift' control-version.log \
+            || { echo "::error::version-drift fixture failed for the wrong reason"; cat control-version.log; exit 1; }
+          echo "control: drifted policy version rejected as expected"
