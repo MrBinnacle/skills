@@ -18,7 +18,7 @@ provenance record. Skills that stop earning their place are retired into `RETIRE
 evidence attached rather than deleted quietly.
 
 The collection is deliberately small. Adding a skill is the exception; the default answer to
-"should this be a skill?" is no.
+"should this be a skill?" is no. The binding rule is [`ADMISSION.md`](ADMISSION.md).
 
 ## Where the working conventions live
 

@@ -318,8 +318,8 @@ session.
 
 **Most skills should not exist.** Collections have their own failure mode: accumulation. Every
 card costs context in every conversation, models keep improving past the cards, and almost
-nobody tests whether a skill still changes the outcome. `skill-necessity-gate` is the gate;
-[RETIRED.md](RETIRED.md) is the exit.
+nobody tests whether a skill still changes the outcome. The [admission policy](ADMISSION.md) is
+the gate; [RETIRED.md](RETIRED.md) is the exit.
 
 ## What the receipts are worth
 
@@ -426,7 +426,7 @@ rather than the first.
 Issues and PRs welcome — the full guide is [CONTRIBUTING.md](CONTRIBUTING.md). New skills run
 the same gauntlet as mine:
 
-1. It must pass the [skill-necessity-gate](skills/meta/skill-necessity-gate/SKILL.md) — most
+1. It must pass the [admission policy](ADMISSION.md) — most
    ideas correctly fail it.
 2. It ships with a `gotchas.md` and, for anything claiming a real-incident origin, an
    `EVIDENCE.md` with the dated story.

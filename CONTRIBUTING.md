@@ -8,9 +8,10 @@ and that's the system working, not gatekeeping for its own sake.
 Use the [Propose a skill](https://github.com/MrBinnacle/skills/issues/new?template=propose-a-skill.md)
 issue template. The short version of the gauntlet:
 
-1. **It must pass the [skill-necessity-gate](skills/meta/skill-necessity-gate/SKILL.md).**
-   Six questions deciding whether the capability belongs in a skill, in project rules, in a
-   hook — or nowhere.
+1. **It must pass the [admission policy](ADMISSION.md).**
+   Four questions deciding whether the capability belongs in a skill, in project rules, in a
+   hook — or nowhere. Answer them with the six-gate method on the
+   [gate card](skills/meta/skill-necessity-gate/SKILL.md).
 2. **A current frontier model, without the skill, should plausibly still fail the situation.**
    If the model already handles it unaided, the skill is a no-op — four of the author's own
    candidates died exactly here ([RETIRED.md](RETIRED.md)), so yours failing is good company.

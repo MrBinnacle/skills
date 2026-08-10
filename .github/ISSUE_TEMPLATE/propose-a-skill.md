@@ -17,9 +17,9 @@ labels: proposal
 
 ## The gauntlet (be honest — most ideas fail here)
 
-- [ ] I ran it against the [skill-necessity-gate](../../skills/meta/skill-necessity-gate/SKILL.md) and it passed
+- [ ] I ran it against the [admission policy](../../ADMISSION.md) and it passed
 - [ ] A current frontier model, given the situation WITHOUT the skill, plausibly still fails (if the model already does this unaided, the skill is a no-op — see [RETIRED.md](../../RETIRED.md) for four of the author's own candidates that died exactly here)
-- [ ] It's a skill, not a hook/project-rule/one-off (the gate's layer question)
+- [ ] It's a skill, not a hook/project-rule/one-off (the admission policy's layer question)
 
 ## What ships with it
 
