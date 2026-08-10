@@ -33,12 +33,13 @@ works with [70+ other agents](https://github.com/vercel-labs/skills).
 The uncomfortable part first, because this is the part a README usually buries.
 
 **The controlled fields live in each skill's own `EVIDENCE.md`, not in this summary.** Open
-them: every record currently reports `UNMEASURED` on both the screen and the paired verdict.
-For six of them a screen task is registered and simply has not been run. The other three are
-process disciplines that the instrument cannot score at all: what they change is which steps
-happen in what order, and there is no deterministic oracle for that. When a controlled result
-lands, that skill's record will say so under its own name — this paragraph is not a substitute
-for reading them.
+them for the screen and the paired verdict rather than trusting a roll-up here. A front-page
+claim that every record is empty goes false the day any skill ships a controlled result — and
+silently. Some skills have a screen task registered and not yet run; others are process
+disciplines the instrument cannot score at all: what they change is which steps happen in what
+order, and there is no deterministic oracle for that. When a controlled result lands, that
+skill's record will say so under its own name — this paragraph is not a substitute for reading
+them.
 
 **The admission test turns away more than it lets in.** In July 2026 I put four of my own
 candidate skills through it. The test is easy to describe: give a current model
