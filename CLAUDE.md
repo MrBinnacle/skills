@@ -19,15 +19,17 @@ sections stay valid. Adapt freely — this is a starting point, not a contract.
 ## Section 0 — Session Discipline
 
 At session start, load the project's canonical state surfaces (checkpoint / state doc /
-project rules) **before** acting — do not reconstruct state from memory. Standing gates
-for every session:
+project rules) **before** acting — do not reconstruct state from memory. `im-up` (in this
+repo) is one implementation of that load; its sibling `im-down` writes the packet it reads
+(§11). Standing gates for every session:
 
 - **Context monitoring is active.** Performance degrades as context fills; treat ~40% as
   a ceiling — clear and reload from state rather than pushing a saturated window (§9).
 - **Artifact verification, not self-report.** AI systems over-report completion; inspect
   the artifact directly before accepting "done" (§6).
 - **Model tier is a choice.** Use a frontier model for architecture and ambiguity-heavy
-  planning; a faster tier for high-throughput iterative execution.
+  planning; a faster tier for high-throughput iterative execution. A project delta may pin
+  a standing model for its sessions — when it does, the delta wins over this heuristic.
 - **Scope is clear.** A unit of work should fit one focused session; if it won't, split it.
 
 ## Section 0.1 — Reporting Register
@@ -72,7 +74,8 @@ would disagree based on different *values*, not different *information*. If a co
 practitioner in the relevant role would default to a specific answer (accessibility = yes,
 security = yes, tests = yes), take that default and proceed — do not surface it. When a
 decision genuinely is values-driven (risk tolerance, scope, product direction), surface it
-explicitly, prefixed so the user knows this one truly needs them.
+explicitly with a marker the user can spot — `[values decision]` works — so they know this
+one actually needs them and the rest did not.
 
 **Never defer via anchored verification.** Even a correct instinct to defer must not be
 executed by presenting a computed, determinate result for a yes/no ("here's X → confirm?").
@@ -84,14 +87,27 @@ form of verification. So classify first: **determinate → assert it plus a chea
 never the finished artifact for approval.** Arithmetic test: if a competent reviewer holding
 *less* of your context would just re-derive your answer, it is arithmetic — don't ask.
 
+**Per-project fluency profile.** A project delta may declare which domains the user owns
+and which the agent should research-and-recommend in. That declaration is what makes the
+test above cheap to apply — it settles in advance whose call a given question is, instead
+of re-deciding it every time. Default for a project with no stated profile: the user owns
+scope, priorities, and product intent; the agent researches and recommends on
+implementation detail.
+
 ## Section 0.7 — Standard Role Coverage
 
 For work outside your fluency or in novel territory, don't ask the user which perspectives
-to consider — default to the standard product-development roster (product, design,
-frontend, backend, data, security, accessibility, QA, SRE/ops, docs, and so on). Collapse
-the roles the project doesn't need, cover the rest from the appropriate role's perspective
-(researching where that role's domain requires it), and surface only the decisions that
-genuinely require the user.
+to consider — default to the standard product-development roster:
+
+> PM · Eng Lead · ML/Research Engineer · Systems Engineer · Backend/Frontend Engineer ·
+> UX/UI/Interaction Designer · User Researcher · Accessibility Specialist ·
+> Security Engineer · Privacy/Data Governance · QA · DevOps/Platform · SRE ·
+> Technical Writer · Localization · Legal · Finance · Marketing/GTM · Customer Support ·
+> Data Analytics.
+
+Collapse the roles the project doesn't need, cover the rest from the appropriate role's
+perspective (researching where that role's domain requires it), and surface only the
+decisions that genuinely require the user.
 
 ## Section 1 — Layer Placement Rule
 
@@ -121,6 +137,13 @@ When authoring or auditing a skill:
 
 - **Progressive disclosure.** A tight top-level description (it is what retrieval matches on
   — keep it a precise router, not a summary), with detail deferred to the body and aux files.
+  A visible description is a standing cost: it is loaded every session whether the skill
+  fires or not, so it carries trigger conditions and nothing else. Budget the whole
+  collection's visible descriptions, not each one in isolation.
+- **Context, not railroading.** Frame a skill around what must be true before an action, not
+  a fixed script — the skill supplies the shape of the decision, the project delta supplies
+  the numbers. *Exception:* a discipline skill is meant to be directive; softening its stop
+  conditions to feel less rigid defeats the thing it exists to do.
 - **Append-only gotchas.** Empirical catches accumulate in an append-only log so hard-won
   lessons are never overwritten.
 - **Procedure vs. ability split.** Procedures that must run a specific way can disable
@@ -129,7 +152,11 @@ When authoring or auditing a skill:
 - **Pre-register the exit.** State the skill's success and stop conditions up front so it
   cannot loop.
 - **Tune loudness to consequence.** A skill that guards an irreversible action should be
-  louder than one that offers a convenience.
+  louder than one that offers a convenience. For a long directive skill, a
+  Problem / Supporting information / Steps structure holds up better than a flat list, and
+  wrapping the background in a tag the model reads as secondary keeps it ranked below the
+  instructions. When a skill misbehaves, tune the loudness before adding more rules — and
+  put the *why* next to any rule the model keeps breaking.
 
 ## Section 1.6 — Vertical-Slice + Memento Discipline
 
@@ -268,7 +295,8 @@ after changes — e.g. `cargo test` / `cargo check` (Rust), `npm test` / `tsc --
 After each phase or milestone, fold working state into your canonical state surfaces:
 current phase · test status · blockers · exact next steps. Checkpoint *before* starting the
 next phase, and immediately on hitting a usage or token limit. Keep sessions bounded (a few
-phases at most). A durable checkpoint is what makes clear-and-reload cheap (§9).
+phases at most). A durable checkpoint is what makes clear-and-reload cheap (§9). `im-down`
+(in this repo) is one implementation of the write side; `im-up` reads it back (§0).
 
 ## Section 12 — Tool Installation Gate
 
@@ -283,18 +311,54 @@ For any script that writes to a production data store: use a `--dry-run` first w
 available, and never run a write operation without explicit approval. Applies to every data
 pipeline, not just the first run.
 
+## Section 14 — Skill Quick-Reference
+
+Keep a short list of the skills you actually mean to reach for, organized by *the moment you
+should reach for them*. Retrieval is the binding constraint (§1) — a good skill you forget at
+the right moment is worth nothing — and the ones worth listing are the ones easiest to
+forget, because they fire rarely.
+
+Two rules keep the list useful:
+
+- **Organize by moment, not by topic.** "Before any handoff" is a trigger a reader can
+  notice happening. "Orchestration" is a filing category, and nobody notices being in one.
+- **List only what the reader can actually run.** Naming a skill they don't have costs them
+  context and teaches them to distrust the rest of the list. Re-prune it every time the
+  collection changes.
+
+Skills that fire on an error don't need to be here — the failure surfaces them. This list is
+for the ones you have to remember on purpose.
+
 ---
 
 ## Companion skills in this repo
 
-These operating rules pair with the skills shipped here. Reach for them at the named moment:
+Section 14 applied to this collection — nine skills, grouped by when you'd reach for one.
 
-- **`skill-necessity-gate`** — before creating or auditing a skill ("should this be a skill?").
-- **`downstream-instruction-framing`** — before any handoff, plan, ADR, or subagent prompt.
-- **`parallel-review-disposition-schema`** — when fanning out parallel verify/adjudicate agents.
-- **`subagent-research-reliability`** — before and after dispatching a web-research subagent.
-- **`git-pull-rebase-trap`**, **`github-pages-deploy-verification`**,
-  **`closure-mode-at-boundaries`** — error-triggered traps for their respective failure modes.
+**Ending or starting a session**
+
+- **`im-down`** — you're stopping for the day; write the repo's real state into a packet, and
+  check the packet before you sign off.
+- **`im-up`** — you're starting cold; check that packet against the repo before doing any work.
+
+**Finishing a phase**
+
+- **`closure-mode-at-boundaries`** — a phase just locked and you're about to decide what's
+  next. Wrap up first, decide second.
+
+**Writing instructions someone else will follow**
+
+- **`downstream-instruction-framing`** — any handoff, plan, ADR, or subagent prompt.
+- **`parallel-review-disposition-schema`** — you're sending the same question to several
+  reviewers and will need to add their answers up.
+- **`subagent-research-reliability`** — before and after you hand research to a helper agent.
+
+**Adding to your own collection**
+
+- **`skill-necessity-gate`** — deciding whether something should be a skill at all.
+
+**Traps that surface themselves** — listed so you know they're installed, not to remember:
+**`git-pull-rebase-trap`** and **`github-pages-deploy-verification`**.
 
 ## Project delta (adopter stub)
 
