@@ -21,7 +21,7 @@ improvising. They are cheap to write, and that is the problem: every card I adde
 sitting in every conversation I had afterwards, costing me context, and I had no way of telling
 which ones were still doing anything.
 
-So I stopped adding and started testing. This repo is what came through: nine skills, each
+So I stopped adding and started testing. This repo is what came through: the skills below, each
 carrying a dated record of where it came from and what has actually been checked about it, plus
 a public log of the ones that left.
 
@@ -32,12 +32,13 @@ works with [70+ other agents](https://github.com/vercel-labs/skills).
 
 The uncomfortable part first, because this is the part a README usually buries.
 
-**Not one of the nine has a controlled result.** Every `EVIDENCE.md` in this repo reports
-`UNMEASURED` on both of its controlled fields — the screen and the paired verdict. For six of
-them a screen task is registered and simply has not been run. The other three are process
-disciplines that the instrument cannot score at all: what they change is which steps happen in
-what order, and there is no deterministic oracle for that. The records say which is which,
-under their own names, rather than filling the gap with a number.
+**The controlled fields live in each skill's own `EVIDENCE.md`, not in this summary.** Open
+them: every record currently reports `UNMEASURED` on both the screen and the paired verdict.
+For six of them a screen task is registered and simply has not been run. The other three are
+process disciplines that the instrument cannot score at all: what they change is which steps
+happen in what order, and there is no deterministic oracle for that. When a controlled result
+lands, that skill's record will say so under its own name — this paragraph is not a substitute
+for reading them.
 
 **The admission test turns away more than it lets in.** In July 2026 I put four of my own
 candidate skills through it. The test is easy to describe: give a current model
@@ -71,7 +72,7 @@ and what has and has not been tested about it.
 npx skills add MrBinnacle/skills
 ```
 
-That is the whole install. You will be shown the nine skills and can pick which to take.
+That is the whole install. You will be shown the skills and can pick which to take.
 
 Then **read what you installed.** Each skill is a few KB of English, a couple of minutes end to
 end. You are handing instructions to an agent that can run commands, so treat a skill like a
