@@ -1,0 +1,74 @@
+name: tests
+
+# Two skills in this collection ship executable code: the session-boundary pair
+# validates the packet that carries one session's state into the next. That
+# validator had a passing test suite and no job that ran it.
+#
+# It is invoked directly, not through pytest, and that is deliberate. The suites
+# drive their cases from `if __name__ == "__main__"` and their functions are not
+# `test_`-prefixed, so `pytest` collects nothing from them and reports
+# "no tests ran" — a green line that means the opposite of what it looks like.
+# Running the real entrypoint and asserting the PASS line is what makes this job
+# honest about whether anything executed.
+#
+# Windows is in the matrix because that is where these skills are actually used.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validator:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Producer validator suite
+        run: |
+          set -euo pipefail
+          cd skills/engineering/im-down
+          out="$(python test_validate_packet.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::producer suite emitted no PASS line — it did not run"; exit 1; }
+
+      - name: Receiver validator suite
+        run: |
+          set -euo pipefail
+          cd skills/engineering/im-up
+          out="$(python test_validate_packet.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::receiver suite emitted no PASS line — it did not run"; exit 1; }
+
+      # A gate that cannot fail guards nothing. A stale packet must be rejected,
+      # so this asserts the shipped validator still refuses one.
+      - name: Poison control — a stale packet must be rejected
+        run: |
+          set -euo pipefail
+          cd skills/engineering/im-down
+          if python validate_packet.py fixture-stale.md \
+               --mode produce --repo-root "$GITHUB_WORKSPACE" > control.log 2>&1; then
+            echo "::error::stale fixture was ACCEPTED — the validator no longer rejects a stale packet"
+            cat control.log
+            exit 1
+          fi
+          grep -q 'REJECTED' control.log \
+            || { echo "::error::stale fixture failed for the wrong reason"; cat control.log; exit 1; }
+          echo "control: stale packet rejected as expected"

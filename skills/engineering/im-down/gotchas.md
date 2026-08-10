@@ -10,3 +10,4 @@
 - [OBSERVED 2026-08-10] A narrative sentence quoting a ticket title that contained the word TODO rejected an otherwise valid packet. A scan for placeholders must not punish prose that discusses them.
 - [OBSERVED 2026-08-10] Receive mode without `--config` skipped every configured check and still returned ACCEPTED. A verification that an omitted argument switches off is not a verification.
 - [ANTICIPATED] The producer commits, then the packet records HEAD. Committing the packet afterwards moves HEAD and makes the packet reject itself. Keep the packet directory out of version control, or produce the packet after the final commit.
+- [OBSERVED 2026-08-10] `pytest test_validate_packet.py` collects no tests and reports "no tests ran". The cases run from `if __name__ == "__main__"` and the functions carry no `test_` prefix. The report reads as success while nothing executed. Run the file directly and require its `PASS:` line.
