@@ -1,12 +1,12 @@
 ---
-name: session-start-from-state
-description: Use when a fresh Claude Code session must resume from a session-close packet and verify repository state before work.
+name: im-up
+description: Use when a fresh Claude Code session must resume from an im-down packet and verify repository state before any work begins.
 disable-model-invocation: true
 ---
 
-# Session Start From State
+# I'm Up
 
-This skill is the receiver side of the session-boundary contract.
+You are starting cold. This skill is the receiver side of the session-boundary contract. Its producer is `im-down`.
 
 ## Stable contract
 

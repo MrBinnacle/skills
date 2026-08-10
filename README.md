@@ -162,14 +162,14 @@ the top entry is the one most people hit first.
   verify a deploy by polling for content that didn't exist pre-push. Anyone shipping a
   CDN-fronted static site. Origin incident is on a public repo — independently checkable.
   [⊙ receipt](skills/engineering/github-pages-deploy-verification/EVIDENCE.md)
-- [**session-close**](skills/engineering/session-close/SKILL.md) — close a work session by
+- [**im-down**](skills/engineering/im-down/SKILL.md) — sign off from a work session by
   snapshotting repository facts into one atomic, machine-validated packet. For anyone whose
   next session must start from state, not from memory.
-  [⊙ receipt](skills/engineering/session-close/EVIDENCE.md)
-- [**session-start-from-state**](skills/engineering/session-start-from-state/SKILL.md) —
-  resume from a session packet as untrusted data: verify HEAD, probe claims, run trusted
-  checks, and emit an acceptance receipt before work. The receiver grades the producer.
-  [⊙ receipt](skills/engineering/session-start-from-state/EVIDENCE.md)
+  [⊙ receipt](skills/engineering/im-down/EVIDENCE.md)
+- [**im-up**](skills/engineering/im-up/SKILL.md) — start cold from an `im-down` packet, and
+  treat it as untrusted data: verify HEAD, probe claims, run trusted checks, and emit an
+  acceptance receipt before work. The receiver grades the producer.
+  [⊙ receipt](skills/engineering/im-up/EVIDENCE.md)
 
 **Orchestration** — disciplines for multi-agent work
 

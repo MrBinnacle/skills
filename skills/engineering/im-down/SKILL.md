@@ -1,12 +1,12 @@
 ---
-name: session-close
-description: Use when the operator closes a Claude Code work session and needs one verified packet for a fresh receiver session.
+name: im-down
+description: Use when you are ending a Claude Code work session and the next session must resume from a verified packet instead of from conversational memory.
 disable-model-invocation: true
 ---
 
-# Session Close
+# I'm Down
 
-This skill is the producer side of the session-boundary contract.
+You are signing off. This skill is the producer side of the session-boundary contract. Its receiver is `im-up`.
 
 ## Stable contract
 
