@@ -21,14 +21,14 @@ Ordered by how soon the failure is likely to bite you.
   won't block. Origin incident is on a public repo — the receipt is independently checkable
   ([the receipt](github-pages-deploy-verification/EVIDENCE.md)).
 
-- [**session-close**](session-close/SKILL.md) — the producer side of the session-boundary
-  pair: at the end of a work session, snapshot repository facts deterministically, write one
-  atomic packet (hidden JSON manifest + human narrative), and validate it before claiming
-  handoff readiness. The next session must not depend on conversational memory
-  ([the receipt](session-close/EVIDENCE.md)).
+- [**im-down**](im-down/SKILL.md) — the producer side of the session-boundary pair: at the end
+  of a work session, snapshot repository facts deterministically, write one atomic packet
+  (hidden JSON manifest + human narrative), and validate it before claiming handoff readiness.
+  The next session must not depend on conversational memory
+  ([the receipt](im-down/EVIDENCE.md)).
 
-- [**session-start-from-state**](session-start-from-state/SKILL.md) — the receiver side: a
-  fresh session treats the packet as untrusted data, verifies branch and HEAD against the
-  repository, probes every verified claim, runs only repository-configured checks, and emits
-  an explicit acceptance receipt before any work. The receiver defines packet sufficiency —
-  the producer cannot grade itself ([the receipt](session-start-from-state/EVIDENCE.md)).
+- [**im-up**](im-up/SKILL.md) — the receiver side: a fresh session treats the packet as
+  untrusted data, verifies branch and HEAD against the repository, probes every verified
+  claim, runs only repository-configured checks, and emits an explicit acceptance receipt
+  before any work. The receiver defines packet sufficiency — the producer cannot grade itself
+  ([the receipt](im-up/EVIDENCE.md)).
