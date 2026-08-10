@@ -5,3 +5,8 @@
 - [ANTICIPATED] A Stop hook fires after ordinary responses, not only at a true session boundary.
 - [ANTICIPATED] Model-reported skill telemetry can be incomplete. Label its source honestly.
 - [ANTICIPATED] A validator can check represented claims. It cannot prove that the writer represented every claim.
+- [OBSERVED 2026-08-10] A `command` probe was never executed, yet its claim kept `verified` and the packet was ACCEPTED. Any unverifiable claim could be laundered by choosing that probe kind. Refusing to execute packet-supplied commands was correct; leaving the status untouched was not.
+- [OBSERVED 2026-08-10] The shipped example `receiver_checks` entry was `git status --porcelain`, which exits zero on a dirty tree, a deleted tracked file, and a clean tree alike. The only example check could not fail.
+- [OBSERVED 2026-08-10] A narrative sentence quoting a ticket title that contained the word TODO rejected an otherwise valid packet. A scan for placeholders must not punish prose that discusses them.
+- [OBSERVED 2026-08-10] Receive mode without `--config` skipped every configured check and still returned ACCEPTED. A verification that an omitted argument switches off is not a verification.
+- [ANTICIPATED] The producer commits, then the packet records HEAD. Committing the packet afterwards moves HEAD and makes the packet reject itself. Keep the packet directory out of version control, or produce the packet after the final commit.

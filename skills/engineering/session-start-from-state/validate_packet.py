@@ -22,6 +22,13 @@ SECRET_PATTERNS = [
     re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"),
     re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
 ]
+SCAFFOLD_MARKER = "__REQUIRED__"
+PLACEHOLDER_TOKENS = ("TODO", "TBD")
+LIST_PREFIX = re.compile(r"^\s*(?:[-*+]\s+|\d+[.)]\s+|>\s*)*")
+# A receiver check signals through stdout and always exits zero, so it cannot
+# fail and cannot gate anything. Name the known instance rather than guess.
+UNFAILABLE_CHECK = re.compile(r"^\s*git\s+status(\s+--porcelain(=\S+)?)*\s*$")
+
 
 class PacketError(ValueError):
     pass
@@ -54,6 +61,68 @@ def extract(path: Path) -> tuple[dict, str]:
 
 def nonempty(value) -> bool:
     return value is not None and value != "" and value != [] and value != {}
+
+
+def walk_strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from walk_strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from walk_strings(item)
+
+
+def is_placeholder_line(line: str) -> bool:
+    """True when the line carries a placeholder token and nothing else."""
+    stripped = LIST_PREFIX.sub("", line).strip().strip("*_`#").strip()
+    return stripped.rstrip(":.").strip().upper() in PLACEHOLDER_TOKENS
+
+
+def placeholder_tokens(data: dict, text: str) -> set[str]:
+    """Return the placeholder tokens that are genuinely placeholders.
+
+    A mention of TODO inside narrative prose - a quoted ticket title, a file
+    path, a sentence about removing them - is legitimate content, and rejecting
+    it teaches the producer to censor honest narrative. Only a whole-line
+    placeholder, or a manifest value that is nothing but the token, is evidence
+    of unfinished work.
+    """
+    found: set[str] = set()
+    for line in text.splitlines():
+        if is_placeholder_line(line):
+            upper = line.upper()
+            found.update(token for token in PLACEHOLDER_TOKENS if token in upper)
+    for value in walk_strings(data):
+        candidate = value.strip().rstrip(":.").strip().upper()
+        if candidate in PLACEHOLDER_TOKENS:
+            found.add(candidate)
+    return found
+
+
+def trusted_commands(config: dict | None) -> set[str]:
+    """Commands the repository owner has authorised, never the packet itself."""
+    if not config:
+        return set()
+    commands = {
+        check["command"] for check in config.get("receiver_checks", [])
+        if isinstance(check, dict) and "command" in check
+    }
+    commands.update(config.get("trusted_probe_commands", []))
+    return commands
+
+
+def lint_receiver_checks(config: dict) -> list[str]:
+    notes: list[str] = []
+    for check in config.get("receiver_checks", []):
+        command = check.get("command", "") if isinstance(check, dict) else ""
+        if UNFAILABLE_CHECK.match(command):
+            notes.append(
+                f"receiver check '{check.get('name', command)}' always exits zero, "
+                f"so it cannot fail and gates nothing: {command}"
+            )
+    return notes
 
 
 def validate_structure(data: dict, text: str) -> list[str]:
@@ -103,9 +172,10 @@ def validate_structure(data: dict, text: str) -> list[str]:
                 errors.append(f"claims[{index}] lacks evidence")
         if status == "unverified" and not nonempty(claim.get("evidence")):
             errors.append(f"claims[{index}] lacks a source in evidence")
-    for marker in ("__REQUIRED__", "TODO", "TBD"):
-        if marker in text:
-            errors.append(f"unfinished marker present: {marker}")
+    if SCAFFOLD_MARKER in text:
+        errors.append(f"unfinished marker present: {SCAFFOLD_MARKER}")
+    for token in sorted(placeholder_tokens(data, text)):
+        errors.append(f"unfinished marker present: {token}")
     for pattern in SECRET_PATTERNS:
         if pattern.search(text):
             errors.append("possible secret detected")
@@ -115,9 +185,12 @@ def validate_structure(data: dict, text: str) -> list[str]:
     return errors
 
 
-def validate_repository(data: dict, repo_root: Path) -> tuple[list[str], list[str]]:
+def validate_repository(
+    data: dict, repo_root: Path, allowed_commands: set[str] | None = None
+) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     notes: list[str] = []
+    allowed = allowed_commands or set()
     current_head = git(repo_root, "rev-parse", "HEAD")
     current_branch = git(repo_root, "branch", "--show-current")
     expected = data.get("repository", {})
@@ -137,12 +210,27 @@ def validate_repository(data: dict, repo_root: Path) -> tuple[list[str], list[st
             if result.returncode != 0:
                 errors.append(f"claim {claim.get('id')} commit probe failed: {value}")
         elif kind == "command":
-            notes.append(f"claim {claim.get('id')} command probe requires trusted config: {value}")
+            # A command supplied only by the packet is never executed. But an
+            # unexecuted probe cannot support the word "verified", so the claim
+            # is rejected rather than passed through on an advisory note.
+            if str(value) not in allowed:
+                errors.append(
+                    f"claim {claim.get('id')} command probe is absent from the trusted "
+                    f"config allowlist, so a verified status is unsupported: {value}"
+                )
+                continue
+            result = run(str(value), repo_root)
+            if result.returncode != 0:
+                errors.append(
+                    f"claim {claim.get('id')} command probe failed "
+                    f"(exit {result.returncode}): {value}"
+                )
+            else:
+                notes.append(f"claim {claim.get('id')} command probe passed: {value}")
     return errors, notes
 
 
-def rerun_checks(config_path: Path, repo_root: Path) -> list[dict]:
-    config = json.loads(config_path.read_text(encoding="utf-8"))
+def rerun_checks(config: dict, repo_root: Path) -> list[dict]:
     results = []
     for check in config.get("receiver_checks", []):
         result = run(check["command"], repo_root)
@@ -166,14 +254,30 @@ def main() -> int:
         errors = validate_structure(data, text)
         notes: list[str] = []
         checks: list[dict] = []
+        config: dict | None = None
+        if args.config:
+            loaded = json.loads(args.config.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise PacketError("config must be a JSON object")
+            config = loaded
+            notes.extend(lint_receiver_checks(config))
         if args.repo_root:
-            repo_errors, notes = validate_repository(data, args.repo_root.resolve())
+            repo_errors, repo_notes = validate_repository(
+                data, args.repo_root.resolve(), trusted_commands(config)
+            )
             errors.extend(repo_errors)
-        if args.mode == "receive" and args.config and args.repo_root:
-            checks = rerun_checks(args.config, args.repo_root.resolve())
-            for check in checks:
-                if check["exit_code"] != 0:
-                    errors.append(f"receiver check failed: {check['name']}")
+            notes.extend(repo_notes)
+        if args.mode == "receive":
+            # Receive mode without a config used to skip every configured check
+            # in silence and still return ACCEPTED. A verification that can be
+            # switched off by omitting an argument is not a verification.
+            if config is None or args.repo_root is None:
+                errors.append("receive mode requires --config and --repo-root")
+            else:
+                checks = rerun_checks(config, args.repo_root.resolve())
+                for check in checks:
+                    if check["exit_code"] != 0:
+                        errors.append(f"receiver check failed: {check['name']}")
         receipt = {
             "verdict": "REJECTED" if errors else "ACCEPTED",
             "packet_id": data.get("packet_id"),
@@ -186,6 +290,7 @@ def main() -> int:
     except (OSError, PacketError, json.JSONDecodeError) as exc:
         print(json.dumps({"verdict": "REJECTED", "errors": [str(exc)]}, indent=2))
         return 2
+
 
 if __name__ == "__main__":
     sys.exit(main())

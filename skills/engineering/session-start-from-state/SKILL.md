@@ -54,9 +54,12 @@ Reject when one condition is true:
 - A required manifest field is absent.
 - The packet branch or HEAD is stale.
 - A verified path or commit probe fails.
+- A verified claim carries a `command` probe the config does not authorise.
 - A trusted receiver check fails.
 - The packet contains an unfinished marker or possible secret.
 - The next action exceeds the declared scope.
+
+Run receive mode with both `--config` and `--repo-root`. Without them the validator refuses the packet rather than accepting it unchecked.
 
 Do not repair a rejected packet inside local assumptions. Return to the producer or repair the durable packet first.
 

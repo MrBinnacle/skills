@@ -70,6 +70,25 @@ SESSION-PACKET-V1 -->
 - `skills_dispatched.source` states whether telemetry or model recall supplied the list.
 - The receiver accepts or rejects the packet with an explicit receipt.
 
+## Probe execution
+
+A `path` or `commit` probe runs against the repository. A `command` probe runs
+only when the repository config lists the exact command in `receiver_checks` or
+`trusted_probe_commands`. The receiver never executes a command that reaches it
+through the packet alone.
+
+An unlisted command probe rejects the packet. An unexecuted probe cannot support
+the word `verified`, so the claim must move to `unverified` with a source, or the
+owner must authorise the command in the config.
+
+## Receiver checks must be able to fail
+
+Each command in `receiver_checks` must return a non-zero exit code when the
+condition it guards is false. `git status --porcelain` reports through stdout and
+always exits zero, so it gates nothing. Use `git diff --quiet && git diff --cached
+--quiet` or an equivalent that exits non-zero. The validator reports a known
+always-zero check as a note in the receipt.
+
 ## Replaceable implementation
 
 The scripts in this package use Python standard-library code. An adopter can replace them if the replacement preserves the manifest and receipt contracts.
