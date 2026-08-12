@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 338 105" width="338" height="105" role="img" aria-label="MRBINNACLE / skills">
+  <!--
+    Stacked lockup: compact mark above the wordmark. Use ONLY below 360px
+    (assets/tokens.json > wordmark.construction.default_rendering); the
+    horizontal lockup is the default everywhere else.
+
+    Geometry: clear space 22 (width of the M at 24px) on every side; mark 28px,
+    centred; 16px gap (a space token); wordmark set at 24px, centred.
+
+    Colour is currentColor by design - see mark-mb.svg for why.
+  -->
+  <g transform="translate(155 22) scale(1.1666667)" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter">
+    <rect x="2" y="2" width="20" height="20" rx="2"/>
+    <path d="M12 2 V5.5"/>
+    <path d="M5.25 16.5 V8.5 L8.5 12.5 L11.75 8.5 V16.5"/>
+    <path d="M13.75 8.5 V16.5"/>
+    <path d="M13.75 8.5 H16.5 A2 2 0 0 1 16.5 12.5 H13.75"/>
+    <path d="M13.75 12.5 H16.75 A2 2 0 0 1 16.75 16.5 H13.75"/>
+  </g>
+  <text x="169" y="83.4" fill="currentColor" font-size="24" text-anchor="middle" xml:space="preserve"><tspan
+      font-family="Inter, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif"
+      font-weight="700" letter-spacing="-0.24">MRBINNACLE</tspan><tspan
+      font-family="ui-monospace, &quot;SFMono-Regular&quot;, Consolas, &quot;Liberation Mono&quot;, monospace"
+      font-weight="500"> / skills</tspan></text>
+</svg>
