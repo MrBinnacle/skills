@@ -8,7 +8,7 @@
   ],
   "trusted_probe_commands": [],
   "close_commit": {
-    "pattern": "RITUAL:"
+    "contains": "RITUAL:"
   },
   "wake_conditions": [
     "A load-bearing claim fails its probe.",

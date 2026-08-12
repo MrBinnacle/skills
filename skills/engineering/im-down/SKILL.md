@@ -21,19 +21,27 @@ The receiver contract in `PACKET-FORMAT.md` defines the producer output.
 3. Treat `$ARGUMENTS` as the next-session purpose.
 4. Stop if `$ARGUMENTS` is empty.
 5. Confirm the exact objective and next action from current repository state.
-6. Run the project's durable close now and commit it, when the config declares `close_commit`. Before the snapshot, not after.
+6. Run the project's close ritual now and commit it, when the config declares `close_commit`. Before the snapshot, not after.
 
 ## The close and the packet are one action
 
-Their order is fixed by a constraint, not a preference. The close commits, which moves `HEAD`. The packet then records `HEAD`. Reversed, the close moves `HEAD` out from under a packet that already recorded it, and the receiver rejects that packet as stale in the next session.
+A **close ritual** is whatever the project runs to write its own durable state before signing off — a checkpoint file, a state document, a session log. This skill does not supply one and does not care what it writes. It cares only that the ritual **commits**, and that it commits **first**.
 
-Documenting the order does not hold it. The person typing the second command cannot see the effect of the first. So declare the requirement and let the tool enforce it:
+The order is fixed by a constraint, not a preference. The close commits, which moves `HEAD`. The packet then records `HEAD`. Reversed, the close moves `HEAD` out from under a packet that already recorded it, and the receiver rejects that packet as stale in the next session.
+
+Documenting the order does not hold it. Whoever types the second command cannot see the effect of the first. So declare the requirement and let the tool enforce it:
 
 ```json
-"close_commit": { "pattern": "RITUAL:" }
+"close_commit": { "contains": "RITUAL:" }
 ```
 
-Produce mode then refuses a packet whose `HEAD` commit message lacks that pattern, and names the repair. A project that declares no `close_commit` is unaffected.
+**Stable contract:** the `close_commit.contains` key, and that produce mode refuses a packet whose `HEAD` commit message does not contain that value. **Illustrative:** `RITUAL:` itself — that is one project's marker, and yours is whatever string your close reliably writes into its commit message.
+
+`contains` is a literal substring test, not a regex. `"^RITUAL:"` matches nothing and would refuse every packet.
+
+A project that declares no `close_commit` is unaffected.
+
+This establishes that `HEAD` is *a* close commit, not that it is *this* session's. A session that committed nothing still sits on the previous close and passes.
 
 ## Procedure
 

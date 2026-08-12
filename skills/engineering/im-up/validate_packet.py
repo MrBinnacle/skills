@@ -138,21 +138,32 @@ def validate_close_commit(config: dict | None, repo_root: Path) -> list[str]:
     command cannot see the effect of the first. So the ordering is checked here
     instead of asked for in prose.
 
-    Opt-in by config: with no `close_commit.pattern` declared this returns
-    nothing, so a project with no close ritual is unaffected. The pattern stays
+    Opt-in by config: with no `close_commit.contains` declared this returns
+    nothing, so a project with no close ritual is unaffected. The marker stays
     the project's to define -- this validator ships to projects whose close
     vocabulary it cannot know.
+
+    `contains` is a literal substring test, not a regex. The name says so on
+    purpose: called `pattern`, a project would reasonably write "^RITUAL:" and
+    get a check that silently refuses every packet forever.
+
+    Known limit, not yet closed: this establishes that HEAD is A close commit,
+    not that it is THIS session's. A session that committed nothing still sits
+    on the previous close and passes. Closing that needs a session boundary the
+    validator does not have. Revisit if: the packet directory is consulted for
+    an already-claimed HEAD, which would make the stale close detectable.
     """
     requirement = (config or {}).get("close_commit") or {}
-    pattern = requirement.get("pattern")
-    if not pattern:
+    marker = requirement.get("contains")
+    if not marker:
         return []
     message = git(repo_root, "log", "-1", "--pretty=%B")
-    if pattern in message:
+    if marker in message:
         return []
     return [
-        f"HEAD is not the close commit: its message does not carry {pattern!r}. "
-        "Run the durable close first, then produce the packet."
+        f"HEAD is not the close commit: its message does not carry {marker!r}. "
+        "Close first, then produce the packet -- a packet made before the close "
+        "records a HEAD the close then moves."
     ]
 
 
