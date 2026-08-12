@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 338 62" width="338" height="62" role="img" aria-label="MRBINNACLE / skills">
+  <!--
+    Primary wordmark. Built to assets/tokens.json > wordmark:
+      primary            "MRBINNACLE / skills"
+      MRBINNACLE         Inter 700, uppercase, tight tracking
+      / skills           system mono, 500, lowercase
+      separator          slash
+      default_rendering  one line; stack only below 360px -> see lockup-stacked.svg
+      clear_space        width of the M on every side (22px at this size)
+      minimum_size       full lockup 120px wide
+
+    Set at 24px. The viewBox is sized for Inter 700 + a 0.6em mono advance; font
+    substitution from the stack will change the fit slightly. Nominal, not exact.
+
+    Colour is currentColor by design - see mark-mb.svg for why.
+  -->
+  <text x="22" y="39" fill="currentColor" font-size="24" xml:space="preserve"><tspan
+      font-family="Inter, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif"
+      font-weight="700" letter-spacing="-0.24">MRBINNACLE</tspan><tspan
+      font-family="ui-monospace, &quot;SFMono-Regular&quot;, Consolas, &quot;Liberation Mono&quot;, monospace"
+      font-weight="500"> / skills</tspan></text>
+</svg>
