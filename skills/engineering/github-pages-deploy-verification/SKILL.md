@@ -7,7 +7,7 @@ description: Verify a GitHub Pages (or any CDN-fronted) deploy actually serves n
 
 ## Problem
 
-Two failure modes when verifying that a deploy is live via `curl`:
+Three failure modes when verifying that a deploy is live via `curl`:
 
 1. **False-positive poll predicate.** Polling `until curl ... | grep -q "<selector>"; do sleep; done`
    succeeds instantly if the selector existed before the deploy too. The loop exits on the OLD
@@ -16,9 +16,12 @@ Two failure modes when verifying that a deploy is live via `curl`:
 2. **Blocked timing chain.** `sleep 35 && curl ...` looks reasonable but the Claude Code harness
    blocks long leading sleeps inside Bash to prevent dead polling. Worse, even short
    `sleep N && curl` followed by additional pipes can hit "Blocked: sleep N followed by:" errors
-   that cancel parallel tool calls.
+    that cancel parallel tool calls.
 
-Both bugs hit one session inside ~30 minutes. They are not in the same family but they ride the
+3. **Unbounded failure.** A missing marker can mean a slow deploy, failed build, HTTP error, or
+   stale content. An endless loop distinguishes none of them and cannot return a useful verdict.
+
+The first two bugs hit one session inside ~30 minutes. They are not in the same family but ride the
 same task.
 
 ## Context / Trigger Conditions
@@ -45,8 +48,8 @@ The string you grep for **must be content that did not exist pre-deploy**. Concr
 - ❌ Grep for a token name (`--accent-dim`) when only its *value* changed — the name was there
   before too.
 
-Rule: `git diff HEAD~1 -- index.html | grep '^+'` produces candidate strings. Pick the one most
-unique to the diff.
+Rule: `git diff HEAD~1 -- . | grep '^+'` produces candidate strings from every changed path.
+Pick one unique to the diff and likely to survive the site's build transformations.
 
 ### Avoid blocked timing chains
 
@@ -56,20 +59,43 @@ In Claude Code's Bash tool, do not write:
 sleep 35 && curl ...    # often blocked
 ```
 
-Use one of these instead:
+Use a bounded function. Replace `deploy_status` with the platform's build-status command; it must
+print `built` only for a successful build. The status call runs only after all attempts, so a live
+deploy makes no extra API call.
+
+```bash
+poll_deploy() {
+  url=$1 marker=$2 max_attempts=${3:-24}; attempt=1; saw_http_error=false
+  while [ "$attempt" -le "$max_attempts" ]; do
+    body=$(curl -fsS "$url") && {
+      case $body in *"$marker"*) echo "LIVE: new content served"; return 0;; esac
+    } || saw_http_error=true
+    [ "$attempt" -eq "$max_attempts" ] || sleep 5
+    attempt=$((attempt + 1))
+  done
+  status=$(deploy_status 2>/dev/null || printf unknown)
+  if $saw_http_error; then echo "HTTP FAILURE: site returned an error (build: $status)" >&2
+  elif [ "$status" = built ]; then echo "STALE CONTENT: build succeeded but marker is absent" >&2
+  else echo "TIMEOUT: deploy did not complete (build: $status)" >&2; fi
+  return 1
+}
+```
+
+This stable contract is: bounded attempts, four named outcomes, zero only for `LIVE`, and build
+status deferred until the bound. The command used for `deploy_status` and the attempt count are
+adopter-specific.
 
 **Pattern A — synchronous until-loop with a check command:**
 
 ```bash
-until curl -s https://your.site/ | grep -q "<new-content-marker>"; do sleep 5; done
-echo "--- LIVE ---"
-curl -s https://your.site/ | grep -E "<verification-grep>" | head -20
+poll_deploy "https://your.site/" "<new-content-marker>" 24 &&
+  curl -fsS "https://your.site/" | grep -E "<verification-grep>" | head -20
 ```
 
 **Pattern B — background until-loop (preferred for slow CDNs):**
 
-Same command, but invoked with `run_in_background: true`. You get a completion notification; do
-not poll yourself.
+Invoke `poll_deploy "https://your.site/" "<new-content-marker>" 60` with
+`run_in_background: true`. You get a completion notification; do not poll it yourself.
 
 ### Three-line template
 
@@ -78,8 +104,8 @@ not poll yourself.
 git push origin <branch>
 # (mentally note: which line in the diff is unique to this push?)
 
-# 2. Poll on that exact marker
-until curl -s <prod-url> | grep -q "<unique-marker>"; do sleep 5; done
+# 2. Poll on that exact marker (after defining poll_deploy above)
+poll_deploy "<prod-url>" "<unique-marker>" 24 || exit $?
 
 # 3. Run the broader verification grep
 curl -s <prod-url> | grep -E "(<token>|<class>|<copy-string>)" | head -10
@@ -87,13 +113,15 @@ curl -s <prod-url> | grep -E "(<token>|<class>|<copy-string>)" | head -10
 
 ## Verification
 
-The poll predicate is correct when:
+The bounded poll is correct when:
 
 - `curl <url> | grep "<marker>"` returns NOTHING immediately after push (proves the marker is
   genuinely new).
-- The same command returns the marker once the loop exits (proves the deploy reached the CDN).
+- A successful poll prints `LIVE` and returns zero; timeout, HTTP failure, and stale content each
+  print their named reason and return nonzero.
+- `deploy_status` is not called when the marker appears, and is called only after the attempt cap.
 
-If the loop exits in less than ~5 seconds for a platform that typically takes 30+ seconds, your
+If the poll succeeds in less than ~5 seconds for a platform that typically takes 30+ seconds, your
 predicate matched pre-existing content. Re-pick the marker.
 
 ## Example
@@ -103,14 +131,14 @@ repo, fixing WCAG AA contrast on `index.html`:
 
 **First attempt (wrong predicate):**
 ```bash
-until curl -s https://mrbinnacle.github.io/azimuth/ | grep -q "case-footnote"; do sleep 5; done
+poll_deploy "https://mrbinnacle.github.io/azimuth/" "case-footnote" 24
 ```
 Loop exited instantly. `.case-footnote` existed in the OLD HTML — only its `color` value
 changed. False positive.
 
 **Second attempt (correct predicate):**
 ```bash
-until curl -s https://mrbinnacle.github.io/azimuth/ | grep -q "overflow-x: auto"; do sleep 5; done
+poll_deploy "https://mrbinnacle.github.io/azimuth/" "overflow-x: auto" 24
 ```
 `overflow-x: auto` was a brand-new declaration on `.v-table-wrap` introduced in the same commit.
 Loop waited ~30 seconds, then exited on real new content. Verified.
@@ -120,8 +148,8 @@ Loop waited ~30 seconds, then exited on real new content. Verified.
 - The `gh api repos/.../pages/builds/latest` endpoint is informational, not authoritative. It
   can read `building` after the site is live, and `built` before the CDN catches up. Always
   verify via `curl <prod-url>` instead.
-- Custom domains and CDN edges can delay propagation further (Cloudflare, Fastly). The poll loop
-  handles this transparently — just give it the right marker.
+- Custom domains and CDN edges can delay propagation further (Cloudflare, Fastly). Set an attempt
+  cap that covers the expected propagation window, and keep the marker deploy-unique.
 - Same pattern works for Netlify, Vercel, Cloudflare Pages, S3+CloudFront, and any other
   static-site CDN. The harness rules apply identically.
 - If the deploy is gated on a CI workflow (not Pages legacy auto-build), poll the workflow

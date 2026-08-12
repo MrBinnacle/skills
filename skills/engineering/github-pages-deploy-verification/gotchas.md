@@ -11,9 +11,9 @@
 - **`grep -q` on a compressed response.** If you add `-H "Accept-Encoding: gzip"` (or a proxy
   does), the body is binary and the grep silently never matches. Plain `curl -s` without encoding
   headers is what the pattern assumes.
-- **A cached 404 also polls forever.** If the site itself failed to build, the loop spins on the
-  missing marker with no error. Bound long polls with a timeout or run them in background and
-  check the build status if nothing lands within the platform's typical window.
+- **A cached 404 also polls forever.** If the site itself failed to build, an unbounded loop spins
+  on the missing marker with no error. The published procedure now caps attempts, records HTTP
+  errors, and checks build status only at the cap to produce a non-success reason.
 
 ## [OBSERVED]
 
