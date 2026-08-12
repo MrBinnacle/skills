@@ -43,7 +43,7 @@ In `~/.claude/settings.json` (all projects) or `.claude/settings.local.json` (on
 
 For every pass or error, exit zero silently. Do not rely on the optional `if` filter: run for Bash and let a shell-aware parser identify actual pulls. This is loop-native because `PreToolUse` fires before each tool call and can deny it.
 
-Verified 2026-08-12 against the live [Claude Code hooks reference](https://docs.anthropic.com/en/docs/claude-code/hooks): `PreToolUse`, Bash input, deny output, and silent exit-zero behavior. Use Claude Code 2.1.195+; earlier matcher behavior differs.
+Verified 2026-08-12 against the live [Claude Code hooks reference](https://code.claude.com/docs/en/hooks): `PreToolUse`, Bash input, deny output, and silent exit-zero behavior.
 
 ## Shell wrapper without an agent harness
 
@@ -51,6 +51,6 @@ Put a function named `git` in the operator or automation shell startup. Preserve
 
 This covers that shell, not programs invoking real Git directly or non-loading shells. Guard every required entry point. Git has no pre-pull client hook: `pre-rebase` runs after `pull` fetched and misses merge-configured pulls. The shell is the non-harness interception point.
 
-Verified 2026-08-12 against Git 2.55.0's live [`githooks`](https://git-scm.com/docs/githooks/2.55.0), [`pull`](https://git-scm.com/docs/git-pull/2.55.0), and [`config`](https://git-scm.com/docs/git-config/2.55.0) manuals. Re-check later versions.
+Verified 2026-08-12 against Git 2.54.0's live [`githooks`](https://git-scm.com/docs/githooks/2.54.0), [`pull`](https://git-scm.com/docs/git-pull/2.54.0), and [`config`](https://git-scm.com/docs/git-config/2.54.0) manuals. Re-check later versions.
 
 No repository test executes adopter-owned enforcement. Before relying on either form, run every table row in a disposable repository.
