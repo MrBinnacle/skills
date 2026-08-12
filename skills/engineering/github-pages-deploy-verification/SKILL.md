@@ -16,7 +16,7 @@ Three failure modes when verifying that a deploy is live via `curl`:
 2. **Blocked timing chain.** `sleep 35 && curl ...` looks reasonable but the Claude Code harness
    blocks long leading sleeps inside Bash to prevent dead polling. Worse, even short
    `sleep N && curl` followed by additional pipes can hit "Blocked: sleep N followed by:" errors
-    that cancel parallel tool calls.
+   that cancel parallel tool calls.
 
 3. **Unbounded failure.** A missing marker can mean a slow deploy, failed build, HTTP error, or
    stale content. An endless loop distinguishes none of them and cannot return a useful verdict.
