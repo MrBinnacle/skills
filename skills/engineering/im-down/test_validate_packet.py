@@ -108,6 +108,56 @@ def command_probe_cases(clean: dict, repo: Path):
     assert any("command probe passed" in n for n in notes), notes
 
 
+def close_commit_cases():
+    """Produce mode refuses a packet whose HEAD is not the doctrine close commit.
+
+    The ordering constraint is the defect: the close must commit BEFORE the
+    packet records HEAD, and until now nothing enforced it but prose.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+        (repo / "README.md").write_text("fixture", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "ordinary work, no ritual line"],
+                       cwd=repo, check=True, capture_output=True)
+
+        required = {"close_commit": {"pattern": "RITUAL:"}}
+        errors = validator.validate_close_commit(required, repo)
+        assert any("close commit" in e for e in errors), errors
+
+        # Opt-in: a project declaring no close ritual is unaffected.
+        assert not validator.validate_close_commit({}, repo)
+        assert not validator.validate_close_commit(None, repo)
+
+        # The close commit itself passes.
+        (repo / "STATE.md").write_text("closed", encoding="utf-8")
+        subprocess.run(["git", "add", "STATE.md"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "chore(state): close\n\nRITUAL: retro+1"],
+                       cwd=repo, check=True, capture_output=True)
+        assert not validator.validate_close_commit(required, repo)
+
+        cli_close_commit_case(repo)
+
+
+def cli_close_commit_case(repo: Path):
+    """Produce mode must RUN the check, not merely define it."""
+    subprocess.run(["git", "commit", "--allow-empty", "-m", "later work, no ritual line"],
+                   cwd=repo, check=True, capture_output=True)
+    config = repo / "boundary.json"
+    config.write_text('{"close_commit": {"pattern": "RITUAL:"}}', encoding="utf-8")
+
+    result = subprocess.run(
+        ["python", str(HERE / "validate_packet.py"), str(HERE / "fixture-clean.md"),
+         "--mode", "produce", "--repo-root", str(repo), "--config", str(config)],
+        text=True, capture_output=True,
+    )
+    assert result.returncode == 2, result.stdout
+    assert "is not the close commit" in result.stdout, result.stdout
+
+
 def cli_cases():
     """Receive mode must not degrade to silent acceptance without a config."""
     result = subprocess.run(
@@ -139,7 +189,8 @@ if __name__ == "__main__":
     placeholder_cases()
     lint_cases()
     repository_cases()
+    close_commit_cases()
     cli_cases()
     duplication_case()
     print("PASS: clean, stale, incomplete, failed-probe, placeholder, "
-          "unfailable-check, command-probe, receive-mode-config, no-drift")
+          "unfailable-check, command-probe, close-commit, receive-mode-config, no-drift")
