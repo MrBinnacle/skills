@@ -27,6 +27,25 @@ workflow, authoring conventions, bucket README discipline, the de-personalizatio
 before changing anything. This file does not repeat it, and neither file should grow the
 other's content.
 
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues, driven by the `gh` CLI. See
+[`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md) before creating, reading,
+labelling or closing a ticket, and for the wayfinder map and blocking conventions.
+
+### Triage labels
+
+The five canonical triage roles, each label string equal to its name. See
+[`docs/agents/triage-labels.md`](docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single-context — `CONTEXT.md` and `docs/adr/` at the repo root. See
+[`docs/agents/domain.md`](docs/agents/domain.md) before exploring the codebase, and use the
+glossary's terms in any output that names a domain concept.
+
 ## Fluency profile
 
 The maintainer owns: which skills ship, which retire, what clears the evidence bar, and the
