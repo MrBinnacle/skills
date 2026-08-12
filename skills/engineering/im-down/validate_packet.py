@@ -125,6 +125,48 @@ def lint_receiver_checks(config: dict) -> list[str]:
     return notes
 
 
+def validate_close_commit(config: dict | None, repo_root: Path) -> list[str]:
+    """Refuse a packet whose HEAD is not the session-close commit.
+
+    A session close has two halves and their order is fixed by a constraint, not
+    a preference: the durable close commits, and only THEN may the packet record
+    HEAD. Produced in the other order, the close moves HEAD out from under a
+    packet that has already recorded it, and the receiver rejects that packet as
+    stale in the NEXT session -- the worst place to discover it.
+
+    Documenting the order does not hold, because the person typing the second
+    command cannot see the effect of the first. So the ordering is checked here
+    instead of asked for in prose.
+
+    Opt-in by config: with no `close_commit.contains` declared this returns
+    nothing, so a project with no close ritual is unaffected. The marker stays
+    the project's to define -- this validator ships to projects whose close
+    vocabulary it cannot know.
+
+    `contains` is a literal substring test, not a regex. The name says so on
+    purpose: called `pattern`, a project would reasonably write "^RITUAL:" and
+    get a check that silently refuses every packet forever.
+
+    Known limit, not yet closed: this establishes that HEAD is A close commit,
+    not that it is THIS session's. A session that committed nothing still sits
+    on the previous close and passes. Closing that needs a session boundary the
+    validator does not have. Revisit if: the packet directory is consulted for
+    an already-claimed HEAD, which would make the stale close detectable.
+    """
+    requirement = (config or {}).get("close_commit") or {}
+    marker = requirement.get("contains")
+    if not marker:
+        return []
+    message = git(repo_root, "log", "-1", "--pretty=%B")
+    if marker in message:
+        return []
+    return [
+        f"HEAD is not the close commit: its message does not carry {marker!r}. "
+        "Close first, then produce the packet -- a packet made before the close "
+        "records a HEAD the close then moves."
+    ]
+
+
 def validate_structure(data: dict, text: str) -> list[str]:
     errors: list[str] = []
     for key in REQUIRED:
@@ -267,6 +309,12 @@ def main() -> int:
             )
             errors.extend(repo_errors)
             notes.extend(repo_notes)
+            if args.mode == "produce":
+                # The producer's obligation, checked at the only moment it can
+                # still be repaired cheaply. The receiver inherits it: a packet
+                # whose HEAD is the close commit stays valid only while nothing
+                # commits after it, which the stale-HEAD check already enforces.
+                errors.extend(validate_close_commit(config, args.repo_root.resolve()))
         if args.mode == "receive":
             # Receive mode without a config used to skip every configured check
             # in silence and still return ACCEPTED. A verification that can be

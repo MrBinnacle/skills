@@ -7,6 +7,9 @@
     }
   ],
   "trusted_probe_commands": [],
+  "close_commit": {
+    "contains": "RITUAL:"
+  },
   "wake_conditions": [
     "A load-bearing claim fails its probe.",
     "The next action exceeds the packet scope.",
