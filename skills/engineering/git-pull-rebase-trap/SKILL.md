@@ -5,6 +5,8 @@ description: Use before `git pull` where `pull.rebase` may be `true`. `--no-ff` 
 
 # git-pull-rebase-trap
 
+This card ships three things: an explanation of the trap, prevention-by-recipe for adopter-owned enforcement, and the recovery runbook below. It deliberately ships no executable hook. Enforcement that must fire belongs in the adopter's environment; the card remains the model-invocable reference.
+
 ## The trap
 
 `git pull --no-ff` does **not** override `pull.rebase=true`. The `--no-ff` flag applies to *merge* operations; when the effective pull strategy is rebase, `--no-ff` is silently ignored and the rebase proceeds anyway.
@@ -41,6 +43,12 @@ Or, if a linear history is actually wanted:
 git fetch origin <branch>
 git rebase origin/<branch>   # explicit rebase — at least the intent is recorded
 ```
+
+## Preventive versus reactive enforcement
+
+A reactive hook surfaces this card after an error or bad pull; it helps recovery but cannot preserve the old SHAs. Prevention must run before the pull itself. Model invocation cannot guarantee that check, and a prompt-triggered hook has no turn to fire during an unattended loop.
+
+Install an adopter-owned guard using [the runtime recipes and required case table](preventive-recipes.md). Claude Code can block the Bash tool call with `PreToolUse`; a shell wrapper covers interactive and automated shells without an agent harness. Native Git hooks do not provide a pre-pull interception point, so `pre-rebase` is too late for this policy.
 
 ## Recovery (if you already pulled and triggered a rebase)
 
