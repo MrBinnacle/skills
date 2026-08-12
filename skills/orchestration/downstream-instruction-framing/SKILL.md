@@ -1,6 +1,6 @@
 ---
 name: downstream-instruction-framing
-description: Framing discipline for artifacts instructing downstream readers. Separates evidence access from decision rights and marks which decisions new evidence can reopen.
+description: Framing discipline for artifacts instructing a downstream reader — handoffs, plans, ADRs, subagent prompts. Separates evidence access from decision rights; marks which decisions evidence can reopen.
 ---
 
 # Downstream-Instruction Framing Discipline
