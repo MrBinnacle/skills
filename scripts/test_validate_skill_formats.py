@@ -132,6 +132,47 @@ def case_orphan_bytecode_is_red(root: Path) -> None:
     )
 
 
+def case_nested_bytecode_is_red(root: Path) -> None:
+    """A .pyc one level below __pycache__ is not admitted bytecode.
+
+    `bytecode_source` requires the file to be a DIRECT child of __pycache__.
+    This case exists because the PUBLISHED reader command originally used a bare
+    `-path '*/__pycache__/*.pyc'`, whose `*` spans slashes: a payload at
+    `__pycache__/sub/helper.cpython-313.pyc` was excluded by its step 1 and then
+    passed by its step 2, because `${f%/__pycache__/*}` resolved back to the
+    skill root where an unrelated helper.py sat. The gate rejected that tree and
+    the command published to reproduce the gate said PASS. Both instruments are
+    now anchored to one level, and `case_reader_script_agrees_with_the_walker`
+    is what keeps them together.
+    """
+    folder = make_skill(root, "skills/engineering/example")
+    (folder / "helper.py").write_text("print('hi')\n", encoding="utf-8")
+    nested = folder / "__pycache__" / "sub"
+    nested.mkdir(parents=True)
+    (nested / "helper.cpython-313.pyc").write_bytes(b"\x00payload\n")
+    result = run_gate(root)
+    check("bytecode nested below __pycache__ is rejected", result.returncode != 0)
+    check(
+        "nested bytecode is rejected for the right reason",
+        "helper.cpython-313.pyc" in result.stderr
+        and "not a declared readable format" in result.stderr,
+        result.stderr.strip(),
+    )
+
+    shell = shutil.which("sh")
+    if shell is None or not READER_SH.is_file():
+        note("nested-bytecode reader agreement SKIPPED: no POSIX sh on this host")
+        return
+    reader = subprocess.run(
+        [shell, str(READER_SH), str(folder)], capture_output=True, text=True
+    )
+    check(
+        "the published reader command also rejects nested bytecode",
+        reader.returncode == 1 and "helper.cpython-313.pyc" in reader.stderr,
+        f"rc={reader.returncode} {reader.stderr.strip()}",
+    )
+
+
 def case_extensionless_file_is_red(root: Path) -> None:
     folder = make_skill(root, "skills/engineering/example")
     (folder / "Makefile").write_text("all:\n", encoding="utf-8")
@@ -320,6 +361,7 @@ def main() -> None:
         case_bytecode_with_source_passes,
         case_planted_shell_script_is_red,
         case_orphan_bytecode_is_red,
+        case_nested_bytecode_is_red,
         case_extensionless_file_is_red,
         case_all_violations_listed_not_first_fail,
         case_marker_outside_skills_dir_is_guarded,

@@ -35,10 +35,10 @@ unexpected_files() {
 # 1. Nothing but the declared formats. Compiled Python is step 2.
 find -L "$TARGET" -type f \
   ! -name '*.md' ! -name '*.txt' ! -name '*.py' ! -name '*.json' \
-  ! -path '*/__pycache__/*.pyc'
+  ! \( -path '*/__pycache__/*.pyc' ! -path '*/__pycache__/*/*' \)
 
-# 2. Every compiled file has its readable source beside it.
-find -L "$TARGET" -path '*/__pycache__/*.pyc' -exec sh -c \
+# 2. Every compiled file sits directly in __pycache__ with its source beside it.
+find -L "$TARGET" -path '*/__pycache__/*.pyc' ! -path '*/__pycache__/*/*' -exec sh -c \
   'for f; do d=${f%/__pycache__/*}; b=${f##*/}; [ -f "$d/${b%%.*}.py" ] || echo "$f"; done' _ {} +
 
 # Both print nothing when the commitment holds on your machine.
