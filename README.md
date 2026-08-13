@@ -122,12 +122,13 @@ cp -r /tmp/mr-skills/skills/engineering/git-pull-rebase-trap ~/.claude/skills/
 
 The right first question for anything you hand to an AI agent. Plainly:
 
-- A skill is a **plain-text markdown file**. There is nothing to execute at install time — no
-  binaries, no scripts that run on your machine, no network calls, nothing to phone home.
-- But a skill **instructs your assistant**, and your assistant can run commands. That is the
-  real attack surface, and it is why the "read it first" line above is not a formality.
-- Installing via `npx skills add` copies the files locally; nothing updates behind your back.
-  Updating is explicit, and you can diff what changed.
+- A skill is a **folder of readable source** — mostly markdown, sometimes a script the skill
+  runs itself. Nothing executes at install time, and nothing is a binary or obfuscated.
+- But a skill **instructs your assistant**, and your assistant can run commands — including any
+  script the skill ships. That is the real attack surface, and it is why the "read it first"
+  line above is not a formality.
+- Installing via `npx skills add` copies the whole skill folder locally, scripts included;
+  nothing updates behind your back. Updating is explicit, and you can diff what changed.
 
 Full policy, and how to report a concern: [SECURITY.md](SECURITY.md).
 
