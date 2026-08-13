@@ -120,3 +120,80 @@ jobs:
           grep -q 'admission policy version drift' control-version.log \
             || { echo "::error::version-drift fixture failed for the wrong reason"; cat control-version.log; exit 1; }
           echo "control: drifted policy version rejected as expected"
+
+      # SECURITY.md commits to a closed format vocabulary inside skill folders.
+      # These steps are the check behind that sentence. They run AFTER the
+      # validator suites above on purpose: those suites import the shipped
+      # modules, so __pycache__ exists by now and the gate's bytecode rule is
+      # exercised against real compiled files rather than only against fixtures.
+      #
+      # This DETECTS violations. It does not prevent them: `main` has no branch
+      # protection and no required checks, so a direct push lands regardless.
+      - name: Skill-format gate suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_skill_formats.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::skill-format gate suite emitted no PASS line — it did not run"; exit 1; }
+
+      - name: Skill-format gate
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_skill_formats.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::skill-format gate emitted no PASS line — it did not run"; exit 1; }
+
+      # A gate that cannot fail guards nothing. Built here rather than checked in:
+      # the walker discovers skill folders by SKILL.md marker repo-wide, so a
+      # committed violating fixture would turn the real run permanently red and
+      # have to be bought back with an exclusion list — a hole in the one check
+      # that exists to have none.
+      - name: Poison control — a non-declared format in a skill folder must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-format/skills/engineering/planted"
+          mkdir -p "$tree"
+          printf '# a skill\n' > "$tree/SKILL.md"
+          printf '#!/bin/sh\necho hi\n' > "$tree/install.sh"
+          if python scripts/validate_skill_formats.py \
+               --root "$RUNNER_TEMP/control-format" > control-format.log 2>&1; then
+            echo "::error::planted install.sh was ACCEPTED — the gate no longer rejects a non-declared format"
+            cat control-format.log
+            exit 1
+          fi
+          grep -q 'install.sh' control-format.log \
+            || { echo "::error::planted fixture failed for the wrong reason"; cat control-format.log; exit 1; }
+          echo "control: non-declared format rejected as expected"
+
+      # The second half of the format rule needs its own control. The step above
+      # fails on a suffix and proves nothing about compiled Python, which is
+      # admitted only when the source it derives from sits beside it. Bytecode
+      # with no source is the hiding place a blanket __pycache__ exclusion would
+      # have opened, so it is the assertion under test here.
+      - name: Poison control — bytecode with no readable source must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-pyc/skills/engineering/planted"
+          mkdir -p "$tree/__pycache__"
+          printf '# a skill\n' > "$tree/SKILL.md"
+          printf 'print("hi")\n' > "$tree/helper.py"
+          printf 'compiled\n' > "$tree/__pycache__/helper.cpython-313.pyc"
+          printf 'compiled\n' > "$tree/__pycache__/evil.cpython-313.pyc"
+          if python scripts/validate_skill_formats.py \
+               --root "$RUNNER_TEMP/control-pyc" > control-pyc.log 2>&1; then
+            echo "::error::orphan bytecode was ACCEPTED — the gate no longer requires source beside a .pyc"
+            cat control-pyc.log
+            exit 1
+          fi
+          grep -q 'evil.cpython-313.pyc' control-pyc.log \
+            || { echo "::error::orphan-bytecode fixture failed for the wrong reason"; cat control-pyc.log; exit 1; }
+          grep -q 'no readable source' control-pyc.log \
+            || { echo "::error::orphan-bytecode fixture failed for the wrong reason"; cat control-pyc.log; exit 1; }
+          if grep -q 'helper.cpython-313.pyc' control-pyc.log; then
+            echo "::error::bytecode WITH its source beside it was also rejected"
+            cat control-pyc.log
+            exit 1
+          fi
+          echo "control: bytecode with no readable source rejected as expected"
