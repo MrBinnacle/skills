@@ -13,17 +13,48 @@ npx skills add MrBinnacle/skills
 
 ## The question I started with
 
-I kept adding skills to my assistant and I never removed any.
+> It's just - the most successful mistake of mine so far. I think..maybe
 
-A skill is a small instruction file — think of it as a recipe card pinned above the stove. When
-a particular situation comes up, the assistant reads the card and follows it instead of
-improvising. They are cheap to write, and that is the problem: every card I added went on
-sitting in every conversation I had afterwards, costing me context, and I had no way of telling
-which ones were still doing anything.
+— 2026-08-12, [the record](VERBATIM.md)
 
-So I stopped adding and started testing. This repo is what came through: the skills below, each
-carrying a dated record of where it came from and what has actually been checked about it, plus
-a public log of the ones that left.
+Every first-person line quoted on this page is in that file, with the date it was said. The rule
+behind it: a quoted line has to be one the principal wrote, cited to the record — never one read
+back off a page.
+
+The question underneath it was whether you can tell if a skill is any good.
+
+> I wanted to know if you could tell if a skill was good. Etc and so forth. Expand expand expand.
+> And then this happened.
+
+— 2026-08-12, [the record](VERBATIM.md)
+
+A skill is a small markdown file that tells an assistant how to handle a particular situation.
+"This" is two public repositories: this one holds the skills, and
+[skill-harness](https://github.com/MrBinnacle/skill-harness) is the instrument built to answer the
+question about them. Measured on 2026-08-13, that stands at **66 commits of collection against 323
+commits of machinery built to find out whether the collection is worth anything**:
+
+```bash
+git clone https://github.com/MrBinnacle/skills.git        && git -C skills        rev-list --count HEAD
+git clone https://github.com/MrBinnacle/skill-harness.git && git -C skill-harness rev-list --count HEAD
+```
+
+The basis is a fresh clone at `HEAD` — what a plain `git clone` gets you — so those two commands
+are the whole claim, and you can land on the same figures yourself, give or take what has merged
+since. On that same basis the first commit here is 2026-05-24 and the first commit there is
+2026-06-03: the collection came first, by ten days. The cards came out of learning to do the work,
+and the wondering turned into an instrument afterwards.
+
+The question is still open. Every card here reads `UNMEASURED` in its controlled fields, which is
+what the next section is about.
+
+> Im wrong  like 200x a day - but i can iterate in really cool ways fast enough to cancel out the
+> wrongness
+
+— 2026-08-12, [the record](VERBATIM.md)
+
+Iterating fast enough to cancel the wrongness only works if something tells you which iterations
+were wrong. That is what the other repo is for.
 
 It is built for Claude Code, which is where every receipt here was gathered. The installer also
 works with [70+ other agents](https://github.com/vercel-labs/skills).
