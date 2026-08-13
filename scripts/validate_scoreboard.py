@@ -14,10 +14,20 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
+# The words are ruled and the separator is not: the five sites use commas or
+# middots as each already did, so the pattern skips whatever sits between the
+# fields. `solutions looking for a problem` is matched in full on purpose --
+# the judgement in that phrase is deliberate, and a pattern that accepted a
+# softened restatement would let the softening ship.
 SCOREBOARD_RE = re.compile(
-    r"(\d+)\s+kept\b.*?(\d+)\s+retired\b.*?(\d+)\s+turned away\b",
+    r"(\d+)\s+admitted\b.*?"
+    r"(\d+)\s+measured\b.*?"
+    r"(\d+)\s+retired\b.*?"
+    r"(\d+)\s+solutions looking for a problem",
     re.DOTALL,
 )
+FIELD_NAMES = ("admitted", "measured", "retired", "solutions looking for a problem")
+CONTROLLED_FIELDS = ("Screen result", "Paired verdict")
 POLICY_VERSION_RE = re.compile(r"admission-policy\s+v\d+")
 DECLARED_VERSION_RE = re.compile(
     r"\*\*Declared version:\*\*\s*`?(admission-policy\s+v\d+)`?"
@@ -37,17 +47,79 @@ def fail(msg: str) -> NoReturn:
     raise SystemExit(1)
 
 
-def count_kept(root: Path) -> int:
+def iter_skill_dirs(root: Path) -> list[Path]:
     skills = root / "skills"
     if not skills.is_dir():
         fail(f"missing skills directory at {skills}")
-    n = 0
+    found = []
     for bucket in sorted(skills.iterdir()):
         if not bucket.is_dir() or bucket.name.startswith("."):
             continue
         for skill in sorted(bucket.iterdir()):
             if skill.is_dir() and (skill / "SKILL.md").is_file():
-                n += 1
+                found.append(skill)
+    return found
+
+
+def count_admitted(root: Path) -> int:
+    return len(iter_skill_dirs(root))
+
+
+def controlled_field_values(evidence: Path) -> dict[str, str]:
+    """Return the card's two controlled-field values, keyed by field name.
+
+    Reads the `| **Field** | Value |` rows of the evidence table. Both fields
+    must be present: a card that states neither has not been measured *and has
+    not said so*, which is a different thing, and the difference is the whole
+    point of the record.
+    """
+    values: dict[str, str] = {}
+    for line in evidence.read_text(encoding="utf-8").splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 2:
+            continue
+        name = cells[0].strip("* ")
+        if name in CONTROLLED_FIELDS:
+            values[name] = cells[1]
+    return values
+
+
+def count_measured(root: Path) -> int:
+    """Count cards carrying a controlled result, read from their own records.
+
+    A card counts as measured when either controlled field states something
+    other than UNMEASURED. The test is on the START of the value because the
+    verdict is the first thing the field says; prose further along may discuss
+    an earlier UNMEASURED run without the field itself being one.
+
+    A missing record, or a record missing a controlled field, is refused rather
+    than counted as zero. Deriving `0 measured` from an absent record would be
+    inventing the number this line exists to keep honest.
+    """
+    n = 0
+    for skill in iter_skill_dirs(root):
+        evidence = skill / "EVIDENCE.md"
+        if not evidence.is_file():
+            fail(
+                f"{skill.name}: no EVIDENCE.md, so the measured count cannot be "
+                f"derived. The front page states how many cards carry a controlled "
+                f"result; a card with no record cannot answer that either way, and "
+                f"counting it as unmeasured would invent the answer."
+            )
+        values = controlled_field_values(evidence)
+        missing = [f for f in CONTROLLED_FIELDS if f not in values]
+        if missing:
+            fail(
+                f"{skill.name}: EVIDENCE.md has no {' and no '.join(missing)} row, "
+                f"so the measured count cannot be derived from it."
+            )
+        if any(
+            not values[f].lstrip("* `").upper().startswith("UNMEASURED")
+            for f in CONTROLLED_FIELDS
+        ):
+            n += 1
     return n
 
 
@@ -73,35 +145,52 @@ def table_row_count(text: str, heading_prefix: str) -> int:
     fail(f"heading not found: {heading_prefix!r}")
 
 
-def derive_counts(root: Path) -> tuple[int, int, int]:
+def derive_counts(root: Path) -> tuple[int, int, int, int]:
     retired_md = root / "RETIRED.md"
     if not retired_md.is_file():
         fail(f"missing {retired_md}")
     text = retired_md.read_text(encoding="utf-8")
-    kept = count_kept(root)
+    admitted = count_admitted(root)
+    measured = count_measured(root)
     retired = table_row_count(text, "## Retired from the collection")
     turned = table_row_count(text, "## Screened out at the gate")
-    return kept, retired, turned
+    return admitted, measured, retired, turned
 
 
-def extract_scoreboard(label: str, text: str) -> tuple[int, int, int]:
+def extract_scoreboard(label: str, text: str) -> tuple[int, int, int, int]:
     m = SCOREBOARD_RE.search(text)
     if not m:
-        fail(f"{label}: no scoreboard pattern (N kept, M retired, K turned away)")
-    return int(m.group(1)), int(m.group(2)), int(m.group(3))
-
-
-def assert_site(label: str, text: str, expected: tuple[int, int, int]) -> None:
-    found = extract_scoreboard(label, text)
-    if found != expected:
         fail(
-            f"{label}: scoreboard {found[0]} kept, {found[1]} retired, "
-            f"{found[2]} turned away != derived {expected[0]} kept, "
-            f"{expected[1]} retired, {expected[2]} turned away"
+            f"{label}: no scoreboard pattern (N admitted, M measured, K retired, "
+            f"J solutions looking for a problem). The words are ruled; only the "
+            f"separator is free."
         )
+    return int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
 
 
-def check_scoreboard_sites(root: Path, expected: tuple[int, int, int]) -> None:
+# Where each number comes from, named in the failure so a reader is told which
+# artifact to go and look at rather than which line to go and edit.
+DERIVED_FROM = (
+    "the skill folders",
+    "the cards' controlled fields",
+    "RETIRED.md",
+    "RETIRED.md",
+)
+
+
+def assert_site(label: str, text: str, expected: tuple[int, int, int, int]) -> None:
+    found = extract_scoreboard(label, text)
+    if found == expected:
+        return
+    disagreements = [
+        f"{name} {got} != {want} derived from {source}"
+        for name, got, want, source in zip(FIELD_NAMES, found, expected, DERIVED_FROM)
+        if got != want
+    ]
+    fail(f"{label}: scoreboard disagrees with the repository - " + "; ".join(disagreements))
+
+
+def check_scoreboard_sites(root: Path, expected: tuple[int, int, int, int]) -> None:
     sites = [
         ("assets/banner-light.svg aria-label", root / "assets" / "banner-light.svg", True),
         ("assets/banner-light.svg text", root / "assets" / "banner-light.svg", False),
@@ -208,10 +297,10 @@ def validate(root: Path) -> None:
     expected = derive_counts(root)
     check_scoreboard_sites(root, expected)
     check_policy_version(root)
-    kept, retired, turned = expected
+    admitted, measured, retired, turned = expected
     print(
-        f"PASS: scoreboard {kept} kept, {retired} retired, {turned} turned away; "
-        f"admission policy version agrees"
+        f"PASS: scoreboard {admitted} admitted, {measured} measured, {retired} retired, "
+        f"{turned} solutions looking for a problem; admission policy version agrees"
     )
 
 

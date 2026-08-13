@@ -128,6 +128,26 @@ jobs:
             || { echo "::error::version-drift fixture failed for the wrong reason"; cat control-version.log; exit 1; }
           echo "control: drifted policy version rejected as expected"
 
+      # `0 measured` is the one scoreboard field that is currently zero, and a
+      # zero is exactly the value a broken derivation returns by accident. This
+      # fixture carries a card whose Screen result states a controlled outcome
+      # while every site still says `0 measured`; the other three numbers agree
+      # and the policy version matches, so the only thing it can fail on is the
+      # assertion under test. It is the day-the-first-card-is-screened rehearsal.
+      - name: Poison control - a stale measured count must be rejected
+        run: |
+          set -euo pipefail
+          if python scripts/validate_scoreboard.py \
+               --root scripts/fixtures/measured-drift \
+               > control-measured.log 2>&1; then
+            echo "::error::measured-drift fixture was ACCEPTED - the measured count is not derived from the cards"
+            cat control-measured.log
+            exit 1
+          fi
+          grep -q "measured 0 != 1 derived from the cards' controlled fields" control-measured.log \
+            || { echo "::error::measured-drift fixture failed for the wrong reason"; cat control-measured.log; exit 1; }
+          echo "control: stale measured count rejected as expected"
+
       # SECURITY.md commits to a closed format vocabulary inside skill folders.
       # These steps are the check behind that sentence. They run AFTER the
       # validator suites above on purpose: those suites import the shipped
