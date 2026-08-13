@@ -28,6 +28,24 @@ SCOREBOARD_RE = re.compile(
 )
 FIELD_NAMES = ("admitted", "measured", "retired", "solutions looking for a problem")
 CONTROLLED_FIELDS = ("Screen result", "Paired verdict")
+
+# A controlled field opens with its verdict, and the vocabulary is closed. An
+# open test ("anything that is not UNMEASURED counts as a result") reads `n/a`,
+# `TBD`, `Not yet run.` and an italicised `_UNMEASURED_` as measurements, and
+# every one of those errs toward claiming a measurement that did not happen --
+# the direction that flatters the page. So: recognised-unmeasured, recognised-
+# measured, or refuse. A verdict this file has never seen is not a number to
+# guess at.
+UNMEASURED_VERDICTS = ("UNMEASURED",)
+# CANT_TELL_YET counts as measured on purpose: a screen ran and declined to
+# conclude, which is a controlled result. Folding it in with UNMEASURED would
+# hide that the run happened.
+MEASURED_VERDICTS = ("KEEP", "CUT", "CANT_TELL_YET")
+
+# Buckets whose cards are not part of the collection. AGENTS.md sanctions
+# parking unshipped work in `in-progress/`; counting it would make the page
+# claim a card was admitted when it never was.
+UNSHIPPED_BUCKETS = frozenset({"in-progress"})
 POLICY_VERSION_RE = re.compile(r"admission-policy\s+v\d+")
 DECLARED_VERSION_RE = re.compile(
     r"\*\*Declared version:\*\*\s*`?(admission-policy\s+v\d+)`?"
@@ -55,6 +73,8 @@ def iter_skill_dirs(root: Path) -> list[Path]:
     for bucket in sorted(skills.iterdir()):
         if not bucket.is_dir() or bucket.name.startswith("."):
             continue
+        if bucket.name in UNSHIPPED_BUCKETS:
+            continue
         for skill in sorted(bucket.iterdir()):
             if skill.is_dir() and (skill / "SKILL.md").is_file():
                 found.append(skill)
@@ -72,31 +92,43 @@ def controlled_field_values(evidence: Path) -> dict[str, str]:
     must be present: a card that states neither has not been measured *and has
     not said so*, which is a different thing, and the difference is the whole
     point of the record.
+
+    Two parsing rules keep the derivation pinned to the card's real record:
+    rows inside a fenced block are skipped, so a record that documents the row
+    format by example cannot become the value; and the FIRST occurrence wins,
+    so an illustrative or historical second table appended later cannot silently
+    overwrite the canonical one.
     """
     values: dict[str, str] = {}
+    fenced = False
     for line in evidence.read_text(encoding="utf-8").splitlines():
-        if not line.startswith("|"):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced or not line.startswith("|"):
             continue
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
         if len(cells) < 2:
             continue
         name = cells[0].strip("* ")
         if name in CONTROLLED_FIELDS:
-            values[name] = cells[1]
+            values.setdefault(name, cells[1])
     return values
 
 
 def count_measured(root: Path) -> int:
     """Count cards carrying a controlled result, read from their own records.
 
-    A card counts as measured when either controlled field states something
-    other than UNMEASURED. The test is on the START of the value because the
-    verdict is the first thing the field says; prose further along may discuss
-    an earlier UNMEASURED run without the field itself being one.
+    A card counts as measured when either controlled field OPENS with a verdict
+    from the measured vocabulary. The test is on the start of the value because
+    the verdict is the first thing the field says; prose further along may
+    discuss an earlier UNMEASURED run without the field itself being one.
 
-    A missing record, or a record missing a controlled field, is refused rather
-    than counted as zero. Deriving `0 measured` from an absent record would be
-    inventing the number this line exists to keep honest.
+    Every path that cannot answer refuses rather than guesses: a missing record,
+    a missing or empty controlled field, or a verdict outside the closed
+    vocabulary. Deriving `0 measured` from an absent record, or `1 measured`
+    from an unrecognised one, would invent the number this line exists to keep
+    honest.
     """
     n = 0
     for skill in iter_skill_dirs(root):
@@ -120,10 +152,23 @@ def count_measured(root: Path) -> int:
                 f"so the measured count cannot be derived from it. An empty controlled "
                 f"field is not a result."
             )
-        if any(
-            not values[f].lstrip("* `").upper().startswith("UNMEASURED")
-            for f in CONTROLLED_FIELDS
-        ):
+        verdicts = {}
+        for f in CONTROLLED_FIELDS:
+            opening = values[f].lstrip("* `_").upper()
+            if opening.startswith(UNMEASURED_VERDICTS):
+                verdicts[f] = False
+            elif opening.startswith(MEASURED_VERDICTS):
+                verdicts[f] = True
+            else:
+                fail(
+                    f"{skill.name}: {f} opens with an unrecognised verdict "
+                    f"({values[f][:40]!r}). The vocabulary is closed - "
+                    f"{', '.join(UNMEASURED_VERDICTS + MEASURED_VERDICTS)} - because "
+                    f"reading an unknown opening as a result claims a measurement "
+                    f"that may never have happened. Say which it is, or extend the "
+                    f"vocabulary deliberately."
+                )
+        if any(verdicts.values()):
             n += 1
     return n
 
