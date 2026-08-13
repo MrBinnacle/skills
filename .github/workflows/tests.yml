@@ -3,8 +3,9 @@ name: tests
 # Two skills in this collection ship executable code: the session-boundary pair
 # validates the packet that carries one session's state into the next. That
 # validator had a passing test suite and no job that ran it. The same job also
-# runs the repo-level scoreboard validator (front-page kept/retired/turned-away
-# counts plus the admission-policy version pin on the gate card).
+# runs the repo-level scoreboard validator (the front-page admitted / measured /
+# retired / solutions-looking-for-a-problem counts, plus the admission-policy
+# version pin on the gate card).
 #
 # Validators are invoked directly, not through pytest, and that is deliberate.
 # The skill suites drive their cases from `if __name__ == "__main__"` and their
@@ -127,6 +128,26 @@ jobs:
           grep -q 'admission policy version drift' control-version.log \
             || { echo "::error::version-drift fixture failed for the wrong reason"; cat control-version.log; exit 1; }
           echo "control: drifted policy version rejected as expected"
+
+      # `0 measured` is the one scoreboard field that is currently zero, and a
+      # zero is exactly the value a broken derivation returns by accident. This
+      # fixture carries a card whose Screen result states a controlled outcome
+      # while every site still says `0 measured`; the other three numbers agree
+      # and the policy version matches, so the only thing it can fail on is the
+      # assertion under test. It is the day-the-first-card-is-screened rehearsal.
+      - name: Poison control - a stale measured count must be rejected
+        run: |
+          set -euo pipefail
+          if python scripts/validate_scoreboard.py \
+               --root scripts/fixtures/measured-drift \
+               > control-measured.log 2>&1; then
+            echo "::error::measured-drift fixture was ACCEPTED - the measured count is not derived from the cards"
+            cat control-measured.log
+            exit 1
+          fi
+          grep -q "measured 0 != 1 derived from the cards' controlled fields" control-measured.log \
+            || { echo "::error::measured-drift fixture failed for the wrong reason"; cat control-measured.log; exit 1; }
+          echo "control: stale measured count rejected as expected"
 
       # SECURITY.md commits to a closed format vocabulary inside skill folders.
       # These steps are the check behind that sentence. They run AFTER the
