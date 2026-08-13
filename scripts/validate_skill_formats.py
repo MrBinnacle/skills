@@ -173,22 +173,34 @@ def violation(root: Path, path: Path) -> str | None:
     return f"{describe(root, path)}: {kind} is not a declared readable format"
 
 
-def reader_command(target: str = "~/.claude/skills/<name>") -> str:
+def reader_command(target: str = "<the folder you installed>") -> str:
     """The check a reader runs against their own installed copy.
 
     Generated from ALLOWED_SUFFIXES rather than typed out a second time, so the
     published text cannot drift from the predicate this script enforces.
+
+    THE ONE-LEVEL ANCHOR, and it is the part that is easy to get wrong.
+        `bytecode_source()` admits a `.pyc` only when it is a DIRECT child of a
+        `__pycache__` directory -- `path.parent.name == PYCACHE_DIR`. A bare
+        `-path '*/__pycache__/*.pyc'` is weaker than that, because `*` spans
+        slashes: it also matches `__pycache__/anything/deeper/x.pyc`. Without
+        the `! -path '*/__pycache__/*/*'` guard on both steps, a payload nested
+        one level down is excluded by step 1 and then passed by step 2, whose
+        `${f%/__pycache__/*}` resolves back to the skill root where an unrelated
+        `helper.py` may sit. The reader gets a clean bill on a tree this gate
+        rejects, in the paragraph published so they need not trust us.
     """
     names = " ".join(f"! -name '*{suffix}'" for suffix in ALLOWED_SUFFIXES)
+    nested = f"! -path '*/{PYCACHE_DIR}/*/*'"
     return "\n".join(
         [
             "# 1. Nothing but the declared formats. Compiled Python is step 2.",
             f"find -L {target} -type f \\",
             f"  {names} \\",
-            f"  ! -path '*/{PYCACHE_DIR}/*.pyc'",
+            f"  ! \\( -path '*/{PYCACHE_DIR}/*.pyc' {nested} \\)",
             "",
-            "# 2. Every compiled file has its readable source beside it.",
-            f"find -L {target} -path '*/{PYCACHE_DIR}/*.pyc' -exec sh -c \\",
+            "# 2. Every compiled file sits directly in __pycache__ with its source beside it.",
+            f"find -L {target} -path '*/{PYCACHE_DIR}/*.pyc' {nested} -exec sh -c \\",
             f"  'for f; do d=${{f%/{PYCACHE_DIR}/*}}; b=${{f##*/}}; "
             '[ -f "$d/${b%%.*}.py" ] || echo "$f"; done\' _ {} +',
             "",
