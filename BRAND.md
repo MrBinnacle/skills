@@ -4,9 +4,19 @@
 `copy.words_to_avoid`, its scope rule, and the rejection checklist). Read them there. This file
 carries the voice itself, which no JSON can hold.
 
-The shipped surfaces outrank this description of them — `README.md`, `ADMISSION.md`,
-`RETIRED.md`, each skill's `EVIDENCE.md`. What follows was read off those files. Where it and
-they disagree, they win, and this file wants fixing.
+**Two different things live in this file, and they are sourced differently.**
+
+*Positioning and register* — what the repository claims, which surface takes which tone — is a
+description of the shipped files. Those files outrank it: `README.md`, `ADMISSION.md`,
+`RETIRED.md`, each skill's `EVIDENCE.md`. Where this file and they disagree, they win, and this
+file wants fixing.
+
+⛔ *Voice* is **not** sourced that way, and must never be again. It comes from
+[`VERBATIM.md`](VERBATIM.md), the record of lines the owner actually wrote, and a shipped surface
+cannot supply it. The reason is in that file: the front page once opened with generated copy in
+his voice, and this file read it off the page and promoted it to the establishing example of how
+he writes. A page cannot be its own provenance. `scripts/validate_voice_provenance.py` fails the
+build if a voice specimen here loses its citation or picks one up from a shipped surface.
 
 ⛔ **The owner writes the public lines.** An agent drafts candidates and labels them as
 candidates. Approving your own copy onto a public surface is outside your authority, and this
@@ -48,27 +58,80 @@ a comparison working against it.** Keep the frame on the record.
 
 ## Voice
 
-Read from the shipped surfaces, with the line that establishes each.
+**The rule: a voice specimen is a line the owner wrote or ratified, cited to
+[`VERBATIM.md`](VERBATIM.md).** Provenance is a property of the line, not of the surface it
+appears on. A specimen that cannot be cited is removed rather than left uncited — an uncited line
+is indistinguishable from copy an assistant wrote, which is how this section went wrong the first
+time.
 
-**First person, singular, owning the problem.** *"I kept adding skills to my assistant and I
-never removed any."* There is an author with a problem, and he says so.
+⛔ **Read the specimens as typed.** The record keeps double spaces, missing apostrophes and
+trailing hedges on purpose, and they are reproduced here unchanged. **The roughness is the
+provenance** — it is the first thing an editing pass removes and the last thing a generated
+sentence contains. Smoothing a quote to fit your sentence destroys the evidence. Change your
+sentence.
 
-**The uncomfortable thing goes first.** *"The uncomfortable part first, because this is the part
-a README usually buries."* Structure follows honesty rather than persuasion.
+**First person, singular, and the problem is his.** The account starts with a question he had,
+not with a market.
+
+> I wanted to know if you could tell if a skill was good. Etc and so forth. Expand expand expand.
+> And then this happened.
+
+Source: [`VERBATIM.md`](VERBATIM.md), *On how it started*, 2026-08-12.
+
+**The unflattering reading goes first, hedge included.** He reaches for the deflating word about
+his own work before anyone else can, and does not resolve the hedge.
+
+> It's just - the most successful mistake of mine so far. I think..maybe
+
+Source: [`VERBATIM.md`](VERBATIM.md), *On what it amounts to*, 2026-08-12.
+
+**Method described as a rate, not a virtue.** The claim is about iteration speed against an error
+rate he states plainly. Never the word *rigorous* — wrong a lot, fast enough to recover.
+
+> Im wrong  like 200x a day - but i can iterate in really cool ways fast enough to cancel out the
+> wrongness
+
+Source: [`VERBATIM.md`](VERBATIM.md), *On method*, 2026-08-12.
+
+**Substance before surface, said as the order the work happened in.**
+
+> All of the cosmetic/aesthetic/frontend stuff - as you've noticed - has waited until after I've
+> figured out if there's something to put wrapping paper on
+
+Source: [`VERBATIM.md`](VERBATIM.md), *On the order the work happened in*, 2026-08-12.
+
+**Points at the record rather than asking to be believed.** Short, flat, checkable.
+
+> Follow the time stamps.
+
+Source: [`VERBATIM.md`](VERBATIM.md), *On how it started*, 2026-08-12.
+
+**Names the failure as what it is, including on his own page.** No softening of the word, no
+distancing from having shipped it.
+
+> I'm taking that line out first thing. I never "just kept adding skills…" that was ai slop that I
+> just allowed while I was focusing on skill harness
+
+Source: [`VERBATIM.md`](VERBATIM.md), *On the line that used to be on the front page*, 2026-08-12.
+
+### What carries across the specimens
 
 **Concrete, with the number attached.** The actual run counts, the actual model name, the link to
 the pre-registration. Where a number cannot be attached, rewrite the claim or drop it.
 
-**Plain analogy for the reader who does not know yet.** *"A skill is a small instruction file —
-think of it as a recipe card pinned above the stove."* Explain without softening what follows.
-
-**The reader's real question, in their words, answered straight.** *"Is it safe to install
-these?"* then *"Plainly:"* — including the part that is not reassuring.
-
 **Short declaratives. Sentence case.** Long sentences appear when the thought is genuinely long.
 
-Hedges earn their place only where the uncertainty is real, and then name the uncertainty rather
-than gesturing at it.
+**Hedges earn their place only where the uncertainty is real**, and then name the uncertainty
+rather than gesturing at it. The record hedges — see the trailing hedge on the second specimen
+above — and it is kept rather than tidied, because it is doing work.
+
+⚠ **Prose in this section must not use double quotes.** A quoted span here is refused rather than
+checked, because inline italics are the exact form the unsourced specimens took. Restructure, or
+name the phrase in italics without quoting it.
+
+⚠ **What this section deliberately does not do.** It does not tell you whether a draft *sounds*
+like him. No file can, and `validate_voice_provenance.py` does not try — it checks citations, not
+resemblance. Judging resemblance is the owner's, or `/t1-review`'s tier.
 
 ### Register by surface
 
