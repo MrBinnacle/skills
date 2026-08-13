@@ -225,3 +225,84 @@ jobs:
             exit 1
           fi
           echo "control: bytecode with no readable source rejected as expected"
+
+      # BRAND.md's Voice section states that a voice specimen is a line the owner
+      # wrote or ratified, cited to VERBATIM.md. These steps are the check behind
+      # that sentence. The section used to derive voice by reading the shipped
+      # front page -- which had itself opened with generated copy in his voice, so
+      # the page became its own provenance and an assistant's sentence became the
+      # establishing example of how he writes.
+      #
+      # This DETECTS violations. It does not prevent them: `main` has no branch
+      # protection and no required checks, so a direct push lands regardless.
+      - name: Voice-provenance suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_voice_provenance.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::voice-provenance suite emitted no PASS line — it did not run"; exit 1; }
+
+      - name: Voice-provenance check
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_voice_provenance.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::voice-provenance check emitted no PASS line — it did not run"; exit 1; }
+
+      # A gate that cannot fail guards nothing. This is the control the ticket
+      # names: a specimen sourced from the shipped front page must be rejected,
+      # and for THAT reason rather than incidentally. Fixture and log both live in
+      # RUNNER_TEMP -- a poison BRAND.md in the working tree would be picked up by
+      # the real check two steps above.
+      - name: Poison control — a voice specimen sourced from README.md must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-voice"
+          log="$RUNNER_TEMP/control-voice.log"
+          mkdir -p "$tree"
+          printf '# The record\n\n> Follow the time stamps.\n' > "$tree/VERBATIM.md"
+          {
+            printf '# BRAND.md\n\n## Voice\n\n'
+            printf '> Follow the time stamps.\n\n'
+            printf 'Read from [`README.md`](README.md), the shipped front page.\n\n'
+            printf '## The name\n'
+          } > "$tree/BRAND.md"
+          if python scripts/validate_voice_provenance.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a README-sourced voice specimen was ACCEPTED — the check no longer refuses one"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'shipped public surface' "$log" \
+            || { echo "::error::README-sourced fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'README.md' "$log" \
+            || { echo "::error::README-sourced fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          echo "control: README-sourced voice specimen rejected as expected"
+
+      # The provenance half needs its own control. The step above fails on the
+      # CITATION and proves nothing about whether the quoted text was ever said.
+      # This fixture carries a correct citation to the record and a line that is
+      # not in it, so the only thing it can fail on is the assertion under test --
+      # the one that stops a citation from being an unchecked claim.
+      - name: Poison control — a fabricated quote citing the record must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-voice-fabricated"
+          log="$RUNNER_TEMP/control-voice-fabricated.log"
+          mkdir -p "$tree"
+          printf '# The record\n\n> Follow the time stamps.\n' > "$tree/VERBATIM.md"
+          {
+            printf '# BRAND.md\n\n## Voice\n\n'
+            printf '> A sentence nobody ever said, generated to sound right.\n\n'
+            printf 'Source: [`VERBATIM.md`](VERBATIM.md), 2026-08-12.\n\n'
+            printf '## The name\n'
+          } > "$tree/BRAND.md"
+          if python scripts/validate_voice_provenance.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a fabricated quote citing the record was ACCEPTED — provenance is unchecked"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'not in VERBATIM.md as typed' "$log" \
+            || { echo "::error::fabricated-quote fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          echo "control: fabricated quote citing the record rejected as expected"
