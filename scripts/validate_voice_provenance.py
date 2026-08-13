@@ -8,28 +8,46 @@ and nothing in the loop was checkable because the only source was the page
 itself. This script is the check behind the replacement rule: a voice specimen
 is a line the owner wrote or ratified, cited to VERBATIM.md.
 
-WHAT A SPECIMEN IS
-    A markdown blockquote inside the `## Voice` section of BRAND.md. Blockquote
-    syntax is the marker, so membership is syntactic rather than a guess about
-    which italics are a quotation. Consecutive `>` lines are one specimen; a
-    blank line ends it.
+THE FORM A SPECIMEN MUST TAKE
+    A markdown blockquote inside the `## Voice` section, followed by a line
+    beginning `Source:`.
 
-    Scope is the Voice section only, and that is deliberate rather than an
-    oversight. Other sections quote the shipped surfaces on purpose -- what the
-    repository CLAIMS is properly read off what it ships. Only the claim about
-    how the owner WRITES cannot be sourced that way.
+    An inline quotation -- `*"..."*` or any double-quoted span in that section --
+    is REJECTED rather than checked. That is deliberate and it is the whole
+    point: inline italics are the shape the original defect had. Every specimen
+    this check replaced was written `*"..."*` with the front page named in the
+    surrounding prose, so a blockquote-only check would pass the very file it
+    exists to have caught. Prose in this section that needs to name a phrase
+    should restructure or use single quotes.
 
-THE THREE ASSERTIONS
-    1. Every specimen carries a citation.
-    2. No citation names a shipped public surface as the origin.
-    3. Every specimen appears in the record, as typed.
+    Scope is the Voice section only. Other sections quote the shipped surfaces on
+    purpose -- what the repository CLAIMS is properly read off what it ships.
+    Only the claim about how the owner WRITES cannot be sourced that way.
 
-    (3) is not in the ticket's letter and is here on purpose. Without it a
-    citation is an unchecked claim: a fabricated line with `VERBATIM.md` typed
-    beside it passes (1) and (2) while violating the rule both exist to enforce.
-    A check that verifies the CLAIM of provenance rather than provenance would
-    reproduce this section's original defect one level up, and the fix's own
-    documentation would certify a hole it had not closed.
+THE ASSERTIONS
+    1. Every specimen is followed by an explicit `Source:` line.
+       Not "a nearby line that mentions a .md file" -- incidental prose that
+       happens to name the record must not discharge a citation requirement.
+    2. That source names VERBATIM.md, and does not name a shipped public surface
+       INSTEAD of it. Naming one alongside the record is fine: saying where else
+       a line appears is not a provenance claim.
+    3. The quoted text EQUALS a recorded line, exactly.
+    4. The section and date in the citation are where that line actually sits.
+
+    (3) is equality, not containment. Containment lets a specimen be any fragment
+    of a recorded line, so selective truncation that inverts a sentence passes
+    while the check certifies it as verbatim -- and a one-word specimen passes
+    too. Equality also makes the comparison direction unmutable: a reversed
+    containment test is a different check that a containment-based suite cannot
+    distinguish. Quote a recorded line whole, or record the shorter line.
+
+    (4) exists because a citation that carries a section name and a date is
+    making a specific, checkable-looking claim to the reader. Leaving those two
+    fields unverified publishes precision the check does not have.
+
+    (1) through (4) together are what stop a citation from being an unchecked
+    claim. A check that verified the CLAIM of provenance rather than provenance
+    would reproduce this section's original defect one level up.
 
 WHAT THIS DELIBERATELY DOES NOT DO
     It makes no judgement about whether a line sounds like the owner. It cannot,
@@ -39,11 +57,10 @@ WHAT THIS DELIBERATELY DOES NOT DO
 
 ROUGHNESS IS THE PROVENANCE
     The record keeps typos, double spaces, missing apostrophes and trailing
-    hedges. Assertion (3) compares text after joining wrapped lines with a single
-    space and nothing else, so a quote may be re-wrapped to fit a paragraph but
-    may not be smoothed. Deleting a double space or fixing an apostrophe turns
-    the run red, which is the intended behaviour: those characters are the
-    evidence that a human typed the line.
+    hedges. Comparison joins wrapped lines with a single space and changes
+    nothing else, so a quote may be re-wrapped to fit a paragraph but may not be
+    smoothed. Deleting a double space or fixing an apostrophe turns the run red,
+    which is intended: those characters are the evidence a human typed the line.
 
 Output is ASCII-only so the Windows CI cell does not die on cp1252 when printing
 a status line, matching validate_skill_formats.py and validate_scoreboard.py.
@@ -58,16 +75,21 @@ import argparse
 import re
 import sys
 from pathlib import Path
-from typing import Final, NoReturn
+from typing import Final, NamedTuple, NoReturn
 
-# The record. Voice provenance resolves here and nowhere else.
 RECORD_NAME: Final[str] = "VERBATIM.md"
 
-# Shipped public surfaces. A voice specimen citing one of these is the exact
-# defect this check exists to catch: the page becomes its own provenance.
-# Widening this list is a reviewed change to the rule stated in BRAND.md, not a
-# silent commit. It is a closed vocabulary rather than a per-line allowlist, so
-# a new surface added to the repository is covered without anyone remembering.
+# Where the record keeps evidence. Blockquotes elsewhere in that file are
+# illustration -- its "Why this file exists" section describes the fabricated
+# front-page sentence, and quoting it there to show what was removed is the
+# natural edit. Without this restriction that counter-example becomes citable as
+# the owner's voice, which inverts the file.
+RECORD_SECTION: Final[str] = "## The lines"
+
+# Shipped public surfaces. Naming one INSTEAD of the record is the defect this
+# check exists to catch. The list only sharpens the error message: assertion 2
+# already requires the record by name, so an unlisted surface is refused anyway.
+# It is not a security boundary and does not need to be exhaustive.
 SHIPPED_SURFACES: Final[frozenset[str]] = frozenset(
     {
         "README.md",
@@ -85,7 +107,23 @@ SHIPPED_SURFACES: Final[frozenset[str]] = frozenset(
 )
 
 SECTION_HEADING: Final[str] = "## Voice"
+CITATION_PREFIX: Final[str] = "Source:"
+FENCE: Final[re.Pattern[str]] = re.compile(r"^\s*(```|~~~)")
 MD_FILE: Final[re.Pattern[str]] = re.compile(r"([A-Za-z0-9_.-]+\.md)")
+DATE: Final[re.Pattern[str]] = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+CITED_SECTION: Final[re.Pattern[str]] = re.compile(r"\*([^*]+)\*")
+# Straight and curly double quotes. Built with chr() so this source file cannot
+# itself contain the characters -- the repository's own guard refuses non-ASCII
+# punctuation in a .py, and retyping the escape is not a fix.
+QUOTE_CHARS: Final[str] = '"' + chr(0x201C) + chr(0x201D)
+INLINE_QUOTE: Final[re.Pattern[str]] = re.compile(
+    "[" + QUOTE_CHARS + "]([^" + QUOTE_CHARS + "]{2,})[" + QUOTE_CHARS + "]"
+)
+
+
+class Recorded(NamedTuple):
+    text: str
+    heading: str
 
 
 def fail(msg: str) -> NoReturn:
@@ -94,31 +132,52 @@ def fail(msg: str) -> NoReturn:
     raise SystemExit(1)
 
 
-def voice_section(text: str) -> list[str]:
-    """The lines of the `## Voice` section, exclusive of the next `## ` heading."""
+def strip_fences(lines: list[str]) -> list[str]:
+    """Blank out fenced code blocks, preserving line numbering.
+
+    BRAND.md documents its own rules, so a fence in the Voice section showing a
+    rejected specimen is a likely edit. Without this the illustration is read as
+    a real specimen and the build goes red naming a line that does not exist.
+    """
+    out: list[str] = []
+    inside = False
+    for line in lines:
+        if FENCE.match(line):
+            inside = not inside
+            out.append("")
+            continue
+        out.append("" if inside else line)
+    return out
+
+
+def section_lines(text: str, heading: str) -> list[str]:
+    """Lines under `heading`, ending at the next heading of the same level or higher.
+
+    Ending only at `## ` would let a later `# Appendix` be scanned as part of
+    this section.
+    """
     lines = text.split("\n")
+    depth = len(heading) - len(heading.lstrip("#"))
     start = None
     for i, line in enumerate(lines):
-        if line.strip() == SECTION_HEADING:
+        if line.strip() == heading:
             start = i + 1
             break
     if start is None:
         return []
     end = len(lines)
     for j in range(start, len(lines)):
-        if lines[j].startswith("## "):
-            end = j
-            break
+        stripped = lines[j]
+        if stripped.startswith("#"):
+            level = len(stripped) - len(stripped.lstrip("#"))
+            if level <= depth and stripped[level : level + 1] == " ":
+                end = j
+                break
     return lines[start:end]
 
 
 def join_quote(block: list[str]) -> str:
-    """Collapse a wrapped blockquote to one line, changing nothing else.
-
-    Only the line join is normalised. Internal double spaces, typos and missing
-    apostrophes survive, because they are the evidence the line was typed by a
-    person rather than generated.
-    """
+    """Collapse a wrapped blockquote to one line, changing nothing else."""
     parts = []
     for line in block:
         stripped = line.lstrip()
@@ -130,9 +189,9 @@ def join_quote(block: list[str]) -> str:
     return " ".join(p for p in parts if p).strip()
 
 
-def quote_blocks(lines: list[str]) -> list[tuple[int, str, list[str]]]:
-    """Every blockquote in `lines` as (line number, joined text, raw block)."""
-    blocks: list[tuple[int, str, list[str]]] = []
+def quote_blocks(lines: list[str]) -> list[tuple[int, str, int]]:
+    """Every blockquote as (start index, joined text, line count)."""
+    blocks: list[tuple[int, str, int]] = []
     current: list[str] = []
     start = 0
     for i, line in enumerate(lines):
@@ -142,32 +201,47 @@ def quote_blocks(lines: list[str]) -> list[tuple[int, str, list[str]]]:
             current.append(line)
             continue
         if current:
-            blocks.append((start, join_quote(current), list(current)))
+            blocks.append((start, join_quote(current), len(current)))
             current = []
     if current:
-        blocks.append((start, join_quote(current), list(current)))
+        blocks.append((start, join_quote(current), len(current)))
     return blocks
 
 
-def citation_after(lines: list[str], block_start: int, block_len: int) -> str | None:
-    """The first non-blank line after a blockquote, if it cites a file.
-
-    Returns None when the specimen is followed by a heading, another quote, or
-    nothing -- all of which mean the specimen carries no citation.
-    """
-    for k in range(block_start + block_len, len(lines)):
+def citation_after(lines: list[str], start: int, length: int) -> str | None:
+    """The `Source:` line following a blockquote, if there is one."""
+    for k in range(start + length, len(lines)):
         line = lines[k]
         if not line.strip():
             continue
         if line.startswith("#") or line.lstrip().startswith(">"):
             return None
-        return line if MD_FILE.search(line) else None
+        return line if line.lstrip().startswith(CITATION_PREFIX) else None
     return None
 
 
-def record_corpus(record_text: str) -> list[str]:
-    """Every recorded line, joined the same way a specimen is."""
-    return [text for _, text, _ in quote_blocks(record_text.split("\n")) if text]
+def record_corpus(record_text: str) -> list[Recorded]:
+    """Every recorded line under `## The lines`, with the heading it sits under."""
+    lines = strip_fences(section_lines(record_text, RECORD_SECTION))
+    headings: list[tuple[int, str]] = [
+        (i, line.strip()) for i, line in enumerate(lines) if line.startswith("### ")
+    ]
+    corpus: list[Recorded] = []
+    for start, text, _ in quote_blocks(lines):
+        if not text:
+            continue
+        heading = ""
+        for index, value in headings:
+            if index < start:
+                heading = value
+            else:
+                break
+        corpus.append(Recorded(text, heading))
+    return corpus
+
+
+def excerpt(text: str) -> str:
+    return text if len(text) <= 60 else text[:57] + "..."
 
 
 def validate(root: Path) -> None:
@@ -177,7 +251,7 @@ def validate(root: Path) -> None:
         if not path.is_file():
             fail(f"missing {path.name} at {root}")
 
-    lines = voice_section(brand.read_text(encoding="utf-8"))
+    lines = strip_fences(section_lines(brand.read_text(encoding="utf-8"), SECTION_HEADING))
     if not lines:
         fail(
             f"no '{SECTION_HEADING}' section in BRAND.md. A run that checks "
@@ -194,42 +268,84 @@ def validate(root: Path) -> None:
 
     corpus = record_corpus(record.read_text(encoding="utf-8"))
     if not corpus:
-        fail(f"{RECORD_NAME} holds no recorded lines; nothing can be cited to it")
+        fail(
+            f"{RECORD_NAME} holds no recorded lines under '{RECORD_SECTION}'; "
+            f"nothing can be cited to it"
+        )
+    by_text = {item.text: item for item in corpus}
 
     problems: list[str] = []
-    for start, text, block in specimens:
-        excerpt = text if len(text) <= 60 else text[:57] + "..."
-        citation = citation_after(lines, start, len(block))
+
+    # An inline quotation is the shape the original defect had. Refuse it rather
+    # than try to check it -- a specimen is a blockquote with a Source line.
+    quote_line_numbers = {
+        index for start, _, length in specimens for index in range(start, start + length)
+    }
+    for i, line in enumerate(lines):
+        if i in quote_line_numbers or line.lstrip().startswith(CITATION_PREFIX):
+            continue
+        for match in INLINE_QUOTE.finditer(line):
+            problems.append(
+                f'inline quotation "{excerpt(match.group(1))}" in the Voice '
+                f"section. A voice specimen is a blockquote followed by a "
+                f"{CITATION_PREFIX} line; inline italics are the form the "
+                f"unsourced specimens took, so they are refused rather than "
+                f"checked."
+            )
+
+    for start, text, length in specimens:
+        shown = excerpt(text)
+        citation = citation_after(lines, start, length)
 
         if citation is None:
             problems.append(
-                f'voice specimen "{excerpt}" carries no citation. Every specimen '
-                f"cites {RECORD_NAME}, or is removed."
+                f'voice specimen "{shown}" has no {CITATION_PREFIX} line. Every '
+                f"specimen is followed by one naming {RECORD_NAME}, or is removed."
             )
             continue
 
         named = set(MD_FILE.findall(citation))
-        shipped = sorted(named & SHIPPED_SURFACES)
-        if shipped:
-            problems.append(
-                f'voice specimen "{excerpt}" cites a shipped public surface '
-                f"({', '.join(shipped)}). A shipped surface cannot supply "
-                f"provenance; the page would be its own source."
-            )
-            continue
         if RECORD_NAME not in named:
+            shipped = sorted(named & SHIPPED_SURFACES)
+            if shipped:
+                problems.append(
+                    f'voice specimen "{shown}" cites a shipped public surface '
+                    f"({', '.join(shipped)}) and not {RECORD_NAME}. A shipped "
+                    f"surface cannot supply provenance; the page would be its "
+                    f"own source."
+                )
+            else:
+                problems.append(
+                    f'voice specimen "{shown}" cites {sorted(named) or "no file"}, '
+                    f"not {RECORD_NAME}. Voice provenance resolves to the record."
+                )
+            continue
+
+        recorded = by_text.get(text)
+        if recorded is None:
             problems.append(
-                f'voice specimen "{excerpt}" cites {sorted(named)}, not '
-                f"{RECORD_NAME}. Voice provenance resolves to the record only."
+                f'voice specimen "{shown}" is not a recorded line in '
+                f"{RECORD_NAME}. It must match one exactly -- either it was "
+                f"never recorded, or it was smoothed or truncated to fit. The "
+                f"record keeps roughness on purpose, so change the sentence "
+                f"around the quote rather than the quote."
             )
             continue
 
-        if not any(text in recorded for recorded in corpus):
+        cited_sections = [s.strip() for s in CITED_SECTION.findall(citation)]
+        for name in cited_sections:
+            if name and name.lower() not in recorded.heading.lower():
+                problems.append(
+                    f'voice specimen "{shown}" is cited to section "{name}", but '
+                    f'the record files it under "{recorded.heading}".'
+                )
+        cited_dates = set(DATE.findall(citation))
+        recorded_dates = set(DATE.findall(recorded.heading))
+        if cited_dates and recorded_dates and not (cited_dates & recorded_dates):
             problems.append(
-                f'voice specimen "{excerpt}" is not in {RECORD_NAME} as typed. '
-                f"Either it was never recorded, or it was smoothed to fit -- "
-                f"the record keeps roughness on purpose, so change the sentence "
-                f"around the quote rather than the quote."
+                f'voice specimen "{shown}" is cited to '
+                f"{', '.join(sorted(cited_dates))}, but the record dates it "
+                f"{', '.join(sorted(recorded_dates))}."
             )
 
     if problems:
@@ -241,8 +357,8 @@ def validate(root: Path) -> None:
         )
 
     print(
-        f"PASS: {len(specimens)} voice specimen(s), all cited to {RECORD_NAME} "
-        f"and present in the record as typed"
+        f"PASS: {len(specimens)} voice specimen(s), each equal to a recorded line "
+        f"in {RECORD_NAME} and cited to the section and date that holds it"
     )
 
 

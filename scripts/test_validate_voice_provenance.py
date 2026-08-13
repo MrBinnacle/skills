@@ -10,6 +10,19 @@ Each rejection case asserts the run failed AND that it failed for the assertion
 under test, so a fixture that goes red for an unrelated reason cannot be read as
 the control passing.
 
+MUTATION-KILLERS -- read before deleting a case as redundant.
+    An earlier version of this suite matched specimens by SUBSTRING containment
+    and had no case between "identical passes" and "wholly unrelated fails".
+    A review reversed the containment direction -- a semantically different check
+    -- and the whole suite still passed 22/22 with both CI controls green. The
+    cases marked MUTATION-KILLER below are the ones that discriminate:
+
+      - case_strict_substring_is_red   (a fragment of a recorded line)
+      - case_superset_quote_is_red     (a recorded line plus added words)
+
+    Between them they pin equality in both directions. Removing either restores
+    the gap a suite cannot see from the inside.
+
 Poison fixtures are built in a temp directory rather than checked in. A
 checked-in violating BRAND.md would have to be excluded from the real run, and
 an exclusion is a hole in the check that exists to have none.
@@ -30,12 +43,21 @@ REPO_ROOT = SCRIPT_DIR.parent
 FAILURES: list[str] = []
 
 # A recorded line carrying the roughness the record exists to preserve: a double
-# space after "wrong", a missing apostrophe in "Im". Smoothing either one must
-# turn the run red.
+# space after "wrong", a missing apostrophe in "Im". Smoothing either must go red.
 ROUGH_LINE = "Im wrong  like 200x a day - but i can iterate really fast"
-PLAIN_LINE = "Follow the time stamps."
+PLAIN_LINE = "I told you - you could literally take me at my narrative."
+SLOP_LINE = "I kept adding skills to my assistant and I never removed any."
 
+# The record. Note the illustrative blockquote OUTSIDE `## The lines` -- it is
+# the fabricated front-page sentence, quoted to show what was removed. It must
+# never be citable as the owner's voice.
 RECORD = f"""# The record
+
+## Why this file exists
+
+The front page used to open with a sentence the principal did not write:
+
+> {SLOP_LINE}
 
 ## The lines
 
@@ -43,8 +65,12 @@ RECORD = f"""# The record
 
 > {ROUGH_LINE}
 
+### On how it started -- 2026-08-11
+
 > {PLAIN_LINE}
 """
+
+CITE = "Source: [`VERBATIM.md`](VERBATIM.md), *On method*, 2026-08-12."
 
 
 def check(name: str, condition: bool, detail: str = "") -> None:
@@ -64,12 +90,23 @@ def run_gate(root: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-def build(root: Path, voice_body: str, record: str = RECORD) -> None:
+def build(root: Path, voice_body: str, record: str = RECORD, tail: str = "## The name") -> None:
     (root / "VERBATIM.md").write_text(record, encoding="utf-8")
     (root / "BRAND.md").write_text(
         "# BRAND.md\n\n## Polish\n\nSomething else.\n\n"
-        f"## Voice\n\n{voice_body}\n\n## The name\n\nAfter the section.\n",
+        f"## Voice\n\n{voice_body}\n\n{tail}\n\nAfter the section.\n",
         encoding="utf-8",
+    )
+
+
+def red(root: Path, name: str, body: str, reason: str, **kw: object) -> None:
+    build(root, body, **kw)  # type: ignore[arg-type]
+    result = run_gate(root)
+    check(f"{name} is rejected", result.returncode != 0, result.stdout.strip())
+    check(
+        f"{name} is rejected for the right reason",
+        reason in result.stderr,
+        result.stderr.strip(),
     )
 
 
@@ -79,10 +116,7 @@ def build(root: Path, voice_body: str, record: str = RECORD) -> None:
 
 
 def case_cited_specimen_passes(root: Path) -> None:
-    build(
-        root,
-        f"> {ROUGH_LINE}\n\nSource: [`VERBATIM.md`](VERBATIM.md), *On method*, 2026-08-12.\n",
-    )
+    build(root, f"> {ROUGH_LINE}\n\n{CITE}\n")
     result = run_gate(root)
     check("a cited specimen passes", result.returncode == 0, result.stderr.strip())
     check(
@@ -94,15 +128,25 @@ def case_cited_specimen_passes(root: Path) -> None:
 
 def case_rewrapped_quote_passes(root: Path) -> None:
     """A quote may be re-wrapped to fit a paragraph. It may not be smoothed."""
-    build(
-        root,
-        "> Im wrong  like 200x a day - but i can\n"
-        "> iterate really fast\n\n"
-        "Source: [`VERBATIM.md`](VERBATIM.md), *On method*, 2026-08-12.\n",
-    )
+    build(root, "> Im wrong  like 200x a day - but i\n> can iterate really fast\n\n" + CITE + "\n")
     result = run_gate(root)
     check(
         "a re-wrapped quote still matches the record",
+        result.returncode == 0,
+        result.stderr.strip(),
+    )
+
+
+def case_co_mention_passes(root: Path) -> None:
+    """Saying where else a line appears is not a provenance claim."""
+    build(
+        root,
+        f"> {ROUGH_LINE}\n\nSource: [`VERBATIM.md`](VERBATIM.md), *On method*, "
+        "2026-08-12. The same line also opens README.md.\n",
+    )
+    result = run_gate(root)
+    check(
+        "a citation naming the record AND a shipped surface passes",
         result.returncode == 0,
         result.stderr.strip(),
     )
@@ -114,14 +158,28 @@ def case_quote_outside_voice_is_ignored(root: Path) -> None:
     (root / "BRAND.md").write_text(
         "# BRAND.md\n\n## What the repository claims\n\n"
         "> a line quoted from the front page\n\n"
-        "In the README's own words (README.md).\n\n"
-        f"## Voice\n\n> {PLAIN_LINE}\n\n"
-        "Source: [`VERBATIM.md`](VERBATIM.md), *On method*, 2026-08-12.\n",
+        "In the README's own words (README.md), and it says \"proven\" nowhere.\n\n"
+        f"## Voice\n\n> {ROUGH_LINE}\n\n{CITE}\n",
         encoding="utf-8",
     )
     result = run_gate(root)
     check(
         "a README quote outside the Voice section is not a voice specimen",
+        result.returncode == 0,
+        result.stderr.strip(),
+    )
+
+
+def case_fenced_example_is_ignored(root: Path) -> None:
+    """BRAND.md documents its own rules; a fenced example is not a specimen."""
+    build(
+        root,
+        f"> {ROUGH_LINE}\n\n{CITE}\n\nA rejected specimen looks like this:\n\n"
+        "```markdown\n> A line nobody said.\n\nRead from README.md.\n```\n",
+    )
+    result = run_gate(root)
+    check(
+        "a fenced markdown example is not scanned as a specimen",
         result.returncode == 0,
         result.stderr.strip(),
     )
@@ -133,84 +191,137 @@ def case_quote_outside_voice_is_ignored(root: Path) -> None:
 
 
 def case_readme_sourced_specimen_is_red(root: Path) -> None:
-    """The ticket's named control: a specimen sourced from README.md."""
-    build(
+    """The control the ticket names: a specimen sourced from README.md."""
+    red(
         root,
-        f"> {PLAIN_LINE}\n\nRead from [`README.md`](README.md), the shipped front page.\n",
-    )
-    result = run_gate(root)
-    check("a README-sourced specimen is rejected", result.returncode != 0)
-    check(
-        "a README-sourced specimen is rejected for the right reason",
-        "shipped public surface" in result.stderr and "README.md" in result.stderr,
-        result.stderr.strip(),
+        "a README-sourced specimen",
+        f"> {ROUGH_LINE}\n\nSource: read from [`README.md`](README.md), the front page.\n",
+        "shipped public surface",
     )
 
 
 def case_uncited_specimen_is_red(root: Path) -> None:
-    build(root, f"> {PLAIN_LINE}\n\n### Register by surface\n\nA table follows.\n")
-    result = run_gate(root)
-    check("an uncited specimen is rejected", result.returncode != 0)
-    check(
-        "an uncited specimen is rejected for the right reason",
-        "carries no citation" in result.stderr,
-        result.stderr.strip(),
+    red(
+        root,
+        "an uncited specimen",
+        f"> {ROUGH_LINE}\n\n### Register by surface\n\nA table follows.\n",
+        "has no Source: line",
+    )
+
+
+def case_incidental_mention_is_not_a_citation(root: Path) -> None:
+    """A sentence that happens to name the record must not discharge a citation."""
+    red(
+        root,
+        "prose that merely mentions the record",
+        f"> {ROUGH_LINE}\n\nUnlike most repos, we do not treat `VERBATIM.md` as optional.\n",
+        "has no Source: line",
     )
 
 
 def case_smoothed_quote_is_red(root: Path) -> None:
     """The double space is the evidence. Removing it must turn the run red."""
-    smoothed = ROUGH_LINE.replace("wrong  like", "wrong like")
-    build(
+    red(
         root,
-        f"> {smoothed}\n\nSource: [`VERBATIM.md`](VERBATIM.md), *On method*, 2026-08-12.\n",
-    )
-    result = run_gate(root)
-    check("a smoothed quote is rejected", result.returncode != 0)
-    check(
-        "a smoothed quote is rejected for the right reason",
-        "not in VERBATIM.md as typed" in result.stderr,
-        result.stderr.strip(),
+        "a smoothed quote",
+        f"> {ROUGH_LINE.replace('wrong  like', 'wrong like')}\n\n{CITE}\n",
+        "not a recorded line",
     )
 
 
 def case_fabricated_quote_with_a_real_citation_is_red(root: Path) -> None:
-    """A citation is a claim. Assertion 3 is what makes it checkable."""
+    """A citation is a claim. Matching the record is what makes it checkable."""
+    red(
+        root,
+        "a fabricated quote citing the record",
+        f"> A sentence nobody ever said, generated to sound right.\n\n{CITE}\n",
+        "not a recorded line",
+    )
+
+
+def case_strict_substring_is_red(root: Path) -> None:
+    """MUTATION-KILLER. A fragment of a recorded line is not that line.
+
+    Selective truncation can invert a sentence while every word is genuine, and
+    a containment check certifies it as verbatim.
+    """
+    red(
+        root,
+        "a strict substring of a recorded line",
+        f"> iterate really fast\n\n{CITE}\n",
+        "not a recorded line",
+    )
+
+
+def case_superset_quote_is_red(root: Path) -> None:
+    """MUTATION-KILLER. A recorded line with words added is not that line."""
+    red(
+        root,
+        "a recorded line with words appended",
+        f"> {ROUGH_LINE} and I always ship on time\n\n{CITE}\n",
+        "not a recorded line",
+    )
+
+
+def case_inline_italic_quote_is_red(root: Path) -> None:
+    """The defect in its ORIGINAL shape. Every replaced specimen looked like this."""
     build(
         root,
-        "> A sentence nobody ever said, generated to sound right.\n\n"
-        "Source: [`VERBATIM.md`](VERBATIM.md), *On method*, 2026-08-12.\n",
+        f"> {ROUGH_LINE}\n\n{CITE}\n\n"
+        f'**First person, owning the problem.** *"{SLOP_LINE}"* Read off the front page.\n',
     )
     result = run_gate(root)
-    check("a fabricated quote citing the record is rejected", result.returncode != 0)
+    check("an inline italic quotation is rejected", result.returncode != 0)
     check(
-        "a fabricated quote is rejected for the right reason",
-        "not in VERBATIM.md as typed" in result.stderr,
+        "an inline italic quotation is rejected for the right reason",
+        "inline quotation" in result.stderr and "blockquote" in result.stderr,
         result.stderr.strip(),
+    )
+
+
+def case_record_prose_quote_is_not_citable(root: Path) -> None:
+    """The record's own counter-example must not become citable evidence."""
+    red(
+        root,
+        "a line quoted from the record's prose rather than its lines",
+        f"> {SLOP_LINE}\n\n{CITE}\n",
+        "not a recorded line",
+    )
+
+
+def case_wrong_section_is_red(root: Path) -> None:
+    red(
+        root,
+        "a citation naming the wrong section",
+        f"> {PLAIN_LINE}\n\nSource: [`VERBATIM.md`](VERBATIM.md), *On method*, 2026-08-11.\n",
+        "the record files it under",
+    )
+
+
+def case_wrong_date_is_red(root: Path) -> None:
+    red(
+        root,
+        "a citation carrying the wrong date",
+        f"> {ROUGH_LINE}\n\nSource: [`VERBATIM.md`](VERBATIM.md), *On method*, 1999-01-01.\n",
+        "but the record dates it",
     )
 
 
 def case_wrong_file_citation_is_red(root: Path) -> None:
-    build(
+    red(
         root,
-        f"> {PLAIN_LINE}\n\nSource: [`NOTES.md`](NOTES.md), some other file.\n",
-    )
-    result = run_gate(root)
-    check("a citation to some other file is rejected", result.returncode != 0)
-    check(
-        "a wrong-file citation is rejected for the right reason",
-        "not VERBATIM.md" in result.stderr,
-        result.stderr.strip(),
+        "a citation to some other file",
+        f"> {ROUGH_LINE}\n\nSource: [`NOTES.md`](NOTES.md), some other file.\n",
+        "not VERBATIM.md",
     )
 
 
 def case_every_problem_listed_not_first_fail(root: Path) -> None:
     build(
         root,
-        f"> {PLAIN_LINE}\n\nRead from [`README.md`](README.md).\n\n"
-        "> Another line nobody said.\n\n"
-        "Source: [`VERBATIM.md`](VERBATIM.md), *On method*, 2026-08-12.\n\n"
-        f"> {ROUGH_LINE}\n\n### Register by surface\n",
+        f"> {ROUGH_LINE}\n\nSource: read from [`README.md`](README.md).\n\n"
+        f"> Another line nobody said.\n\n{CITE}\n\n"
+        f"> {PLAIN_LINE}\n\n### Register by surface\n",
     )
     result = run_gate(root)
     check("multiple problems are all rejected", result.returncode != 0)
@@ -222,8 +333,23 @@ def case_every_problem_listed_not_first_fail(root: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Refusing rather than passing green on a vacuous run
+# Section bounds and vacuous runs
 # ---------------------------------------------------------------------------
+
+
+def case_h1_closes_the_section(root: Path) -> None:
+    """An H1 appendix must not be pulled into Voice scope."""
+    build(
+        root,
+        f"> {ROUGH_LINE}\n\n{CITE}\n",
+        tail="# Appendix\n\n> a line quoted from README\n\nRead from README.md.",
+    )
+    result = run_gate(root)
+    check(
+        "an H1 heading closes the Voice section",
+        result.returncode == 0,
+        result.stderr.strip(),
+    )
 
 
 def case_missing_voice_section_refuses(root: Path) -> None:
@@ -247,10 +373,19 @@ def case_empty_voice_section_refuses(root: Path) -> None:
     )
 
 
+def case_record_without_the_lines_refuses(root: Path) -> None:
+    build(root, f"> {ROUGH_LINE}\n\n{CITE}\n", record="# The record\n\nNo lines section.\n")
+    result = run_gate(root)
+    check(
+        "a record with no '## The lines' section is refused, not silently green",
+        result.returncode != 0 and "holds no recorded lines" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
 def case_missing_record_refuses(root: Path) -> None:
     (root / "BRAND.md").write_text(
-        f"# BRAND.md\n\n## Voice\n\n> {PLAIN_LINE}\n\nSource: [`VERBATIM.md`](VERBATIM.md).\n",
-        encoding="utf-8",
+        f"# BRAND.md\n\n## Voice\n\n> {ROUGH_LINE}\n\n{CITE}\n", encoding="utf-8"
     )
     result = run_gate(root)
     check(
@@ -285,26 +420,33 @@ def case_deleted_block_specimens_are_gone() -> None:
         ("I kept adding skills to my assistant", "the fabricated opening line"),
         ("recipe card pinned above the stove", "the recipe-card analogy"),
     ):
-        check(
-            f"{label} is gone from BRAND.md",
-            fragment not in body,
-            "still present",
-        )
+        check(f"{label} is gone from BRAND.md", fragment not in body, "still present")
 
 
 def main() -> None:
     isolated = [
         case_cited_specimen_passes,
         case_rewrapped_quote_passes,
+        case_co_mention_passes,
         case_quote_outside_voice_is_ignored,
+        case_fenced_example_is_ignored,
         case_readme_sourced_specimen_is_red,
         case_uncited_specimen_is_red,
+        case_incidental_mention_is_not_a_citation,
         case_smoothed_quote_is_red,
         case_fabricated_quote_with_a_real_citation_is_red,
+        case_strict_substring_is_red,
+        case_superset_quote_is_red,
+        case_inline_italic_quote_is_red,
+        case_record_prose_quote_is_not_citable,
+        case_wrong_section_is_red,
+        case_wrong_date_is_red,
         case_wrong_file_citation_is_red,
         case_every_problem_listed_not_first_fail,
+        case_h1_closes_the_section,
         case_missing_voice_section_refuses,
         case_empty_voice_section_refuses,
+        case_record_without_the_lines_refuses,
         case_missing_record_refuses,
     ]
     for func in isolated:

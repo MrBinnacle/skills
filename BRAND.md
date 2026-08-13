@@ -86,7 +86,7 @@ his own work before anyone else can, and does not resolve the hedge.
 Source: [`VERBATIM.md`](VERBATIM.md), *On what it amounts to*, 2026-08-12.
 
 **Method described as a rate, not a virtue.** The claim is about iteration speed against an error
-rate he states plainly. Not "rigorous" — wrong a lot, fast enough to recover.
+rate he states plainly. Never the word *rigorous* — wrong a lot, fast enough to recover.
 
 > Im wrong  like 200x a day - but i can iterate in really cool ways fast enough to cancel out the
 > wrongness
@@ -122,8 +122,12 @@ the pre-registration. Where a number cannot be attached, rewrite the claim or dr
 **Short declaratives. Sentence case.** Long sentences appear when the thought is genuinely long.
 
 **Hedges earn their place only where the uncertainty is real**, and then name the uncertainty
-rather than gesturing at it. Note that the record hedges — *"I think..maybe"* — and the hedge is
-kept rather than tidied, because it is doing work.
+rather than gesturing at it. The record hedges — see the trailing hedge on the second specimen
+above — and it is kept rather than tidied, because it is doing work.
+
+⚠ **Prose in this section must not use double quotes.** A quoted span here is refused rather than
+checked, because inline italics are the exact form the unsourced specimens took. Restructure, or
+name the phrase in italics without quoting it.
 
 ⚠ **What this section deliberately does not do.** It does not tell you whether a draft *sounds*
 like him. No file can, and `validate_voice_provenance.py` does not try — it checks citations, not
