@@ -28,7 +28,8 @@ The question underneath it was whether you can tell if a skill is any good.
 
 — 2026-08-12, [the record](VERBATIM.md)
 
-A skill is a small markdown file that tells an assistant how to handle a particular situation.
+A skill is a small folder that tells an assistant how to handle a particular situation — markdown
+in every case, plus a script in the two that need one.
 "This" is two public repositories: this one holds the skills, and
 [skill-harness](https://github.com/MrBinnacle/skill-harness) is the instrument built to answer the
 question about them. Measured on 2026-08-13, that stands at **66 commits of collection against 323
@@ -106,8 +107,9 @@ npx skills add MrBinnacle/skills
 
 That is the whole install. You will be shown the skills and can pick which to take.
 
-Then **read what you installed.** Each skill is a few KB of English, a couple of minutes end to
-end. You are handing instructions to an agent that can run commands, so treat a skill like a
+Then **read what you installed.** Most skills are a few KB of English, a couple of minutes end to
+end. Two of them — `im-down` and `im-up` — also ship Python, which is longer and worth the extra
+minutes. You are handing instructions to an agent that can run commands, so treat a skill like a
 pull request rather than a package. After that they fire on their own when their situation comes
 up — except the four marked hand-invoked below, which wait for you.
 
