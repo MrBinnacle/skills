@@ -109,11 +109,16 @@ def count_measured(root: Path) -> int:
                 f"counting it as unmeasured would invent the answer."
             )
         values = controlled_field_values(evidence)
-        missing = [f for f in CONTROLLED_FIELDS if f not in values]
+        # An absent row and a present-but-empty one are the same refusal: the
+        # card has not said. Only the blank case is worth calling out separately,
+        # because "not UNMEASURED" would otherwise read a blank as a result and
+        # silently inflate the count in the direction that flatters the page.
+        missing = [f for f in CONTROLLED_FIELDS if not values.get(f, "").strip("* `")]
         if missing:
             fail(
-                f"{skill.name}: EVIDENCE.md has no {' and no '.join(missing)} row, "
-                f"so the measured count cannot be derived from it."
+                f"{skill.name}: EVIDENCE.md has no stated {' and no stated '.join(missing)}, "
+                f"so the measured count cannot be derived from it. An empty controlled "
+                f"field is not a result."
             )
         if any(
             not values[f].lstrip("* `").upper().startswith("UNMEASURED")
