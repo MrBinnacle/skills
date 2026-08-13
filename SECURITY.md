@@ -2,9 +2,18 @@
 
 ## What a skill from this repo can and cannot do
 
-A skill is a plain-text markdown file. Installing one:
+Skills are inspectable source packages. Most contain instructions only. Some include scripts for
+deterministic checks. Installation does not execute those scripts. An agent may execute them
+during use, subject to the host's permissions. Review all instructions and executable files
+before installation.
 
-- executes **nothing** on your machine — no install scripts, no binaries, no network calls;
+Everything in a skill folder is source you can read — never a binary, never minified or
+obfuscated. Installing one:
+
+- runs **nothing at install time** — no install hooks, no build step, no code executed to put
+  the files in place;
+- copies the whole folder onto your machine, scripts included, so what you read in this
+  repository is what you have locally;
 - adds instructions your AI assistant will read and may act on. Your assistant can run
   commands, so a malicious skill *could* instruct it to do harmful things. That is the real
   threat model for every skill collection, including this one.
@@ -16,11 +25,37 @@ A skill is a plain-text markdown file. Installing one:
 2. **No fetch-and-execute.** No skill in this collection instructs the agent to download and
    run remote code, pipe URLs to a shell, or fetch instructions from an external source at
    run time.
-3. **No secrets handling.** No skill asks the agent to read, move, or transmit credentials,
+3. **Any code a skill ships is readable source, and it runs only when the skill runs.** Some
+   skills bundle a script. It is committed as source here; it is invoked only by that skill's
+   own written instructions, which you can read before you run them; and CI detects any file
+   inside a skill folder that is not one of: `.md`, `.txt`, `.py`, `.json`. Adding a format to
+   that list is a reviewed change to this policy, not a silent commit.
+
+   ⚠ That check **detects** violations; it does not prevent them. `main` has no required status
+   checks, so a nonzero exit is a signal, not a gate. Which is the point of the next paragraph.
+
+   Do not take our word for it — check the copy you actually have:
+
+   ```bash
+   # 1. Nothing but the declared formats. Compiled Python is step 2.
+   find -L ~/.claude/skills/<name> -type f \
+     ! -name '*.md' ! -name '*.txt' ! -name '*.py' ! -name '*.json' \
+     ! -path '*/__pycache__/*.pyc'
+
+   # 2. Every compiled file has its readable source beside it.
+   find -L ~/.claude/skills/<name> -path '*/__pycache__/*.pyc' -exec sh -c \
+     'for f; do d=${f%/__pycache__/*}; b=${f##*/}; [ -f "$d/${b%%.*}.py" ] || echo "$f"; done' _ {} +
+   ```
+
+   Both print nothing when this commitment holds on your machine. (`-L` matters: installs are
+   symlinked, and `find` without it silently skips them. Step 2 exists because a skill that ships
+   a script leaves `__pycache__` behind the first time it runs — your interpreter wrote those,
+   nobody shipped them, and they are fine exactly when the source sits beside them.)
+4. **No secrets handling.** No skill asks the agent to read, move, or transmit credentials,
    tokens, or keys.
-4. **Explicit updates only.** Installation copies files locally. Nothing self-updates; you
+5. **Explicit updates only.** Installation copies files locally. Nothing self-updates; you
    diff and adopt changes deliberately.
-5. **Provenance.** Skills with a real-incident origin carry a dated `EVIDENCE.md`. History is
+6. **Provenance.** Skills with a real-incident origin carry a dated `EVIDENCE.md`. History is
    append-only in git.
 
 Review the diff of any update as you would a pull request — that is the intended trust
