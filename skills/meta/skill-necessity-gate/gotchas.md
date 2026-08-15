@@ -81,3 +81,10 @@ recurrence volume). RULE: Gate 1 recurrence mined from agent transcripts must be
 run/occasion; one fire spawning N parallel seats is n=1, not n=N. Layer note (Gate 0): a
 recurring fan-out orchestration crystallizes as a NAMED WORKFLOW script, not a SKILL.md —
 workflows are a distinct layer alongside CLAUDE.md/memory/MCP/hooks.
+
+## [OBSERVED 2026-08-14] Name and prior use were mistaken for authority
+During an architecture review, `skill-necessity-gate` was treated as an ironclad
+classifier because it was called a gate, was referenced by repository policy, and had processed
+prior candidates. That circular assumption contaminated conclusions before first-hand
+repository and platform evidence were inspected. A verdict now fails if it uses the
+card's role, name, prior use, or self-produced decisions as evidence.

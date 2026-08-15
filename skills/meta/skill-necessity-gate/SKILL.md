@@ -4,9 +4,10 @@ description: Decide whether a capability should become a skill. Use when asking 
 disable-model-invocation: true
 ---
 
-> **Normative status.** The admission policy is [`ADMISSION.md`](../../../ADMISSION.md)
-> (`admission-policy v1`). This skill is the reference method for answering it —
-> not the binding rule.
+> **Normative status.** [`ADMISSION.md`](../../../ADMISSION.md) (`admission-policy v1`)
+> is the binding collection policy. This card is a fallible procedure, not evidence.
+> Never cite this skill's name, repository role, prior use, or prior verdicts as
+> support for a current verdict.
 
 # skill-necessity-gate
 
@@ -28,6 +29,19 @@ This skill is itself a deliberately-invoked **procedure** (`disable-model-invoca
   are skill-shaped bets and run the same gates (GD-11) — prior-art sweep at Gate 0,
   recurrence at Gate 1, and at Gate 2 **name the pending decision the output would
   change**; no decision, no build.
+
+## Evidence before architecture
+
+Before applying any gate, record:
+
+1. the eligible situation;
+2. an observed unaided failure;
+3. first-hand repository or runtime evidence for the claimed mechanism; and
+4. the behavioral difference the proposed control must produce.
+
+If any required input is absent, stop with `UNMEASURED` and name the observation
+or test that would supply it. Do not substitute this card's taxonomy, history, or
+prior decisions for missing evidence.
 
 ## Mode A — Gate a candidate (the core procedure)
 
@@ -115,6 +129,18 @@ The **discipline** (stable contract): six ordered gates, refusal predicate,
 default-to-"not a skill", measure-don't-argue, GD-11. The **implementation surface**
 (illustrative — swap for your runtime): the ~100-token / 1%-of-context numbers (Claude
 Code, 2026), frontmatter flag names, `/loop` semantics, tools named in examples.
+
+## Verdict contract
+
+Every verdict must:
+
+- cite the first-hand evidence used for each load-bearing claim;
+- distinguish evidence from this card's classification;
+- state the strongest alternative control surface; and
+- name the result that would reverse the verdict.
+
+A verdict that cites this gate's role, name, prior use, or self-produced decision
+history as evidence is invalid.
 
 ## Provenance
 Evidence behind every gate (Matt Pocock's methodology triangulated against Anthropic's
