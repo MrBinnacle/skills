@@ -334,6 +334,103 @@ def case_reader_script_agrees_with_the_walker(root: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Git-ignored paths: not in the repository, so not judged -- and the line
+# between "ignored" and "in the repository" is where this can go wrong.
+# ---------------------------------------------------------------------------
+
+
+def git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(root), *args], capture_output=True, text=True
+    )
+
+
+def make_git_tree(root: Path) -> Path:
+    """A real git work tree with a skill folder and a `.pytest_cache/` rule."""
+    git(root, "init", "-q")
+    git(root, "config", "user.email", "suite@example.invalid")
+    git(root, "config", "user.name", "suite")
+    (root / ".gitignore").write_text(".pytest_cache/\n", encoding="utf-8")
+    folder = make_skill(root, "skills/engineering/example")
+    (folder / "gotchas.md").write_text("notes\n", encoding="utf-8")
+    return folder
+
+
+def case_git_ignored_file_passes(root: Path) -> None:
+    """The reported defect: running a skill's own test suite must not turn it red."""
+    folder = make_git_tree(root)
+    cache = folder / ".pytest_cache" / "v" / "cache"
+    cache.mkdir(parents=True)
+    (folder / ".pytest_cache" / "CACHEDIR.TAG").write_text("x\n", encoding="utf-8")
+    (cache / "nodeids").write_text("[]\n", encoding="utf-8")
+    result = run_gate(root)
+    check(
+        "a git-ignored undeclared format passes",
+        result.returncode == 0,
+        result.stderr.strip(),
+    )
+    check(
+        "the run says how many ignored files it skipped",
+        "git-ignored file(s) skipped" in result.stdout,
+        result.stdout.strip(),
+    )
+
+
+def case_tracked_file_still_fails(root: Path) -> None:
+    """The same bytes, tracked. Being in the repository is what decides."""
+    folder = make_git_tree(root)
+    planted = folder / "CACHEDIR.TAG"
+    planted.write_text("x\n", encoding="utf-8")
+    git(root, "add", "-f", "skills/engineering/example/CACHEDIR.TAG")
+    result = run_gate(root)
+    check(
+        "the same file tracked is still rejected",
+        result.returncode != 0,
+        result.stdout.strip(),
+    )
+    check(
+        "the tracked file is named in the rejection",
+        "CACHEDIR.TAG" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_untracked_unignored_file_still_fails(root: Path) -> None:
+    """The hole `git ls-files` would have opened: untracked is not ignored."""
+    folder = make_git_tree(root)
+    (folder / "payload.sh").write_text("#!/bin/sh\necho hi\n", encoding="utf-8")
+    result = run_gate(root)
+    check(
+        "an untracked file no rule ignores is still rejected",
+        result.returncode != 0 and "payload.sh" in result.stderr,
+        f"rc={result.returncode} err={result.stderr.strip()}",
+    )
+
+
+def case_non_git_tree_judges_everything(root: Path) -> None:
+    """A reader's install directory is not a git tree. Nothing is skipped there."""
+    folder = make_skill(root, "skills/engineering/example")
+    (folder / "payload.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+    result = run_gate(root)
+    check(
+        "a non-git tree is judged in full",
+        result.returncode != 0 and "payload.sh" in result.stderr,
+        f"rc={result.returncode} err={result.stderr.strip()}",
+    )
+
+def case_non_git_tree_says_so(root: Path) -> None:
+    """A run that skipped nothing states that, so a green line is not ambiguous."""
+    folder = make_skill(root, "skills/engineering/example")
+    (folder / "gotchas.md").write_text("notes\n", encoding="utf-8")
+    result = run_gate(root)
+    check(
+        "a non-git tree says nothing was skipped",
+        result.returncode == 0 and "not a git work tree" in result.stdout,
+        f"rc={result.returncode} out={result.stdout.strip()}",
+    )
+
+
+# ---------------------------------------------------------------------------
 # The live tree
 # ---------------------------------------------------------------------------
 
@@ -369,6 +466,11 @@ def main() -> None:
         case_empty_root_refuses_rather_than_passing,
         case_symlinked_skill_folder_is_walked,
         case_reader_script_agrees_with_the_walker,
+        case_git_ignored_file_passes,
+        case_tracked_file_still_fails,
+        case_untracked_unignored_file_still_fails,
+        case_non_git_tree_judges_everything,
+        case_non_git_tree_says_so,
     ]
     for func in isolated:
         with tempfile.TemporaryDirectory() as tmp:

@@ -36,8 +36,9 @@ them, and commitment 3 says exactly when they are fine.) Installing one:
    shipped `.py` is one of those** — `im-down` and `im-up` also ship their test suites, which our
    CI runs and no skill invokes. Read those too; they are part of what you installed.
 
-   CI detects any file inside a skill folder that is not `.md`, `.txt`, `.py` or `.json` —
-   plus compiled Python, which is allowed only as `__pycache__/<name>.pyc` sitting directly
+   CI detects any file **in this repository** inside a skill folder that is not `.md`, `.txt`,
+   `.py` or `.json` — plus compiled Python, which is allowed only as `__pycache__/<name>.pyc`
+   sitting directly
    beside the `<name>.py` it came from. Adding a format is a reviewed change to this policy, not
    a silent commit.
 
