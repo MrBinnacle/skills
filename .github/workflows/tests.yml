@@ -149,6 +149,25 @@ jobs:
             || { echo "::error::measured-drift fixture failed for the wrong reason"; cat control-measured.log; exit 1; }
           echo "control: stale measured count rejected as expected"
 
+      # The origin-tier half needs its own control. The front page states how many
+      # cards trace to a real incident, and it stated seven when the records read
+      # six -- inside the sentence explaining why the tiers are kept distinct. This
+      # fixture's four scoreboard numbers agree and its policy version matches, so
+      # the only thing it can fail on is the tiering assertion under test.
+      - name: Poison control - a drifted origin tiering must be rejected
+        run: |
+          set -euo pipefail
+          if python scripts/validate_scoreboard.py \
+               --root scripts/fixtures/origin-tier-drift \
+               > control-origin.log 2>&1; then
+            echo "::error::origin-tier-drift fixture was ACCEPTED - the origin tiering is not derived from the cards"
+            cat control-origin.log
+            exit 1
+          fi
+          grep -q "origin-tier statement" control-origin.log \
+            || { echo "::error::origin-tier-drift fixture failed for the wrong reason"; cat control-origin.log; exit 1; }
+          echo "control: drifted origin tiering rejected as expected"
+
       # SECURITY.md commits to a closed format vocabulary inside skill folders.
       # These steps are the check behind that sentence. They run AFTER the
       # validator suites above on purpose: those suites import the shipped

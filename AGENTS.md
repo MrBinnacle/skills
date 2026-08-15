@@ -118,6 +118,14 @@ anything other than `UNMEASURED`. A card with no `EVIDENCE.md`, or with a contro
 missing, is refused rather than counted as unmeasured: deriving a zero from an absent record
 invents the number the line exists to keep honest.
 
+The same script also derives the front page's **origin tiering** from each card's `EVIDENCE.md`
+`Origin` field, over a closed vocabulary of `OBSERVED` (a dated real incident), `DESIGNED` (built
+on purpose) and `DISTILLED` (written from research, no triggering incident). `README.md` states
+that tiering in two places — "Where these came from" and "What the receipts are worth" — and both
+must state all three numbers on one line, in that order. An Origin field opening with a word
+outside the vocabulary is refused rather than guessed at, on the same rule as the controlled
+fields: a card that has not said which tier it is cannot be counted into either.
+
 The words are ruled and the separator is not — the sites use commas or middots as each already
 did. `solutions looking for a problem` is matched in full, so a softened restatement fails.
 

@@ -29,6 +29,32 @@ SCOREBOARD_RE = re.compile(
 FIELD_NAMES = ("admitted", "measured", "retired", "solutions looking for a problem")
 CONTROLLED_FIELDS = ("Screen result", "Paired verdict")
 
+# The origin tier is the other number the front page states about the cards, and
+# it drifts the same way the scoreboard does: a card is added, retired, or
+# re-tiered and the prose keeps the old arithmetic. The page stated `seven
+# OBSERVED, two DESIGNED` while the records read six, two, and one that is
+# neither -- inside the sentence explaining why the tiers are kept distinct.
+#
+# The vocabulary is closed for the same reason the verdict vocabulary is: an
+# Origin field opening with a word this file has never seen is not a tier to
+# guess at. DISTILLED is a real tier, not a catch-all -- it names a card written
+# from research rather than from an incident, which is a weaker provenance claim
+# than OBSERVED and must not be folded into it.
+ORIGIN_FIELD = "Origin"
+ORIGIN_TIERS = ("OBSERVED", "DESIGNED", "DISTILLED")
+# Matched on one line, without DOTALL, so the three numbers have to be stated
+# together as one claim. A cross-line match would happily pair one passage's
+# `6 OBSERVED` with another passage's `1 DISTILLED` and call the page consistent.
+ORIGIN_TIER_RE = re.compile(
+    r"(\d+)\s+`?OBSERVED`?\b[^\n]*?(\d+)\s+`?DESIGNED`?\b[^\n]*?(\d+)\s+`?DISTILLED`?\b"
+)
+# The page states the tiering twice, in two sections that are read independently
+# ("Where these came from" and "What the receipts are worth"). Both are checked,
+# and the count is pinned: silently dropping a site would narrow the guarantee
+# without anything going red, which is the partial-edit failure the scoreboard
+# check already refuses across its five sites.
+ORIGIN_TIER_SITES = 2
+
 # A controlled field opens with its verdict, and the vocabulary is closed. An
 # open test ("anything that is not UNMEASURED counts as a result") reads `n/a`,
 # `TBD`, `Not yet run.` and an italicised `_UNMEASURED_` as measurements, and
@@ -85,13 +111,13 @@ def count_admitted(root: Path) -> int:
     return len(iter_skill_dirs(root))
 
 
-def controlled_field_values(evidence: Path) -> dict[str, str]:
-    """Return the card's two controlled-field values, keyed by field name.
+def evidence_fields(evidence: Path, wanted: tuple[str, ...]) -> dict[str, str]:
+    """Return the named evidence-table values, keyed by field name.
 
-    Reads the `| **Field** | Value |` rows of the evidence table. Both fields
-    must be present: a card that states neither has not been measured *and has
-    not said so*, which is a different thing, and the difference is the whole
-    point of the record.
+    Reads the `| **Field** | Value |` rows of the evidence table. A caller that
+    asks for the controlled fields needs both present: a card that states neither
+    has not been measured *and has not said so*, which is a different thing, and
+    the difference is the whole point of the record.
 
     Two parsing rules keep the derivation pinned to the card's real record:
     rows inside a fenced block are skipped, so a record that documents the row
@@ -111,7 +137,7 @@ def controlled_field_values(evidence: Path) -> dict[str, str]:
         if len(cells) < 2:
             continue
         name = cells[0].strip("* ")
-        if name in CONTROLLED_FIELDS:
+        if name in wanted:
             values.setdefault(name, cells[1])
     return values
 
@@ -140,7 +166,7 @@ def count_measured(root: Path) -> int:
                 f"result; a card with no record cannot answer that either way, and "
                 f"counting it as unmeasured would invent the answer."
             )
-        values = controlled_field_values(evidence)
+        values = evidence_fields(evidence, CONTROLLED_FIELDS)
         # An absent row and a present-but-empty one are the same refusal: the
         # card has not said. Only the blank case is worth calling out separately,
         # because "not UNMEASURED" would otherwise read a blank as a result and
@@ -171,6 +197,69 @@ def count_measured(root: Path) -> int:
         if any(verdicts.values()):
             n += 1
     return n
+
+
+def derive_origin_tiers(root: Path) -> tuple[int, int, int]:
+    """Count the cards in each origin tier, read from their own records.
+
+    Same refusal discipline as the measured count: a missing record, a missing
+    Origin row, or an opening word outside the closed vocabulary is a refusal,
+    not a zero. The front page tells a reader how many cards trace to a real
+    incident; deriving that from a card that has not said would invent exactly
+    the number the line exists to keep honest.
+    """
+    counts = dict.fromkeys(ORIGIN_TIERS, 0)
+    for skill in iter_skill_dirs(root):
+        evidence = skill / "EVIDENCE.md"
+        if not evidence.is_file():
+            fail(
+                f"{skill.name}: no EVIDENCE.md, so its origin tier cannot be derived. "
+                f"The front page states how many cards came from a real incident; a "
+                f"card with no record cannot answer that either way."
+            )
+        value = evidence_fields(evidence, (ORIGIN_FIELD,)).get(ORIGIN_FIELD, "")
+        opening = value.lstrip("* `_").upper()
+        for tier in ORIGIN_TIERS:
+            if opening.startswith(tier):
+                counts[tier] += 1
+                break
+        else:
+            fail(
+                f"{skill.name}: Origin opens with an unrecognised tier "
+                f"({value[:40]!r}). The vocabulary is closed - "
+                f"{', '.join(ORIGIN_TIERS)} - because reading an unknown opening as "
+                f"an incident claims a provenance the card may not have. Say which "
+                f"tier it is, or extend the vocabulary deliberately."
+            )
+    return tuple(counts[t] for t in ORIGIN_TIERS)  # type: ignore[return-value]
+
+
+def check_origin_tiers(root: Path) -> None:
+    expected = derive_origin_tiers(root)
+    readme = root / "README.md"
+    if not readme.is_file():
+        fail(f"missing {readme}")
+    found = ORIGIN_TIER_RE.findall(readme.read_text(encoding="utf-8"))
+    if len(found) != ORIGIN_TIER_SITES:
+        fail(
+            f"README.md: expected {ORIGIN_TIER_SITES} origin-tier statements "
+            f"(N OBSERVED, N DESIGNED, N DISTILLED, on one line), found {len(found)}. "
+            f"The page states the tiering in two sections and both are checked; a "
+            f"site that stops matching is a site that stopped being guarded."
+        )
+    for i, site in enumerate(found, start=1):
+        got = tuple(int(n) for n in site)
+        if got == expected:
+            continue
+        disagreements = [
+            f"{tier} {g} != {w}"
+            for tier, g, w in zip(ORIGIN_TIERS, got, expected)
+            if g != w
+        ]
+        fail(
+            f"README.md origin-tier statement {i}: disagrees with the cards' Origin "
+            f"fields - " + "; ".join(disagreements)
+        )
 
 
 def table_row_count(text: str, heading_prefix: str) -> int:
@@ -347,10 +436,13 @@ def validate(root: Path) -> None:
     expected = derive_counts(root)
     check_scoreboard_sites(root, expected)
     check_policy_version(root)
+    check_origin_tiers(root)
     admitted, measured, retired, turned = expected
+    observed, designed, distilled = derive_origin_tiers(root)
     print(
         f"PASS: scoreboard {admitted} admitted, {measured} measured, {retired} retired, "
-        f"{turned} solutions looking for a problem; admission policy version agrees"
+        f"{turned} solutions looking for a problem; admission policy version agrees; "
+        f"origin tiers {observed} OBSERVED, {designed} DESIGNED, {distilled} DISTILLED agree"
     )
 
 
