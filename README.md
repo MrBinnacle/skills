@@ -327,10 +327,16 @@ trade-off and let the person decide, rather than deciding it for them.
 
 ## Where these came from
 
-Seven of the nine exist because something actually went wrong, or nearly did, and the card stops
-it happening again. Two exist because I wanted a better way to hand work between sessions and
-built one. Their records say `DESIGNED` rather than `OBSERVED`, with dates, because those are
-different claims and a collection about receipts should not blur them.
+Six of the nine exist because something actually went wrong, or nearly did, and the card stops it
+happening again. Two exist because I wanted a better way to hand work between sessions and built
+one; their records say `DESIGNED`, with dates. The ninth has no incident behind it at all:
+`skill-necessity-gate` was distilled from the research on when a skill should exist, and its
+record says so in as many words — *a codified research answer, stated plainly, not a scar*.
+
+Read off the records, the tiering is 6 `OBSERVED`, 2 `DESIGNED`, 1 `DISTILLED`. Those are three
+different claims and a collection about receipts should not blur them, which is also why the
+counts here are derived from the cards by `scripts/validate_scoreboard.py` rather than asserted
+from memory.
 
 The failures cluster into four shapes, which is most of why these nine and not some other nine:
 
@@ -370,8 +376,11 @@ The evidence comes in named tiers, so you always know which one you are reading.
 - **Controlled results** — the Screen and Paired-verdict fields — come from with-versus-without
   runs under the pre-registered harness protocol. As of today, every one of them reads
   `UNMEASURED`.
-- **Origin incidents** are the dated real-world failures behind seven of these, marked
-  `OBSERVED`. Two records say `DESIGNED` instead.
+- **Origin incidents** are the dated real-world failures behind most of these, marked
+  `OBSERVED`. Not every card has one, and the records say which is which: some were built on
+  purpose rather than after an incident, and one was distilled from research with no triggering
+  incident at all. The split, counted from the cards:
+  6 `OBSERVED`, 2 `DESIGNED`, 1 `DISTILLED`.
 - **Observed in use (self-reported)** is the weakest tier and the one to read most carefully:
   field observation from my own sessions, mined from my private work logs by my own AI assistant
   and re-checked by a second instance of the same AI system. That process catches extraction
