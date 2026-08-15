@@ -78,6 +78,70 @@ them, and commitment 3 says exactly when they are fine.) Installing one:
 Review the diff of any update as you would a pull request — that is the intended trust
 mechanism, not a substitute for it.
 
+## Standing obligations — `conformance v1`
+
+The commitments above are what this collection promises. This section is what a card owes for as
+long as it stays published, stated as the list a checker is written against, so that the prose
+and the check cannot drift apart quietly. Admission is a separate contract on a separate cadence:
+`ADMISSION.md` governs getting in, this section governs staying.
+
+**Version.** This edition is `conformance v1`, declared here and nowhere else. A material change
+to the obligations, or to what counts as meeting one, bumps the version. Editorial changes —
+wording, ordering, examples — do not.
+
+**Machine-checked.** `scripts/validate_conformance.py` runs these six over the published tree and
+reports `PASS`, `FAIL` or `CANNOT-CHECK` per card. `CANNOT-CHECK` is a separate count and is never
+reported as a pass.
+
+- **O1 — declared formats only.** Every file inside a skill folder is one of the declared readable
+  formats, per commitment 3. Checked by `scripts/validate_skill_formats.py`, whose predicate the
+  conformance run calls rather than restates.
+- **O2 — no fetch-and-execute.** No card instructs the agent to download and run remote code, per
+  commitment 2. Checkable in practice, not in principle: the check matches the known command
+  shapes, so a green result means *no known shape is present*. An instruction phrased in English
+  rather than in a command line ships no pattern to match.
+- **O3 — shipped scripts named in `SKILL.md`.** A card's own `SKILL.md` names every script it asks
+  the agent to run, per commitment 3, with commitment 3's own carve-out for the shipped test
+  suites. This is the obligation with a demonstrated rejection: pointed at an earlier tree of this
+  repository, where the naming sentence did not yet exist and the scripts already did, the checker
+  reports the contradiction and exits nonzero.
+- **O4 — `EVIDENCE.md` present with all controlled fields.** Every published card carries an
+  `EVIDENCE.md` stating each controlled field. An empty field is the same refusal as an absent
+  one: the card has not said.
+- **O5 — controlled fields do not contradict a published receipt.** A card's controlled fields must
+  not contradict a published measurement receipt for the same card. **This is checked on the
+  maintainer's clock and is not, and will not be, promised as a CI check from this repository** —
+  the measurement store is private, so there is nothing here to compare against. The conformance
+  run reports it `CANNOT-CHECK` on every card, by construction rather than by neglect. The durable
+  fix is citable, published receipts, and that work does not live in this repository.
+- **O6 — scoreboard lockstep.** The front-page counts stay derivable from the cards. Checked by
+  `scripts/validate_scoreboard.py`.
+
+**Attested, not checked.** Two commitments are honest obligations that no repository check can
+decide, and are listed here rather than left to look machine-checked:
+
+- **Readability (commitment 1).** The few-minutes bar names no number, deliberately. A word count
+  would pass a dense wall of jargon and fail a clear longer card. It stands as a reported-defect
+  commitment: if a card fails it for you, that is a defect worth an issue.
+- **No secrets handling (commitment 4).** The obligation is about what a card *instructs an agent
+  to do*, which is a semantic property of English. Word-matching gets it backwards — a card
+  telling the agent to *refuse* when a secret may be present scans identically to one that
+  mishandles secrets.
+
+**Commitment 5 is a channel claim, not a per-card obligation.** "Nothing self-updates" is a
+property of the distribution channel and the installer. No file in this tree can witness it; the
+tree is the thing that would be updated. It is stated among the commitments and is deliberately
+absent from the list above.
+
+**How the obligations are re-checked, and when that stops.** The cheap change-triggered checks
+already run on every pull request. A scheduled workflow re-runs the whole conformance list weekly
+over the published tree, because a breach introduced between merges is otherwise caught by nobody,
+and a check that never fires is indistinguishable from one that cannot. That schedule ships as a
+**pre-registered trial**: if by **2026-11-07** it has caught nothing the pull-request checks
+missed, it is retired against that stated criterion rather than kept as ceremony. Per-card
+`Conformed-under:` fields are deliberately not used at this edition; they arrive with the first
+version bump, when a stale value would mean something.
+
 ## Reporting a vulnerability or a violating skill
 
 If any skill in this repo violates the commitments above, or you find a way a skill's

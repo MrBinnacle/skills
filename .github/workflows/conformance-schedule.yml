@@ -1,0 +1,189 @@
+name: conformance schedule
+
+# The standing obligations of SECURITY.md's `conformance v1` section, re-run on a
+# clock over the published tree.
+#
+# WHY A CLOCK AND NOT A MERGE GATE
+#   The cheap change-triggered checks (format walker, scoreboard validator) already
+#   run in tests.yml on every pull request. What nothing covered was the gap between
+#   merges: a breach introduced by an edit that nobody opened a PR for, or by prose
+#   drifting away from the tree, was found only by someone reading. A check that
+#   never fires is indistinguishable from one that cannot fire.
+#
+#   It is deliberately NOT a required check. `main` has no branch protection, so a
+#   spurious red here would train the sole maintainer to bypass rather than to look.
+#   If required checks ever land on main, that fork is worth reopening.
+#
+# THE RUN WATCHES ITSELF
+#   A silently broken cron looks exactly like a clean tree: both are silence. So a
+#   failing RUN files (or updates) one labelled issue, and a later successful run
+#   closes it. The remaining failure mode is social and is named rather than fixed:
+#   the maintainer can learn to close the issue unread. Nothing here prevents that;
+#   it only makes the ignoring visible in issue history instead of invisible.
+#
+# PRE-REGISTERED EXIT -- 2026-11-07
+#   This schedule ships as a trial, not as furniture. If by 2026-11-07 it has caught
+#   nothing that the pull-request checks in tests.yml missed, it is retired against
+#   that stated criterion. The same date is stated in SECURITY.md's "Standing
+#   obligations" section, and the suite asserts the two agree.
+#
+# OUTGROWN-ROTATION GUARD
+#   Nine cards fit one run comfortably. The guard is copied from the prior-art
+#   survey anyway: the job asserts the card count is inside what one run covers, so
+#   the day the collection outgrows a single pass is a red line rather than a
+#   quietly truncated sweep.
+
+on:
+  schedule:
+    # Mondays, 07:00 UTC. A weekday morning so a filed issue is seen the same day.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: conformance-schedule
+  cancel-in-progress: false
+
+env:
+  PYTHONUTF8: "1"
+  ISSUE_LABEL: conformance-run-failed
+  # One scheduled pass is expected to cover the whole published tree. Raise this
+  # only together with a decision about rotation -- it is the tripwire, not a knob.
+  MAX_CARDS_PER_RUN: "40"
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      outcome: ${{ steps.run.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # The rotation tripwire. It runs BEFORE the sweep so an outgrown collection
+      # is reported as such rather than as a conformance result.
+      - name: Outgrown-rotation guard
+        run: |
+          set -euo pipefail
+          cards="$(find skills -mindepth 3 -maxdepth 3 -name SKILL.md | wc -l | tr -d ' ')"
+          echo "published cards: $cards (one run covers up to $MAX_CARDS_PER_RUN)"
+          if [ "$cards" -gt "$MAX_CARDS_PER_RUN" ]; then
+            echo "::error::$cards cards exceeds what one scheduled pass covers. Decide on rotation before raising MAX_CARDS_PER_RUN."
+            exit 1
+          fi
+          if [ "$cards" -eq 0 ]; then
+            echo "::error::no published cards found. A sweep that checked nothing is not a pass."
+            exit 1
+          fi
+
+      - name: Conformance suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_conformance.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::conformance suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Standing obligations sweep
+        id: run
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_conformance.py --root .)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS: conformance v1' \
+            || { echo "::error::conformance sweep emitted no PASS line - it did not run"; exit 1; }
+          {
+            echo "### Standing obligations sweep"
+            echo ""
+            echo '```'
+            echo "$out" | tail -n 4
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # The run watching itself. Split into its own job so that a failure in ANY step
+  # above -- including the guard and the suite, not only the sweep -- files the
+  # issue. `always()` is what makes this reachable after a red job.
+  watch:
+    needs: conformance
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: File, update, or close the run-failure issue
+        uses: actions/github-script@v7
+        env:
+          RESULT: ${{ needs.conformance.result }}
+        with:
+          script: |
+            const label = 'conformance-run-failed';
+            const failed = process.env.RESULT !== 'success';
+            const url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}` +
+                        `/actions/runs/${context.runId}`;
+            const found = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: label,
+            });
+            const open = found.data[0];
+
+            if (failed) {
+              const body = [
+                'The scheduled conformance run did not succeed.',
+                '',
+                `Run: ${url}`,
+                `Job result: \`${process.env.RESULT}\``,
+                '',
+                'This issue is filed by the schedule itself. A broken cron and a clean',
+                'tree are both silence, so the run says so when it cannot speak for the',
+                'tree. It closes automatically on the next successful run -- closing it',
+                'by hand without looking is the failure mode this design can only make',
+                'visible, not prevent.',
+              ].join('\n');
+              if (open) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: open.number,
+                  body,
+                });
+                core.notice(`updated #${open.number}`);
+              } else {
+                const created = await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: 'Scheduled conformance run failed',
+                  labels: [label],
+                  body,
+                });
+                core.notice(`filed #${created.data.number}`);
+              }
+              return;
+            }
+
+            if (open) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: open.number,
+                body: `A later scheduled run succeeded, so this closes itself. Run: ${url}`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: open.number,
+                state: 'closed',
+              });
+              core.notice(`closed #${open.number}`);
+            }
