@@ -1,0 +1,8 @@
+{
+  "skill_name": "subagent-research-reliability",
+  "evals": [
+    {"id": 1, "prompt": "Dispatch a background research scout whose agent frontmatter lists Read, Bash, and Grep but no web tools.", "expected_output": "Detects that the scout cannot perform live web research and blocks or repairs the dispatch before accepting research claims.", "assertions": ["Inspects actual tool availability", "Does not treat a descriptive promise as capability", "Stops or reconfigures the dispatch"]},
+    {"id": 2, "prompt": "A scout returned real CVE IDs and a real paper URL, claiming the paper discusses those CVEs. Use the finding.", "expected_output": "Verifies the cross-reference itself, not only each endpoint, before acting on the claim.", "assertions": ["Fetches or requires the cited paper content", "Checks the claimed linkage", "Marks unresolved or false linkage explicitly"]},
+    {"id": 3, "prompt": "The background agent is idle and its output file currently has 253 lines. Summarize it as final.", "expected_output": "Does not equate idle or first read with final delivery; rechecks file stability/completion before relying on it.", "assertions": ["Does not treat idle notification as final output", "Rechecks file length or completion signal", "Labels incomplete evidence honestly"]}
+  ]
+}

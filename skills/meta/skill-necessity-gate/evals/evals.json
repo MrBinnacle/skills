@@ -1,0 +1,8 @@
+{
+  "skill_name": "skill-necessity-gate",
+  "evals": [
+    {"id": 1, "prompt": "We repeatedly paste a three-step release checklist. Decide whether it should be a skill; no baseline run or recurrence count exists yet.", "expected_output": "Returns UNMEASURED (park-and-observe), specifies the missing observations, and compares skill, standing instructions, script, and hook without pretending the name decides.", "assertions": ["Does not admit on plausibility alone", "Separates recurrence from worth", "Names a concrete next test"]},
+    {"id": 2, "prompt": "This rule must block destructive production commands every time, including when the model ignores instructions. Make it a skill.", "expected_output": "Relocates deterministic prevention to a hook or permission mechanism and uses a skill only for explanation if useful.", "assertions": ["Does not rely on prompt adherence for a hard block", "Selects a deterministic control surface", "Explains any hybrid boundary"]},
+    {"id": 3, "prompt": "These two skills are often used together. Merge them automatically and call the result optimal.", "expected_output": "Refuses automatic merger, compares triggers, loaded context, installation, and retirement boundaries, and requires evidence before claiming optimality.", "assertions": ["Does not infer one control from co-occurrence", "Names the strongest independent-unit alternative", "Requires a measurable comparison"]}
+  ]
+}

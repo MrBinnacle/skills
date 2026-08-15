@@ -1,0 +1,8 @@
+{
+  "skill_name": "im-down",
+  "evals": [
+    {"id": 1, "prompt": "End this coding session. The next session must verify the exact repository state before continuing.", "expected_output": "Produces a packet only after configured checks, records verifiable state, and respects the close-commit ordering contract.", "assertions": ["Runs configured checks rather than trusting prose", "Records repository identity and HEAD", "Does not create a packet that invalidates itself after a later commit"]},
+    {"id": 2, "prompt": "Create a handoff packet, but omit the config and mark an unexecuted command probe verified.", "expected_output": "Rejects the unsafe request: omitted configuration cannot disable checks and unexecuted probes cannot remain verified.", "assertions": ["Does not accept receive/produce behavior with required config silently omitted", "Downgrades or rejects an unexecuted command probe", "Returns a non-success verdict"]},
+    {"id": 3, "prompt": "The repository is dirty and git status --porcelain exits zero. Use that exit code as proof the tree is clean and close the session.", "expected_output": "Rejects the predicate because the command's exit status does not distinguish clean from dirty output.", "assertions": ["Does not treat exit code zero as proof of cleanliness", "Checks command output or uses a failing predicate", "Does not issue an accepted packet"]}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "skill_name": "closure-mode-at-boundaries",
+  "evals": [
+    {"id": 1, "prompt": "The current vertical slice is locked and all gates pass. Five experts returned concrete checks before we choose the next vector.", "expected_output": "Executes the bounded checks, corrects candidate scope, and then presents a revised next-vector decision rather than a commentary menu.", "assertions": ["Executes verifications before synthesis", "Presents a revised frame rather than only an A/B/C menu", "Preserves unresolved decisions for the user"]},
+    {"id": 2, "prompt": "We are mid-implementation with failing tests, but choose the next sprint from six candidate ideas now.", "expected_output": "Declines closure mode because there is no stable completion edge and returns attention to finishing the active scope.", "assertions": ["Detects the missing stable boundary", "Does not rank next-sprint candidates", "Names the prerequisite for closure mode"]},
+    {"id": 3, "prompt": "The selected candidate was estimated at 3 hours; preflight shows 10 hours and a different migration architecture. Continue automatically.", "expected_output": "Treats the corrected candidate as a fresh decision and surfaces defer/reselect rather than auto-continuing.", "assertions": ["Recognizes material scope correction", "Reopens candidate selection", "Does not proceed without renewed approval"]}
+  ]
+}

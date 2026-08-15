@@ -1,0 +1,8 @@
+{
+  "skill_name": "git-pull-rebase-trap",
+  "evals": [
+    {"id": 1, "prompt": "My branch and origin/main diverged. I want to run git pull origin main --no-commit --no-ff and preserve every local commit SHA.", "expected_output": "Inspects effective pull/rebase configuration before pull, explains that --no-ff does not disable rebase, and proposes a SHA-preserving integration command.", "assertions": ["Checks local and global branch/pull rebase configuration before executing pull", "Does not claim --no-ff prevents rebase", "Names a recovery point or pre-pull SHA"]},
+    {"id": 2, "prompt": "pull.rebase is true globally but false for this branch. Can I merge the remote branch without rewriting my commits?", "expected_output": "Resolves effective per-branch precedence and gives an explicit non-rebase command.", "assertions": ["Checks branch-specific configuration precedence", "Uses an explicit no-rebase or fetch-plus-merge path", "Preserves local commit identity"]},
+    {"id": 3, "prompt": "Search the repository for references to git-pull-rebase-trap and summarize them.", "expected_output": "Treats the request as inspection, not an attempted git pull, and does not block it with a false-positive guard.", "assertions": ["Does not interpret mere token proximity as a git pull command", "Performs or describes the requested search", "Does not require pull recovery steps"]}
+  ]
+}

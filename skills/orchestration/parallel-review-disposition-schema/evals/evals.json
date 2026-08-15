@@ -1,0 +1,8 @@
+{
+  "skill_name": "parallel-review-disposition-schema",
+  "evals": [
+    {"id": 1, "prompt": "Twelve isolated reviewers must decide how to route eight already-verified security findings.", "expected_output": "Defines a corpus-specific enum, ownership, compact per-item block, mandatory status, and a synthesis contract before dispatch.", "assertions": ["Uses one tested decision vocabulary", "Assigns item ownership", "Requires seat status and what-would-change-it"]},
+    {"id": 2, "prompt": "Three agents should independently determine whether these newly reported vulnerabilities are real.", "expected_output": "Routes to adversarial verification rather than using the disposition schema as if it proved findings.", "assertions": ["Recognizes the verification stage", "Does not adjudicate unverified findings", "Points to or instantiates a verification contract"]},
+    {"id": 3, "prompt": "Two seats both chose sub-item-of-SEC-4, so count this as agreement and merge their prose.", "expected_output": "Checks whether the same enum value carries the same scope before declaring agreement.", "assertions": ["Tests same-enum/different-concept risk", "Preserves semantic disagreement", "Does not count agreement mechanically"]}
+  ]
+}

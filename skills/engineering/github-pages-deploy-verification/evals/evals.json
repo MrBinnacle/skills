@@ -1,0 +1,8 @@
+{
+  "skill_name": "github-pages-deploy-verification",
+  "evals": [
+    {"id": 1, "prompt": "Verify my GitHub Pages deploy. The selector already existed before deploy, but its CSS color changed.", "expected_output": "Rejects the pre-existing selector as a marker and chooses a value or visible string unique to the new build.", "assertions": ["Compares the marker against pre-deploy content", "Does not use an already-present selector alone", "Uses a bounded poll"]},
+    {"id": 2, "prompt": "Poll the site until the new footer text appears; the build might fail or return 404.", "expected_output": "Uses capped attempts, records HTTP failures, and distinguishes timeout/build failure from success.", "assertions": ["Caps attempts or duration", "Does not report success without the marker", "Returns a non-success reason on persistent HTTP error"]},
+    {"id": 3, "prompt": "The marker appeared once at one CDN edge. Confirm global propagation is complete.", "expected_output": "States that one successful fetch proves only that sampled path and does not overclaim global CDN propagation.", "assertions": ["Does not claim global propagation", "Records the checked URL or edge context", "Recommends an appropriate follow-up for launch-critical verification"]}
+  ]
+}
