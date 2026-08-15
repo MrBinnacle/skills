@@ -1,7 +1,7 @@
 <p>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
-    <img alt="skills — 9 admitted, 0 measured, 1 retired, 4 solutions looking for a problem" src="assets/banner-light.svg" width="620">
+    <img alt="skills — 9 admitted, 1 measured, 1 retired, 4 solutions looking for a problem" src="assets/banner-light.svg" width="620">
   </picture>
 </p>
 
@@ -46,8 +46,8 @@ since. On that same basis the first commit here is 2026-05-24 and the first comm
 2026-06-03: the collection came first, by ten days. The cards came out of learning to do the work,
 and the wondering turned into an instrument afterwards.
 
-The question is still open. Every card here reads `UNMEASURED` in its controlled fields, which is
-what the next section is about.
+The question is still open. One card now carries a controlled `Screen result` and its verdict is
+`CANT_TELL_YET`; the other eight still read `UNMEASURED`. That is what the next section is about.
 
 > Im wrong  like 200x a day - but i can iterate in really cool ways fast enough to cancel out the
 > wrongness
@@ -417,8 +417,9 @@ It is not a big collection, and it is not trying to become one. Nine cards, not 
 If you want breadth, [mattpocock/skills](https://github.com/mattpocock/skills) is the shelf I
 learned the structure from and is a better place to browse.
 
-It is not proof that these nine work. Read the section above again if you skipped it: the
-controlled fields are empty and I am not going to dress that up.
+It is not proof that these nine work. Read the section above again if you skipped it: one card
+has a controlled screen and its verdict is `CANT_TELL_YET`, the other eight have nothing in
+those fields, and I am not going to dress either of those up.
 
 It is not a framework or a runtime. There is nothing to import, no configuration language, and
 nothing that runs on your machine. Every skill is markdown you can read in two minutes and
