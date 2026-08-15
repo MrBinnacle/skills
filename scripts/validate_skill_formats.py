@@ -29,9 +29,39 @@ COMPILED PYTHON
     `__pycache__/evil.pyc` has no `evil.py` and fails.
 
     Note what this does NOT admit. Test-runner state (`.pytest_cache/`) derives
-    from nothing readable in the folder, so it is reported. That is honest: a
-    clean install has none, and a reader who ran the tests can see why it is
-    there and remove it.
+    from nothing readable in the folder, so it is not admitted by the bytecode
+    rule. It is instead excluded earlier, by the gitignore rule below, because
+    it is not a file in the repository at all.
+
+GIT-IGNORED PATHS
+    A file git ignores is not in the published tree and never will be, so this
+    gate does not judge it. Without that rule the gate was unreadable exactly
+    where it mattered: a maintainer who ran `im-up`'s test suite -- which its
+    own SKILL.md tells them to run -- planted `.pytest_cache/` inside a skill
+    folder and got six rejections on files CI has never seen. CI stayed green on
+    a fresh checkout, so the only person the gate ever shouted at was the only
+    person who could act on it, about something that was never a violation. A
+    guard that cries wolf locally trains its reader to route around the family.
+
+    The question is put to git itself, via `git check-ignore`, one call for the
+    whole file list. Two properties of that command are why it is used here
+    rather than `git ls-files`:
+
+      - It answers "would git ignore this?", so an untracked file that no rule
+        ignores -- a `payload.sh` dropped into a skill folder five minutes ago --
+        is still judged. Deriving the list from `git ls-files` instead would
+        skip every untracked file, which quietly turns the gate into a check on
+        what is already committed and opens the exact hole it exists to close.
+      - It consults the index, so a TRACKED file is never reported as ignored
+        even when a pattern matches it. A file in the repository is judged,
+        full stop.
+
+    FALLBACK for a tree that is not a git work tree (a released tarball, a
+    reader's install directory, the temp trees the poison controls build): no
+    filtering happens and every file is judged. That direction is deliberate --
+    losing the filter costs a false alarm, while losing the check costs the
+    guarantee -- and the run says which mode it was in on its status line, so
+    nobody has to infer it.
 
 SYMLINKS
     The walk follows them. Installs are symlinked (and on Windows, junctioned),
@@ -56,6 +86,7 @@ WHAT THIS IS AND IS NOT
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 from typing import Final, Iterator, NoReturn
@@ -135,6 +166,52 @@ def guarded_files(skill_folders: list[Path]) -> list[Path]:
                 seen.add(real)
                 collected.append(path)
     return sorted(collected)
+
+
+def is_git_work_tree(root: Path) -> bool:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        # git is not installed, or not on PATH. Same answer as "not a work
+        # tree": judge everything.
+        return False
+    return result.returncode == 0 and result.stdout.strip() == "true"
+
+
+def ignored_files(root: Path, files: list[Path]) -> set[Path]:
+    """The subset of `files` that git ignores, or an empty set if git cannot say.
+
+    One `git check-ignore` call for the whole list. `-z` on both sides because a
+    path may contain anything a filesystem allows, and a newline-delimited
+    protocol would mis-split it -- in the direction of skipping a file that was
+    never ignored.
+
+    Exit codes: 0 means some paths matched, 1 means none did, anything else is
+    an error and returns the empty set, which judges every file. Errors here
+    must never subtract from what is checked.
+    """
+    if not files or not is_git_work_tree(root):
+        return set()
+    payload = "\0".join(str(f) for f in files)
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "check-ignore", "--stdin", "-z"],
+            input=payload,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return set()
+    if result.returncode not in (0, 1):
+        return set()
+    reported = {line for line in result.stdout.split("\0") if line}
+    # Match on the same strings that were sent, so no path normalisation sits
+    # between the question and the answer.
+    return {f for f in files if str(f) in reported}
 
 
 def bytecode_source(path: Path) -> Path | None:
@@ -220,6 +297,13 @@ def validate(root: Path) -> None:
             f"guards nothing; check the root rather than trusting this green."
         )
     files = guarded_files(folders)
+    skipped = ignored_files(root, files)
+    files = [f for f in files if f not in skipped]
+    scope = (
+        f", {len(skipped)} git-ignored file(s) skipped"
+        if is_git_work_tree(root)
+        else ", not a git work tree so nothing was skipped"
+    )
     violations = [v for v in (violation(root, f) for f in files) if v is not None]
     if violations:
         for item in violations:
@@ -233,6 +317,7 @@ def validate(root: Path) -> None:
     print(
         f"PASS: {len(folders)} skill folder(s), {len(files)} file(s), "
         f"all declared readable formats ({', '.join(ALLOWED_SUFFIXES)})"
+        f"{scope}"
     )
 
 
