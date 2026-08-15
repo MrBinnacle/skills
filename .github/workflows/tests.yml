@@ -366,3 +366,85 @@ jobs:
           grep -q 'inline quotation' "$log" \
             || { echo "::error::inline-quotation fixture failed for the wrong reason"; cat "$log"; exit 1; }
           echo "control: inline italic quotation rejected as expected"
+
+      # SECURITY.md's "Standing obligations" section (`conformance v1`) states what
+      # a card owes for as long as it stays published. These steps are the check
+      # behind that section. The weekly conformance-schedule.yml runs the same two
+      # commands on a clock; this job runs them at merge time, where they are cheap.
+      #
+      # Same caveat as every other check here: this DETECTS breaches. `main` has no
+      # required checks, so a nonzero exit is a signal, not a gate.
+      - name: Conformance suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_conformance.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::conformance suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Standing obligations sweep
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_conformance.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS: conformance v1' \
+            || { echo "::error::conformance sweep emitted no PASS line - it did not run"; exit 1; }
+
+      # A sweep that cannot fail guards nothing. This is the historical breach
+      # shape: a card ships a script its SKILL.md never names. Built in RUNNER_TEMP
+      # rather than checked in -- a committed breaching card would sit inside the
+      # guarded set and turn the real run permanently red.
+      - name: Poison control - an unnamed shipped script must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/conformance-poison"
+          log="$RUNNER_TEMP/control-conformance.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/skills/engineering/poison-card" "$tree/scripts"
+          cp scripts/validate_skill_formats.py "$tree/scripts/"
+          cp SECURITY.md "$tree/SECURITY.md"
+          card="$tree/skills/engineering/poison-card"
+          printf '# poison-card\n\nInstructions that name no script.\n' > "$card/SKILL.md"
+          {
+            printf '# EVIDENCE - poison-card\n\n| Field | Value |\n|---|---|\n'
+            printf '| **Screen result** | UNMEASURED. |\n'
+            printf '| **Paired verdict** | UNMEASURED. |\n'
+          } > "$card/EVIDENCE.md"
+          printf "print('hi')\n" > "$card/helper.py"
+          if python scripts/validate_conformance.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::the unnamed-script fixture was ACCEPTED - the sweep no longer rejects the historical breach shape"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'helper.py' "$log" \
+            || { echo "::error::unnamed-script fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          echo "control: unnamed shipped script rejected as expected"
+
+      # The delegated half. The same planted undeclared format the format gate
+      # refuses must also turn the conformance sweep red, through O1 -- otherwise
+      # the delegation is decorative.
+      - name: Poison control - a planted undeclared format must fail the sweep too
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/conformance-format-poison"
+          log="$RUNNER_TEMP/control-conformance-format.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/skills/engineering/poison-card" "$tree/scripts"
+          cp scripts/validate_skill_formats.py "$tree/scripts/"
+          cp SECURITY.md "$tree/SECURITY.md"
+          card="$tree/skills/engineering/poison-card"
+          printf '# poison-card\n\nInstructions.\n' > "$card/SKILL.md"
+          {
+            printf '# EVIDENCE - poison-card\n\n| Field | Value |\n|---|---|\n'
+            printf '| **Screen result** | UNMEASURED. |\n'
+            printf '| **Paired verdict** | UNMEASURED. |\n'
+          } > "$card/EVIDENCE.md"
+          printf '#!/bin/sh\necho hi\n' > "$card/install.sh"
+          if python scripts/validate_conformance.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::the planted .sh was ACCEPTED - the sweep does not reach the format gate"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'install.sh' "$log" \
+            || { echo "::error::planted-format fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          echo "control: planted undeclared format rejected by the sweep as expected"
