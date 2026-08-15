@@ -1,94 +1,73 @@
 ---
 name: parallel-review-disposition-schema
-description: Use when dispatching parallel agents to verify/adjudicate findings — adversarial verify, security disposition, design triage, council fires. Shared disposition schema so seat outputs join cleanly.
+description: Use when 3+ isolated reviewers must decide what to do with already-verified findings. Give every seat one decision vocabulary, per-item block, ownership, and status so outputs join without erasing real disagreement.
 ---
 
 # Parallel Review / Disposition Schema
 
 ## Problem
 
-Five reviewers send back five good analyses that don't add up to one decision. That is the
-default outcome when you dispatch isolated agents to review the same set of findings:
-isolation is what keeps them from groupthinking each other, but it also means each one
-answers in its own free-form prose, two of them use the same word for different concepts, and
-you spend the synthesis pass reconciling formats instead of substance.
+Independent reviewers preserve disagreement but default to incompatible prose. The synthesis pass
+then reconciles formats instead of decisions and can mistake shared words for shared concepts.
 
-The fix is upstream, in the dispatch: isolated outputs are synthesizable only if you
-pre-impose a shared output schema + a fixed decision vocabulary. You can't recover
-comparability after the fact.
+This skill starts **after finding verification**. It makes adjudication outputs joinable; it does
+not establish that a finding is real. For upstream verification use
+[ADVERSARIAL-VERIFY-SEAT.md](ADVERSARIAL-VERIFY-SEAT.md).
 
-## Context / Trigger Conditions
+## Trigger
 
-- Dispatching 3+ parallel agents (subagents / council seats / a swarm) to ADJUDICATE a set of
-  already-verified findings — i.e. the decision is "what to DO with each finding," not "are
-  the findings real."
-- For the upstream "are the findings real" stage — adversarial VERIFY seats on freshly-found
-  findings — use [ADVERSARIAL-VERIFY-SEAT.md](ADVERSARIAL-VERIFY-SEAT.md)
-  (refute posture, burden default, verbatim evidence; same joinability principle).
-- Security-audit disposition (file a new ID / fold as sub-item / change severity / defer / WI),
-  design or spec review triage, threat-model coverage passes, any "route this finding-set" fire.
-- Symptom you're trying to avoid: a previous multi-agent fire returned good individual analyses
-  that you then struggled to synthesize, or produced an "agreement" that was really a
-  shared-word / divergent-concept collision.
+Use when all are true:
 
-## Solution
+- three or more isolated reviewers will adjudicate the same verified finding set;
+- the decision is what to do with each finding, not whether the finding exists;
+- the synthesizer needs comparable outputs without letting seats see one another.
 
-Put all four of these in EVERY seat's dispatch prompt:
+Do not use for discovery, ordinary pair review, or verification-only work.
 
-1. **A fixed DECISION VOCABULARY (enum).** Every seat picks its disposition for each owned item
-   from the same closed list. For a security audit, e.g.:
-   `NEW-ID | sub-item-of-<existing> | severity-change | scope-change | <non-finding>-WI | evidence-record-only | defer`.
-   A closed enum forces comparable decisions; free-form "recommendations" don't join.
+## Dispatch contract
 
-2. **A shared per-item OUTPUT BLOCK.** One block per item, same fields, e.g.:
-   `{Item · Verified?(cite) · Disposition(from enum) · Severity(if applicable) · Reasoning <=3 sentences · What-would-change-it}`.
-   "What-would-change-it" is the highest-value field — it exposes the load-bearing assumption
-   and is what the synthesizer uses to classify a disagreement as values/information/definition.
+Put the same four structures in every seat prompt.
 
-3. **Explicit ITEM-OWNERSHIP per seat.** Assign each seat the specific findings it owns (by its
-   lens), with the evidence inline. Otherwise every seat re-derives the whole corpus, burning
-   tokens and producing overlapping mush. Compress the SHARED context once (what the corpus is,
-   the current state, the vocabulary) and state it identically in each prompt — isolated agents
-   can't see it otherwise.
+1. **Decision vocabulary.** Derive a closed enum from the corpus's real decision space. Test it
+   against representative findings before dispatch. Example:
+   `NEW-ID | sub-item-of-<existing> | severity-change | scope-change | work-item | evidence-only | defer`.
+2. **Per-item block.** Keep it compact:
+   `{Item · Evidence reference · Disposition · Severity if applicable · Reasoning <=3 sentences · What-would-change-it}`.
+3. **Ownership.** Assign each seat named items and its lens. Give all seats the same compressed
+   corpus context; do not make each re-derive the whole set.
+4. **Status.** End every result with
+   `status: nominal | degraded [reason] | blocked [reason]`. Missing status halts synthesis.
 
-4. **A mandatory STATUS line** ending every output: `status: nominal | degraded [reason] | blocked [reason]`
-   (or a confidence tag). A seat that couldn't do its job must say so structurally, so the
-   synthesizer treats its divergence as a tooling artifact, not a real disagreement — and so a
-   degraded seat's lone finding lands in "unaddressed," not silently dropped.
+## Synthesis contract
 
-Two discipline notes that pair with the schema:
-- **Don't let the schema substitute for verification.** Tell seats to spot-verify the specific
-  claims they rely on (cite file:line), especially if prior passes on this corpus shipped errors.
-- **Bounded cross-builds: the hub verifies inline; large ones re-dispatch.** When one seat's
-  finding re-scopes another's premise (a cross-build), if confirming it is a bounded read
-  (a few files) the hub/synthesizer should verify it DIRECTLY rather than deferring it to a
-  follow-up ticket; only re-dispatch a seat when the corrected scope is large. (Deferring a
-  cross-build to "a later ticket" is the common failure.)
+1. Reject or re-dispatch malformed seat outputs before counting agreement.
+2. Group by item and disposition, not by prose similarity.
+3. Classify disagreement as information, definition, or values; preserve unresolved splits.
+4. Check same-enum/different-concept collisions before calling agreement.
+5. Verify bounded cross-builds directly. If correction exceeds the declared read budget, re-dispatch
+   the affected seat rather than silently expanding the hub's scope.
+6. Report unaddressed items and degraded/blocked seats explicitly.
 
-## Verification
+## Verification boundary
 
-A personal production project's phase-2 security-audit lock (2026-05-29): a 12-seat fire (6 security postures + Architect + Planner
-+ 4 domain SMEs) each given the same disposition enum + per-finding block + ownership + status
-line returned outputs that synthesized into one clean 8-section document with five cleanly-classified
-disagreements — because the decisions were directly comparable. Two cross-builds (a wrong entropy
-claim; an un-verified injection-gap) were caught at synthesis and confirmed by bounded hub-reads
-rather than deferred. A prior fire on the same corpus, run with looser prompts, had produced an
-"agreement" that was a shared-word/different-scope collision and deferred a re-scope to a ticket —
-the exact failures this schema removes.
+Already-verified does not mean infallible. A seat may cite and spot-check the evidence it relies on,
+but if a load-bearing finding becomes doubtful, move it back to the verification stage. Do not let
+adjudication quietly perform an unstructured verification pass.
 
-## Example
+## Output
 
-Shared block injected into each seat (compressed): corpus summary + current-state + the enum.
-Then per seat: `YOUR SEAT: <lens>. YOU OWN: <findings + evidence>. For each: {Finding · Verified?(file:line)
-· Disposition(enum) · Severity · Reasoning <=3 · What-would-change-it}. End with: status: ...`.
-Synthesis then groups by enum value, not by re-reading prose.
+Return:
 
-## Notes
+- disposition table by item;
+- agreements after semantic collision checks;
+- unresolved disagreements with what would resolve them;
+- unaddressed items;
+- seat status summary;
+- any re-verification or re-dispatch performed.
 
-- The synthesis is only ever as clean as the input schema. Spend the care in the dispatch prompts.
-- Isolation stays the anti-cascade feature — the schema is what makes isolated outputs JOINABLE
-  without letting agents see each other.
-- Round-number agreement counts ("4 seats agree") are suspect until the synthesizer checks they
-  mean the same thing — a single all-outputs lens (a Critic role) catches shared-word collisions
-  that mechanical counting cannot.
+## Evidence
 
+The origin case is recorded in [EVIDENCE.md](EVIDENCE.md); failure modes and replacement triggers
+are in [gotchas.md](gotchas.md). The case demonstrates a plausible mechanism, not a controlled
+with/without result. Current evidence remains `UNMEASURED` until the checked-in eval corpus is run
+against this version and a baseline.
