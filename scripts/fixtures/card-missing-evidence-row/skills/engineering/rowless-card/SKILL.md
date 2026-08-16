@@ -1,0 +1,9 @@
+---
+name: rowless-card
+description: Fixture card whose EVIDENCE.md is missing one required row.
+---
+
+# rowless-card
+
+Fixture for the card-contract row poison control. Every required FILE is here,
+so the only thing wrong with this card is what its EVIDENCE.md does not say.

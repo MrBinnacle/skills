@@ -10,9 +10,12 @@ Skills are organized into bucket folders under `skills/`:
 - `orchestration/` — disciplines for multi-agent work (dispatch, joinability, synthesis)
 - `meta/` — skills about the skill system itself
 
-Shipped skills progressively carry an `EVIDENCE.md` provenance record (origin incident,
+Shipped skills carry an `EVIDENCE.md` provenance record (origin incident, occasions counted,
 validated-against, screen/paired result with UNMEASURED first-class, standing cost,
 re-screen trigger). New promotions MUST include one; see top-level README → "The receipts, explained".
+Two of those rows are contract rather than convention — `Occasions counted` and
+`Re-screen trigger` — and `scripts/validate_card_files.py` refuses a published card that
+does not state both; see "Recording a new occurrence" below.
 
 Each bucket has a `README.md` listing every skill in that bucket with a one-line description, linking the skill name to its `SKILL.md`. Promote and demote skills by adding or removing them from the bucket README.
 
@@ -81,6 +84,35 @@ Every bucket folder must have a `README.md` that lists every skill in the bucket
 ## Top-level README
 
 The top-level `README.md` must list every shipped skill under its bucket. Skills not in any bucket README are not shipped — move them to an `in-progress/` bucket or remove them.
+
+## Recording a new occurrence
+
+Recurrence accrues in the ordinary course of work, not in a special counting session. The
+systemic gap the S295 triage found
+([`dispositions/2026-08-15-S295-admission-triage.md`](dispositions/2026-08-15-S295-admission-triage.md))
+was not that these cards lack incidents — it was that incidents get recorded once and
+recurrence is never counted. When a card's problem happens again:
+
+1. **Record it where it happened first.** Append a dated entry to the card's `gotchas.md`
+   (append-only), or to its case study / `SKILL.md` verification section — wherever the
+   occurrence actually belongs. The dated entry is the evidence; the count is only a reading
+   of it.
+2. **Then count it.** Add the dated reference to the card's `Occasions counted` row and
+   increment the integer that opens the row. `scripts/validate_card_files.py` requires that
+   integer to equal the number of dates in the row, and requires each of those dates to appear
+   elsewhere in the card's own files — so a count cannot rise without the record that justifies
+   it. The row's dated references *are* its occasions: a dated link to anything else (a triage
+   record, a release) does not belong in that row.
+3. **Fan-out is not recurrence.** Two symptoms of one task, a design session, and a fixture
+   proving a validator rejects something are one occasion or none — ADMISSION.md criterion 2's
+   own words: "not inflated by fan-out from a single run."
+4. **The label tracks the count in both directions.** Under two counted occasions the card
+   states `RECURRENCE-THIN` in its `EVIDENCE.md`; at two it comes off, because a stale honesty
+   label is its own kind of dishonest. The check matches the token, so removing the token is
+   the whole edit — a card that argues about the label in prose keeps tripping it.
+5. **Dated disposition records are snapshots and are not rewritten.** A card that later earns
+   its way out of the thin tier says so in its own file and in the changeset; the triage record
+   that found it thin keeps saying what it found on the day it ran.
 
 ## Retirement
 
