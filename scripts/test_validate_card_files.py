@@ -37,7 +37,8 @@ def case_committed_poison_is_red() -> None:
     check("committed poison fixture is rejected", result.returncode != 0)
     check(
         "missing-file report names the card and file",
-        "poison-card" in result.stderr and "gotchas.md" in result.stderr,
+        "skills/engineering/poison-card" in result.stderr
+        and "gotchas.md" in result.stderr,
         result.stderr.strip(),
     )
 
@@ -49,6 +50,37 @@ def case_zero_cards_is_red(root: Path) -> None:
         "a tree with zero cards is rejected",
         result.returncode != 0 and "no published cards" in result.stderr,
         f"rc={result.returncode} err={result.stderr.strip()}",
+    )
+
+
+def case_unpublished_buckets_owe_nothing(root: Path) -> None:
+    """Only a published card owes the contract.
+
+    AGENTS.md sanctions parking unshipped work in `in-progress/`, and
+    validate_scoreboard.py already refuses to count it as admitted. A checker
+    that demanded gotchas.md there would turn the linkcheck lane red for
+    following the repo's own instruction, and would report a published-card
+    count the front page contradicts.
+    """
+    shipped = root / "skills" / "engineering" / "shipped-card"
+    shipped.mkdir(parents=True)
+    for filename in ("SKILL.md", "gotchas.md", "EVIDENCE.md"):
+        (shipped / filename).write_text("x\n", encoding="utf-8")
+    for unpublished in ("in-progress", ".scratch"):
+        half_built = root / "skills" / unpublished / "half-built"
+        half_built.mkdir(parents=True)
+        (half_built / "SKILL.md").write_text("x\n", encoding="utf-8")
+
+    result = run_checker(root)
+    check(
+        "a card in in-progress/ or a dot-bucket is not held to the contract",
+        result.returncode == 0,
+        f"rc={result.returncode} err={result.stderr.strip()}",
+    )
+    check(
+        "unpublished cards are not counted as published",
+        "PASS: 1 published card(s)" in result.stdout,
+        result.stdout.strip(),
     )
 
 
@@ -85,6 +117,8 @@ def main() -> None:
     case_committed_poison_is_red()
     with tempfile.TemporaryDirectory() as tmp:
         case_zero_cards_is_red(Path(tmp))
+    with tempfile.TemporaryDirectory() as tmp:
+        case_unpublished_buckets_owe_nothing(Path(tmp))
     case_live_nine_cards_pass()
     case_linkcheck_lane_runs_checker()
 
