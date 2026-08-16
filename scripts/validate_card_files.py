@@ -104,9 +104,20 @@ def corroborating_text(card: Path, row: str) -> str:
     A count is only as good as what it points at. Checking the row's dates
     against the row's own text would pass any number a card cares to write
     beside any dates it cares to invent, which is the self-certifying shape
-    this collection exists to refuse. So the dates have to appear in the record
-    the row cites -- the dated gotchas.md entry, the case study, the SKILL.md
-    verification section -- and the row is cut out of the haystack first.
+    this collection exists to refuse. So the row is cut out of the haystack
+    first, and every date it states has to appear in what is left.
+
+    WHERE THAT STOPS SHORT, stated because the gap is load-bearing: the
+    haystack is every `*.md` in the card, EVIDENCE.md included, so a SIBLING
+    ROW of the same record corroborates the count. Two published cards rest on
+    exactly that -- parallel-review-disposition-schema's 2026-07-10 and
+    subagent-research-reliability's 2026-07-12 are recorded in `Validated
+    against` and `Observed in use`, not in gotchas.md or a case study -- and
+    they are the two cards whose count carries them past the thin threshold.
+    Narrowing the haystack to the card's OTHER files turns both red, so it is
+    a recount rather than a refactor: AGENTS.md step 1 says record the
+    occurrence where it happened, and moving those records is a call for
+    whoever holds them.
     """
     parts = []
     for path in sorted(card.rglob("*.md")):
@@ -143,6 +154,11 @@ def evidence_breaches(card: Path) -> list[str]:
 
     count = int(counted.group(1))
     dates = DATE_RE.findall(occasions)
+    # Not de-duplicated, and that is a choice with a cost: two occasions can
+    # honestly fall on one date, so collapsing repeats would refuse a true
+    # count -- but it also means a repeated date satisfies the arithmetic,
+    # which is the fan-out inflation ADMISSION.md criterion 2 names. The
+    # arithmetic cannot tell the two apart; only a reader can.
     if count != len(dates):
         breaches.append(
             f"{OCCASIONS_ROW} states {count} but cites {len(dates)} dated "

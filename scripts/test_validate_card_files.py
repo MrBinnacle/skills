@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Suite for validate_card_files.py, including the committed poison fixtures.
 
-Every rejection case runs the real entrypoint against a real tree, and every
-one of them is paired with the same tree corrected, because a check that cannot
-go green either way is as useless as one that cannot go red.
+Every rejection case runs the real entrypoint against a real tree rather than a
+stubbed one. Going green is proven too, because a check that cannot go green is
+as useless as one that cannot go red -- by the conforming baseline
+(`case_stating_the_rows_clears_it`), which is the tree every mutation below is
+a mutation OF, and by the two cases that re-run the same tree after correcting
+it: the stale label and the count written as prose.
 """
 from __future__ import annotations
 
@@ -131,6 +134,41 @@ def case_count_must_match_the_dated_references(root: Path) -> None:
     )
 
 
+def case_a_count_that_is_not_a_number_is_rejected(root: Path) -> None:
+    """The row has to open with an integer, or nothing downstream can read it.
+
+    Without this the row could say "one" or "several" and the arithmetic would
+    have nothing to check, which is the row reverting to prose -- the state
+    ADMISSION.md criterion 2 refuses. Reported once and not compounded: a row
+    the checker cannot read is one defect, so it does not also collect a
+    verdict on a label whose threshold is unknown.
+    """
+    evidence = CONFORMING_EVIDENCE.replace(
+        "| 1 - 2026-03-04 the one incident.",
+        "| one - 2026-03-04 the one incident.",
+    )
+    card = write_card(root, "prose-count-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "an Occasions counted row that does not open with an integer is rejected",
+        result.returncode != 0 and "does not open with an integer" in result.stderr,
+        result.stderr.strip(),
+    )
+    check(
+        "the unreadable row is reported once, not compounded",
+        "1 card contract breach(es)" in result.stderr,
+        result.stderr.strip(),
+    )
+
+    (card / "EVIDENCE.md").write_text(CONFORMING_EVIDENCE, encoding="utf-8")
+    cleared = run_checker(root)
+    check(
+        "writing the count as an integer clears it",
+        cleared.returncode == 0,
+        cleared.stdout + cleared.stderr,
+    )
+
+
 def case_dates_must_be_corroborated_by_the_record(root: Path) -> None:
     """A count is only as good as what it points at.
 
@@ -242,11 +280,15 @@ def case_live_nine_cards_pass() -> None:
 
 
 def case_live_thin_labels_match_the_counts() -> None:
-    """The two cards that stand carry no thin label, and the seven do.
+    """The two cards the S295 triage let stand carry no thin label; seven do.
 
-    The live run above already refuses a mismatch. This states the split the
-    S295 disposition record found, so a card quietly relabelled without a new
-    dated occasion cannot pass as the record's own arithmetic.
+    The live run above already refuses a mismatch. This states the split, so a
+    card quietly relabelled without a new dated occasion cannot pass as the
+    record's own arithmetic. The seven are the seven the 2026-08-15 triage
+    flagged, which is not the same as seven RECURRENCE-THIN verdicts: it gave
+    six of them that verdict and gave git-pull-rebase-trap CEILING-LIKELY on
+    the measurement axis, and that card's own row says why one counted occasion
+    still earns the label.
     """
     cards = validate_card_files.find_cards(REPO_ROOT)
     labelled = {
@@ -293,6 +335,7 @@ def main() -> None:
     isolated = [
         case_stating_the_rows_clears_it,
         case_count_must_match_the_dated_references,
+        case_a_count_that_is_not_a_number_is_rejected,
         case_dates_must_be_corroborated_by_the_record,
         case_thin_label_is_required_under_two_occasions,
         case_thin_label_is_refused_at_two_occasions,
