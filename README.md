@@ -11,93 +11,51 @@
 npx skills add MrBinnacle/skills
 ```
 
-## The question I started with
+## Admission method
 
-> It's just - the most successful mistake of mine so far. I think..maybe
+The [admission policy](ADMISSION.md) governs membership. It asks four questions: whether an
+unaided failure exists, whether it recurs independently, whether a skill is the correct control
+surface, and whether the evidence supports admission and retirement. The default answer is not
+admitted.
 
-— 2026-08-12, [the record](VERBATIM.md)
+The policy's [three-instrument table](ADMISSION.md#naming-the-gate) names the parts. The
+**admission policy** states the rule. The **gate card** applies the rule. The **screen** measures
+a model with and without the candidate. These names describe different instruments.
 
-Every first-person line quoted on this page is in that file, with the date it was said. The rule
-behind it: a quoted line has to be one the principal wrote, cited to the record — never one read
-back off a page.
+The [S295 disposition record](dispositions/2026-08-15-S295-admission-triage.md) applied
+`admission-policy v1` to all nine published cards on 2026-08-15. It found two cards that stand,
+six with thin recurrence records, and one with a ceiling-likely screen result. It retired no
+card.
 
-The question underneath it was whether you can tell if a skill is any good.
+## Card map
 
-> I wanted to know if you could tell if a skill was good. Etc and so forth. Expand expand expand.
-> And then this happened.
+These cards use four forms:
 
-— 2026-08-12, [the record](VERBATIM.md)
+| Type | What it is | Cards |
+|---|---|---|
+| Trap | A warning and recovery path for a command or platform behavior that can report success after doing the wrong work. | `git-pull-rebase-trap`, `github-pages-deploy-verification` |
+| Procedure | An ordered set of actions for a boundary, handoff, or verification task. | `im-down`, `im-up`, `closure-mode-at-boundaries`, `subagent-research-reliability`, `downstream-instruction-framing` |
+| Gate | A decision sequence that accepts, routes, or rejects a candidate. | `skill-necessity-gate` |
+| Schema | A fixed output shape for comparable parallel reviews. | `parallel-review-disposition-schema` |
 
-A skill is a small folder that tells an assistant how to handle a particular situation — markdown
-in every case, plus a script in the two that need one.
-"This" is two public repositories: this one holds the skills, and
-[skill-harness](https://github.com/MrBinnacle/skill-harness) is the instrument built to answer the
-question about them. Measured on 2026-08-13, that stands at **66 commits of collection against 323
-commits of machinery built to find out whether the collection is worth anything**:
+## Card evidence
 
-```bash
-git clone https://github.com/MrBinnacle/skills.git        && git -C skills        rev-list --count HEAD
-git clone https://github.com/MrBinnacle/skill-harness.git && git -C skill-harness rev-list --count HEAD
-```
+This table projects each card's own `EVIDENCE.md`. `measured` means a controlled field records a
+result other than `UNMEASURED`. `origin-trace` means the controlled fields are unmeasured and the
+origin starts with `OBSERVED`. `unmeasured` means neither condition holds. The final column is the
+integer that opens the card's `Occasions counted` row.
 
-The basis is a fresh clone at `HEAD` — what a plain `git clone` gets you — so those two commands
-are the whole claim, and you can land on the same figures yourself, give or take what has merged
-since. On that same basis the first commit here is 2026-05-24 and the first commit there is
-2026-06-03: the collection came first, by ten days. The cards came out of learning to do the work,
-and the wondering turned into an instrument afterwards.
-
-The question is still open. One card now carries a controlled `Screen result` and its verdict is
-`CANT_TELL_YET`; the other eight still read `UNMEASURED`. That is what the next section is about.
-
-> Im wrong  like 200x a day - but i can iterate in really cool ways fast enough to cancel out the
-> wrongness
-
-— 2026-08-12, [the record](VERBATIM.md)
-
-Iterating fast enough to cancel the wrongness only works if something tells you which iterations
-were wrong. That is what the other repo is for.
-
-It is built for Claude Code, which is where every receipt here was gathered. The installer also
-works with [70+ other agents](https://github.com/vercel-labs/skills).
-
-## What testing them has found so far
-
-The uncomfortable part first, because this is the part a README usually buries.
-
-**The controlled fields live in each skill's own `EVIDENCE.md`, not in this summary.** Open
-them for the screen and the paired verdict rather than trusting a roll-up here. A front-page
-claim that every record is empty goes false the day any skill ships a controlled result — and
-silently. Some skills have a screen task registered and not yet run; others are process
-disciplines the instrument cannot score at all: what they change is which steps happen in what
-order, and there is no deterministic oracle for that. When a controlled result lands, that
-skill's record will say so under its own name — this paragraph is not a substitute for reading
-them.
-
-**The admission test turns away more than it lets in.** In July 2026 I put four of my own
-candidate skills through it. The test is easy to describe: give a current model
-(claude-sonnet-5) a task from exactly the situation the skill was written for — *without* the
-skill — three times. If the skill is needed, the model should fail at least once. It never did.
-All four ceilinged at three passes out of three unaided, including ones I was personally
-convinced were valuable, so none of them entered the collection. The measurement plan was
-published *before* the runs, so the verdicts could not be bent afterwards:
-[the pre-registration](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md).
-
-That finding generalised past those four. Across six independently written tasks, the model
-passed 26 of 26 runs with no skill present. That says as much about how capable current models
-already are as it does about my candidates, and it is exactly why this collection measures
-instead of assuming. The long version:
-[the double-ceiling case study](https://github.com/MrBinnacle/skill-harness/blob/main/docs/case-studies/double-ceiling-structurally-unmeasured.md).
-
-**One skill has already left.** `claude-code-stop-hook-envelope` taught how to recover the
-assistant's final reply inside a `Stop` hook, back when the hook's envelope did not carry it.
-Claude Code has since added a `last_assistant_message` field that delivers it inline — the exact
-platform change that skill's record had named *in advance* as its retirement trigger. So it
-retired against its own stated criterion, with the record intact:
-[RETIRED.md](RETIRED.md).
-
-If you came here for a collection that says its skills are proven, this one will disappoint you
-on purpose. What it can honestly say is where each card came from, what it does when it runs,
-and what has and has not been tested about it.
+| Card | Evidence posture | Occasions counted |
+|---|---|---:|
+| [`closure-mode-at-boundaries`](skills/engineering/closure-mode-at-boundaries/EVIDENCE.md) | origin-trace | 1 |
+| [`git-pull-rebase-trap`](skills/engineering/git-pull-rebase-trap/EVIDENCE.md) | measured | 1 |
+| [`github-pages-deploy-verification`](skills/engineering/github-pages-deploy-verification/EVIDENCE.md) | origin-trace | 1 |
+| [`im-down`](skills/engineering/im-down/EVIDENCE.md) | unmeasured | 1 |
+| [`im-up`](skills/engineering/im-up/EVIDENCE.md) | unmeasured | 1 |
+| [`downstream-instruction-framing`](skills/orchestration/downstream-instruction-framing/EVIDENCE.md) | origin-trace | 1 |
+| [`parallel-review-disposition-schema`](skills/orchestration/parallel-review-disposition-schema/EVIDENCE.md) | origin-trace | 2 |
+| [`subagent-research-reliability`](skills/orchestration/subagent-research-reliability/EVIDENCE.md) | origin-trace | 4 |
+| [`skill-necessity-gate`](skills/meta/skill-necessity-gate/EVIDENCE.md) | unmeasured | 0 |
 
 ## Install
 
@@ -304,7 +262,7 @@ trade-off and let the person decide, rather than deciding it for them.
 
 - [**skill-necessity-gate**](skills/meta/skill-necessity-gate/SKILL.md) · hand-invoked
 
-  You run this when someone — possibly you — says "let's make a skill for X", when auditing
+  You run this when someone — including you — says "let's make a skill for X", when auditing
   whether a skill you already have still earns its context cost, or before building any
   measurement instrument, which is the same kind of bet. It is six gates in order, cheapest
   first, and a candidate has to pass all six; you stop at the first failure and route the idea
