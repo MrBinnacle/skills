@@ -20,6 +20,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Card-file conformance suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_card_files.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::card-file suite emitted no PASS line - it did not run"; exit 1; }
+      - name: Card-file conformance check
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_card_files.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::card-file checker emitted no PASS line - it did not run"; exit 1; }
       - name: Check links
         uses: lycheeverse/lychee-action@v2
         with:

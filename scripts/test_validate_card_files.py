@@ -2,6 +2,7 @@
 """Suite for validate_card_files.py, including the committed poison fixture."""
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import tempfile
@@ -61,11 +62,31 @@ def case_live_nine_cards_pass() -> None:
     )
 
 
+def case_linkcheck_lane_runs_checker() -> None:
+    workflow = (REPO_ROOT / ".github" / "workflows" / "links.yml").read_text(
+        encoding="utf-8"
+    )
+    linkcheck = re.search(r"(?ms)^  linkcheck:\n(.*?)(?=^  \S|\Z)", workflow)
+    body = linkcheck.group(1) if linkcheck else ""
+    check("links workflow has a linkcheck job", linkcheck is not None)
+    check(
+        "linkcheck runs the card-file suite",
+        "python scripts/test_validate_card_files.py" in body,
+        body,
+    )
+    check(
+        "linkcheck runs the live card-file checker",
+        "python scripts/validate_card_files.py" in body,
+        body,
+    )
+
+
 def main() -> None:
     case_committed_poison_is_red()
     with tempfile.TemporaryDirectory() as tmp:
         case_zero_cards_is_red(Path(tmp))
     case_live_nine_cards_pass()
+    case_linkcheck_lane_runs_checker()
 
     print("")
     if FAILURES:
