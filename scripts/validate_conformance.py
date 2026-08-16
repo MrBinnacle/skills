@@ -116,6 +116,20 @@ def read(path: Path) -> str:
         return ""
 
 
+EVIDENCE_ROW_RE: Final[re.Pattern[str]] = re.compile(
+    r"^\|\s*\*\*(?P<field>[^*]+)\*\*\s*\|\s*(?P<value>.*?)\s*\|\s*$",
+    re.MULTILINE,
+)
+
+
+def evidence_rows(path: Path) -> dict[str, str]:
+    """Return the named rows from one evidence-contract table."""
+    return {
+        match.group("field").strip(): match.group("value").strip()
+        for match in EVIDENCE_ROW_RE.finditer(read(path))
+    }
+
+
 def find_cards(root: Path) -> list[Card]:
     """Published cards: a SKILL.md two levels under skills/.
 
