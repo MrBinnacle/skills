@@ -168,6 +168,24 @@ jobs:
             || { echo "::error::origin-tier-drift fixture failed for the wrong reason"; cat control-origin.log; exit 1; }
           echo "control: drifted origin tiering rejected as expected"
 
+      # The front page's admission lead and its per-card evidence census. The
+      # census is derived through the two validators above rather than restated,
+      # so this step goes red when the table and the cards disagree -- the drift
+      # a hand-maintained front-page table always eventually carries.
+      #
+      # PYTHONUTF8 because a failure detail quotes card prose that contains em
+      # dashes: without it the Windows cell dies on the report instead of
+      # printing it.
+      - name: README admission-lead suite
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_readme_admission_lead.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::README admission-lead suite emitted no PASS line - it did not run"; exit 1; }
+
       # SECURITY.md commits to a closed format vocabulary inside skill folders.
       # These steps are the check behind that sentence. They run AFTER the
       # validator suites above on purpose: those suites import the shipped
