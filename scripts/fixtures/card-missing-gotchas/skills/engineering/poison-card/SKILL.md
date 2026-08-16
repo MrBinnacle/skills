@@ -1,0 +1,8 @@
+---
+name: poison-card
+description: Fixture card missing one required file.
+---
+
+# poison-card
+
+Fixture for the card-file conformance poison control.
