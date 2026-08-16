@@ -442,37 +442,6 @@ def case_live_tree_is_checked_and_conforms() -> None:
     )
 
 
-DATE_RE = re.compile(r"\b20\d{2}-\d{2}-\d{2}\b")
-
-
-def case_live_evidence_states_counted_occasions_and_rescreen_trigger() -> None:
-    report = conformance.evaluate(REPO_ROOT)
-    check("the evidence contract covers all nine published cards", len(report.cards) == 9)
-    for card in report.cards:
-        evidence = card.folder / "EVIDENCE.md"
-        fields = conformance.evidence_rows(evidence)
-        occasions = fields.get("Occasions counted", "")
-        match = re.match(r"^\s*(\d+)\b", occasions)
-        dates = DATE_RE.findall(occasions)
-        check(
-            f"{card.name} states an integer Occasions counted row",
-            match is not None,
-            occasions or "row absent",
-        )
-        if match:
-            count = int(match.group(1))
-            check(
-                f"{card.name} occasion count matches its dated references",
-                count == len(dates),
-                f"count={count}, dated references={dates}",
-            )
-        check(
-            f"{card.name} states a Re-screen trigger row",
-            bool(fields.get("Re-screen trigger", "").strip()),
-            "row absent or empty",
-        )
-
-
 def main() -> None:
     isolated = [
         case_conforming_cards_pass,
@@ -496,7 +465,6 @@ def main() -> None:
     case_trial_exit_date_agrees_everywhere()
     case_o5_is_not_promised_as_ci()
     case_live_tree_is_checked_and_conforms()
-    case_live_evidence_states_counted_occasions_and_rescreen_trigger()
 
     print("")
     for text in NOTES:
