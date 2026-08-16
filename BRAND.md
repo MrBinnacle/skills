@@ -47,8 +47,7 @@ look like a claim. Hunt for it first.
 That you can see where each card came from, what it does when it runs, and what has and has not
 been tested about it. Nothing beyond that.
 
-What it declines to claim, in the README's own words: *"If you came here for a collection that
-says its skills are proven, this one will disappoint you on purpose."*
+What it declines to claim, in the README's own words: *"It is not proof that these nine work."*
 
 It competes on whether the record holds up when someone opens it. Skill marketplaces and prompt
 packs compete on quantity and reach — **a comparison that makes this collection sound larger is
