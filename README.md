@@ -332,8 +332,10 @@ row.
 The evidence comes in named tiers, so you always know which one you are reading.
 
 - **Controlled results** — the Screen and Paired-verdict fields — come from with-versus-without
-  runs under the pre-registered harness protocol. As of today, every one of them reads
-  `UNMEASURED`.
+  runs under the pre-registered harness protocol. One has run: `git-pull-rebase-trap` was
+  screened on 2026-07-21 and the result is `CANT_TELL_YET`. The other eight cards read
+  `UNMEASURED` on both fields, and no Paired verdict has run at all. The Card evidence table above
+  states the same rows, and a check refuses this page when it drifts from them.
 - **Origin incidents** are the dated real-world failures behind most of these, marked
   `OBSERVED`. Not every card has one, and the records say which is which: some were built on
   purpose rather than after an incident, and one was distilled from research with no triggering
