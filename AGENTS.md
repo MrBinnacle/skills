@@ -77,6 +77,13 @@ updates every installed copy and local↔repo drift is structurally impossible:
 - **Discipline vs implementation** — make explicit in `SKILL.md` which parts of the skill are the stable contract vs. illustrative. Adopters need to know what they can swap.
 - **Factual claims are dated and checkable — verify them before shipping AND before correcting.** A skill that asserts platform behavior (a flag, a hook payload, an API) rots when the platform changes. Verify against live docs or an empirical repro before you ship a claim, and again before you "fix" one — a wrong correction to an evidence-first repo is worse than the original error. Record the check (version, date) where it's load-bearing.
 
+## Vocabulary of record
+
+`CONTEXT.md` at the repo root fixes what each governed term means; use its terms and respect
+its Avoid-notes on every surface. Which words may appear in public *asset* copy is the
+narrower `assets/tokens.json` question. When code or a validator disagrees with the glossary,
+the enforced artifact is the primary source — fix the glossary.
+
 ## Bucket README discipline
 
 Every bucket folder must have a `README.md` that lists every skill in the bucket, one line each, with the skill name linked to its `SKILL.md`.
