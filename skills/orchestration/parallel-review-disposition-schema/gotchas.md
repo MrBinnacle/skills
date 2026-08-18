@@ -83,3 +83,32 @@ in prose" to "same enum member."
 
 **Trigger to replace with [OBSERVED]:** a fire where the post-synthesis Critic catches an
 enum-level false agreement that the mechanical synthesizer missed.
+
+## [OBSERVED] Reviewer-local ID collision silently drops a finding at consolidation
+
+Folded 2026-08-17 (S306) from the quarantine card `fix-brief-consolidation-id-hygiene`,
+per the S305 Gate-0 routing (layer finding: this card's content belongs here, not as a
+standalone skill). The incident is real, not anticipated: in the Skill Harness Track E
+ai-slop fix-brief, two reviewers each numbered their findings M1–M5 locally; the
+consolidator flattened them into one global M1–M5 list, kept reviewer E.1's M4 under the
+consolidated name "M3", and silently dropped E.1's actual M3 (`(BootstrapError, Exception)`
+redundant tuple, `cli/main.py:573, 1442`). The dropped bug persisted across 4 commits and
+was re-surfaced months later by a fresh-context reviewer as a "new" finding.
+
+**Mitigation — pick ONE before consolidating, never after:**
+
+- **A. Globally-unique IDs at source:** each seat's dispatch prompt requires a
+  seat-of-origin prefix (`E1-M1`, `E2-M1`, …); the consolidator pastes IDs as-is with no
+  re-numbering step. Collision-impossible; the only cost is wordier IDs.
+- **B. Rollup table:** the consolidated brief opens with a
+  `| Reviewer | Local ID | Consolidated ID | Status |` table covering EVERY per-seat
+  finding — a collision then reads as a visible duplicate row, not an invisible drop.
+- **C. Don't flatten:** per-seat subsections in the brief; the fix-loop dispatch reads all
+  sections.
+
+**Falsifying count check (run it on any consolidation):** distinct findings in the
+consolidated brief must equal the sum of per-seat finding counts minus EXPLICIT
+reclassifications (EQUIVALENT / DEFER / discharged). Any further reduction is a silent
+drop. If per-seat raw outputs were not preserved, the consolidation lacks audit-trail
+integrity — that itself is a finding. When a drop is detected post-hoc, disclose it in the
+next brief; never silently fix it.
