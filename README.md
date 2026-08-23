@@ -1,7 +1,7 @@
 <p>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
-    <img alt="skills — 9 admitted, 1 measured, 1 retired, 4 solutions looking for a problem" src="assets/banner-light.svg" width="620">
+    <img alt="skills — These aren't the Claude Code skills you're looking for." src="assets/banner-light.svg" width="620">
   </picture>
 </p>
 

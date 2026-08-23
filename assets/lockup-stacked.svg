@@ -7,7 +7,9 @@
     Geometry: clear space 22 (width of the M at 24px) on every side; mark 28px,
     centred; 16px gap (a space token); wordmark set at 24px, centred.
 
-    Colour is currentColor by design - see mark-mb.svg for why.
+    Colour is currentColor by design: the kit declares dark-surface neutrals only
+    (tokens.json > known_gaps.no_light_mode_neutrals), so a hard-coded hex here
+    would be an invented token. Inherits from the embedding context instead.
   -->
   <g transform="translate(155 22) scale(1.1666667)" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter">
     <rect x="2" y="2" width="20" height="20" rx="2"/>
