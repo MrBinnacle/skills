@@ -52,7 +52,7 @@ integer that opens the card's `Occasions counted` row.
 | [`closure-mode-at-boundaries`](skills/engineering/closure-mode-at-boundaries/EVIDENCE.md) | origin-trace | 1 |
 | [`git-pull-rebase-trap`](skills/engineering/git-pull-rebase-trap/EVIDENCE.md) | measured | 1 |
 | [`github-pages-deploy-verification`](skills/engineering/github-pages-deploy-verification/EVIDENCE.md) | origin-trace | 1 |
-| [`im-down`](skills/engineering/im-down/EVIDENCE.md) | unmeasured | 1 |
+| [`im-down`](skills/engineering/im-down/EVIDENCE.md) | unmeasured | 2 |
 | [`im-up`](skills/engineering/im-up/EVIDENCE.md) | unmeasured | 1 |
 | [`downstream-instruction-framing`](skills/orchestration/downstream-instruction-framing/EVIDENCE.md) | origin-trace | 1 |
 | [`parallel-review-disposition-schema`](skills/orchestration/parallel-review-disposition-schema/EVIDENCE.md) | origin-trace | 2 |
