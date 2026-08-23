@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
-"""Assert front-page scoreboard numbers match the repository, and that the
-gate card's normative-status version matches ADMISSION.md.
+"""Assert the front page carries the ruled banner line, that every card's
+record is derivable, and that the gate card's normative-status version matches
+ADMISSION.md.
 
 A test, not a generator: banners and the README alt stay hand-edited; this
 script only refuses drift. Output is ASCII-only so the Windows CI cell does
 not die on cp1252 when printing a status line.
+
+The live counts left the banner by owner ruling (2026-08-23, skill-harness
+#216): a static graphic that must track repository state is a maintenance tax.
+The count DERIVATIONS below survived the ruling on purpose -- they are the
+record-conformance discipline (a card that cannot answer is refused, not
+guessed at), and the derived numbers are still printed so drift in the records
+themselves stays loud.
 """
 from __future__ import annotations
 
@@ -14,19 +22,12 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
-# The words are ruled and the separator is not: the five sites use commas or
-# middots as each already did, so the pattern skips whatever sits between the
-# fields. `solutions looking for a problem` is matched in full on purpose --
-# the judgement in that phrase is deliberate, and a pattern that accepted a
-# softened restatement would let the softening ship.
-SCOREBOARD_RE = re.compile(
-    r"(\d+)\s+admitted\b.*?"
-    r"(\d+)\s+measured\b.*?"
-    r"(\d+)\s+retired\b.*?"
-    r"(\d+)\s+solutions looking for a problem",
-    re.DOTALL,
-)
-FIELD_NAMES = ("admitted", "measured", "retired", "solutions looking for a problem")
+# The sentence is ruled verbatim (owner ruling 2026-08-23, with the earlier
+# scoreboard's own doctrine carried forward): it is matched byte-identically at
+# every site, because a check that accepted a paraphrase would let a softened
+# or salesier restatement ship. Sites may prefix it (the aria-label and README
+# alt lead with "skills -- ") but may not alter a byte of the sentence itself.
+RULED_LINE = "These aren't the Claude Code skills you're looking for."
 CONTROLLED_FIELDS = ("Screen result", "Paired verdict")
 
 # The origin tier is the other number the front page states about the cards, and
@@ -296,40 +297,22 @@ def derive_counts(root: Path) -> tuple[int, int, int, int]:
     return admitted, measured, retired, turned
 
 
-def extract_scoreboard(label: str, text: str) -> tuple[int, int, int, int]:
-    m = SCOREBOARD_RE.search(text)
-    if not m:
-        fail(
-            f"{label}: no scoreboard pattern (N admitted, M measured, K retired, "
-            f"J solutions looking for a problem). The words are ruled; only the "
-            f"separator is free."
-        )
-    return int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
-
-
-# Where each number comes from, named in the failure so a reader is told which
-# artifact to go and look at rather than which line to go and edit.
-DERIVED_FROM = (
-    "the skill folders",
-    "the cards' controlled fields",
-    "RETIRED.md",
-    "RETIRED.md",
-)
-
-
-def assert_site(label: str, text: str, expected: tuple[int, int, int, int]) -> None:
-    found = extract_scoreboard(label, text)
-    if found == expected:
+def assert_site(label: str, text: str) -> None:
+    # Byte-identical containment, not a pattern: the sentence's judgement is
+    # deliberate, and a match that tolerated an "are not", a dropped period, or
+    # a straightened apostrophe would let the softening ship. HTML entities are
+    # not decoded on purpose -- a site that encodes the apostrophe has changed
+    # the bytes a reader's tooling sees, and the fix is to say so at the site.
+    if RULED_LINE in text:
         return
-    disagreements = [
-        f"{name} {got} != {want} derived from {source}"
-        for name, got, want, source in zip(FIELD_NAMES, found, expected, DERIVED_FROM)
-        if got != want
-    ]
-    fail(f"{label}: scoreboard disagrees with the repository - " + "; ".join(disagreements))
+    fail(
+        f"{label}: does not carry the ruled banner line verbatim "
+        f"({RULED_LINE!r}). The wording is ruled (2026-08-23); a site may "
+        f"prefix it but not alter it."
+    )
 
 
-def check_scoreboard_sites(root: Path, expected: tuple[int, int, int, int]) -> None:
+def check_banner_line_sites(root: Path) -> None:
     sites = [
         ("assets/banner-light.svg aria-label", root / "assets" / "banner-light.svg", True),
         ("assets/banner-light.svg text", root / "assets" / "banner-light.svg", False),
@@ -345,20 +328,24 @@ def check_scoreboard_sites(root: Path, expected: tuple[int, int, int, int]) -> N
             m = re.search(r'aria-label="([^"]*)"', text)
             if not m:
                 fail(f"{label}: no aria-label")
-            assert_site(label, m.group(1), expected)
+            assert_site(label, m.group(1))
         elif path.suffix == ".svg":
-            # Rendered text element(s), not the aria-label.
+            # Rendered text element(s), not the aria-label. The two-element
+            # minimum is kept from the scoreboard era: texts[-1] is the banner
+            # line only while the wordmark is still a separate element, and a
+            # banner collapsed to one <text> would silently point this check at
+            # the wrong string.
             texts = re.findall(r"<text\b[^>]*>(.*?)</text>", text, flags=re.DOTALL)
             if len(texts) < 2:
-                fail(f"{label}: expected a scoreboard <text> element")
-            assert_site(label, texts[-1], expected)
+                fail(f"{label}: expected a banner-line <text> element")
+            assert_site(label, texts[-1])
         elif path.name == "README.md":
             m = re.search(r'<img\b[^>]*\balt="([^"]*)"', text)
             if not m:
                 fail(f"{label}: no img alt on banner")
-            assert_site(label, m.group(1), expected)
+            assert_site(label, m.group(1))
         else:
-            assert_site(label, text, expected)
+            assert_site(label, text)
 
 
 def policy_version(root: Path) -> str:
@@ -433,14 +420,17 @@ def check_policy_version(root: Path) -> None:
 
 
 def validate(root: Path) -> None:
-    expected = derive_counts(root)
-    check_scoreboard_sites(root, expected)
+    # The counts are derived but no longer asserted against a page site: the
+    # derivation IS the check now (a card that cannot answer is refused), and
+    # printing the numbers keeps them observable without a graphic to rot.
+    admitted, measured, retired, turned = derive_counts(root)
+    check_banner_line_sites(root)
     check_policy_version(root)
     check_origin_tiers(root)
-    admitted, measured, retired, turned = expected
     observed, designed, distilled = derive_origin_tiers(root)
     print(
-        f"PASS: scoreboard {admitted} admitted, {measured} measured, {retired} retired, "
+        f"PASS: ruled banner line pinned at 5 sites; records derive "
+        f"{admitted} admitted, {measured} measured, {retired} retired, "
         f"{turned} solutions looking for a problem; admission policy version agrees; "
         f"origin tiers {observed} OBSERVED, {designed} DESIGNED, {distilled} DISTILLED agree"
     )

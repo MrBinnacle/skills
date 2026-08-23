@@ -133,29 +133,35 @@ from shrinking honestly. A skill leaves two ways:
   ships, the skill retires against its own stated criterion, no screen required.
 
 Execute a retirement as: remove the skill directory; drop it from its bucket README and the
-top-level README; update every scoreboard site that asserts the admitted/measured/retired/
-solutions-looking-for-a-problem counts so they match the repository after the removal; add a
-row + a short narrative to
+top-level README; add a row + a short narrative to
 `RETIRED.md` with the cause stated plainly; and link the evidence at the **last release tag**
 (`blob/<tag>/…`) so "record intact" survives the file's removal. If a general lesson outlives
 the skill, name it in the retirement note as ordinary hygiene rather than resurrecting the
 card.
 
-The scoreboard is asserted in **five places across three files** — keep them in lockstep:
+The banner no longer states counts (owner ruling 2026-08-23, skill-harness #216: a static
+graphic that must track repository state is a maintenance tax). Instead it carries one ruled
+line, asserted **byte-identically in five places across three files** — keep them in lockstep:
 
 1. `assets/banner-light.svg` — `aria-label`
-2. `assets/banner-light.svg` — rendered scoreboard `<text>`
+2. `assets/banner-light.svg` — rendered banner-line `<text>`
 3. `assets/banner-dark.svg` — `aria-label`
-4. `assets/banner-dark.svg` — rendered scoreboard `<text>`
+4. `assets/banner-dark.svg` — rendered banner-line `<text>`
 5. `README.md` — banner `<img alt>`
 
-`scripts/validate_scoreboard.py` (run in the `validator` job) derives all four fields and
-refuses a partial edit: **admitted** from the skill directories, **retired** and **solutions
+The ruled line is `These aren't the Claude Code skills you're looking for.` — a site may
+prefix it (the aria-label and alt lead with `skills — `) but not alter a byte of it, so a
+softened restatement ("are not", a dropped period, a straightened apostrophe) fails.
+
+`scripts/validate_scoreboard.py` (run in the `validator` job) asserts that line, and still
+derives the inventory counts from the records as a conformance check even though no page
+site states them: **admitted** from the skill directories, **retired** and **solutions
 looking for a problem** from `RETIRED.md`, and **measured** from each card's own `EVIDENCE.md`
 controlled fields — a card counts as measured when `Screen result` or `Paired verdict` states
 anything other than `UNMEASURED`. A card with no `EVIDENCE.md`, or with a controlled field
 missing, is refused rather than counted as unmeasured: deriving a zero from an absent record
-invents the number the line exists to keep honest.
+invents the number the derivation exists to keep honest. The derived counts appear in the
+PASS line, which is where to read the inventory state from.
 
 The same script also derives the front page's **origin tiering** from each card's `EVIDENCE.md`
 `Origin` field, over a closed vocabulary of `OBSERVED` (a dated real incident), `DESIGNED` (built
@@ -165,11 +171,8 @@ must state all three numbers on one line, in that order. An Origin field opening
 outside the vocabulary is refused rather than guessed at, on the same rule as the controlled
 fields: a card that has not said which tier it is cannot be counted into either.
 
-The words are ruled and the separator is not — the sites use commas or middots as each already
-did. `solutions looking for a problem` is matched in full, so a softened restatement fails.
-
 A miss turns the build red; do not treat any single prose line as the checklist. The front-page
-slogan ("N cards, not N hundred") is rhetoric, not a scoreboard site — update it only if the
+slogan ("N cards, not N hundred") is rhetoric, not a validator site — update it only if the
 voice still fits.
 
 ## De-personalization gate

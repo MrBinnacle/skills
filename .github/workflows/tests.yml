@@ -85,36 +85,39 @@ jobs:
             || { echo "::error::stale fixture failed for the wrong reason"; cat "$log"; exit 1; }
           echo "control: stale packet rejected as expected"
 
-      - name: Scoreboard validator
+      - name: Banner-line validator
         run: |
           set -euo pipefail
           out="$(python scripts/validate_scoreboard.py)"
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
-            || { echo "::error::scoreboard validator emitted no PASS line — it did not run"; exit 1; }
+            || { echo "::error::banner-line validator emitted no PASS line — it did not run"; exit 1; }
 
-      # A gate that cannot fail guards nothing. A scoreboard that disagrees with
-      # the derived counts must be rejected, so this asserts the shipped
-      # validator still refuses one.
-      - name: Poison control — a disagreeing scoreboard must be rejected
+      # A gate that cannot fail guards nothing. A site that softens the ruled
+      # banner line must be rejected, so this asserts the shipped validator
+      # still refuses one. The fixture's dark banner renders "are not" where
+      # the ruling says "aren't"; every other site is correct, so the only
+      # thing this tree can fail on is the byte-identity assertion under test.
+      - name: Poison control — a softened banner line must be rejected
         run: |
           set -euo pipefail
           if python scripts/validate_scoreboard.py \
-               --root scripts/fixtures/scoreboard-mismatch \
-               > control-scoreboard.log 2>&1; then
-            echo "::error::mismatch fixture was ACCEPTED — the validator no longer rejects a disagreeing scoreboard"
-            cat control-scoreboard.log
+               --root scripts/fixtures/banner-line-drift \
+               > control-banner-line.log 2>&1; then
+            echo "::error::banner-line fixture was ACCEPTED — the validator no longer rejects a softened line"
+            cat control-banner-line.log
             exit 1
           fi
-          grep -q 'scoreboard' control-scoreboard.log \
-            || { echo "::error::mismatch fixture failed for the wrong reason"; cat control-scoreboard.log; exit 1; }
-          echo "control: disagreeing scoreboard rejected as expected"
+          grep -q 'ruled banner line' control-banner-line.log \
+            || { echo "::error::banner-line fixture failed for the wrong reason"; cat control-banner-line.log; exit 1; }
+          echo "control: softened banner line rejected as expected"
 
-      # The version half needs its own control. The mismatch fixture above fails
-      # on the scoreboard and returns before the version check runs, so it proves
-      # nothing about version drift. This fixture has a CORRECT scoreboard and a
-      # gate card pinned to a different edition than ADMISSION.md declares, so the
-      # only thing it can fail on is the assertion under test.
+      # The version half needs its own control. The banner-line fixture above
+      # fails on the ruled line and returns before the version check runs, so it
+      # proves nothing about version drift. This fixture carries the CORRECT
+      # banner line and a gate card pinned to a different edition than
+      # ADMISSION.md declares, so the only thing it can fail on is the assertion
+      # under test.
       - name: Poison control - a drifted policy version must be rejected
         run: |
           set -euo pipefail
@@ -129,25 +132,27 @@ jobs:
             || { echo "::error::version-drift fixture failed for the wrong reason"; cat control-version.log; exit 1; }
           echo "control: drifted policy version rejected as expected"
 
-      # `0 measured` is the one scoreboard field that is currently zero, and a
-      # zero is exactly the value a broken derivation returns by accident. This
-      # fixture carries a card whose Screen result states a controlled outcome
-      # while every site still says `0 measured`; the other three numbers agree
-      # and the policy version matches, so the only thing it can fail on is the
-      # assertion under test. It is the day-the-first-card-is-screened rehearsal.
-      - name: Poison control - a stale measured count must be rejected
+      # The record-derivation half needs its own control. The counts no longer
+      # appear on a page site (owner ruling 2026-08-23, skill-harness #216), but
+      # the derivation discipline still runs, and its sharpest refusal is the
+      # closed verdict vocabulary: an open test would read an unknown Screen
+      # result as a measurement that never happened — the direction that
+      # flatters the page. This fixture's card opens its Screen result with a
+      # word outside the vocabulary; every banner site is correct and the policy
+      # version matches, so the only thing it can fail on is that refusal.
+      - name: Poison control - an unrecognised verdict must be refused
         run: |
           set -euo pipefail
           if python scripts/validate_scoreboard.py \
-               --root scripts/fixtures/measured-drift \
-               > control-measured.log 2>&1; then
-            echo "::error::measured-drift fixture was ACCEPTED - the measured count is not derived from the cards"
-            cat control-measured.log
+               --root scripts/fixtures/verdict-vocabulary-drift \
+               > control-verdict.log 2>&1; then
+            echo "::error::verdict-vocabulary fixture was ACCEPTED - the closed vocabulary is not enforced"
+            cat control-verdict.log
             exit 1
           fi
-          grep -q "measured 0 != 1 derived from the cards' controlled fields" control-measured.log \
-            || { echo "::error::measured-drift fixture failed for the wrong reason"; cat control-measured.log; exit 1; }
-          echo "control: stale measured count rejected as expected"
+          grep -q 'unrecognised verdict' control-verdict.log \
+            || { echo "::error::verdict-vocabulary fixture failed for the wrong reason"; cat control-verdict.log; exit 1; }
+          echo "control: unrecognised verdict refused as expected"
 
       # The origin-tier half needs its own control. The front page states how many
       # cards trace to a real incident, and it stated seven when the records read
