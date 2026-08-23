@@ -175,6 +175,79 @@ A miss turns the build red; do not treat any single prose line as the checklist.
 slogan ("N cards, not N hundred") is rhetoric, not a validator site — update it only if the
 voice still fits.
 
+## The rotation and harvest pass
+
+When the maintainer asks for a rotation, hygiene, weeding, or TLC pass over this collection,
+this section is the procedure. It is written so a cold session can run the whole pass from
+this repository plus two maintainer-supplied evidence locations — session records and usage
+telemetry. The maintainer's private trigger skill only names those locations and points here;
+if a cold session cannot run the pass from this section, the defect is in this section.
+
+**Harvest first, tidying second.** Evidence accrues across every project the maintainer
+works, faster than anyone collects it. The pass collects it, reconciles what it changes, and
+adjudicates what it licenses. "Less" is the bar, not a number: admission stays
+default-refuse, the count is whatever survives, and movement in both directions is the
+mechanism working. An evolving ecosystem, not a chop list.
+
+### Inputs, and which are authoritative
+
+| Source | Authority |
+|---|---|
+| Published cards (`EVIDENCE.md`, `gotchas.md`) | Authoritative — the record of what a card is worth. |
+| `README.md` per-card table; scoreboard-derived counts | Derived. Reconciled, never authored independently. |
+| Usage telemetry (maintainer-supplied) | Authoritative for invocation counts. Silent on efficacy. |
+| Session records (maintainer-supplied) | Authoritative for occasions — the cheapest evidence in the system. |
+| External planning notes | Never canonical. Hypotheses, each checked against this repo. |
+
+### The pass
+
+1. **Mine recurrence.** Read every published `EVIDENCE.md`; note `Occasions counted`,
+   `Screen result`, and any `RECURRENCE-THIN`. For each thin card, search the session
+   records for a second independent occurrence of the card's origin failure, and land any
+   find per "Recording a new occurrence" above — the dated entry first, then the count.
+   Done when every thin card has been searched and every found occasion is recorded.
+2. **Scan the usage signal.** Report per-card invocation baseline, latest, and delta from
+   the telemetry. Registry practice (Homebrew's 90-day install floor, Debian's
+   cruft-report, npm's download floor) separates the mechanical scan that surfaces
+   candidates from the criteria that decide them; this step is that scan. A card absent
+   from the log entirely is a discriminator candidate: search the records for occasions
+   where the card's trap occurred and the card did not fire. Found → retrieval defect (the
+   description never matches how the situation gets phrased; fix the description). None
+   found → insurance (the trap never came up; consistent with `CANT_TELL_YET`). Invocation
+   is retrieval evidence, never an occasion count. Done when every published card has a row
+   and every never-fired card carries a diagnosis or a dated "discriminator unrun".
+3. **Reconcile, then validate.** Propagate each count or label change to every derived
+   surface, walking the consequence chain before the edit — a one-integer change
+   legitimately breaks several pins at once, and each break is the guard working: fix the
+   surface, keep the pin. Then run the gate set with `PYTHONUTF8=1`:
+   `scripts/validate_card_files.py`, `scripts/validate_scoreboard.py`,
+   `scripts/test_validate_card_files.py`, `scripts/test_readme_admission_lead.py` — and
+   `scripts/test_validate_conformance.py` plus `scripts/validate_conformance.py --root .`
+   (the scheduled job's own pair) when the pass touched governance surfaces. Done when all
+   pass AND a re-run of the whole pass with no new evidence would produce zero diff: the
+   pass re-derives from current records every time, keeps no incremental state, and is safe
+   to run twice.
+4. **Adjudicate.** New candidates enter through the [admission policy](ADMISSION.md),
+   answered via the gate card; retirement candidates leave through "Retirement" above.
+   `_quarantine/` promotion is `git mv`, so the card carries its history. Open a
+   candidate's `PROVENANCE.md` before diagnosing drift or duplication — one candidate is a
+   staged patch to an already-promoted card, and it has been misread as version drift once
+   already. Done when every surfaced candidate carries a disposition or a dated deferral.
+5. **Ship.** Branch → PR with a changeset; merge is the maintainer's. The PR body reports
+   every disposition, flattering or not.
+
+### Hard stops, from the first executed pass (2026-08-23)
+
+- **A passing acceptance test is not a screen result.** The screen vocabulary is closed —
+  `UNMEASURED`, `KEEP`, `CUT`, `CANT_TELL_YET` — and `validate_scoreboard.py` refuses a
+  fifth term. A screen is a with-and-without comparison; an acceptance run exercised only
+  the with. Evidence with no slot goes in another field, deliberately — extending the
+  vocabulary is a policy edit, never a side effect of recording.
+- **Relative links move.** A card's links resolve differently in `_quarantine/` and the
+  published tree; re-check them on any move between trees.
+- **The de-personalization gate fires on raw incident notes.** That is the gate working:
+  de-personalize the entry, keep the evidentiary story, never exempt the file.
+
 ## De-personalization gate
 
 Skills are extracted from a private source tree that legitimately carries private-project
