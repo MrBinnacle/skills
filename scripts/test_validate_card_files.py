@@ -280,15 +280,24 @@ def case_live_nine_cards_pass() -> None:
 
 
 def case_live_thin_labels_match_the_counts() -> None:
-    """The two cards the S295 triage let stand carry no thin label; seven do.
+    """Three cards carry counted recurrence and no thin label; six carry it.
 
     The live run above already refuses a mismatch. This states the split, so a
     card quietly relabelled without a new dated occasion cannot pass as the
-    record's own arithmetic. The seven are the seven the 2026-08-15 triage
-    flagged, which is not the same as seven RECURRENCE-THIN verdicts: it gave
-    six of them that verdict and gave git-pull-rebase-trap CEILING-LIKELY on
-    the measurement axis, and that card's own row says why one counted occasion
-    still earns the label.
+    record's own arithmetic.
+
+    The 2026-08-15 S295 triage flagged seven, which is not the same as seven
+    RECURRENCE-THIN verdicts: it gave six of them that verdict and gave
+    git-pull-rebase-trap CEILING-LIKELY on the measurement axis, and that
+    card's own row says why one counted occasion still earns the label.
+
+    The split moved from 7/2 to 6/3 on 2026-08-23, when im-down recorded a
+    second independent occurrence and dropped the label per the AGENTS.md rule
+    that the label tracks the count in both directions. The number here is not
+    a target and carries no preference for a smaller or larger set: it is a
+    reading of the dated records, and it moves whenever one of them does. Both
+    directions are ordinary. A card that earns its way out of the thin tier and
+    a card that is added to the collection are the same mechanism working.
     """
     cards = validate_card_files.find_cards(REPO_ROOT)
     labelled = {
@@ -297,16 +306,21 @@ def case_live_thin_labels_match_the_counts() -> None:
         if "RECURRENCE-THIN"
         in (card / "EVIDENCE.md").read_text(encoding="utf-8", errors="replace")
     }
+    unlabelled = {c.name for c in cards} - labelled
     check(
-        "seven of the nine cards carry the RECURRENCE-THIN label",
-        len(labelled) == 7,
+        "six of the nine cards carry the RECURRENCE-THIN label",
+        len(labelled) == 6,
         f"{len(labelled)}: {sorted(labelled)}",
     )
     check(
-        "the two cards with counted recurrence carry no thin label",
-        {c.name for c in cards} - labelled
-        == {"parallel-review-disposition-schema", "subagent-research-reliability"},
-        str({c.name for c in cards} - labelled),
+        "the three cards with counted recurrence carry no thin label",
+        unlabelled
+        == {
+            "im-down",
+            "parallel-review-disposition-schema",
+            "subagent-research-reliability",
+        },
+        str(unlabelled),
     )
 
 
