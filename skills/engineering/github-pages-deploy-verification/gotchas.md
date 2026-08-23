@@ -28,3 +28,11 @@ stress-test signal.)*
 - **2026-05-27 / same session:** `sleep 35 && curl ...` chain blocked by the Claude Code Bash
   harness ("Blocked: sleep N followed by:"), cancelling parallel tool calls. Replaced with the
   until-loop pattern; harness accepts a short `sleep` inside a check loop.
+
+- **2026-08-23 / discriminator run (rotation pass, step 2):** This card had never been
+  model-invoked across 261 tracked startups, so the retrieval-vs-insurance discriminator ran: a
+  corpus sweep of the maintainer's three tracked clones (all `.md` surfaces, including session
+  checkpoint archives; raw transcripts and the private archive not swept) found **zero trap
+  occurrences outside the 2026-05-27 founding incident**. Diagnosis: **insurance** — the
+  situation has not recurred, no deterministic guard covers it, and non-invocation says nothing
+  about the card's worth (consistent with its `CANT_TELL_YET` screen shape).
