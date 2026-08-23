@@ -23,7 +23,7 @@ result that is worth nothing, and they fail in dispatch order:
    agent reports "zero hits across all five files" and one of the five hits.
 
 All three are invisible if you trust the returned text. Modes 2 and 3 were hit and caught in one
-session (2026-05-28 — see [EVIDENCE.md](EVIDENCE.md)); modes 1 and 3 in another (2026-08-18).
+session (2026-05-28 — see [EVIDENCE.md](../../skills/orchestration/subagent-research-reliability/EVIDENCE.md)); modes 1 and 3 in another (2026-08-18).
 
 ## Context / Trigger Conditions
 
