@@ -147,11 +147,13 @@ def validate_close_commit(config: dict | None, repo_root: Path) -> list[str]:
     purpose: called `pattern`, a project would reasonably write "^RITUAL:" and
     get a check that silently refuses every packet forever.
 
-    Known limit, not yet closed: this establishes that HEAD is A close commit,
-    not that it is THIS session's. A session that committed nothing still sits
-    on the previous close and passes. Closing that needs a session boundary the
-    validator does not have. Revisit if: the packet directory is consulted for
-    an already-claimed HEAD, which would make the stale close detectable.
+    Known limit, closed elsewhere: this establishes that HEAD is A close
+    commit, not that it is THIS session's. The revisit condition named here
+    fired -- validate_unclaimed_head consults the packet directory for an
+    already-claimed HEAD, which makes the stale close detectable. Both checks
+    stay, because each refuses a case the other cannot see: a HEAD that is not
+    a close commit at all sails past the unclaimed-head check whenever no
+    prior packet happens to record it.
     """
     requirement = (config or {}).get("close_commit") or {}
     marker = requirement.get("contains")
@@ -165,6 +167,73 @@ def validate_close_commit(config: dict | None, repo_root: Path) -> list[str]:
         "Close first, then produce the packet -- a packet made before the close "
         "records a HEAD the close then moves."
     ]
+
+
+def validate_unclaimed_head(
+    config: dict | None, repo_root: Path, packet_path: Path
+) -> list[str]:
+    """Refuse a packet whose HEAD the most recent prior packet already claimed.
+
+    The session boundary validate_close_commit lacks: the marker test proves
+    HEAD is A close commit, not THIS session's, so a session that committed
+    nothing sits on the previous close and passes it. The packet directory
+    supplies the boundary -- every produced packet records repository.head, so
+    a HEAD equal to the most recent prior packet's recorded head is the
+    PREVIOUS session's close. A packet produced there goes stale the moment
+    this session closes, and the receiver rejects it at the next open, which
+    is the worst place to discover it.
+
+    The packet under validation is excluded from the comparison: the producer
+    may write the file into the directory before validating it, and a packet
+    must not refuse itself for claiming the HEAD it correctly records.
+
+    The scan walks the directory newest-first and compares against the first
+    file that parses as a packet and records a head. Taking the raw filename
+    maximum instead would let one stray file -- a README sorts after digit-led
+    timestamp names -- become "newest", fail to parse, and disable the guard
+    silently and permanently, reopening the exact hole this check closes.
+
+    Opt-in by config: with no packet_dir declared this returns nothing.
+
+    Known limit, accepted as smaller than the hole it closes: with no usable
+    prior at all -- an empty packet directory, or nothing in it that parses
+    and records repository.head -- this degrades to the previous behaviour
+    instead of refusing, because a fresh clone has no prior packet and must
+    still be able to produce its first one.
+    """
+    packet_dir_name = (config or {}).get("packet_dir")
+    if not packet_dir_name:
+        return []
+    packet_dir = Path(packet_dir_name)
+    if not packet_dir.is_absolute():
+        packet_dir = repo_root / packet_dir
+    if not packet_dir.is_dir():
+        return []
+    own = packet_path.resolve()
+    priors = sorted(p for p in packet_dir.glob("*.md") if p.resolve() != own)
+    if not priors:
+        return []
+    current_head = git(repo_root, "rev-parse", "HEAD")
+    for newest in reversed(priors):
+        try:
+            prior_data, _ = extract(newest)
+        except (OSError, ValueError):
+            continue
+        if not isinstance(prior_data, dict):
+            continue
+        repository = prior_data.get("repository")
+        claimed = repository.get("head") if isinstance(repository, dict) else None
+        if not claimed:
+            continue
+        if claimed != current_head:
+            return []
+        return [
+            f"HEAD {current_head} is already claimed by prior packet "
+            f"{newest.name}: this session has not closed yet. Close first, "
+            "then produce -- the close moves HEAD, and a packet made before "
+            "it records a HEAD the receiver will reject as stale."
+        ]
+    return []
 
 
 def validate_structure(data: dict, text: str) -> list[str]:
@@ -315,6 +384,9 @@ def main() -> int:
                 # whose HEAD is the close commit stays valid only while nothing
                 # commits after it, which the stale-HEAD check already enforces.
                 errors.extend(validate_close_commit(config, args.repo_root.resolve()))
+                errors.extend(
+                    validate_unclaimed_head(config, args.repo_root.resolve(), args.packet)
+                )
         if args.mode == "receive":
             # Receive mode without a config used to skip every configured check
             # in silence and still return ACCEPTED. A verification that can be
