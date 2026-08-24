@@ -8,8 +8,8 @@ description: |
   at a different command, (4) you are writing any PreToolUse matcher on Bash. Covers
   command-position anchoring and heredoc body/shell separation.
 author: Claude Code
-version: 1.0.0
-date: 2026-08-17
+version: 1.1.0
+date: 2026-08-23
 ---
 
 # PreToolUse Bash Guards Match Prose, Not Just Commands

@@ -50,7 +50,7 @@ This skill is the curation discipline that defends against all three.
 
 Apply at exactly these touchpoints (do NOT run continuously or on a schedule):
 
-1. **Extraction-time** — at the END of a /claudeception extraction round, AFTER all new skills have been written to `_quarantine/`. The check is lightweight: grep existing skill names + descriptions for keyword/trigger overlap with each newly-extracted skill. If ≥3 existing skills match above threshold for a new one, APPEND a hint to the registry file (`_quarantine/_family-candidates.md`). DO NOT propose consolidation immediately. The hint sits in the registry until the next promotion-time review.
+1. **Extraction-time** — at the END of a /claudeception extraction round, AFTER all new skills have been written to `_quarantine/`. The check is lightweight: grep existing skill names + descriptions for keyword/trigger overlap with each newly-extracted skill. If ≥3 existing skills match above threshold for a new one, APPEND a hint to your family-candidate registry (an append-only file you keep in your own skill library; this collection ships no registry, because the contents are specific to one library's skills). DO NOT propose consolidation immediately. The hint sits in the registry until the next promotion-time review.
 2. **Promotion-time** — during a manual §1.5 quarantine-to-active promotion review, scan the registry for any DISPOSITION-PENDING entries. For each, run the falsifiability gate (below) and surface the result to the human in the structured disposition format.
 3. **Search-time** — when a Skill tool search returns ≥4 overlapping results for one user query and the user is visibly choosing among them, surface "these N skills overlap on trigger X; want to disposition them as a family?" Do NOT block the user's current task; just offer.
 
@@ -146,7 +146,7 @@ For REJECT-AS-MANUFACTURED, no cleanup needed; just record the disposition with 
 
 You applied this skill correctly when:
 
-- The registry file at `_quarantine/_family-candidates.md` is append-only (no edits to prior entries; only `[UPDATE: yyyy-mm-dd]` appends).
+- Your family-candidate registry is append-only (no edits to prior entries; only `[UPDATE: yyyy-mm-dd]` appends).
 - Every CONSOLIDATED disposition results in physical child-file deletion + grep-clean verification.
 - Every disposition surfaced to the human uses the 3-line structured format with no prose padding.
 - The falsifiability gate's tracer fixtures + pseudocode evaluation are present in the registry entry for every consolidated family. Future-you can audit them.

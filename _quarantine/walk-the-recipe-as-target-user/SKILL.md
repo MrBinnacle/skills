@@ -118,7 +118,7 @@ You misapplied this discipline when:
 
 From the skill-harness 2026-06-09 session:
 
-The SOP doc `docs/dispatch/post-v0.1-signal-acquisition-plan.md` §#2 listed 6 punch items for "first-touch hardening" — written 2026-06-08 from the author's view. The doc had been substantially completed in commit `09af6ae` (5/6 items + 1 partial).
+The SOP doc a separate project's SOP doc (`docs/dispatch/post-v0.1-signal-acquisition-plan.md` in that repo, not this one) §#2 listed 6 punch items for "first-touch hardening" — written 2026-06-08 from the author's view. The doc had been substantially completed in commit `09af6ae` (5/6 items + 1 partial).
 
 The literal-spec response would be: do item 5 (the partial), update the SOP doc to ✅, ship.
 

@@ -196,6 +196,5 @@ swap was behaviour-preserving rather than merely green.
   reporting green because throttling suppressed the requests),
   `ci-npm-audit-step-false-negative-trap` (a gate that only fires on a trigger
   nobody pulls), `mock-masked-stub-trap` (a test passing because the mock, not
-  the code, satisfied it). Family candidate: FAMILY-005 in
-  `_quarantine/_family-candidates.md` (was FAMILY-002; that id was assigned
-  twice and this entry renumbered at S305).
+  the code, satisfied it). These four are a family candidate in the author's private
+  registry, which this collection does not ship.
