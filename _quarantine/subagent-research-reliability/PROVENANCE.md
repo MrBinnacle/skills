@@ -91,15 +91,24 @@ claim above, so the order of evidence stays visible.
 - **Route 1, three attempts, zero recoveries.** The dispatch itself, a `SendMessage` restating the
   output contract verbatim, and a third wake. Each produced an idle notification carrying no
   content. Nine idle notifications in total across the four agents.
-- **Route 2, one attempt, immediate recovery.** Three agents were re-instructed with the bounded
-  write escalation quoted in `Check 0`, each naming one absolute path. **All three created their
-  file. Two delivered complete content** — 6 of 6 blocks (10,869 bytes) and 7 of 7 blocks (20,500
-  bytes, including the `EVIDENCE-ROWS` field requested for three published cards). The third
-  created its file at **0 bytes**.
+- **Naming a payload channel, one attempt: 3 of 3 recovered.** Three of the four agents were
+  re-instructed with the bounded write escalation quoted in `Check 0`, each naming one absolute
+  path. All three returned complete content.
+
+| agent | route 2 (named file) | route 1 (message) | outcome |
+|---|---|---|---|
+| A | 6 of 6 blocks, 10,869 bytes | — | complete via route 2 |
+| B | 7 of 7 blocks, 20,500 bytes | completion summary | complete via route 2, signalled via route 1 |
+| C | **blocked by the host's own guard**, 0 bytes | 6 of 6 blocks, full content | complete via route 1 fallback |
+| D | *never given a channel* | — | **never delivered** |
+
+- **Agent D is a natural control.** It was the only one never given a payload channel, and it is
+  the only one that never delivered anything. The variable that separates delivery from silence is
+  whether a channel was named, not which channel.
 - **The returns were substantive, not acknowledgements.** One block quotes a card's origin
   paragraph verbatim, names the section it sits under, and lists the distinctive literals asked
-  for. The agents had done the work throughout; none of it could reach the session through plain
-  text.
+  for. The agents had done the work throughout; none of it could reach the session until a channel
+  existed to carry it.
 
 ### A gap in route 2, found by falling into it
 
@@ -123,22 +132,54 @@ when the write is done (a `SendMessage` naming the finished file, a sentinel fin
 atomic rename from a temporary name), and treat an unsignalled file as still in flight. Until
 `Check 0` says so, a reader who samples early will report a truncated return as a short one.
 
-**One thing this also corrects about route 1.** The completion signal that resolved this arrived
-*as* a `SendMessage` carrying a content-bearing summary — the first message from any of these
-agents to carry content rather than an idle notification. Route 1 is therefore not inert. What it
-failed to carry, across three attempts, was the *findings*; it succeeded at carrying a *pointer to
-where the findings were written*. That is the division of labour the routes should have.
+### The second failure mode of route 2: the host's own tooling policy
 
-**Finding: the two routes are not redundant and not interchangeable — they carry different things.**
-`Check 0` presents them as redundancy, "so one failing is survivable". On this evidence that is the
-wrong model. Route 1 carried no findings across three attempts and nine idle notifications; route 2
-carried every finding that arrived. Route 1 then carried the one thing route 2 structurally cannot:
-the signal that the write had finished.
+Agent C's file stayed at 0 bytes because **this host's `PreToolUse` Bash guard blocked the write**.
+The agent attempted to author prose into the named `.md` file through a Bash heredoc, which the
+guard refuses on this machine — correctly, because heredoc prose authoring is known to fail here.
 
-**So: the file path carries the payload, and the message carries completion.** A future edit to
-`Check 0` should say that, and should add the completion contract the gap above describes. Neither
-edit is made here — this is the candidate's evidence record, and changing the check is a change to
-its procedure that belongs in its own reviewable diff.
+The agent then **fell back to route 1 and returned all six blocks in the message body.**
+
+So route 2 has a failure mode that has nothing to do with the agent and nothing to do with the
+research: **the environment's own tooling policy can forbid the write.** A dispatch that names a
+file path should also name the tool to write it with, or the agent will reach for whichever
+mechanism the host happens to block.
+
+### What the three occurrences together actually establish
+
+This section's finding moved three times as evidence arrived, and the movement is recorded rather
+than smoothed over.
+
+1. First reading: *route 2 is sufficient, route 1 is not.* Drawn from route 1 failing three times
+   and route 2 succeeding once.
+2. Second reading: *the routes are not redundancy; the file carries payload and the message
+   carries completion.* Drawn from a completion summary arriving by message.
+3. **Current reading, and the one the full evidence supports: `Check 0`'s redundancy framing is
+   correct, and the reason it is correct is sharper than the check states.** The two routes fail
+   for **unrelated** causes — route 2 on host tooling policy, route 1 on the agent not treating it
+   as the payload channel — so one failing genuinely is survivable. Agent C is the proof: route 2
+   was blocked outright and the findings still arrived.
+
+**The load-bearing instruction is to name a payload channel at all.** With none named, 0 of 4
+agents delivered across three rounds and nine empty idle notifications. With one named, 3 of 3
+delivered. Which channel mattered less than that a channel existed.
+
+**Finding: `Check 0`'s core instruction is confirmed, and two additions would strengthen it.**
+
+Confirmed as written: name a return channel in the dispatch, and give two routes so one failing is
+survivable. Both halves earned their place here — naming any channel took delivery from 0 of 4 to
+3 of 3, and the redundancy rescued the one agent whose primary route was blocked.
+
+Two things the check does not yet say, both learned here:
+
+1. **A completion contract.** `Check 0` names a path but never says how the reader knows the write
+   finished. File existence is not completion, and a partial write reads as a complete short
+   answer. Require a signal on completion, and treat an unsignalled file as still in flight.
+2. **Name the writing tool, not just the path.** The host's own guard can forbid the mechanism the
+   agent reaches for. Agent C lost route 2 entirely to a `PreToolUse` rule.
+
+Neither edit is made here. This is the candidate's evidence record; changing the check is a change
+to its procedure and belongs in its own reviewable diff.
 
 **The two occurrences are independent.** Different repository, different agent type (`Explore`
 against `reader`), different task (repository research against text extraction), six days apart.

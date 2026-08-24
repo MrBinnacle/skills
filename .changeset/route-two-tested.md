@@ -2,30 +2,40 @@
 "mrbinnacle-skills": patch
 ---
 
-Test `Check 0`'s two return routes against each other, and record what each one actually carries.
+Test `Check 0` against its own claim, and confirm the redundancy it prescribes is load-bearing.
 
-PR #118 recorded a second occurrence of the return-channel failure and stated one limit explicitly: route 2's standalone sufficiency was untested and not claimed. It has now been tested, against the same four agents in the same session.
+PR #118 recorded a second occurrence of the return-channel failure and stated one limit explicitly: route 2's standalone sufficiency was untested and not claimed. It has now been tested against the same four agents in the same session.
 
-**Route 1 — three attempts, zero findings recovered.** The original dispatch, a `SendMessage` restating the output contract verbatim, and a third wake. Each produced an idle notification carrying no content. Nine such notifications across four agents.
+## The result
 
-**Route 2 — one attempt.** Three agents were re-instructed with the bounded write escalation the check quotes, each given one absolute path. All three created their file. Two delivered complete content: 6 of 6 blocks (10,869 bytes) and 7 of 7 blocks (20,500 bytes, including the extra field requested for three published cards). The third created its file at 0 bytes.
+| agent | route 2 (named file) | route 1 (message) | outcome |
+|---|---|---|---|
+| A | 6 of 6 blocks, 10,869 bytes | — | complete via route 2 |
+| B | 7 of 7 blocks, 20,500 bytes | completion summary | complete via route 2, signalled via route 1 |
+| C | blocked by the host's own guard, 0 bytes | 6 of 6 blocks, full content | complete via route 1 fallback |
+| D | never given a channel | — | never delivered |
 
-**The returns were substantive.** One block quotes a card's origin paragraph verbatim, names the section heading it sits under, and lists the distinctive literals requested. The agents had done the work the whole time. None of it could reach the session through plain text.
+**With no channel named: 0 of 4 agents delivered**, across three rounds and nine idle notifications carrying no content. **With a channel named: 3 of 3 delivered.** Agent D is a natural control — the only one never given a channel and the only one that never delivered.
 
-## A gap in route 2, found by falling into it
+The returns were substantive. One block quotes a card's origin paragraph verbatim, names the section heading it sits under, and lists the distinctive literals requested. The agents had done the work throughout; none of it could reach the session until a channel existed to carry it.
 
-This record first reported one return as incomplete — "five blocks where seven were asked for". **That was wrong, and how it went wrong is the more useful finding.** The file was read while the agent was still writing it: 5 blocks and 14,175 bytes at the moment of sampling, 7 blocks and 20,500 bytes when finished. A partial write was measured and recorded as an incomplete delivery.
+## Route 2 has two failure modes, and neither is the agent's fault
 
-`Check 0` tells the dispatcher to name one file path. **It does not say how the reader knows the write has finished.** File existence is not completion, and a file has no end-of-message marker the way a message does. The failure is quiet in the dangerous direction: a partially-written file reads as a complete short answer, and nothing distinguishes the two. The 0-byte third file is the same gap at its limit.
+**It has no completion marker.** An earlier revision of this record reported one return as incomplete — "five blocks where seven were asked for". That was wrong: the file was read while the agent was still writing it, 5 blocks at sampling and 7 when finished. `Check 0` names a path but never says how the reader knows the write finished. A partially-written file reads as a complete short answer and nothing distinguishes the two.
 
-Route 2 needs a completion contract, not just a path — a signal when the write is done (a message naming the finished file, a sentinel final line, or an atomic rename from a temporary name), with an unsignalled file treated as still in flight.
+**The host's tooling policy can forbid the write.** Agent C's file stayed at 0 bytes because a `PreToolUse` Bash guard on this machine refuses prose authored into a `.md` file through a heredoc — correctly, since that mechanism is known to fail here. The agent fell back to route 1 and returned everything in the message body.
 
-## What each route is for
+## What the evidence actually establishes
 
-The completion signal that resolved this arrived *as* a `SendMessage` carrying a content-bearing summary — the first message from any of these agents to carry content rather than an idle notification. **Route 1 is not inert.** Across three attempts it failed to carry the *findings*; it succeeded at carrying a *pointer to where the findings were written*.
+This finding moved three times as evidence arrived, and the movement is recorded rather than smoothed over. First reading: route 2 is sufficient and route 1 is not. Second: the routes are not redundancy, the file carries payload and the message carries completion. **Current reading, on the full evidence: the check's redundancy framing is correct, and the reason is sharper than the check states** — the two routes fail for unrelated causes, so one failing genuinely is survivable. Agent C is the proof.
 
-So the two routes are not redundancy, which is how the check currently frames them ("so one failing is survivable"). They carry different things: **the file path carries the payload, and the message carries completion.**
+**The load-bearing instruction is to name a payload channel at all.** Which one mattered less than that one existed.
 
-A future edit to `Check 0` should say that and add the completion contract. Neither edit is made here — changing the check is a change to the card's procedure and belongs in its own reviewable diff.
+## Two additions `Check 0` would benefit from
+
+1. A completion contract — a signal when the write is done, with an unsignalled file treated as still in flight.
+2. Name the writing tool, not just the path, so the agent does not reach for a mechanism the host blocks.
+
+Neither edit is made here. Changing the check is a change to the card's procedure and belongs in its own reviewable diff.
 
 No published card changed. No count moved. The published tree is unmodified by this pull request.
