@@ -10,10 +10,12 @@ description: |
   the var set, (2) testing a pre-flight check, key-resolution path, or
   any code that branches on `os.environ.get(key)`, (3) you wrote
   `clean_env = {k: v for k, v in os.environ.items() if k != "X"}` and
-  passed it as `env=` — that does NOT delete X. Covers Click 8.x;
-  verified at click/testing.py:534.
+  passed it as `env=` — that does NOT delete X. Behaviour re-verified
+  against current stable Click, 2026-08-23.
 metadata:
   type: trap
+version: 1.1.0
+date: 2026-08-23
 ---
 
 # Click CliRunner: `env=None` deletes; absence does NOT
@@ -32,7 +34,14 @@ Click's `CliRunner.invoke(env=...)` is an OVERRIDE dict, not a REPLACEMENT envir
 - `env[key] = None` → calls `del os.environ[key]` for the duration of the invocation, restoring afterward
 - key absent from `env` → `os.environ[key]` is left UNTOUCHED
 
-Verified in `click/testing.py:534` (Click 8.x): the loop only touches keys present in the dict; deletion requires explicit `None`.
+Originally verified against `click/testing.py:534` on Click 8.1.x. **Re-checked 2026-08-23
+against current stable**, which is the durable evidence: the published signature types the
+parameter as `env: Mapping[str, str | None] | None` on both `CliRunner.invoke` and
+`CliRunner.isolation`. A value type of `str | None` is the API stating that `None` is a
+meaningful value rather than an omission — that is the delete. The docs describe `env` as
+"overrides" and "the environment overrides as dictionary", which is the absent-keys-untouched
+half. The line number is not re-pinned: Click has moved from 8.1 to 8.5 and `8.1.x` no longer
+exists as a branch, so cite the signature rather than a file offset.
 
 ## Trigger conditions
 
@@ -91,7 +100,7 @@ After the fix, verify the test actually exercises the intended branch:
 ## Notes
 
 - This trap is particularly dangerous in tests of API-key-dependent code: the absence of `{key: None}` can let a test SILENTLY make a live network call, burning real money and producing flaky results.
-- The behavior is documented in Click 8 — see [the env parameter on CliRunner.invoke](https://click.palletsprojects.com/en/8.1.x/api/#click.testing.CliRunner.invoke) — but the docs phrase it as "added/overridden," not as "absence does nothing." Easy to miss.
+- The behavior is documented in Click 8 — see [the env parameter on CliRunner.invoke](https://click.palletsprojects.com/en/stable/api/#click.testing.CliRunner.invoke) — but the docs phrase it as "added/overridden," not as "absence does nothing." Easy to miss.
 - The same pattern in `subprocess.run(env=...)` works differently: there, `env=` REPLACES the entire environment. Cross-tool inconsistency is a contributor to the confusion.
 - In a `monkeypatch.delenv(key, raising=False)` test, the SUT runs with the key genuinely absent from `os.environ`. This is the safer default for env-isolation tests when the code under test is not exclusively a CLI entry-point.
 
@@ -121,6 +130,6 @@ assert "ANTHROPIC_API_KEY is not set" in result.output  # now actually fires
 
 ## References
 
-- Click testing module source: https://github.com/pallets/click/blob/8.1.x/src/click/testing.py
-- Click CLI testing docs: https://click.palletsprojects.com/en/8.1.x/testing/
+- Click testing module source: https://github.com/pallets/click/blob/stable/src/click/testing.py
+- Click CLI testing docs: https://click.palletsprojects.com/en/stable/testing/
 - pytest monkeypatch.delenv: https://docs.pytest.org/en/stable/how-to/monkeypatch.html

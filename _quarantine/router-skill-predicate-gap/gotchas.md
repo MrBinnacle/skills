@@ -36,21 +36,16 @@
   no fixture at all.** Any of the other 38 could be inert in the same way, and nothing would
   report it.
 
-  **So the remedy in Notes is necessary and not sufficient.** Three additions, all applied and
-  verified on 2026-08-23:
-  - Assert that **no pattern holds a control character**. This catches the whole JSON-escape
-    class at zero fixture-authoring cost, and `re.compile()` cannot — the damaged pattern is
-    a valid regex.
-  - For each pattern that exists to be *broad*, write a fixture **only that pattern can
-    satisfy**. Otherwise the broad pattern is never falsifiable.
-  - Treat per-pattern reachability as the coverage metric. Per-rule coverage hides this.
+  The remedy in Notes is necessary and not sufficient. `SKILL.md` § 1b and § Notes carry the
+  three additions this produced; they are stated there once and not repeated here.
 
-- [OBSERVED 2026-08-23] The procedure in `SKILL.md` § "Test the negative first" is unsafe as
-  written, and it misled a session within minutes of being followed. It says: *"Empty output
+- [OBSERVED 2026-08-23] The procedure in `SKILL.md` § "Test the negative first" was unsafe as
+  written, and it misled a session within minutes of being followed. It said: *"Empty output
   means it did not fire. Record that, verbatim, as the finding."* Empty output also means the
-  interpreter errored — a wrong filename, a bad path, an import failure. A probe run against
-  `skill_router_project.py` when the hook is `skill-router-project.py` printed nothing for six
-  prompts, including two known-good fixtures, and was read as total router failure. The
-  session was one step from recording a false finding. **Always carry a known-good fixture as
-  a positive control in the same probe run.** If the control does not fire, the harness is
-  broken, not the predicate. `SKILL.md` § 1 has been amended accordingly.
+  interpreter errored. A probe run against a wrong filename printed nothing for six prompts,
+  including two known-good fixtures, and was read as total router failure.
+
+  The general rule now lives on `success-test-accepts-any-output` → rule 4, which is the card
+  whose subject this is; § 1 here points at it rather than restating it. Recorded on both
+  because the occurrence belongs to both: this card's procedure caused it, that card's
+  mechanism explains it.
