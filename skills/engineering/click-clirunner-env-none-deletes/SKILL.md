@@ -1,6 +1,6 @@
 ---
 name: click-clirunner-env-none-deletes
-description: Click's CliRunner.invoke `env=` only overrides keys the dict names; an absent key is not deleted. Pass `{key: None}` to delete one. Use when a CLI test asserts on an env var being absent.
+description: "Click's CliRunner.invoke `env=` only overrides keys the dict names; an absent key is not deleted. Pass `{key: None}` to delete one. Use when a CLI test asserts on an env var being absent."
 ---
 
 # Click CliRunner: `env=None` deletes; absence does NOT
