@@ -98,8 +98,8 @@ Then validate the file:
 
 ### 5. Probe positives, then false positives, through the step-1 loop
 
-Run the positive set — the prompts a user actually types (`write me a plan for issue 18`,
-`I need a plan`). Every line must read `FIRES`. Then run the false-positive set through the
+Run the positive set — the prompts a user actually types (`I need a plan`). Every line
+must read `FIRES`. Then run the false-positive set through the
 same loop, and **include words that share the stem** (`the plane landed`, `explain the
 planner architecture`) — probing them is the only way to know the `\b` boundaries hold.
 Every line must read `SILENT`; a `FIRES` here is a boundary that does not hold.
@@ -126,13 +126,12 @@ the work also involved an ADR: `\bADR\b` matched, and the correct behaviour was
 coincidence. Tested negative first (`write me a plan for issue
 18` → silent), three patterns added, and the user's own previously-unmatched message then
 fired; five false-positive probes stayed silent, including `plane` and `planner`. The full
-record, and the 2026-08-23 second occurrence that found a dead `\b` pattern behind a green
-test suite, live in `gotchas.md`.
+record and the 2026-08-23 second occurrence live in `gotchas.md`.
 
 ## Notes
 
-- **A passing read is not evidence.** The gap is invisible in the rule file,
-  `settings.json`, and the skill; only piping a prompt into the live hook finds it.
+- **A passing read is not evidence.** The gap is invisible in the rule file and
+  `settings.json`; only piping a prompt into the live hook finds it.
 - **This is not dead wiring.** A hook that never fires at all, or that reads the wrong stdin
   shape, is a different diagnosis with a different fix.
 - **The stake is the layer-placement rule.** A discipline that must fire cannot live in the

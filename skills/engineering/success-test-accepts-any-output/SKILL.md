@@ -51,10 +51,12 @@ esac
 ```
 
 For `gh` specifically: prefer `--silent` (documented) plus an explicit
-exit-code test. `2>/dev/null` hides the diagnostic while leaving the error body
-on stdout — check where a tool actually writes errors before redirecting, and
-note the *stream* an error body lands on is undocumented for `gh api`: the
-claim rests on this card's dated Example, reproduced once, not specified.
+exit-code test, or capture stderr separately when you need the body.
+`2>/dev/null` hides the diagnostic while leaving the error body on stdout —
+check where a tool actually writes errors before redirecting. The *stream* an
+error body lands on is undocumented for `gh api`: that claim rests on this
+card's dated Example, reproduced once, not specified — so assert the success
+shape rather than rely on where the error text lands.
 
 ### 2. Compare identity, never stringification
 
@@ -123,15 +125,15 @@ looseness; a new failure is a genuine find, not a regression.
 ## Example
 
 Session of 2026-08-17, `workspace_lint`. GitHub's GraphQL endpoint returned
-HTTP 503 for roughly fifteen minutes while REST reads kept working. A retry
-loop testing `[ -n "$url" ]` printed
+HTTP 503 for roughly fifteen minutes while REST reads kept working — `gh issue
+create` and `gh issue comment` both route through GraphQL. A retry loop
+testing `[ -n "$url" ]`, with `2>/dev/null` hiding the diagnostic, printed
 `#44 OK {"message":"No server is currently available…"}` for both targets;
 re-reading the comment lists showed neither had posted. The fix was the `case`
 statement in rule 1 plus the re-read in rule 3. In the same session, the
 project's own test harness carried `String(got) === String(want)` in two
 copies; one shared `Object.is` harness replaced both, and the assertion counts
-held at exactly 52 and 73 with zero failures — the proof the swap was
-behaviour-preserving rather than merely green.
+held at 52 and 73 with zero failures — behaviour-preserving, not merely green.
 
 ## Notes
 

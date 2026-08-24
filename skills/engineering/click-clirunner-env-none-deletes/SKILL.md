@@ -37,6 +37,7 @@ runner.invoke(cli, args, env={"OTHER_VAR": "x"})  # Only OTHER_VAR is touched
 
 Specific symptoms:
 
+- Test passes when run alone but you can't reproduce the bug it was supposed to catch
 - `os.environ.get("MY_VAR")` inside the SUT returns a non-empty string even though the test "set" `env` to a dict without `MY_VAR`
 - A pre-flight key check passes when you expected it to fail
 - A test that asserts "refuse when key absent" never actually fires its refusal path
