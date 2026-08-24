@@ -71,3 +71,27 @@
   **The mitigation is still worth preferring by default:** write long prose to a file and pass
   it by path (`git commit -F msg.txt`, `gh pr create --body-file body.md`). No guard sees the
   prose, and the artifact is reviewable before it ships.
+
+- [OBSERVED on or about 2026-08-18, harvested 2026-08-24] Independent occurrence in a third
+  project and on a third guard, found by a corpus sweep and verified by reading the source.
+  `workspace_lint`'s session state records: "CC Safety Net failed closed once on a long
+  `gh issue create` heredoc — write the body to the scratchpad and pass `--body-file`."
+  Different project, different guard family (a rulebook plugin, not a hand-authored hook),
+  same failure class — a PreToolUse Bash guard refusing a legitimate heredoc-carrying
+  command — and the recorded workaround is this card's own prescribed remedy verbatim.
+  Two hedges stated rather than smoothed over: the source line attributes the block to the
+  heredoc's *length* and never names the predicate that fired, and the entry itself is
+  undated inside a checkpoint band written on or about 2026-08-18/19. What is certain is
+  the failed-closed block of a legitimate command and the `--body-file` recovery.
+
+- [OBSERVED 2026-08-24] Two further reproductions during this collection's own maintenance
+  passes (the private research repo's S312, fixed the same day in S313), both on the
+  read-whole guard rule this card's 2026-08-23 entry did not cover: Python locals named `head` and `tail` inside a
+  `python - <<'EOF'` script read as pager commands (a `.md` path in the segment supplied
+  the operand), and then the commit describing that block was itself blocked because the
+  prose contains the words. Fixed the same day at the class level: the rule now reads the
+  heredoc-stripped command, proven by poison fixtures that reproduce both real incidents
+  RED before the fix and pass after it, with the real pager invocation still blocking.
+  The 2026-08-23 entry's own closing rule ("a predicate that decides whether something
+  will RUN must read command structure, not text") predicted exactly this collision; the
+  fix had been wired to one caller, not the class.

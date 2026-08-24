@@ -155,11 +155,19 @@ After implementing the resolver:
   OpenRouter's OpenAPI spec). The Anthropic SDK appends `/messages` to the
   configured `base_url` automatically for `.messages.create()` calls.
   Verified against OpenRouter docs (`https://openrouter.ai/docs/quickstart`)
-  as of 2026-06-09.
+  as of 2026-06-09; re-verified 2026-08-24 against current OpenRouter docs
+  (Context7): the Anthropic-SDK base-url route is now first-party documented
+  (`docs/cookbook/get-started/migrate-to-openrouter`), including the
+  `ANTHROPIC_BASE_URL`-without-`/v1` distinction this note describes, and
+  OpenRouter's Messages API additionally accepts a `fallbacks` parameter
+  (`docs/guides/routing/model-fallbacks`) this card predates.
 - **Model-id slug convention**: OpenRouter uses **dots** in version
   numbers (`claude-sonnet-4.6`), NOT dashes (`claude-sonnet-4-6` which is
   Anthropic-direct's convention). Getting this wrong produces a "model not
   found" error from OpenRouter, not a silent fallback to a different model.
+  The specific model ids in this card's examples are dated (2026-06-09) and
+  illustrative only — resolve current slugs from the OpenRouter model
+  registry linked below rather than copying them.
 - **The `ANTHROPIC_BASE_URL` env var** (which Claude Code itself uses) is
   set WITHOUT the `/v1` suffix — Claude Code's internal SDK config
   appends `/v1` automatically. When YOU construct
