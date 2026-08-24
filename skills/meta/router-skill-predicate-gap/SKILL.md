@@ -7,45 +7,34 @@ description: "A router rule can be live, healthy and match nothing anyone types:
 
 ## Problem
 
-A skill is documented as MANDATORY. It is wired into a `UserPromptSubmit` router hook, so
-the rule looks enforced rather than remembered. It is not. **The hook runs, exits 0, and
-matches nothing**, because its regex list omits the word users most often type for the
-thing it guards.
+A skill is documented as MANDATORY and wired into a `UserPromptSubmit` router hook, so the
+rule looks enforced rather than remembered. It is not: **the hook runs, exits 0, and matches
+nothing**, because its regex list omits the word users most often type for the thing it
+guards. The wiring is present, the hook is healthy, the config is valid — and nothing
+distinguishes "the predicate did not match" from "no prompt needed it."
 
-This fails silently in the most misleading way available: the wiring is present, the hook
-is healthy, the config is valid, and a reader auditing `settings.json` sees enforcement.
-Nothing distinguishes "the predicate did not match" from "no prompt needed it."
+## Use when
 
-## Context / Trigger conditions
-
-- A rule file says a skill is MANDATORY before some class of work, and you cannot recall
-  the reminder actually arriving.
+- A rule file says a skill is MANDATORY, and you cannot recall the reminder arriving.
 - You are about to write, or repeat, the claim that a discipline is hook-enforced.
-- A router rule's `patterns` list was seeded from error signatures or from a few example
-  phrasings, and has not been re-read since.
+- A rule's `patterns` list was seeded from error signatures or example phrasings and never
+  re-read.
 - The skill did fire once, and you have not checked *which* pattern matched.
-- An audit asks whether the enforcement layer enforces.
 
 ## Root cause
 
-Router patterns are usually seeded from the highest-precision, lowest-false-positive
-triggers — error strings, slash commands, distinctive nouns. That seeding is correct and it
-systematically **omits the ordinary word for the artifact**, because the ordinary word looks
-too broad to add safely.
-
-The result is a predicate that matches specialist phrasing and misses the common request.
-The rule then fires when the user happens to use jargon and stays silent when they do not —
-which is model-pull wearing a hook's clothes.
+Router patterns are seeded from the highest-precision triggers —
+error strings, slash commands, distinctive nouns — because the ordinary word for the
+artifact looks too broad to add safely. The predicate then matches specialist phrasing and
+misses the common request: **model-pull wearing a hook's clothes**.
 
 ## Solution
 
 ### 1. Test the negative first, against the live hook
 
-**Do this before editing anything.** A test that only demonstrates the fixed state proves
-nothing about the gap.
-
-Probe the suspect prompt **and a known-good fixture in the same run**. The known-good is a
-positive control, and without it the run is uninterpretable:
+Do this before editing anything. Probe the suspect prompt **and a known-good fixture in the
+same run** — the known-good is a positive control, and without it the run is
+uninterpretable:
 
 ```sh
 cd ~/.claude/hooks
@@ -55,22 +44,19 @@ for p in "write me a plan for issue 18" "<a phrase you know this rule matches>";
 done
 ```
 
-Empty output on the suspect prompt means it did not fire — **but only if the control fired.**
-Empty output is also what a crashed interpreter prints. If the control is silent, the harness
-is broken, not the predicate. The general rule and its worked case live in
-[`success-test-accepts-any-output`](../../engineering/success-test-accepts-any-output/SKILL.md)
-→ rule 4; a negative finding needs a positive control for the same reason a positive one
-needs a shape assertion.
-
-Note the `session_id` must be unique per probe — these routers dedupe per session, so reusing
-one makes a firing rule look silent.
+Empty output on the suspect prompt means it did not fire — **but only if the control
+fired**. Empty is also what a crashed interpreter prints; a silent control means the harness
+is broken, not the predicate
+([`success-test-accepts-any-output`](../../engineering/success-test-accepts-any-output/SKILL.md)
+→ rule 4). Make `session_id` unique per probe — these routers dedupe per session, so a
+reused id makes a firing rule look silent.
 
 ### 2. Assert that no pattern holds a control character
 
-A JSON string escape is not a regex escape. Inside a JSON rule file, `"\b"` is the **backspace
-character**; a regex word boundary must be written `"\\b"`. The damaged pattern is still a
-valid regex, so `re.compile()` accepts it, and it matches nothing forever. Grep the compiled
-patterns rather than reading them:
+A JSON string escape is not a regex escape: in a JSON rule file `"\b"` is the **backspace
+character**, and a regex word boundary must be written `"\\b"`. The damaged pattern is still
+a valid regex, so `re.compile()` accepts it, and it matches nothing forever. Grep the
+compiled patterns rather than reading them:
 
 ```sh
 python -c "
@@ -107,85 +93,60 @@ to produce one fires:
 "\\bplans?\\b.{0,20}\\bfor\\b.{0,25}(#\\d+|issue|ticket)"
 ```
 
-Validate the JSON before trusting the file:
+Then validate the file:
+`python -c "import json;json.load(open('skill-rules.json'));print('JSON valid')"`.
 
-```sh
-python -c "import json;json.load(open('skill-rules.json'));print('JSON valid')"
-```
+### 5. Probe positives, then false positives, through the step-1 loop
 
-### 5. Probe positives and negatives
-
-```sh
-for p in "write me a plan for issue 18" "draft an implementation plan" "I need a plan"; do
-  out=$(echo "{\"session_id\":\"t-$RANDOM$RANDOM\",\"prompt\":\"$p\"}" | python skill-router.py)
-  echo "$out" | grep -q "<skill-name>" && echo "FIRES  : $p" || echo "SILENT : $p"
-done
-```
-
-Then run the false-positive set through the same loop. **Include words that share the stem.**
-That is what `\b` boundaries are for, and probing them is the only way to know they hold:
-
-```sh
-for p in "run the tests" "the plane landed" "explain the planner architecture"; do
-  out=$(echo "{\"session_id\":\"f-$RANDOM$RANDOM\",\"prompt\":\"$p\"}" | python skill-router.py)
-  echo "$out" | grep -q "<skill-name>" && echo "FIRES  : $p" || echo "SILENT : $p"
-done
-```
-
-Every line must read `SILENT`. A `FIRES` here is a boundary that does not hold.
+Run the positive set — the prompts a user actually types (`write me a plan for issue 18`,
+`I need a plan`). Every line must read `FIRES`. Then run the false-positive set through the
+same loop, and **include words that share the stem** (`the plane landed`, `explain the
+planner architecture`) — probing them is the only way to know the `\b` boundaries hold.
+Every line must read `SILENT`; a `FIRES` here is a boundary that does not hold.
 
 ## Verification
 
-The finding is proven when you can show the before/after pair on the *same* prompt string
-against the *same* hook:
+The finding is proven by a before/after pair on the *same* prompt string against the *same*
+hook:
 
 ```
 before:  "write me a plan for issue 18"  -> silent
 after:   "write me a plan for issue 18"  -> fires
 ```
 
-Best case, use the user's own message from the session that exposed the gap. A probe you
-invented can be accused of being chosen to fire; their real prompt cannot.
+Best case, use the user's own message from the session that exposed the gap — a probe you
+invented can be accused of being chosen to fire.
 
 ## Example
 
 2026-08-18. A machine-level rule file marked `downstream-instruction-framing` as
-*router-enforced, MANDATORY before ANY handoff / plan / ADR / subagent-prompt*. Its patterns
-were `hand.?off`, `\bADR\b`, `subagent.{0,12}(prompt|brief|dispatch)`,
-`dispatch.{0,15}(sub)?agent`, `scheduled?.{0,10}(agent|brief)`, `/schedule\b`, `/loop\b`,
-`execution plan`.
-
-**The bare word "plan" was not among them.** The skill had fired earlier in that session
-only because the work also involved an ADR: `\bADR\b` matched, and the correct behaviour
-was coincidence relative to the rule's stated purpose.
-
-Tested negative first: `"write me a plan for issue 18"` → silent. Three patterns added.
-After: fires, and so does `"And triage/skill tooling plan"`, the user's actual message from
-that session, which had produced no reminder at the time. Five false-positive probes stayed
-silent, including `plane` and `planner`.
+*router-enforced, MANDATORY before ANY handoff / plan / ADR / subagent-prompt* — and the
+bare word "plan" was in no pattern. The skill had fired earlier that session only because
+the work also involved an ADR: `\bADR\b` matched, and the correct behaviour was
+coincidence. Tested negative first (`write me a plan for issue
+18` → silent), three patterns added, and the user's own previously-unmatched message then
+fired; five false-positive probes stayed silent, including `plane` and `planner`. The full
+record, and the 2026-08-23 second occurrence that found a dead `\b` pattern behind a green
+test suite, live in `gotchas.md`.
 
 ## Notes
 
-- **A passing read is not evidence.** The gap was invisible to anyone reading the rule file,
-  `settings.json`, or the skill. Only piping a prompt into the hook found it.
-- **This is not dead wiring.** The hook was healthy and correct. A hook that never fires at
-  all, or that reads the wrong stdin shape, is a different diagnosis with a different fix; do
-  not treat the two as one problem.
-- **The layer-placement rule is what is at stake.** A discipline that must fire cannot live
-  in the skill layer, because skill retrieval is model-pull. A router rule moves it to the
-  hook layer *only to the extent its predicate is complete.* An incomplete predicate leaves
-  the discipline in the skill layer while the documentation claims otherwise, which is worse
-  than no hook: it retires the vigilance that would have compensated.
-- **A router rule deserves a test suite, and a per-rule test suite is not enough.** A test
-  suite is what catches a predicate gap; a reading is not. But a green per-rule suite is
-  compatible with any number of dead patterns, because fixtures land on whichever pattern
-  matches first and the broad ones collect none. **Count coverage per pattern, not per rule,
-  and give every deliberately-broad pattern a fixture only it can satisfy** — otherwise the
-  broad pattern is not falsifiable. The measured case is in `gotchas.md` and is not restated
-  here.
-- The dedupe-per-session behaviour is a real trap when probing. Vary `session_id` every time.
+- **A passing read is not evidence.** The gap is invisible in the rule file,
+  `settings.json`, and the skill; only piping a prompt into the live hook finds it.
+- **This is not dead wiring.** A hook that never fires at all, or that reads the wrong stdin
+  shape, is a different diagnosis with a different fix.
+- **The stake is the layer-placement rule.** A discipline that must fire cannot live in the
+  skill layer, because skill retrieval is model-pull. A router rule moves it to the hook
+  layer *only to the extent its predicate is complete* — an incomplete one leaves the
+  discipline unenforced while the documentation claims otherwise, which is worse than no
+  hook: it retires the vigilance that would have compensated.
+- **A router rule deserves a test suite. A test suite is what catches a predicate gap; a
+  reading is not.** And a per-rule suite is not enough: count fixture coverage per pattern,
+  and give every deliberately-broad pattern a fixture only it can satisfy — a green
+  per-rule suite is compatible with any number of dead patterns, because fixtures land on
+  whichever pattern matches first and the broad ones collect none. The measured case is in
+  `gotchas.md`.
 
-The procedures above were verified against a live `skill-router.py` UserPromptSubmit hook on
-one machine, 2026-08-18. The stdin envelope shape (`session_id`, `prompt`) and the dedupe
-behaviour are properties of that hook implementation; re-read the hook before assuming them
-elsewhere.
+Verified against a live `skill-router.py` UserPromptSubmit hook, 2026-08-18.
+The stdin envelope shape (`session_id`, `prompt`) and the dedupe behaviour are properties of
+that hook implementation; re-read the hook before assuming them elsewhere.
