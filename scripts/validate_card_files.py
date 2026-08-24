@@ -78,6 +78,27 @@ THIN_LABEL: Final[str] = "RECURRENCE-THIN"
 COUNT_RE: Final[re.Pattern[str]] = re.compile(r"^\s*(\d+)\b")
 DATE_RE: Final[re.Pattern[str]] = re.compile(r"\b20\d{2}-\d{2}-\d{2}\b")
 
+# The reverse direction's scope rule (#105, settled by measurement 2026-08-24).
+# Every row check below takes the row as subject and the card as reference;
+# nothing asked whether the card records an occurrence the row failed to cite,
+# so an undercount stayed green. The scope of the reverse check is a rule about
+# HOW an occurrence is recorded, not a list of dates to ignore: a line carrying
+# both a date and the collection's own term of art -- "occurrence" -- is an
+# occurrence record, and every such date must be cited in the row.
+#
+# Why not every date in the card: measured against the nine published cards,
+# a full-haystack demand flags all nine, on dates that are demonstrably not
+# occurrences -- screen dates, methodology pins, verification dates, and
+# validation-genre OBSERVED entries (the gate card's own record distinguishes
+# "the gate correctly rejected a candidate" from the failure it addresses
+# occurring). Measured the same day: zero occurrence-marked uncited lines
+# across the nine cards, so this rule passes the live tree and bites on the
+# recording convention going forward -- freshness enforcement without
+# red-flagging a healthy card. AGENTS.md step 1 stays the human half: record
+# the occurrence where it happened; this is the check that the row then
+# counts it.
+OCCURRENCE_MARK: Final[re.Pattern[str]] = re.compile(r"\boccurrence\b", re.IGNORECASE)
+
 
 def find_cards(root: Path) -> list[Path]:
     skills = root / "skills"
@@ -171,6 +192,23 @@ def evidence_breaches(card: Path) -> list[str]:
             f"{OCCASIONS_ROW} cites {', '.join(uncorroborated)}, which no other "
             "file in the card records. Record the occurrence where it happened, "
             "then count it"
+        )
+
+    # The reverse direction: the card checked against the row. Scope rule and
+    # its measurement are at OCCURRENCE_MARK's definition.
+    uncited: list[str] = []
+    cited = set(dates)
+    for line in haystack.splitlines():
+        if OCCURRENCE_MARK.search(line):
+            uncited.extend(
+                d for d in DATE_RE.findall(line)
+                if d not in cited and d not in uncited
+            )
+    if uncited:
+        breaches.append(
+            f"the card records dated occurrence(s) {', '.join(uncited)} that "
+            f"{OCCASIONS_ROW} does not cite. Count the occurrence, or reword "
+            "the record if it is not one"
         )
 
     labelled = THIN_LABEL in evidence.read_text(encoding="utf-8", errors="replace")

@@ -194,6 +194,83 @@ def case_dates_must_be_corroborated_by_the_record(root: Path) -> None:
     )
 
 
+def case_uncited_occurrence_record_is_rejected(root: Path) -> None:
+    """The reverse direction: the card is checked against the row.
+
+    Three dated occurrence records, a row citing two. Every forward check
+    passes -- the row's integer matches its own citations and both are
+    corroborated -- which is exactly the undercount #105 names. The reverse
+    direction must refuse it, naming the uncited date.
+    """
+    evidence = CONFORMING_EVIDENCE.replace(
+        "| 1 - 2026-03-04 the one incident. RECURRENCE-THIN.",
+        "| 2 - 2026-03-04 the one incident; 2026-04-05 the second occurrence.",
+    )
+    gotchas = (
+        "# gotchas\n\n"
+        "[OBSERVED 2026-03-04] the one incident, first occurrence.\n"
+        "[OBSERVED 2026-04-05] the second occurrence.\n"
+        "[OBSERVED 2026-06-07] a third occurrence the row never counted.\n"
+    )
+    write_card(root, "undercount-card", evidence, gotchas)
+    result = run_checker(root)
+    check(
+        "a dated occurrence record the row does not cite is rejected",
+        result.returncode != 0 and "2026-06-07" in result.stderr,
+        result.stderr.strip(),
+    )
+    check(
+        "the cited occurrence dates are not reported",
+        "2026-03-04" not in result.stderr and "2026-04-05" not in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_unmarked_prose_dates_are_not_demanded(root: Path) -> None:
+    """The false-positive decision, pinned by its own fixture.
+
+    A card records dates that are not occurrences -- a verification date, a
+    methodology pin, a citation. Demanding those be counted would turn every
+    published card red (measured 2026-08-24: the full-haystack scan flags all
+    nine, on screen dates, methodology pins and validation-genre entries). The
+    scope rule is HOW an occurrence is recorded, not a list of dates to
+    ignore: only a line carrying both a date and the word 'occurrence' is an
+    occurrence record.
+    """
+    gotchas = CONFORMING_GOTCHAS + (
+        "Verified 2026-07-07 against the upstream docs.\n"
+        "[OBSERVED 2026-08-08] a validation exercise, not the failure firing.\n"
+        "Methodology pinned 2026-05-05 in the sibling instrument.\n"
+    )
+    write_card(root, "prose-dates-card", CONFORMING_EVIDENCE, gotchas)
+    result = run_checker(root)
+    check(
+        "dated prose that is not an occurrence record is not demanded as a count",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
+def case_sibling_row_corroboration_still_passes(root: Path) -> None:
+    """The regression protecting two live cards, built before the new check.
+
+    A row may cite a date recorded only in a SIBLING ROW of the card's own
+    evidence record -- corroborating_text() documents the two published cards
+    resting on exactly that. The reverse direction must not narrow it.
+    """
+    evidence = CONFORMING_EVIDENCE.replace(
+        "| 1 - 2026-03-04 the one incident. RECURRENCE-THIN.",
+        "| 2 - 2026-03-04 the one incident; 2026-04-05 the field occurrence.",
+    ) + "| **Observed in use** | 2026-04-05 field observation of the occurrence. |\n"
+    write_card(root, "sibling-row-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a date recorded only in a sibling evidence row still passes",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
 def case_thin_label_is_required_under_two_occasions(root: Path) -> None:
     evidence = CONFORMING_EVIDENCE.replace(" RECURRENCE-THIN.", "")
     write_card(root, "unlabelled-card", evidence, CONFORMING_GOTCHAS)
@@ -351,6 +428,9 @@ def main() -> None:
         case_count_must_match_the_dated_references,
         case_a_count_that_is_not_a_number_is_rejected,
         case_dates_must_be_corroborated_by_the_record,
+        case_uncited_occurrence_record_is_rejected,
+        case_unmarked_prose_dates_are_not_demanded,
+        case_sibling_row_corroboration_still_passes,
         case_thin_label_is_required_under_two_occasions,
         case_thin_label_is_refused_at_two_occasions,
         case_zero_cards_is_red,
