@@ -83,9 +83,12 @@ updates every installed copy and local↔repo drift is structurally impossible:
 2a. **Normalize the frontmatter, because `_quarantine/` and `skills/` do not use the same
    keys.** Rewrite the `description` to the published bar in the same pass: ≤ 200 characters,
    written as a router. Measured 2026-08-24, every one of the 22 candidates was over it, from 285
-   to 1272 characters, while every published card sat between 123 and 200. **The 200 bar is
-   enforced by nothing but this step** — the spec gate only checks the specification's own 1024
-   limit, which every one of those candidates was inside. The edit *is* the enforcement. Published cards carry `name` + `description`, plus `disable-model-invocation` where
+   to 1272 characters, while every published card sat between 123 and 200. ⚠ **The 200 bar is
+   now CHECKED — `validate_card_files.py` refuses a published card over it**, so a promotion that
+   skips this step reds the build instead of shipping. It stopped being enforced by the edit on
+   2026-08-24, after three of six promoted cards shipped over the bar at 210, 226 and 235 in a
+   pass that did not run the authoring skill. The spec gate is not this check: it enforces the
+   specification's own 1024 limit, which all three breaches were comfortably inside. Published cards carry `name` + `description`, plus `disable-model-invocation` where
    the topology rule above calls for it — nothing else. Candidates carry four different
    dialects: measured 2026-08-23, 12 of 22 held `author` / `version` / `date`, 6 held a
    `metadata: type:` block over an undeclared vocabulary (`pattern`, `trap`, `workaround`,
@@ -374,14 +377,15 @@ mechanism working. An evolving ecosystem, not a chop list.
    validator (`validate_spec_conformance.py`) — plus the link check and the residue gate.
 
    **Not one of them reads a card's `description` AS A ROUTER**, which is the only thing that
-   decides whether a model-invocable card is ever reached. Two of them touch the field and
-   neither answers that question. `validate_eval_corpora.py` parses frontmatter, but only the
+   decides whether a model-invocable card is ever reached. Three of them touch the field and
+   none answers that question. `validate_card_files.py` measures its LENGTH against the published
+   200 bar. `validate_eval_corpora.py` parses frontmatter, but only the
    `name` key, and only to refuse a corpus whose `skill_name` has drifted from the card it
    claims. `validate_spec_conformance.py` reads the description's SHAPE — that it is valid YAML
-   and inside the specification's 1024-character limit — and shape is not reachability: a
-   perfectly-formed description naming none of the words a user types passes it cleanly. The
-   published 200-character bar is still enforced by nothing but the editor. Check that before
-   concluding the gates
+   and inside the specification's 1024-character limit — and neither length nor shape is
+   reachability: a well-formed 200-character description naming none of the words a user types
+   passes every gate cleanly. **Length is checked now; WORDING is not, and wording is what
+   decides retrieval.** Check that before concluding the gates
    have grown to cover retrieval: they have not, and the count rising from four to eight is
    exactly the kind of change that makes a reader assume they have. A card's `description` is
    the only thing that decides

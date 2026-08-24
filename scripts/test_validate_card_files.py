@@ -58,10 +58,27 @@ CONFORMING_EVIDENCE = (
 CONFORMING_GOTCHAS = "# gotchas\n\n[OBSERVED 2026-03-04] the one incident.\n"
 
 
-def write_card(root: Path, name: str, evidence: str, gotchas: str) -> Path:
+# A fixture SKILL.md carries real frontmatter, because a published card does.
+# The bodyless `# name` stub these fixtures used stated no description at all,
+# which made every one of them a card the description bar would refuse -- the
+# fixtures were not modelling the artifact they grade.
+CONFORMING_DESCRIPTION = "A fixture card. Use when testing the card contract."
+
+
+def skill_md(name: str, description: str = CONFORMING_DESCRIPTION) -> str:
+    return f"---\nname: {name}\ndescription: {description}\n---\n\n# {name}\n"
+
+
+def write_card(
+    root: Path,
+    name: str,
+    evidence: str,
+    gotchas: str,
+    description: str = CONFORMING_DESCRIPTION,
+) -> Path:
     card = root / "skills" / "engineering" / name
     card.mkdir(parents=True)
-    (card / "SKILL.md").write_text(f"# {name}\n", encoding="utf-8")
+    (card / "SKILL.md").write_text(skill_md(name, description), encoding="utf-8")
     (card / "gotchas.md").write_text(gotchas, encoding="utf-8")
     (card / "EVIDENCE.md").write_text(evidence, encoding="utf-8")
     return card
@@ -612,6 +629,71 @@ def case_linkcheck_lane_runs_checker() -> None:
     )
 
 
+def case_description_over_the_bar_is_rejected(root: Path) -> None:
+    """The bar that shipped broken. On 2026-08-24 three of six promoted cards
+    went out over 200 characters -- 210, 226 and 235 -- because AGENTS.md step
+    2a was the only thing enforcing it and the promotion pass did not run it.
+    Verified against the real tree at that commit: this check names all three.
+    """
+    over = "x" * 201
+    write_card(root, "long-description-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, over)
+    result = run_checker(root)
+    check(
+        "a description over 200 characters is rejected",
+        result.returncode != 0,
+        result.stderr.strip(),
+    )
+    check(
+        "the report states the measured length, not just that it is too long",
+        "201 characters" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_description_at_the_bar_passes(root: Path) -> None:
+    """A check that cannot go green either way is as useless as one that
+    cannot go red. 200 is the bar, not one below it."""
+    exactly = "y" * 200
+    write_card(root, "at-the-bar-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, exactly)
+    result = run_checker(root)
+    check(
+        "a description of exactly 200 characters passes",
+        result.returncode == 0,
+        result.stderr.strip(),
+    )
+
+
+def case_quotes_do_not_count_against_the_budget(root: Path) -> None:
+    """Two published cards need quoting because their descriptions contain a
+    colon, which unquoted YAML reads as a mapping. Quoting is a syntax
+    requirement, so it must not cost a card two characters of its budget."""
+    exactly = "z" * 198 + ": "
+    card = write_card(root, "quoted-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (card / "SKILL.md").write_text(
+        '---\nname: quoted-card\ndescription: "' + exactly + '"\n---\n\n# quoted-card\n',
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "surrounding quotes are not counted against the 200 bar",
+        result.returncode == 0,
+        result.stderr.strip(),
+    )
+
+
+def case_missing_description_is_rejected(root: Path) -> None:
+    """A card with no description is unreachable by retrieval, which is the
+    only way a model-invocable card fires at all."""
+    card = write_card(root, "no-description-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (card / "SKILL.md").write_text("# no-description-card\n", encoding="utf-8")
+    result = run_checker(root)
+    check(
+        "a SKILL.md stating no description is rejected",
+        result.returncode != 0 and "states no frontmatter description" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
 def main() -> None:
     case_committed_poison_is_red()
     case_committed_missing_row_fixture_is_red()
@@ -631,6 +713,10 @@ def main() -> None:
         case_sibling_row_corroboration_still_passes,
         case_thin_label_is_required_under_two_occasions,
         case_thin_label_is_refused_at_two_occasions,
+        case_description_over_the_bar_is_rejected,
+        case_description_at_the_bar_passes,
+        case_quotes_do_not_count_against_the_budget,
+        case_missing_description_is_rejected,
         case_zero_cards_is_red,
         case_unpublished_buckets_owe_nothing,
     ]

@@ -1,6 +1,6 @@
 ---
 name: pretooluse-bash-guard-prose-false-positive
-description: A PreToolUse Bash guard reads the whole command string, so it blocks commit messages, heredocs and docs that only mention what it forbids. Use when a hook blocks its own install, or when writing a Bash matcher.
+description: A PreToolUse Bash guard reads the whole command string, so it blocks prose that only mentions what it forbids. Use when a hook blocks its own install, or when writing a Bash matcher.
 ---
 
 # PreToolUse Bash Guards Match Prose, Not Just Commands
