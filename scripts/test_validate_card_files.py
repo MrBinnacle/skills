@@ -226,6 +226,44 @@ def case_uncited_occurrence_record_is_rejected(root: Path) -> None:
     )
 
 
+def case_plural_occurrence_record_is_rejected(root: Path) -> None:
+    """A record worded in the plural must not evade the reverse direction.
+
+    Cross-review reproduced the evasion: 'two further occurrences' with a
+    singular-only pattern passed green. The plural is the natural phrasing
+    when several occurrences land in one line, so it is in the rule.
+    """
+    gotchas = CONFORMING_GOTCHAS + (
+        "[OBSERVED 2026-06-07] two further occurrences the row never counted.\n"
+    )
+    write_card(root, "plural-undercount-card", CONFORMING_EVIDENCE, gotchas)
+    result = run_checker(root)
+    check(
+        "a plural-worded occurrence record the row does not cite is rejected",
+        result.returncode != 0 and "2026-06-07" in result.stderr,
+        result.stdout + result.stderr,
+    )
+
+
+def case_hyphenated_compound_is_not_an_occurrence_record(root: Path) -> None:
+    """'co-occurrences' is correlational texture, not an occurrence record.
+
+    A live card uses the term in a row that explicitly disclaims being
+    occurrence evidence; matching inside the compound would red-flag it.
+    """
+    gotchas = CONFORMING_GOTCHAS + (
+        "Strongest observed co-occurrences: 2026-07-12 three artifacts "
+        "written within minutes of the invocation.\n"
+    )
+    write_card(root, "compound-texture-card", CONFORMING_EVIDENCE, gotchas)
+    result = run_checker(root)
+    check(
+        "a hyphenated co-occurrences line is not demanded as a count",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
 def case_unmarked_prose_dates_are_not_demanded(root: Path) -> None:
     """The false-positive decision, pinned by its own fixture.
 
@@ -429,6 +467,8 @@ def main() -> None:
         case_a_count_that_is_not_a_number_is_rejected,
         case_dates_must_be_corroborated_by_the_record,
         case_uncited_occurrence_record_is_rejected,
+        case_plural_occurrence_record_is_rejected,
+        case_hyphenated_compound_is_not_an_occurrence_record,
         case_unmarked_prose_dates_are_not_demanded,
         case_sibling_row_corroboration_still_passes,
         case_thin_label_is_required_under_two_occasions,

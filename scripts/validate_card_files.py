@@ -97,7 +97,16 @@ DATE_RE: Final[re.Pattern[str]] = re.compile(r"\b20\d{2}-\d{2}-\d{2}\b")
 # red-flagging a healthy card. AGENTS.md step 1 stays the human half: record
 # the occurrence where it happened; this is the check that the row then
 # counts it.
-OCCURRENCE_MARK: Final[re.Pattern[str]] = re.compile(r"\boccurrence\b", re.IGNORECASE)
+#
+# The plural matches too -- cross-review reproduced a record worded "two
+# further occurrences" evading a singular-only pattern, and the plural is the
+# natural phrasing when several land in one line. The lookbehind refuses
+# hyphenated compounds: "co-occurrences" is a correlational-texture term one
+# live card uses in a row that explicitly disclaims being occurrence
+# evidence, and matching inside it would red-flag that healthy card.
+OCCURRENCE_MARK: Final[re.Pattern[str]] = re.compile(
+    r"(?<![\w-])occurrences?\b", re.IGNORECASE
+)
 
 
 def find_cards(root: Path) -> list[Path]:
