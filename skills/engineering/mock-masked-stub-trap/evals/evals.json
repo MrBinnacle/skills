@@ -1,0 +1,36 @@
+{
+  "skill_name": "mock-masked-stub-trap",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "The implementation agent returned the double-spend guard. It says 633 tests pass, mypy is clean and ruff is clean. Can I merge it?",
+      "expected_output": "Withholds the merge pending an unpatched-ness read. States that green is evidence the test passed, never evidence the production path ran, and prescribes listing every patched symbol in the test file and reading the production body of each.",
+      "assertions": [
+        "Declines to treat a self-reported all-green suite as evidence that the guarded branch executes in production.",
+        "Prescribes grepping the test file for patch( and patch.object and listing every patched symbol.",
+        "Requires reading the production body of each patched helper, and names the stub shapes that make the green hollow: return None, pass, NotImplementedError, a hardcoded constant."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Here is the test. It patches the network client and the clock, and it patches _find_incomplete_run to return 'run-123'. Production _find_incomplete_run is `return None` for now. The guard branch is covered.",
+      "expected_output": "Separates the legitimate patches from the disqualifying one. The network client and clock are boundaries and patching them is correct; _find_incomplete_run is the helper whose correctness is the claim, and patching it means the guard is unverified and dead in production.",
+      "assertions": [
+        "States that patching the true boundary — network client, clock, RNG, subprocess — is correct and is not the defect.",
+        "Identifies _find_incomplete_run as the unit under test rather than a boundary, so patching it leaves the claim unproven.",
+        "Requires at least one test that seeds real state and calls the production function unpatched, asserting the specific derived value rather than truthiness."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Coverage is at 94% and the stubbed line shows as covered, so the branch is exercised. Also I ran `ruff check src/` and it was clean.",
+      "expected_output": "Rejects both signals. Line coverage counts the patched test touching the import, so the trap survives a coverage gate; and the lint run used a narrower scope than the project gate, which is src/ and tests/.",
+      "assertions": [
+        "States that line coverage is not behavior coverage and that this trap survives a coverage threshold.",
+        "Flags the gate-scope mismatch and requires re-running the project's own gate scope rather than the reported command.",
+        "Re-runs the gates independently rather than accepting the implementer's report of them."
+      ]
+    }
+  ]
+}

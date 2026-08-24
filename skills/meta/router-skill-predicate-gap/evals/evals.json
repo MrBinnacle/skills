@@ -1,0 +1,36 @@
+{
+  "skill_name": "router-skill-predicate-gap",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "Our rules file says the framing skill is MANDATORY before any plan or handoff, and it is wired into a UserPromptSubmit router hook. So that discipline is hook-enforced rather than model-pull. Fair to write that in the architecture doc?",
+      "expected_output": "Withholds the claim until the predicate is probed. States that a healthy hook with an incomplete pattern list leaves the discipline in the skill layer while the documentation says otherwise, and prescribes piping a real prompt into the live hook before writing the sentence.",
+      "assertions": [
+        "States that wiring present and hook healthy do not establish that the predicate matches what people actually type.",
+        "Names the specific danger: an incomplete predicate is worse than no hook, because it retires the vigilance that would otherwise compensate.",
+        "Requires probing the live hook with a real prompt from the session in question before the enforcement claim is made."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I piped six prompts into the router and got empty output for every one of them, including two I know are covered. The router is completely broken.",
+      "expected_output": "Refuses the diagnosis. Empty output is also what a crashed interpreter prints, and the two known-good fixtures going silent points at the harness rather than the predicate. Prescribes fixing the probe first — check the filename and interpreter — and re-running with a positive control.",
+      "assertions": [
+        "Reads the silent known-good fixtures as evidence the harness is broken, not the predicate.",
+        "States that empty output cannot distinguish a non-matching predicate from a probe that never ran.",
+        "Requires a positive control in the same run before any negative finding is recorded."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The router self-test is green, and the suite even refuses any rule that carries no asserting fixture. Every rule has fixtures. So no pattern in the file can be dead.",
+      "expected_output": "Rejects the inference. A per-rule coverage check is satisfied by fixtures that all land on the narrower patterns, so the broadest pattern can be unreachable while the rule passes. Prescribes counting coverage per pattern, giving every deliberately-broad pattern a fixture only it can satisfy, and separately asserting that no pattern holds a control character.",
+      "assertions": [
+        "States that per-rule fixture coverage is compatible with any number of dead patterns.",
+        "Prescribes per-pattern coverage, with a fixture only the broad pattern can satisfy, so the broad pattern is falsifiable.",
+        "Names the JSON escape trap: a word boundary written as a single backslash-b is the backspace character, which compiles cleanly and matches nothing, so it needs a control-character assertion that re.compile cannot perform."
+      ]
+    }
+  ]
+}

@@ -1,21 +1,6 @@
 ---
 name: click-clirunner-env-none-deletes
-description: |
-  Click's CliRunner.invoke `env=` parameter ONLY overrides keys present
-  in the dict — absent keys are not deleted from os.environ during the
-  invocation. To actually delete a key for the duration of the test, pass
-  `{key: None}` (Click translates None to `del os.environ[key]`). Use
-  when: (1) a CLI test asserts behavior that depends on an env var being
-  ABSENT and the test silently passes locally even when the real env has
-  the var set, (2) testing a pre-flight check, key-resolution path, or
-  any code that branches on `os.environ.get(key)`, (3) you wrote
-  `clean_env = {k: v for k, v in os.environ.items() if k != "X"}` and
-  passed it as `env=` — that does NOT delete X. Behaviour re-verified
-  against current stable Click, 2026-08-23.
-metadata:
-  type: trap
-version: 1.1.0
-date: 2026-08-23
+description: Click's CliRunner.invoke `env=` only overrides keys the dict names; an absent key is not deleted. Pass `{key: None}` to delete one. Use when a CLI test asserts on an env var being absent.
 ---
 
 # Click CliRunner: `env=None` deletes; absence does NOT
@@ -34,14 +19,15 @@ Click's `CliRunner.invoke(env=...)` is an OVERRIDE dict, not a REPLACEMENT envir
 - `env[key] = None` → calls `del os.environ[key]` for the duration of the invocation, restoring afterward
 - key absent from `env` → `os.environ[key]` is left UNTOUCHED
 
-Originally verified against `click/testing.py:534` on Click 8.1.x. **Re-checked 2026-08-23
-against current stable**, which is the durable evidence: the published signature types the
-parameter as `env: Mapping[str, str | None] | None` on both `CliRunner.invoke` and
-`CliRunner.isolation`. A value type of `str | None` is the API stating that `None` is a
-meaningful value rather than an omission — that is the delete. The docs describe `env` as
-"overrides" and "the environment overrides as dictionary", which is the absent-keys-untouched
-half. The line number is not re-pinned: Click has moved from 8.1 to 8.5 and `8.1.x` no longer
-exists as a branch, so cite the signature rather than a file offset.
+Originally verified against `click/testing.py:534` on Click 8.1.x. **Re-checked 2026-08-23,
+and again 2026-08-24 against the current published source**, which is the durable evidence:
+the signature types the parameter as `env: Mapping[str, str | None] | None` on `CliRunner`,
+`CliRunner.invoke` and `CliRunner.isolation`. A value type of `str | None` is the API stating
+that `None` is a meaningful value rather than an omission — that is the delete. The docs
+describe `env` as "overrides" and "the environment overrides as dictionary", which is the
+absent-keys-untouched half. The line number is not re-pinned: `8.1.x` no longer exists as a
+branch, so cite the signature rather than a file offset. The version number is not pinned
+either — the signature is what carries the claim, and it has survived every check so far.
 
 ## Trigger conditions
 
@@ -115,7 +101,7 @@ result = runner.invoke(run_ablation, [...], env=clean_env)
 assert "ANTHROPIC_API_KEY is not set" in result.output
 ```
 
-On a dev machine where `OPENROUTER_API_KEY` was set (the actual project author's machine), a new model-aware resolver in the SUT rewrote the model id and proceeded to a live 12-minute Anthropic API call. The test passed because the old assertion was still in `result.output` from a DIFFERENT code path. The real branch under test was never being exercised.
+On a development machine where `OPENROUTER_API_KEY` was set, a new model-aware resolver in the SUT rewrote the model id and proceeded to a live 12-minute Anthropic API call. The test passed because the old assertion was still in `result.output` from a DIFFERENT code path. The real branch under test was never being exercised.
 
 Fix:
 

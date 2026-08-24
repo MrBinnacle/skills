@@ -1,0 +1,36 @@
+{
+  "skill_name": "pretooluse-bash-guard-prose-false-positive",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "I wrote a PreToolUse hook on the Bash matcher that blocks `gh issue create`. It works, but it just blocked the commit that installs it. The commit message explains what the hook forbids. Is the hook wrong or is the commit wrong?",
+      "expected_output": "Names the hook as wrong. The PreToolUse payload is one flat command string that contains the commit message, so an unanchored regex matches prose. Prescribes anchoring detection to a command position and stripping heredoc bodies before the predicate runs.",
+      "assertions": [
+        "States that the hook receives the entire command string, commit message included, so a substring match cannot tell running a command from describing one.",
+        "Prescribes command-position anchoring: start of string, or after a shell separator, optionally preceded by variable assignments.",
+        "Prescribes separating the heredoc body from the shell, and inspecting each for a different question."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The guard keeps firing on prose so I am adding an ACK=1 environment variable that suppresses it. Set that and I can commit the documentation.",
+      "expected_output": "Declines the bypass and fixes the predicate instead. States that a suppression flag gets used reflexively until the guard stops meaning anything, and that the false positive is a predicate defect with a known fix.",
+      "assertions": [
+        "Refuses the escape hatch and gives the reason: reflexive use empties the guard of meaning.",
+        "Redirects to prose-tolerant detection — command-position anchoring and heredoc stripping — as the actual repair.",
+        "Offers the interim mitigation that costs nothing: write the prose to a file and pass it by path, so no guard reads it."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Here are my guard's tests: a real offending command blocks, and a second offending variant blocks. Both green. Ready to install?",
+      "expected_output": "Withholds the approval. The suite tests only true positives, so it cannot detect over-blocking. Requires the negative direction — prose mentioning the command, prose quoting the banned phrase, a compliant real command, an unrelated command, a read-only subcommand, and malformed stdin — all passing with exit 0.",
+      "assertions": [
+        "States that a guard tested only on true positives will over-block, and that over-blocking gets the guard deleted.",
+        "Requires explicit passing cases for prose that mentions the command and prose that quotes the banned phrase.",
+        "Requires malformed stdin to pass rather than block, because a guard must fail open and never be the reason work stops."
+      ]
+    }
+  ]
+}

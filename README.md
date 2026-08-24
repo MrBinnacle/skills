@@ -35,8 +35,8 @@ These cards use four forms:
 
 | Type | What it is | Cards |
 |---|---|---|
-| Trap | A warning and recovery path for a command or platform behavior that can report success after doing the wrong work. | `git-pull-rebase-trap`, `github-pages-deploy-verification` |
-| Procedure | An ordered set of actions for a boundary, handoff, or verification task. | `im-down`, `im-up`, `closure-mode-at-boundaries`, `subagent-research-reliability`, `downstream-instruction-framing` |
+| Trap | A warning and recovery path for a command or platform behavior that can report success after doing the wrong work. | `git-pull-rebase-trap`, `github-pages-deploy-verification`, `click-clirunner-env-none-deletes`, `mock-masked-stub-trap`, `pretooluse-bash-guard-prose-false-positive`, `success-test-accepts-any-output` |
+| Procedure | An ordered set of actions for a boundary, handoff, or verification task. | `im-down`, `im-up`, `closure-mode-at-boundaries`, `subagent-research-reliability`, `downstream-instruction-framing`, `router-skill-predicate-gap`, `halt-as-deliverable` |
 | Gate | A decision sequence that accepts, routes, or rejects a candidate. | `skill-necessity-gate` |
 | Schema | A fixed output shape for comparable parallel reviews. | `parallel-review-disposition-schema` |
 
@@ -49,39 +49,43 @@ integer that opens the card's `Occasions counted` row.
 
 | Card | Evidence posture | Occasions counted |
 |---|---|---:|
+| [`click-clirunner-env-none-deletes`](skills/engineering/click-clirunner-env-none-deletes/EVIDENCE.md) | origin-trace | 1 |
 | [`closure-mode-at-boundaries`](skills/engineering/closure-mode-at-boundaries/EVIDENCE.md) | origin-trace | 1 |
 | [`git-pull-rebase-trap`](skills/engineering/git-pull-rebase-trap/EVIDENCE.md) | measured | 1 |
 | [`github-pages-deploy-verification`](skills/engineering/github-pages-deploy-verification/EVIDENCE.md) | origin-trace | 1 |
+| [`halt-as-deliverable`](skills/engineering/halt-as-deliverable/EVIDENCE.md) | origin-trace | 3 |
 | [`im-down`](skills/engineering/im-down/EVIDENCE.md) | unmeasured | 2 |
 | [`im-up`](skills/engineering/im-up/EVIDENCE.md) | unmeasured | 1 |
+| [`mock-masked-stub-trap`](skills/engineering/mock-masked-stub-trap/EVIDENCE.md) | origin-trace | 1 |
+| [`pretooluse-bash-guard-prose-false-positive`](skills/engineering/pretooluse-bash-guard-prose-false-positive/EVIDENCE.md) | origin-trace | 4 |
+| [`success-test-accepts-any-output`](skills/engineering/success-test-accepts-any-output/EVIDENCE.md) | origin-trace | 2 |
 | [`downstream-instruction-framing`](skills/orchestration/downstream-instruction-framing/EVIDENCE.md) | origin-trace | 1 |
 | [`parallel-review-disposition-schema`](skills/orchestration/parallel-review-disposition-schema/EVIDENCE.md) | origin-trace | 2 |
 | [`subagent-research-reliability`](skills/orchestration/subagent-research-reliability/EVIDENCE.md) | origin-trace | 4 |
+| [`router-skill-predicate-gap`](skills/meta/router-skill-predicate-gap/EVIDENCE.md) | origin-trace | 2 |
 | [`skill-necessity-gate`](skills/meta/skill-necessity-gate/EVIDENCE.md) | unmeasured | 0 |
 
 ## Where these came from
 
-Nine skills are here because I had a reason to make them.
+Every card here is here because I had a reason to make it.
 
-Six originated in something that went wrong, or nearly did. I recorded the failure pattern and developed a reusable intervention.
+Most originated in something that went wrong, or nearly did. I recorded the failure pattern and developed a reusable intervention. Their records say `OBSERVED`, with dates.
 
-Two were designed for recurring work that I wanted to handle differently. Their records say `DESIGNED`, with dates.
+Some were designed for recurring work that I wanted to handle differently. Their records say `DESIGNED`.
 
-The ninth, `skill-necessity-gate`, was distilled from research on when a skill should exist. Its record says `DISTILLED`.
+One, `skill-necessity-gate`, was distilled from research on when a skill should exist. Its record says `DISTILLED`.
 
 These are **provenance categories, not quality scores**.
-
-The current collection is 6 OBSERVED, 2 DESIGNED, 1 DISTILLED.
 
 * **OBSERVED** — originated in an observed failure or near-failure.
 * **DESIGNED** — created intentionally for a recurring need.
 * **DISTILLED** — derived from research rather than an incident.
 
-The counts are derived from the individual skill records by `scripts/validate_scoreboard.py`.
+Each card states its own tier in its `EVIDENCE.md`, and that record is the only place the tier is asserted. This page states no tally of them, deliberately: a number here would have to be re-checked every time a card enters or leaves, and that is a maintenance tax with no reader on the other end. `scripts/validate_scoreboard.py` still derives the tiers from the records and checks any tally the page does state, so a figure here can be wrong but cannot be wrong quietly.
 
 ## What they address
 
-The nine skills currently fall into four areas.
+The cards currently fall into four areas.
 
 ### Success that looks successful
 
@@ -128,8 +132,6 @@ The repository separates **where a skill came from** from **what evidence exists
 | `DESIGNED`  | Created intentionally for a recurring need.        |
 | `DISTILLED` | Derived from research.                             |
 
-Counted from the records: 6 OBSERVED, 2 DESIGNED, 1 DISTILLED.
-
 ### Evidence
 
 | State             | Meaning                                              |
@@ -151,7 +153,7 @@ One skill has been screened:
 * screen result: `CANT_TELL_YET`
 * paired verdict: not yet established
 
-The other eight skills are `UNMEASURED` in the controlled fields.
+Every other card is `UNMEASURED` in the controlled fields.
 
 `scripts/validate_scoreboard.py` checks that the summary agrees with the individual records.
 
@@ -173,7 +175,7 @@ When a major model or platform change warrants it, a skill can be re-screened wi
 
 Some skills also have a pre-registered retirement trigger. The trigger names a specific change that would remove the underlying failure mode. When that change occurs, the skill can retire against its own criterion.
 
-One skill has retired this way so far.
+A skill has already retired this way.
 
 Retirement does not erase the record. [`RETIRED.md`](RETIRED.md) preserves the admissions and departures.
 
@@ -181,7 +183,7 @@ Retirement does not erase the record. [`RETIRED.md`](RETIRED.md) preserves the a
 
 ### Not a catalog
 
-There are nine skills here, not nine hundred.
+This is a short list, and it is meant to stay one.
 
 The repository is not intended to maximize coverage. If you want breadth, [Matt Pocock's skills collection](https://github.com/mattpocock/skills) is a better place to browse.
 
@@ -189,7 +191,7 @@ The repository is not intended to maximize coverage. If you want breadth, [Matt 
 
 Publication is not validation.
 
-One skill has a controlled screen and its result is `CANT_TELL_YET`. The other eight have no controlled result.
+One card has a controlled screen and its result is `CANT_TELL_YET`. The rest have no controlled result.
 
 The records distinguish what is known from what has not been measured.
 

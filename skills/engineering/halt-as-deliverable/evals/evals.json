@@ -1,0 +1,36 @@
+{
+  "skill_name": "halt-as-deliverable",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "The pre-flight check refused my benchmark run. The scorer registry grew between the baseline I dogfooded and the tag my case study cites, so the number in the case study is not reproducible at that tag. I will re-baseline at HEAD, correct the figure quietly and re-run. Sound?",
+      "expected_output": "Resists the fix-and-re-run reflex and proposes publishing the halt. The gate caught the author's own drift before any contaminated result shipped, which is a stronger claim about the discipline than the corrected number would have been. Requires committing the audit trail to public history before deciding the path.",
+      "assertions": [
+        "Names the fix-and-re-run reflex explicitly and states why it discards the most valuable artifact the work produced.",
+        "Requires the audit trail — the pre-registration and the halt — committed to public history BEFORE the reframe is decided, because backdating destroys the integrity the reframe rests on.",
+        "States the ordering reason: a catch published after the decision to publish it reads as motivated, and a catch committed before it cannot."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The run died because the API rate-limited us halfway through. Per the halt-as-deliverable pattern, should I write this up as a discipline-catching-itself story?",
+      "expected_output": "Declines. A rate limit is transient infrastructure, not a structural inconsistency an audience would care about, and the catching is generic rather than uncopyable. Routes this to fix-and-re-run and names the criteria that decide between the two paths.",
+      "assertions": [
+        "Distinguishes transient infrastructure noise from a structural inconsistency, and puts a rate limit in the first category.",
+        "States that the pattern applies when the discipline's credibility is itself a load-bearing claim, not whenever a run fails.",
+        "Warns that applying the reframe to a generic failure reads as spin and costs more credibility than it gains."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The handoff document says workstream one is pending and asks me to draft the rewrite. Checking git, the rewrite already landed in a commit two days ago. I will just proceed as instructed and produce the draft.",
+      "expected_output": "Halts and surfaces the contradiction instead. States that the document is stale relative to the repository, names the commit, and offers the paths that are genuinely available — critique what shipped, propose further revision, update the stale document, or move to another workstream.",
+      "assertions": [
+        "Refuses to proceed on the stale instruction and names the specific evidence that contradicts it.",
+        "States that silently complying would duplicate shipped work and produce a rewrite that is the existing content with variations.",
+        "Surfaces the catch to the requester rather than quietly working around it, and offers the forward paths rather than only the objection."
+      ]
+    }
+  ]
+}

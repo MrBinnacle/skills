@@ -1,6 +1,6 @@
 ---
 name: mock-masked-stub-trap
-description: Use when reviewing a just-returned implementation that reports all-green tests, especially for a load-bearing or safety-critical branch (budget/spend guards, idempotency, auth, refusal paths). Catches the dominant false-pass where a test patches the very helper that is a production stub.
+description: Use when reviewing a just-returned implementation that reports all-green tests on a load-bearing branch - spend guards, idempotency, auth, refusal paths. Catches the false pass where a test patches the helper that is a production stub.
 ---
 
 # Mock-Masked Stub Trap
@@ -71,14 +71,10 @@ code is a stub — not a reason to patch.
 
 Green is evidence the *test passed*, never evidence the *production path ran*. The mock that
 makes the test convenient is the same mock that hides the missing implementation. A
-fresh-context re-review that reads the BLOCKER tests for unpatched-ness — rather than trusting
-the suite — is what catches it. (Verification beats self-reporting: the model saying "633
-passed" is not evidence the guard works.)
+fresh-context re-review that reads the blocking tests for unpatched-ness — rather than trusting
+the suite — is what catches it. Verification beats self-reporting: the model reporting "633
+passed" is not evidence the guard works.
 
-## See also
-
-- `ai-slop-sentinel`, `code-review-sentinel` — broader fresh-context review; this is the
-  specific test-vacuity lens to add when a safety branch reports green.
-- `parallel-review-disposition-schema` / `cross-talk-council-dispatch` — fan out N isolated
-  reviewers on return; assign one the explicit "are the tests unpatched?" lens.
-- `sqlite-tie-break-red-test-trap` — sibling RED-test trap.
+When the return is reviewed by several isolated seats at once, give one seat this lens
+explicitly and none of the others, so the finding is attributable. The dispatch shape for that
+fan-out is [`parallel-review-disposition-schema`](../../orchestration/parallel-review-disposition-schema/SKILL.md).

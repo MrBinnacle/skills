@@ -1,0 +1,19 @@
+# EVIDENCE — mock-masked-stub-trap
+
+Provenance record per the collection's evidence convention (see top-level README →
+"The receipts, explained"). Fields are honest by construction: UNMEASURED means exactly that.
+
+RECURRENCE-THIN: one counted occasion. ADMISSION.md criterion 2 asks for a failure that is
+not a one-off, and this card has not yet shown one. The label comes off when a second
+independent occasion is recorded in gotchas.md and counted in the row below.
+
+| Field | Value |
+|---|---|
+| **Origin** | OBSERVED 2026-06-06, during the build of the measurement harness that sits upstream of this collection. Two consecutive implementation tracks each returned all gates green — pytest passing, lint and types clean — with a load-bearing branch stubbed in production and "tested" only by patching the stub. One stubbed helper was literally `return None`; the double-spend-guard test patched it to a fake run identifier and asserted the downstream render path. The production guard was dead code. Details: SKILL.md → The trap. |
+| **Occasions counted** | 1 — 2026-06-06, two consecutive tracks in one build session (gotchas.md). Counted as one and not two on purpose: ADMISSION.md criterion 2 refuses a count inflated by fan-out from a single run, and two tracks of one session are fan-out. The same day's lint-scope mismatch is a different failure and is recorded in gotchas.md without being counted here. |
+| **Dispatches recorded** | No recorded dispatch, measured 2026-08-24. The figure is a tautology and is stated only so the row is not blank: this card sat in `_quarantine/` until 2026-08-24, so it was never installed and the platform counter had nothing it could have counted. It is not evidence about demand, recurrence or worth. Re-measure after one release cycle in the published tree. |
+| **Validated against** | The origin contrast: an independent fresh-context re-review that read the test file for `patch(` and then read the production body of every patched symbol found the hollow green on both tracks. The project's own gate suite did not — it was passing throughout. The card's check sequence is that re-review written down. |
+| **Screen result** | UNMEASURED. This is one of two candidates in the collection that carries a shape the screen can measure — a frozen fixture and counterfixture, a stubbed helper with a patching test against the same helper driven unpatched — so the refusal here is availability, not applicability. The evidence store was checked 2026-08-23 and answered "No admissible screens in the store", so no verdict can be sourced from it and none is invented. |
+| **Paired verdict** | UNMEASURED (see Screen result — screenable in principle, no admissible run in the store). Methodology reference: [skill-harness v0.2 pre-registration](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md). |
+| **Standing cost** | Description ≈ 45 tokens, paid on every turn while the card is model-invocable. The retrieval moment is model-side — an agent about to accept a green implementation — which is the argument for paying it. Body 4.3 KB, loaded only on retrieval. |
+| **Re-screen trigger** | A test runner that reports which production symbols were patched during a passing run, and fails a suite whose only coverage of a symbol is a patch of that symbol. That platform change makes the trap detectable without the review, and the card retires against this criterion. Short of that, the card is screenable against its own frozen fixture pair whenever an admissible store exists; a screen returning `CUT (no_lift)` on that pair is the falsifier. |

@@ -241,13 +241,19 @@ def check_origin_tiers(root: Path) -> None:
     if not readme.is_file():
         fail(f"missing {readme}")
     found = ORIGIN_TIER_RE.findall(readme.read_text(encoding="utf-8"))
-    if len(found) != ORIGIN_TIER_SITES:
-        fail(
-            f"README.md: expected {ORIGIN_TIER_SITES} origin-tier statements "
-            f"(N OBSERVED, N DESIGNED, N DISTILLED, on one line), found {len(found)}. "
-            f"The page states the tiering in two sections and both are checked; a "
-            f"site that stops matching is a site that stopped being guarded."
-        )
+    # Stating a tally is optional; stating a wrong one is not. An earlier
+    # edition demanded exactly ORIGIN_TIER_SITES statements, which made the
+    # page's arithmetic mandatory: a card entering or leaving turned this
+    # check red until someone re-derived two numbers by hand. Owner ruling
+    # 2026-08-24 retired the page's counts for that reason, which is the same
+    # reason the banner's counts were retired on 2026-08-23 - a surface that
+    # must track repository state is a maintenance tax, and this one had no
+    # reader on the other end. The guarantee that survives is the one worth
+    # keeping: EVERY tally the page does state must agree with the records,
+    # so a figure here can be wrong but cannot be wrong quietly. Zero is a
+    # legal number of tallies; one is legal; ten are legal and all ten are
+    # checked. ORIGIN_TIER_SITES is retained as the count the page carried
+    # when the requirement was dropped, so the history is readable.
     for i, site in enumerate(found, start=1):
         got = tuple(int(n) for n in site)
         if got == expected:

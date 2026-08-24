@@ -509,9 +509,18 @@ def case_unpublished_buckets_owe_nothing(root: Path) -> None:
 def case_live_nine_cards_pass() -> None:
     result = run_checker(REPO_ROOT)
     check("the live tree passes", result.returncode == 0, result.stderr.strip())
+    # The reported count is checked against the tree, never against a number
+    # written here. An earlier edition pinned the literal "9 published
+    # card(s)", which turned this suite red on every admission and every
+    # retirement until someone edited a digit in a test that holds no opinion
+    # about how many cards there should be. Owner ruling 2026-08-24 retired
+    # that class of pin, on the same reasoning that retired the banner's
+    # counts on 2026-08-23. What is worth asserting is that the checker
+    # counted the cards it actually walked.
+    expected = len(validate_card_files.find_cards(REPO_ROOT))
     check(
-        "the live run reports all nine cards",
-        "PASS: 9 published card(s)" in result.stdout,
+        "the live run reports every card it walked",
+        f"PASS: {expected} published card(s)" in result.stdout,
         result.stdout.strip(),
     )
 
@@ -543,21 +552,44 @@ def case_live_thin_labels_match_the_counts() -> None:
         if "RECURRENCE-THIN"
         in (card / "EVIDENCE.md").read_text(encoding="utf-8", errors="replace")
     }
+    # The split is asserted as an INVARIANT over the tree, not as a roster.
+    # The docstring above already says the number is a reading of the dated
+    # records and moves whenever one of them does -- and the earlier edition
+    # then pinned it anyway, at 6 and at a three-name set, so the suite went
+    # red on exactly the events it calls ordinary. What actually has to hold
+    # is AGENTS.md's rule in both directions: under two counted occasions the
+    # card carries the label, at two or more it does not. That is checked
+    # here against each card's own row, and it needs no maintenance when a
+    # card enters, leaves, or earns its way out of the thin tier.
+    counts = {}
+    for card in cards:
+        row = validate_card_files.scoreboard.evidence_fields(
+            card / "EVIDENCE.md", (validate_card_files.OCCASIONS_ROW,)
+        ).get(validate_card_files.OCCASIONS_ROW, "")
+        opening = validate_card_files.COUNT_RE.match(row)
+        counts[card.name] = int(opening.group(1)) if opening else None
+    threshold = validate_card_files.INDEPENDENT_OCCASIONS
+    mislabelled = sorted(
+        n for n in labelled if counts[n] is None or counts[n] >= threshold
+    )
     unlabelled = {c.name for c in cards} - labelled
-    check(
-        "six of the nine cards carry the RECURRENCE-THIN label",
-        len(labelled) == 6,
-        f"{len(labelled)}: {sorted(labelled)}",
+    missing_label = sorted(
+        n for n in unlabelled if counts[n] is None or counts[n] < threshold
     )
     check(
-        "the three cards with counted recurrence carry no thin label",
-        unlabelled
-        == {
-            "im-down",
-            "parallel-review-disposition-schema",
-            "subagent-research-reliability",
-        },
-        str(unlabelled),
+        "every RECURRENCE-THIN card counts fewer occasions than the threshold",
+        not mislabelled,
+        f"stale label on: {mislabelled}",
+    )
+    check(
+        "every card at or above the threshold carries no thin label",
+        not missing_label,
+        f"label owed by: {missing_label}",
+    )
+    check(
+        "the split is non-trivial in both directions",
+        bool(labelled) and bool(unlabelled),
+        f"labelled={len(labelled)} unlabelled={len(unlabelled)}",
     )
 
 
