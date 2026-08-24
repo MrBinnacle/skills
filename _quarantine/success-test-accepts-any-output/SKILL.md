@@ -10,12 +10,16 @@ description: |
   `check(1, '1')` and `check([1], '1')` pass; (4) a CI step or verification
   script goes green while the thing it verifies is broken. Root cause is that
   the success predicate accepts any non-empty / stringifiable output, and
-  failure output is also non-empty and stringifiable. Fix: assert the specific
-  shape success produces (a URL, an ID, a matching type), and verify by
-  RE-READING the external state rather than trusting the command's own output.
+  failure output is also non-empty and stringifiable. The mirror case counts
+  too: (5) a probe reports NOT-FOUND, SILENT, or NO-MATCH across a whole
+  batch, and the tool never ran — a wrong path or a failed import prints the
+  same empty output as a true negative. Fix: assert the specific shape
+  success produces (a URL, an ID, a matching type), verify by RE-READING the
+  external state rather than trusting the command's own output, and carry a
+  known-good positive control in any run whose finding is an absence.
 author: Claude Code
-version: 1.0.0
-date: 2026-08-17
+version: 1.1.0
+date: 2026-08-23
 ---
 
 # A Success Test That Accepts Any Output Is Not a Test
@@ -76,6 +80,15 @@ For `gh` specifically: prefer `--silent` plus an explicit exit-code test, or
 capture stderr separately. `2>/dev/null` hides the diagnostic while leaving the
 error body on stdout, which is the worst combination.
 
+**Claim status, re-checked 2026-08-23 against the published `gh api` manual.**
+`--silent` ("Do not print the response body") is documented, so the recommended
+fix stands on the manual. The **stream** an error body is written to is *not*
+documented either way — the manual describes `gh api` only as printing "the
+response". That claim therefore rests on the dated 2026-08-17 observation in
+this card's Example and nothing else. Treat it as reproduced-once, not
+specified: assert the success shape (rule 1) rather than relying on where the
+error text lands.
+
 ### 2. Compare identity, never stringification
 
 ```ts
@@ -103,6 +116,31 @@ gh api "repos/$R/issues/$N/comments" --jq '.[].html_url' | tail -3
 
 This is the only step that catches a success test you have not yet realised is
 broken, so it is the one to keep when the others feel like overkill.
+
+### 4. A finding of absence needs a positive control in the same run
+
+Rules 1 through 3 defend a claim that something *happened*. The mirror claim —
+**nothing happened** — has the same defect and no external state to re-read.
+`NOT FOUND`, `SILENT`, `no match`, `0 results` and a crashed interpreter all
+print the same thing, so the predicate cannot tell a true negative from a probe
+that never ran.
+
+Put a known-good case in the batch and require it to come back positive:
+
+```sh
+# WRONG — every line is a finding, and a bad path prints the same six lines
+for p in "$SUSPECT_1" "$SUSPECT_2"; do
+  probe "$p" | grep -q "$MARKER" && echo "HIT $p" || echo "MISS $p"
+done
+
+# RIGHT — the control fails loudly, before any MISS is believed
+for p in "$KNOWN_GOOD" "$SUSPECT_1" "$SUSPECT_2"; do ... done
+[ "$known_good_result" = HIT ] || { echo "HARNESS BROKEN, findings void"; exit 1; }
+```
+
+**The tell is a clean sweep.** When every probe in a batch returns the negative
+— including cases you expected to pass — suspect the harness before the
+subject. A real predicate gap is usually partial.
 
 ## Verification
 
@@ -143,7 +181,14 @@ swap was behaviour-preserving rather than merely green.
 - **The instrument is not exempt.** Both instances above sat inside verification
   machinery — a retry loop and a test harness — in a repository whose product
   detects false-green reporting. Verification code is written once, read never,
-  and tested by nobody. Audit it first, not last.
+  and tested by nobody. Audit it first, not last. Confirmed a third time on
+  2026-08-23, in a hygiene pass over this very collection: the throwaway probe
+  harness built *to audit a router* was itself the thing that produced the false
+  finding. See `gotchas.md`.
+- **Rule 4 is the one this card was missing.** The 2026-08-17 instances were both
+  false positives — a check that said yes when the answer was no. A false
+  negative reads as diligence, which is why it survives longer: nobody
+  re-examines a probe that found a problem.
 - `2>/dev/null` on a CLI that writes errors to stdout converts a loud failure
   into a silent one. Check where the tool actually writes errors before
   redirecting.
