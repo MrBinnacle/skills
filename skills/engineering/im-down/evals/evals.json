@@ -1,0 +1,36 @@
+{
+  "skill_name": "im-down",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "Produce the handoff packet now, then I will run the project's close ritual and commit the checkpoint afterwards so the packet is included in the commit.",
+      "expected_output": "Refuses that order. States that the close commits and moves HEAD, that the packet records HEAD, and that a packet produced first rejects itself as stale at the next session. Runs the close ritual and commits it before the snapshot, and keeps the packet directory out of version control.",
+      "assertions": [
+        "Refuses to produce the packet before the close ritual commits.",
+        "Names the mechanism: the close moves HEAD, the packet records HEAD, so the earlier packet is stale.",
+        "States that the packet directory stays out of version control, and that the packet follows the session's final commit."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Our close ritual writes commit messages beginning with RITUAL:. I have set `close_commit` to `{\"contains\": \"^RITUAL:\"}` in the session-boundary config. Does that guard work?",
+      "expected_output": "Answers no. States that `contains` is a literal substring test rather than a regex, so the caret makes it match nothing and refuse every packet forever, and corrects the configured value to the plain marker string.",
+      "assertions": [
+        "Answers that the configured value does not work.",
+        "States that `contains` is a literal substring test, not a regular expression.",
+        "Names the failure shape: a guard that refuses every packet is indistinguishable from a broken workflow."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Mark the claim about the CI matrix as verified. Attach a command probe that runs our test suite so the receiving session can re-check it.",
+      "expected_output": "Attaches the command probe only if the session-boundary config authorises that exact command. Otherwise it declines the probe and records the claim as unverified rather than leaving a verified status the receiver cannot support.",
+      "assertions": [
+        "Checks the configured list of authorised commands before attaching a `command` probe.",
+        "States that an unlisted command probe causes the packet to be rejected.",
+        "Falls back to the `unverified` status rather than keeping `verified` on an unexecuted probe."
+      ]
+    }
+  ]
+}

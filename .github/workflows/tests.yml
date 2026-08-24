@@ -481,3 +481,56 @@ jobs:
           grep -q 'install.sh' "$log" \
             || { echo "::error::planted-format fixture failed for the wrong reason"; cat "$log"; exit 1; }
           echo "control: planted undeclared format rejected by the sweep as expected"
+
+      # Every published card states behavioural claims and records evidence for
+      # them, and nothing said what a run against a card should ASSERT. These
+      # steps are the check behind that missing half: exactly one
+      # evals/evals.json per published card, naming the card it belongs to.
+      #
+      # A corpus is a CONTRACT, not a measurement. It records no run and moves
+      # no verdict; every card's evidence stays UNMEASURED until paired
+      # clean-context runs exist. The checker never reads or writes an
+      # EVIDENCE.md, so it cannot manufacture one.
+      #
+      # Same caveat as every other check here: this DETECTS breaches. `main`
+      # has no required checks, so a nonzero exit is a signal, not a gate.
+      - name: Eval-corpus suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_eval_corpora.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::eval-corpus suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Eval-corpus check
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_eval_corpora.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::eval-corpus checker emitted no PASS line - it did not run"; exit 1; }
+
+      # A check that cannot fail guards nothing. The breach shape is a published
+      # card that ships no corpus, so that is the assertion under test. Built in
+      # RUNNER_TEMP rather than checked in: a committed corpus-less card would
+      # sit inside the guarded set and turn the real run permanently red.
+      - name: Poison control - a published card with no corpus must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-eval-corpus"
+          log="$RUNNER_TEMP/control-eval-corpus.log"
+          rm -rf "$tree"
+          card="$tree/skills/engineering/corpusless-card"
+          mkdir -p "$card"
+          printf -- '---\nname: corpusless-card\n---\n\n# corpusless-card\n' > "$card/SKILL.md"
+          printf '# gotchas\n' > "$card/gotchas.md"
+          if python scripts/validate_eval_corpora.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::the corpus-less card was ACCEPTED - the checker no longer requires a corpus"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'states no evals/evals.json' "$log" \
+            || { echo "::error::corpus-less fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'REJECTED: 1 eval corpus breach(es)' "$log" \
+            || { echo "::error::corpus-less fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: a published card with no corpus rejected as expected"

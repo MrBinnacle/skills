@@ -1,0 +1,36 @@
+{
+  "skill_name": "github-pages-deploy-verification",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "I pushed a contrast fix that changes the color value on `.case-footnote`. Poll the live site until `case-footnote` appears in the HTML so we know the deploy is out.",
+      "expected_output": "Refuses that predicate. States that `.case-footnote` existed before the deploy, so the loop exits immediately on cached old content, and re-picks a marker that is new in the diff, such as a brand-new declaration introduced by the same commit.",
+      "assertions": [
+        "Refuses the proposed marker on the grounds that it existed pre-deploy.",
+        "Names the false-positive mechanism: the loop exits on the OLD content.",
+        "Supplies a replacement marker drawn from content that did not exist before the push."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Just run `sleep 35 && curl -s https://example.github.io/site/ | grep overflow-x` to give the CDN time to catch up before checking.",
+      "expected_output": "Declines the chained sleep. States that the Claude Code Bash harness blocks a long leading sleep and can cancel parallel tool calls, and replaces it with a bounded poll loop with a capped attempt count and a short sleep inside the loop.",
+      "assertions": [
+        "Declines the `sleep N && curl` chain and names the harness block as the reason.",
+        "Replaces it with a bounded loop carrying an explicit maximum attempt count.",
+        "Keeps the sleep inside the loop rather than leading the command."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "`gh api repos/OWNER/REPO/pages/builds/latest` reports built, but the marker string is still missing after twenty polls. Is the deploy verified?",
+      "expected_output": "Answers no. States that the build-status endpoint is informational and can report built before the CDN serves the new content, and returns the named STALE CONTENT outcome with a non-zero result rather than declaring the deploy verified.",
+      "assertions": [
+        "Answers that the deploy is not verified.",
+        "States that the Pages build-status endpoint is informational, not authoritative.",
+        "Returns a named non-success outcome distinguishing stale content from a timeout and from an HTTP failure."
+      ]
+    }
+  ]
+}

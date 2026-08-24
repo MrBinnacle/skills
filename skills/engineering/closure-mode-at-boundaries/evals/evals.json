@@ -1,0 +1,46 @@
+{
+  "skill_name": "closure-mode-at-boundaries",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "The vertical slice locked clean this morning and every gate is PASS. Two candidates are on the board for the next vector: a security migration, and a refactor of the ingest path. Which should we do next?",
+      "expected_output": "Recognises a completion edge with two or more candidate forks, names closure mode as the applicable discipline, dispatches the SME swarm in parallel, then executes the swarm's action list before presenting a revised frame with a single named pick or a named values axis.",
+      "assertions": [
+        "Names closure mode as the discipline that applies at a completion edge with 2+ candidate forks.",
+        "States that the swarm and the transition are both required, and that the transition executes the action list rather than summarising it.",
+        "Ends with a single defensible pick OR a named values axis separating the survivors, not an open menu."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The five closure seats have all reported back. Here are their findings. Write up the options as A, B and C with each seat's caveats so the operator can choose.",
+      "expected_output": "Refuses to hand back a multi-voice menu. Identifies the request as the closure-to-build transition collapse, executes the swarm's verifications, scope corrections and pre-flights first, and only then presents the revised frame.",
+      "assertions": [
+        "Refuses to forward the seat outputs as an A/B/C menu.",
+        "Names the transition collapse (synthesis into menu) as the failure mode being requested.",
+        "States that the verifications and scope corrections are run before any frame is presented."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "We are halfway through implementing the parser. Two tests are still red and the type gate has not run. Kick off the closure swarm on what we should build after this.",
+      "expected_output": "Declines to run closure mode. States that closure mode requires a stable completion edge with all gates passing, and that the correct move is finishing the current scope rather than pressure-testing the next one.",
+      "assertions": [
+        "Declines to dispatch the closure swarm.",
+        "States the precondition that closure mode requires a stable completion edge with all gates passing.",
+        "Recommends finishing the in-flight scope instead."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "The blast-radius audit came back: the migration touches three tables, not one, and needs SQLite's table-rebuild pattern. Honest cost is 8-12 hours, not the 4 we planned. Proceed with the plan?",
+      "expected_output": "Does not rescope and proceed. Surfaces the corrected scope and re-checks whether the candidate would have been picked at all under it, treating the corrected candidate as a fresh candidate-set decision and naming defer as a live outcome.",
+      "assertions": [
+        "Refuses to rescope-and-proceed without re-checking the pick.",
+        "States that a scope delta above roughly 1.5x the original estimate makes the candidate a fresh candidate-set decision.",
+        "Names defer as an available outcome and leaves the arbitration to the operator."
+      ]
+    }
+  ]
+}
