@@ -36,7 +36,7 @@
   no fixture at all.** Any of the other 38 could be inert in the same way, and nothing would
   report it.
 
-  The remedy in Notes is necessary and not sufficient. `SKILL.md` § 1b and § Notes carry the
+  The remedy in Notes is necessary and not sufficient. `SKILL.md` § 2 and § Notes carry the
   three additions this produced; they are stated there once and not repeated here.
 
 - [OBSERVED 2026-08-23] The procedure in `SKILL.md` § "Test the negative first" was unsafe as
