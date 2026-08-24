@@ -52,6 +52,7 @@ CONFORMING_EVIDENCE = (
     "# EVIDENCE - fixture\n\n"
     "| Field | Value |\n|---|---|\n"
     "| **Occasions counted** | 1 - 2026-03-04 the one incident. RECURRENCE-THIN. |\n"
+    "| **Dispatches recorded** | 5 dispatches, fixture counter, measured 2026-03-05. |\n"
     "| **Re-screen trigger** | A platform fix that makes the failure impossible. |\n"
 )
 CONFORMING_GOTCHAS = "# gotchas\n\n[OBSERVED 2026-03-04] the one incident.\n"
@@ -191,6 +192,66 @@ def case_dates_must_be_corroborated_by_the_record(root: Path) -> None:
         "the corroborated date is not reported",
         "2026-03-04" not in result.stderr,
         result.stderr.strip(),
+    )
+
+
+def case_missing_dispatch_row_is_rejected(root: Path) -> None:
+    """The dispatch row is contract: dropping it must not pass silently."""
+    evidence = CONFORMING_EVIDENCE.replace(
+        "| **Dispatches recorded** | 5 dispatches, fixture counter, "
+        "measured 2026-03-05. |\n",
+        "",
+    )
+    write_card(root, "dispatchless-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a card without the Dispatches recorded row is rejected",
+        result.returncode != 0 and "no Dispatches recorded row" in result.stderr,
+        result.stdout + result.stderr,
+    )
+
+
+def case_dispatch_row_opening_is_checked(root: Path) -> None:
+    """The row opens with a count or the exact zero phrase, nothing else."""
+    evidence = CONFORMING_EVIDENCE.replace(
+        "| 5 dispatches, fixture counter, measured 2026-03-05.",
+        "| some dispatches happened, measured 2026-03-05.",
+    )
+    write_card(root, "prose-dispatch-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a dispatch row opening with prose is rejected",
+        result.returncode != 0
+        and "integer count or the exact phrase" in result.stderr,
+        result.stdout + result.stderr,
+    )
+
+
+def case_dispatch_row_needs_its_measurement_date(root: Path) -> None:
+    """A measured figure without its date cannot be judged stale."""
+    evidence = CONFORMING_EVIDENCE.replace(
+        "| 5 dispatches, fixture counter, measured 2026-03-05.",
+        "| 5 dispatches, fixture counter, date never recorded.",
+    )
+    write_card(root, "undated-dispatch-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a dispatch row without a measurement date is rejected",
+        result.returncode != 0 and "no measurement date" in result.stderr,
+        result.stdout + result.stderr,
+    )
+    zero = CONFORMING_EVIDENCE.replace(
+        "| 5 dispatches, fixture counter, measured 2026-03-05.",
+        "| No recorded dispatch, fixture counter, measured 2026-03-05.",
+    )
+    (root / "skills" / "engineering" / "undated-dispatch-card" / "EVIDENCE.md").write_text(
+        zero, encoding="utf-8"
+    )
+    cleared = run_checker(root)
+    check(
+        "the No recorded dispatch form with a date passes",
+        cleared.returncode == 0,
+        cleared.stdout + cleared.stderr,
     )
 
 
@@ -466,6 +527,9 @@ def main() -> None:
         case_count_must_match_the_dated_references,
         case_a_count_that_is_not_a_number_is_rejected,
         case_dates_must_be_corroborated_by_the_record,
+        case_missing_dispatch_row_is_rejected,
+        case_dispatch_row_opening_is_checked,
+        case_dispatch_row_needs_its_measurement_date,
         case_uncited_occurrence_record_is_rejected,
         case_plural_occurrence_record_is_rejected,
         case_hyphenated_compound_is_not_an_occurrence_record,

@@ -63,7 +63,26 @@ REQUIRED_FILES: Final[tuple[str, ...]] = ("SKILL.md", "gotchas.md", "EVIDENCE.md
 # the check that makes them contract.
 OCCASIONS_ROW: Final[str] = "Occasions counted"
 RESCREEN_ROW: Final[str] = "Re-screen trigger"
-REQUIRED_EVIDENCE_ROWS: Final[tuple[str, ...]] = (OCCASIONS_ROW, RESCREEN_ROW)
+
+# The measured-demand row (#106). A dispatch is one invocation of a card --
+# demand evidence, never recurrence, lift or worth (docs/adr/0001: a dispatch
+# count is fan-out, and writing it into the recurrence row is the inflation
+# ADMISSION.md criterion 2 refuses). The row is required so it cannot be
+# silently dropped, and its form is checked: it opens with an integer or the
+# exact phrase "No recorded dispatch" (the two trap cards fire through hook
+# mechanisms the platform counter cannot see, so their zero must read as "no
+# recorded dispatch", never "unused"), and it carries its measurement date,
+# because a measured figure without a date cannot be judged stale.
+DISPATCH_ROW: Final[str] = "Dispatches recorded"
+DISPATCH_OPEN_RE: Final[re.Pattern[str]] = re.compile(
+    r"^\s*(?:\d+\b|No recorded dispatch\b)"
+)
+
+REQUIRED_EVIDENCE_ROWS: Final[tuple[str, ...]] = (
+    OCCASIONS_ROW,
+    DISPATCH_ROW,
+    RESCREEN_ROW,
+)
 
 # ADMISSION.md criterion 2: the failure recurs independently, "it is not a
 # one-off". One counted occasion is a one-off, so the card says so in its own
@@ -172,6 +191,19 @@ def evidence_breaches(card: Path) -> list[str]:
         for name in REQUIRED_EVIDENCE_ROWS
         if not rows.get(name, "").strip("* `")
     ]
+    dispatch = rows.get(DISPATCH_ROW, "")
+    if dispatch.strip("* `"):
+        if not DISPATCH_OPEN_RE.match(dispatch):
+            breaches.append(
+                f"{DISPATCH_ROW} must open with an integer count or the exact "
+                f"phrase 'No recorded dispatch': {dispatch[:60]!r}"
+            )
+        elif not DATE_RE.search(dispatch):
+            breaches.append(
+                f"{DISPATCH_ROW} carries no measurement date. A measured "
+                "figure without its date cannot be re-derived or judged stale"
+            )
+
     occasions = rows.get(OCCASIONS_ROW, "")
     counted = COUNT_RE.match(occasions)
     if not counted:
