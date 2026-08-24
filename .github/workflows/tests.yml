@@ -534,3 +534,129 @@ jobs:
           grep -q 'REJECTED: 1 eval corpus breach(es)' "$log" \
             || { echo "::error::corpus-less fixture was red for more than one reason"; cat "$log"; exit 1; }
           echo "control: a published card with no corpus rejected as expected"
+
+      # assets/tokens.json described the brand and nothing read it. It said so
+      # itself, in a `known_gaps` block that stayed an accurate description of
+      # the repository for twelve days. These steps are the check behind that
+      # file: banned copy on the surfaces the kit names, hash agreement on the
+      # files it pairs, and every hex an asset ships declared in the kit.
+      #
+      # The word list and the surface list are DATA. Adding a word is a one-line
+      # edit to the token file and never a change to the checker, and README
+      # BODY prose is deliberately outside the scope -- several banned words
+      # appear there, and in AGENTS.md and the skill cards, in the sense the
+      # words are good for.
+      #
+      # Same caveat as every other check here: this DETECTS breaches. `main` has
+      # no required checks, so a nonzero exit is a signal, not a gate.
+      - name: Brand-kit suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_brand_kit.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::brand-kit suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Brand-kit check
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_brand_kit.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS: brand kit' \
+            || { echo "::error::brand-kit checker emitted no PASS line - it did not run"; exit 1; }
+
+      # A check that cannot fail guards nothing. The copy half: a banned word in
+      # a README HEADING must be refused, and the message must name the word and
+      # the file. Built in RUNNER_TEMP rather than checked in -- a committed
+      # violating heading would turn the real run permanently red.
+      #
+      # The sed is verified to have changed something. A control built from a
+      # substitution that silently matched nothing is a control that proves the
+      # checker green on a conforming tree, which is not what it is here to say.
+      - name: Poison control - a banned word in a README heading must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-brand-copy"
+          log="$RUNNER_TEMP/control-brand-copy.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/assets"
+          cp assets/*.svg assets/tokens.json "$tree/assets/"
+          cp package.json "$tree/"
+          sed 's|^## Admission method$|## Skills that earn their keep|' README.md > "$tree/README.md"
+          grep -q '^## Skills that earn their keep$' "$tree/README.md" \
+            || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          if python scripts/validate_brand_kit.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::the planted heading was ACCEPTED - the copy check does not read README headings"
+            cat "$log"
+            exit 1
+          fi
+          grep -q "README.md:headings" "$log" \
+            || { echo "::error::copy fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q "banned word 'earn'" "$log" \
+            || { echo "::error::copy fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'REJECTED: 1 brand kit breach(es)' "$log" \
+            || { echo "::error::copy fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: a banned word in a README heading rejected as expected"
+
+      # The freshness half needs its own control. The step above fails on copy
+      # and returns nothing about hashes. This fixture's copy is clean and its
+      # colours are declared, so the only thing it can fail on is the recorded
+      # hash disagreeing with the file on disk -- the defeat the pair exists for:
+      # a text-bearing source edited without re-exporting the raster.
+      - name: Poison control - a recorded hash that disagrees with the file must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-brand-hash"
+          log="$RUNNER_TEMP/control-brand-hash.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/assets"
+          cp assets/*.svg assets/tokens.json "$tree/assets/"
+          cp README.md package.json "$tree/"
+          # The pair is injected with sed rather than a heredoc: a quoted
+          # heredoc inside an indented `run:` block never terminates, because
+          # only tabs are strippable and YAML forbids dedenting the closing
+          # word to column zero.
+          fresh="$(sha256sum "$tree/assets/banner-light.svg" | cut -d" " -f1)"
+          stale="0000000000000000000000000000000000000000000000000000000000000000"
+          pair="\"pairs\": [{\"source\": \"assets/banner-dark.svg\", \"export\": \"assets/banner-light.svg\", \"source_sha256\": \"$stale\", \"export_sha256\": \"$fresh\"}],"
+          sed -i "s|\"pairs\": \[\],|$pair|" "$tree/assets/tokens.json"
+          grep -q "$fresh" "$tree/assets/tokens.json"             || { echo "::error::the control fixture was not mutated - no pair was recorded"; exit 1; }
+          python -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$tree/assets/tokens.json"             || { echo "::error::the control fixture is not valid JSON"; exit 1; }
+          if python scripts/validate_brand_kit.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::the mismatched hash was ACCEPTED - the freshness check does not compare"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'assets/banner-dark.svg: recorded hash disagrees' "$log" \
+            || { echo "::error::hash fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'REJECTED: 1 brand kit breach(es)' "$log" \
+            || { echo "::error::hash fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: a recorded hash disagreeing with disk rejected as expected"
+
+      # The token half needs its own control, and it is the assertion that could
+      # not land until the two colour gaps closed. This fixture plants the
+      # sibling instrument's confirmed-success green back into the dark banner --
+      # the exact colour this work removed. Copy and hashes are untouched, so the
+      # only thing the tree can fail on is the hex being undeclared.
+      - name: Poison control - an undeclared hex in an asset must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-brand-hex"
+          log="$RUNNER_TEMP/control-brand-hex.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/assets"
+          cp assets/*.svg assets/tokens.json "$tree/assets/"
+          cp README.md package.json "$tree/"
+          sed -i 's|#8b949e|#3fb950|g' "$tree/assets/banner-dark.svg"
+          grep -q '#3fb950' "$tree/assets/banner-dark.svg" \
+            || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          if python scripts/validate_brand_kit.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::the planted instrument green was ACCEPTED - the token check does not read the assets"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'undeclared hex #3fb950' "$log" \
+            || { echo "::error::hex fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'REJECTED: 1 brand kit breach(es)' "$log" \
+            || { echo "::error::hex fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: an undeclared hex rejected as expected"
