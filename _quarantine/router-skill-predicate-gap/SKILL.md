@@ -1,21 +1,24 @@
 ---
 name: router-skill-predicate-gap
 description: |
-  Find and close the gap where a skill documented as MANDATORY is wired to a
-  UserPromptSubmit router whose regex does not match the phrasing users
-  actually type. Use when: (1) a rule says a skill must fire before any
-  handoff/plan/ADR/spec and you cannot recall it firing, (2) a skill-router
-  rule exists in skill-rules.json and the discipline still depends on the
-  model remembering it, (3) you are about to claim a discipline is
-  "hook-enforced" rather than model-pull, (4) you are auditing whether a
-  documented enforcement layer actually enforces. The hook fires correctly and
-  the wiring is live — the predicate is simply incomplete, so the failure is
-  invisible from settings.json and from the skill. Includes the
-  test-the-negative-first procedure against the live hook, a false-positive
-  probe set, and the reason a passing read is not evidence.
+  Find and close the gap where a router rule is live, healthy, and still
+  matches nothing users type. Two causes, and the second is invisible: the
+  pattern list omits the ordinary word for the thing, or a pattern is INERT
+  because a JSON string escape was written where a regex escape was meant
+  ("\b" in JSON is a backspace character; a word boundary needs "\\b"). Use
+  when: (1) a rule says a skill must fire before some class of work and you
+  cannot recall it firing, (2) a router rule exists in skill-rules.json and
+  the discipline still depends on the model remembering it, (3) you are about
+  to claim a discipline is "hook-enforced" rather than model-pull, (4) a
+  router self-test is green and you have not checked WHICH pattern each
+  fixture matched, (5) you are auditing whether a documented enforcement
+  layer actually enforces. Includes the test-the-negative-first procedure
+  with a positive control, a control-character check that re.compile cannot
+  perform, a false-positive probe set, and why per-rule fixture coverage
+  certifies dead patterns.
 author: Claude Code
-version: 1.0.0
-date: 2026-08-18
+version: 1.1.0
+date: 2026-08-23
 ---
 
 # Router skill predicate gap
@@ -71,10 +74,10 @@ done
 ```
 
 Empty output on the suspect prompt means it did not fire — **but only if the control fired.**
-Empty output is also what a crashed interpreter prints: a wrong filename, a bad path, a failed
-import. A run where `skill_router_project.py` was invoked and the hook is actually
-`skill-router-project.py` reports SILENT for every prompt, and reads exactly like total
-predicate failure. If the control is silent, the harness is broken, not the predicate.
+Empty output is also what a crashed interpreter prints. If the control is silent, the harness
+is broken, not the predicate. The general rule and its worked case live in
+`success-test-accepts-any-output` → rule 4; a negative finding needs a positive control for
+the same reason a positive one needs a shape assertion.
 
 Note the `session_id` must be unique per probe — these routers dedupe per session, so reusing
 one makes a firing rule look silent.

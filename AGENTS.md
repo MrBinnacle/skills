@@ -60,6 +60,13 @@ updates every installed copy and local↔repo drift is structurally impossible:
    this wrong without it? — before it is eligible.
 2. Copy it into the correct bucket, **de-personalize** (the gate blocks residue), flatten to the
    per-skill flat layout, and add `EVIDENCE.md` + `gotchas.md`.
+2a. **Normalize the frontmatter, because `_quarantine/` and `skills/` do not use the same
+   keys.** Published cards carry `name` + `description`, plus `disable-model-invocation` where
+   the topology rule above calls for it — nothing else. Candidates carry four different
+   dialects: measured 2026-08-23, 12 of 22 held `author` / `version` / `date`, 6 held a
+   `metadata: type:` block over an undeclared vocabulary (`pattern`, `trap`, `workaround`,
+   `discipline`), 4 held neither. Strip the extras on promotion. No validator reads frontmatter,
+   so nothing will catch a leftover key — this step is the whole enforcement.
 3. PR → gate → merge (with a changeset).
 4. **Then** replace the maintainer's local real dir with a symlink to the repo copy
    (`link-skills.ps1`), so from that point the published skill has exactly one copy and cannot
@@ -216,7 +223,89 @@ mechanism working. An evolving ecosystem, not a chop list.
    found → insurance (the trap never came up; consistent with `CANT_TELL_YET`). Invocation
    is retrieval evidence, never an occasion count. Done when every published card has a row
    and every never-fired card carries a diagnosis or a dated "discriminator unrun".
-3. **Reconcile, then validate.** Propagate each count or label change to every derived
+
+   **Scan the pointer surface in the same step, because no gate does.** The four validators
+   check file presence, `EVIDENCE.md` controlled rows, the banner line, links and residue.
+   **None of them reads frontmatter.** A card's `description` is the only thing that decides
+   whether a model-invocable card is ever reached, so the collection currently validates its
+   receipts and not its retrieval surface: a card can carry a perfect evidence record, derive
+   correctly into every count, pass all four gates, and be permanently unreachable. Read each
+   card's `description` against how the situation actually gets phrased, and treat a
+   never-fired card's pointer as a suspect before concluding insurance. Note also which cards
+   *cannot* fire by construction — `disable-model-invocation: true`, or sitting in
+   `_quarantine/` and therefore not installed at all — and do not read their zero as evidence
+   about their worth.
+
+   This is the same defect one layer up from the router bug of 2026-08-23: a test suite that
+   checked everything except the predicate deciding whether anything fires. Recognising the
+   shape is the point — the apparatus that grades a thing tends to grade what is easy to
+   assert, and the trigger is never the easy part.
+3. **Repair gate — run BEFORE screening, and before any admission or retirement call.**
+   A card whose text is wrong is the wrong artifact to measure: a screen on a stale card
+   produces a real number about a document you are replacing. Repair first, then screen the
+   repaired card.
+
+   A card enters repair when **any** of these is true. The list is the criterion; "it reads
+   fine" is not a disposition:
+   - **A harvested occurrence falsified its own procedure or remedy.** The occurrence is not
+     merely a tally mark — read what it says about the card's instructions.
+   - **Its `description` does not name a branch the new evidence added.** The description is
+     the retrieval surface, so a card that gains a case and not a trigger is unreachable on
+     exactly the case that just occurred.
+   - **It asserts library, API, framework or platform behaviour, and the claim is undated or
+     older than the current release.** Authoring conventions above already require dated,
+     checkable factual claims. **Check them through Context7** — resolve the library, query
+     the current docs, and re-date the claim or correct it. Do this before shipping the card
+     AND before "fixing" a claim, per the same rule: a wrong correction to an evidence-first
+     collection is worse than the original error. A claim Context7 cannot confirm is marked
+     unverified rather than quietly kept.
+   - **Its frontmatter drifted** — see 2a; and on repair, bump `version` (minor for a content
+     change) and set `date` to the day of the repair.
+
+   **Repair is skill authoring, so stack the skill that does it.** Do not edit a card
+   freehand. Run the repair through `writing-for-agents` (Pocock plugin,
+   `productivity/writing-for-agents`) and apply its levers by name: the `description` is a
+   **context pointer** carrying one trigger per branch; keep each meaning in a **single
+   source of truth**, because the same finding written into both `SKILL.md` and `gotchas.md`
+   is duplication rather than thoroughness; prune **no-ops**.
+
+   Done when every card touched by this pass is either repaired, or recorded as needing no
+   repair against the four criteria above.
+
+4. **Route the worth question — and know that the measurement instrument is NOT in this
+   loop.** The collection does not decide a card's worth in its own prose. It also does not
+   send every card to the measurement harness, and that is a settled decision rather than an
+   omission.
+
+   **The binding constraint on this collection is admission criterion 2, recurrence — not
+   measurement.** The harness measures with-and-without lift, which is a different question,
+   and its own record is zero production KEEPs across 26 screens because production skills
+   ceiling at a Null-arm pass rate of 1.00. A ceiling converts to `CUT` only for a
+   transformative-lift skill; for any other class it means the trap did not arise in that
+   screen, so the verdict is `CANT_TELL_YET`, never `CUT`. Running the mill over cards that
+   will all ceiling costs a great deal and returns nothing this pass can act on. Steps 1 and
+   2 — reading the session records — are the cheapest real evidence in the system, and they
+   are where this pass earns its keep.
+
+   So the routing is narrow and stated:
+   - **Default: no screen.** A card stays `UNMEASURED` or `CANT_TELL_YET` and says so. That
+     is an honest label, not a gap to close.
+   - **Screen only a candidate carrying a frozen empirical contract** — a fixture AND a
+     counterfixture — because that is the only shape the harness can return a real verdict
+     on. Two candidates qualify today: `mock-masked-stub-trap` and
+     `walk-the-recipe-as-target-user`.
+   - **Read existing verdicts read-only** rather than running anything, when the store holds
+     them: `python -m skill_harness screen verdict --evidence-db <path>/evidence.db`.
+     Checked 2026-08-23: that store answered "No admissible screens in the store", so no
+     published card's label can currently be sourced from it.
+   - **Never manufacture a number.** The vocabulary is closed — `KEEP`, `CUT` (`subsumed` |
+     `no_lift` | `harmful`), `CANT_TELL_YET` — and a missing number is a typed refusal. **A
+     passing acceptance test is not a screen result**; see Hard stops.
+
+   Done when every card the pass proposes to admit or retire either carries a screen verdict,
+   or carries a dated statement of why no screen applies to it.
+
+5. **Reconcile, then validate.** Propagate each count or label change to every derived
    surface, walking the consequence chain before the edit — a one-integer change
    legitimately breaks several pins at once, and each break is the guard working: fix the
    surface, keep the pin. Then run the gate set with `PYTHONUTF8=1`:
@@ -227,14 +316,21 @@ mechanism working. An evolving ecosystem, not a chop list.
    pass AND a re-run of the whole pass with no new evidence would produce zero diff: the
    pass re-derives from current records every time, keeps no incremental state, and is safe
    to run twice.
-4. **Adjudicate.** New candidates enter through the [admission policy](ADMISSION.md),
-   answered via the gate card; retirement candidates leave through "Retirement" above.
-   `_quarantine/` promotion is `git mv`, so the card carries its history. Open a
-   candidate's `PROVENANCE.md` before diagnosing drift or duplication — one candidate is a
-   staged patch to an already-promoted card, and it has been misread as version drift once
-   already. Done when every surfaced candidate carries a disposition or a dated deferral.
-5. **Ship.** Branch → PR with a changeset; merge is the maintainer's. The PR body reports
+6. **Adjudicate.** Four dispositions, not two: admit, retire, **repair** (step 3), or a dated
+   deferral. New candidates enter through the [admission policy](ADMISSION.md), answered via
+   the gate card; retirement candidates leave through "Retirement" above. `_quarantine/`
+   promotion is `git mv`, so the card carries its history. Open a candidate's
+   `PROVENANCE.md` before diagnosing drift or duplication — one candidate is a staged patch
+   to an already-promoted card, and it has been misread as version drift once already. Done
+   when every surfaced candidate carries a disposition or a dated deferral.
+7. **Ship.** Branch → PR with a changeset; merge is the maintainer's. The PR body reports
    every disposition, flattering or not.
+
+**The ordering is a constraint, not a preference.** Harvest before repair, because the
+occurrence tells you what to repair. Repair before screen, because a screen measures the text
+in front of it. Screen before adjudicate, because admission and retirement are verdicts and
+this collection does not author verdicts in prose. A pass that reorders these produces a
+number about the wrong artifact, or a disposition with no measurement under it.
 
 ### Hard stops, from the first executed pass (2026-08-23)
 
