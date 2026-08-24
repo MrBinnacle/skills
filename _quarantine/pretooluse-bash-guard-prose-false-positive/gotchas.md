@@ -11,6 +11,14 @@
   the heredoc body is part of that string, and a common English verb is its trigger token.
   Worked around by rewording the prose to "The one hit".
 
+  **The same guard again, forty minutes later, on the word "finding".** A commit message
+  describing the sweep contained "is uninterpretable, not a finding". The trigger token is a
+  substring match, so every inflection of the verb trips it: `find`, `finds`, `finding`,
+  `findings`. A commit message is the artifact most likely to contain the word "finding",
+  which makes this guard's collision rate with ordinary prose higher than the count above
+  suggests. Worked around by writing the message to a file and passing `-F`, which keeps the
+  prose out of the command string entirely — the general escape hatch for this whole class.
+
   **On a rebase guard, twice, recorded the previous session** — once on a verification
   `grep` whose argument named the trap, and once on a commit message whose body explained
   it. Both are on `git-pull-rebase-trap`'s card as evidence.
@@ -29,7 +37,13 @@
   three of these messages did name the trigger, which is why each cost seconds.
 
   **What would change the disposition:** a guard whose trigger token is common enough that
-  prose hits it repeatedly in one session. `find` is at that boundary. The narrower fix is
-  to anchor the predicate to command position rather than to substring presence, so a token
-  inside a quoted heredoc body cannot match. That is a real change to the hook, not to the
-  card, and it is not made here.
+  prose hits it repeatedly in one session. `find` is past that boundary — it fired twice in
+  one pass on ordinary English, and the second time on the single most likely word in a
+  commit message about a search. The narrower fix is to anchor the predicate to command
+  position rather than to substring presence, so a token inside a quoted heredoc body cannot
+  match. That is a change to the hook, not to the card, and it is not made here.
+
+  **The cheap mitigation, available today and worth preferring anyway:** write long prose to
+  a file and pass it by path (`git commit -F msg.txt`, `gh pr create --body-file body.md`).
+  The guard never sees the prose, and the artifact is reviewable before it ships. Reaching
+  for it after the block is a workaround; reaching for it by default is just better practice.
