@@ -59,14 +59,43 @@ which is model-pull wearing a hook's clothes.
 **Do this before editing anything.** A test that only demonstrates the fixed state proves
 nothing about the gap.
 
+Probe the suspect prompt **and a known-good fixture in the same run**. The known-good is a
+positive control, and without it the run is uninterpretable:
+
 ```sh
 cd ~/.claude/hooks
-echo '{"session_id":"negtest-1","prompt":"write me a plan for issue 18"}' | python skill-router.py
+for p in "write me a plan for issue 18" "<a phrase you know this rule matches>"; do
+  out=$(echo "{\"session_id\":\"neg-$RANDOM$RANDOM\",\"prompt\":\"$p\"}" | python skill-router.py)
+  echo "$out" | grep -q "<skill-name>" && echo "FIRES  : $p" || echo "SILENT : $p"
+done
 ```
 
-Empty output means it did not fire. Record that, verbatim, as the finding. Note the
-`session_id` must be unique per probe — these routers dedupe per session, so reusing one
-makes a firing rule look silent.
+Empty output on the suspect prompt means it did not fire — **but only if the control fired.**
+Empty output is also what a crashed interpreter prints: a wrong filename, a bad path, a failed
+import. A run where `skill_router_project.py` was invoked and the hook is actually
+`skill-router-project.py` reports SILENT for every prompt, and reads exactly like total
+predicate failure. If the control is silent, the harness is broken, not the predicate.
+
+Note the `session_id` must be unique per probe — these routers dedupe per session, so reusing
+one makes a firing rule look silent.
+
+### 1b. Assert that no pattern holds a control character
+
+A JSON string escape is not a regex escape. Inside a JSON rule file, `"\b"` is the **backspace
+character**; a regex word boundary must be written `"\\b"`. The damaged pattern is still a
+valid regex, so `re.compile()` accepts it, and it matches nothing forever. Grep the compiled
+patterns rather than reading them:
+
+```sh
+python -c "
+import json
+CTRL={'\x08':r'\b','\x0c':r'\f','\x0b':r'\v','\x07':r'\a'}
+for i,r in enumerate(json.load(open('skill-rules.json'))['rules']):
+    for j,p in enumerate(r.get('patterns',[])):
+        for ch,esc in CTRL.items():
+            if ch in p: print('rule[%d] pattern[%d] holds literal %r, meant %s' % (i,j,ch,esc))
+"
+```
 
 ### 2. Read the actual patterns
 
@@ -156,9 +185,16 @@ silent, including `plane` and `planner`.
   hook layer *only to the extent its predicate is complete.* An incomplete predicate leaves
   the discipline in the skill layer while the documentation claims otherwise, which is worse
   than no hook: it retires the vigilance that would have compensated.
-- **A router rule deserves a test suite.** In the install where this was found, 3 of 9 hooks
-  had tests and the router was not one of them. A test suite is what catches a predicate gap;
-  a reading is not.
+- **A router rule deserves a test suite — and a per-rule test suite is not enough.** In the
+  install where this was found, 3 of 9 hooks had tests and the router was not one of them. A
+  test suite is what catches a predicate gap; a reading is not. **But 2026-08-23 refuted the
+  sufficient half of that claim**: a second rule on the same install had a suite that *refused
+  to accept any rule carrying no asserting fixture*, and it still certified a rule whose
+  broadest pattern was inert, because its coverage check was per-rule. All the fixtures landed
+  on the narrower patterns. Measured that day: 33 of 72 patterns were reachable by no fixture
+  at all. **Count coverage per pattern, not per rule, and give every deliberately-broad
+  pattern a fixture only it can satisfy** — otherwise the broad pattern is not falsifiable.
+  See `gotchas.md`.
 - The dedupe-per-session behaviour is a real trap when probing. Vary `session_id` every time.
 
 ## References
