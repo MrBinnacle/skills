@@ -50,7 +50,7 @@ Three edits, +78 / −26 against the committed version.
 
 ## The evidence behind it
 
-Session `workspace_lint` S026, 2026-08-18/19.
+### Occurrence 1 — origin. Session `workspace_lint` S026, 2026-08-18/19
 
 - Three `Explore` scouts were dispatched over one repository with **no return channel named**. All
   three researched correctly. **Four idle notifications arrived carrying no content.** A state file
@@ -65,8 +65,40 @@ Session `workspace_lint` S026, 2026-08-18/19.
   reads *"unless it blocks a rule"*, inside a draft comment about to be posted; and line numbers
   supplied where the citation standard requires section headings.
 
+### Occurrence 2 — independent recurrence, 2026-08-24, a different repository
+
+Found by the rotation and harvest pass over this collection, in the pass's own session.
+
+- Four `reader` subagents were dispatched to extract origin text from 25 skill cards. The dispatch
+  **named no return channel**; each prompt ended `Your final message IS the data`. That is plain
+  text, which is the dead letter.
+- **Four idle notifications arrived carrying no content.** No extract reached the main session.
+- **`SendMessage` re-instruction alone did not recover the findings.** All four agents were sent a
+  message restating the output contract verbatim. Each woke, and each emitted a second idle
+  notification carrying no content. The extraction was abandoned and redone in-session by a
+  mechanical script over the same 25 cards.
+- **This narrows Check 0's two routes: they are not interchangeable.** Occurrence 1 recovered with
+  `SendMessage` **plus** one authorised absolute path. Occurrence 2 used `SendMessage` alone and
+  recovered nothing. On this evidence route 2 — the file at a named path — is the load-bearing
+  half, and route 1 is not a substitute for it. Route 2 was not exercised in occurrence 2, so its
+  standalone sufficiency is untested.
+
+**The two occurrences are independent.** Different repository, different agent type (`Explore`
+against `reader`), different task (repository research against text extraction), six days apart.
+The four agents within occurrence 2 are one dispatch and count as one occasion, not four.
+
+**The discipline that would have caught occurrence 2 was staged in this directory and not live.**
+`grep -c "dead letter"` returns `0` against the promoted card and `3` against the `SKILL.md` beside
+this file. The operator had the published skill installed and active throughout; it carries no
+`Check 0`, because `Check 0` is this patch. The failure recurred in the gap the patch closes.
+
 ## Review notes for promotion
 
+- **Admission criterion 2 (recurrence) is now answered for the `Check 0` branch: two independent
+  occasions, 2026-08-18/19 and 2026-08-24, both dated above.** Criterion 2 was the standing blocker
+  on every candidate in `_quarantine/`. It is the only criterion this pass measured; criteria 1, 3
+  and 4 are untouched and unclaimed here. Promotion additionally requires an `EVIDENCE.md`, which
+  this candidate does not carry, and the frontmatter normalization in `AGENTS.md` step 2a.
 - The skill body is Claude Code-specific (`SendMessage`, idle notifications, the Agent tool). Check
   that against the canonical repo's portability posture before committing — the orchestration
   folder may hold platform-neutral skills.
