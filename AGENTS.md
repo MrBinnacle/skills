@@ -314,7 +314,9 @@ mechanism working. An evolving ecosystem, not a chop list.
    legitimately breaks several pins at once, and each break is the guard working: fix the
    surface, keep the pin. Then run the gate set with `PYTHONUTF8=1`:
    `scripts/validate_card_files.py`, `scripts/validate_scoreboard.py`,
-   `scripts/test_validate_card_files.py`, `scripts/test_readme_admission_lead.py` — and
+   `scripts/test_validate_card_files.py`, `scripts/test_readme_admission_lead.py`,
+   `scripts/validate_eval_corpora.py` (a renamed card breaks its corpus's `skill_name`, and
+   this is where the pass sees it rather than at PR time) — and
    `scripts/test_validate_conformance.py` plus `scripts/validate_conformance.py --root .`
    (the scheduled job's own pair) when the pass touched governance surfaces. Done when all
    pass AND a re-run of the whole pass with no new evidence would produce zero diff: the

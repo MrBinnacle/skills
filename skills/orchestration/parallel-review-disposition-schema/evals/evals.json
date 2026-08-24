@@ -1,0 +1,36 @@
+{
+  "skill_name": "parallel-review-disposition-schema",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "I am firing five isolated seats to decide what to do with the eighteen verified findings from the security audit. Each prompt just says 'review these findings and give your recommendations'. Anything to add?",
+      "expected_output": "Adds the four dispatch elements before the fire: a closed decision vocabulary, a shared per-item output block, explicit per-seat item ownership with the evidence inline, and a mandatory status line. States that comparability cannot be recovered after the fact.",
+      "assertions": [
+        "Names all four: closed enum, shared per-item block, explicit item ownership, mandatory status line.",
+        "States that free-form recommendations do not join and that comparability must be imposed upstream in the dispatch.",
+        "Includes the what-would-change-it field, which exposes the load-bearing assumption behind each disposition."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Four of the five seats picked `sub-item-of-SEC-N` for the same finding. That is a clear agreement, so record the disposition and move on.",
+      "expected_output": "Withholds the agreement. States that a shared enum member relocates false agreement rather than removing it, and requires a critic pass over the reasoning fields to check whether the seats mean the same thing before the count is treated as convergence.",
+      "assertions": [
+        "Declines to treat the matching enum members as agreement without checking the reasoning.",
+        "Names the shared-word, different-concept collision as the risk the enum does not remove.",
+        "Requires an all-outputs critic or post-synthesis pass before recording the disposition."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Both reviewers numbered their findings M1 through M5. Flatten them into one consolidated M1-M10 list for the fix brief and renumber as you go.",
+      "expected_output": "Refuses the renumbering step. Requires one of the three collision-proof shapes chosen before consolidation, and runs the falsifying count check: distinct findings in the brief equal the sum of per-seat counts minus explicit reclassifications.",
+      "assertions": [
+        "Names the reviewer-local ID collision that silently drops a finding at consolidation.",
+        "Requires one of the three shapes chosen before consolidating: seat-prefixed IDs at source, a rollup table, or per-seat subsections.",
+        "Runs the count check and treats any unexplained reduction as a silent drop to be disclosed, not quietly fixed."
+      ]
+    }
+  ]
+}

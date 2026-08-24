@@ -1,0 +1,46 @@
+{
+  "skill_name": "skill-necessity-gate",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "Let's make a skill that records our deploy URL, which package manager this repo uses, and where the config lives, so the agent stops guessing.",
+      "expected_output": "Rejects the candidate at Gate 0 and routes it. The deploy URL and the repo rule belong in CLAUDE.md or memory; the package manager and config location are trivially discoverable from the codebase and should be read rather than encoded, because an encoded copy rots.",
+      "assertions": [
+        "Rejects the candidate at Gate 0 rather than running all six gates.",
+        "Routes the stable facts to CLAUDE.md or memory and the discoverable facts back to reading the repository.",
+        "States that encoding a discoverable fact elsewhere rots against the codebase."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The transcript miner found this dispatch pattern ten times last month, so recurrence is already proven. Write the skill.",
+      "expected_output": "Refuses to treat the transcript count as recurrence. Requires the hits to be deduped by run, because one orchestrated fire spawning N parallel seats is n=1 rather than n=N, and parks the candidate for observation if the deduped count does not clear Gate 1.",
+      "assertions": [
+        "Requires the mined hits to be deduped by run or occasion before Gate 1 is scored.",
+        "States that one fan-out fire spawning N seats counts as one occasion.",
+        "Names park-and-observe as the disposition when recurrence is unproven, rather than authoring."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "This one plans the work and has side effects, so per Gate 3 set `disable-model-invocation: true`. It also has to fire inside our overnight /loop run.",
+      "expected_output": "Flags the conflict rather than applying the default. States that a disable-model-invocation skill arrives in /loop as plain text and never executes, so the skill must stay model-invocable with a sharp description and verification, or move upstream to a human-gated backlog step.",
+      "assertions": [
+        "Names the conflict between `disable-model-invocation` and firing inside an autonomous loop.",
+        "States that such a skill goes inert in /loop and arrives as plain text.",
+        "Offers the two live options: keep it model-invocable with verification, or relocate the gate upstream of the loop."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Before we run the gate on it: we want to build a scoring harness that measures how each of our skills performs. That is an instrument, not a skill, so the gate does not apply. Agreed?",
+      "expected_output": "Disagrees. States that an instrument is a skill-shaped bet and runs the same gates: a prior-art sweep at Gate 0, recurrence at Gate 1, and at Gate 2 the pending decision the output would change. No pending decision means no build.",
+      "assertions": [
+        "States that instruments run the same six gates as skill candidates.",
+        "Requires a prior-art sweep before the instrument is built.",
+        "Requires naming the pending decision the instrument's output would change, and refuses the build when none is named."
+      ]
+    }
+  ]
+}

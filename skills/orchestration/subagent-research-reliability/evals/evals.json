@@ -1,0 +1,36 @@
+{
+  "skill_name": "subagent-research-reliability",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "Dispatch the `research-scout` agent to gather this week's threat intelligence. Its description says it performs web research with citations, and its frontmatter reads `tools: Read, Bash, Grep`.",
+      "expected_output": "Refuses the dispatch. States that the frontmatter is the capability and the description is not, so this agent cannot search and would return a no-op or citations fabricated from training data. Dispatches general-purpose with the research protocol embedded, or adds the web tools to the agent definition first.",
+      "assertions": [
+        "Refuses to dispatch the agent as defined.",
+        "States that the frontmatter `tools:` grant is ground truth and the description is not the capability.",
+        "Offers a concrete fix: dispatch general-purpose with the protocol embedded, or add WebSearch and WebFetch to the agent's tools."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The research subagent came back with nine findings, each carrying a source URL and a CVE identifier. File the two highest-severity ones as security findings today.",
+      "expected_output": "Files nothing yet. Dispatches a separate verification subagent whose only job is to fetch each source URL and return a per-URL enum verdict, and treats only findings that survive verification as actionable.",
+      "assertions": [
+        "Refuses to act on the citations before a verification pass.",
+        "Requires a separate verification subagent that fetches each URL and returns a per-URL verdict from a fixed vocabulary.",
+        "States that the verifier checks source existence and content match, including the cross-reference, rather than assessing the threat."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The scout agent has `tools: *`, so it definitely has web access. Send it off and I will read its summary when the notification arrives.",
+      "expected_output": "Adds two guards. Requires the dispatch to begin with an explicit tool-schema fetch and a stop-if-unavailable clause, because deferred web tools are absent from the agent's schema until fetched, and requires reading the agent's file rather than waiting for a handback, re-checking its length before relying on it.",
+      "assertions": [
+        "States that a full tool grant does not guarantee live retrieval and that deferred tool schemas can leave a scout answering from memory.",
+        "Requires an explicit first-step tool fetch plus a stop-if-unavailable clause in the dispatch prompt.",
+        "Requires reading the agent's output file and re-checking its length, because an idle notification can carry no summary and a file can still be growing."
+      ]
+    }
+  ]
+}
