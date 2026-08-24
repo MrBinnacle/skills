@@ -1,24 +1,6 @@
 ---
 name: router-skill-predicate-gap
-description: |
-  Find and close the gap where a router rule is live, healthy, and still
-  matches nothing users type. Two causes, and the second is invisible: the
-  pattern list omits the ordinary word for the thing, or a pattern is INERT
-  because a JSON string escape was written where a regex escape was meant
-  ("\b" in JSON is a backspace character; a word boundary needs "\\b"). Use
-  when: (1) a rule says a skill must fire before some class of work and you
-  cannot recall it firing, (2) a router rule exists in skill-rules.json and
-  the discipline still depends on the model remembering it, (3) you are about
-  to claim a discipline is "hook-enforced" rather than model-pull, (4) a
-  router self-test is green and you have not checked WHICH pattern each
-  fixture matched, (5) you are auditing whether a documented enforcement
-  layer actually enforces. Includes the test-the-negative-first procedure
-  with a positive control, a control-character check that re.compile cannot
-  perform, a false-positive probe set, and why per-rule fixture coverage
-  certifies dead patterns.
-author: Claude Code
-version: 1.1.0
-date: 2026-08-23
+description: A router rule can be live, healthy and match nothing anyone types: the pattern list omits the ordinary word, or a JSON escape left the pattern inert. Use before claiming a discipline is hook-enforced.
 ---
 
 # Router skill predicate gap
@@ -76,8 +58,9 @@ done
 Empty output on the suspect prompt means it did not fire — **but only if the control fired.**
 Empty output is also what a crashed interpreter prints. If the control is silent, the harness
 is broken, not the predicate. The general rule and its worked case live in
-`success-test-accepts-any-output` → rule 4; a negative finding needs a positive control for
-the same reason a positive one needs a shape assertion.
+[`success-test-accepts-any-output`](../../engineering/success-test-accepts-any-output/SKILL.md)
+→ rule 4; a negative finding needs a positive control for the same reason a positive one
+needs a shape assertion.
 
 Note the `session_id` must be unique per probe — these routers dedupe per session, so reusing
 one makes a firing rule look silent.
@@ -180,28 +163,24 @@ silent, including `plane` and `planner`.
 
 - **A passing read is not evidence.** The gap was invisible to anyone reading the rule file,
   `settings.json`, or the skill. Only piping a prompt into the hook found it.
-- **This is not dead wiring.** The hook was healthy and correct. Do not diagnose it as a
-  broken hook — see `claude-code-stop-hook-envelope` for that distinct case, where the hook
-  itself never fires or reads the wrong stdin shape.
+- **This is not dead wiring.** The hook was healthy and correct. A hook that never fires at
+  all, or that reads the wrong stdin shape, is a different diagnosis with a different fix; do
+  not treat the two as one problem.
 - **The layer-placement rule is what is at stake.** A discipline that must fire cannot live
   in the skill layer, because skill retrieval is model-pull. A router rule moves it to the
   hook layer *only to the extent its predicate is complete.* An incomplete predicate leaves
   the discipline in the skill layer while the documentation claims otherwise, which is worse
   than no hook: it retires the vigilance that would have compensated.
-- **A router rule deserves a test suite — and a per-rule test suite is not enough.** In the
-  install where this was found, 3 of 9 hooks had tests and the router was not one of them. A
-  test suite is what catches a predicate gap; a reading is not. **But 2026-08-23 refuted the
-  sufficient half of that claim**: a second rule on the same install had a suite that *refused
-  to accept any rule carrying no asserting fixture*, and it still certified a rule whose
-  broadest pattern was inert, because its coverage check was per-rule. All the fixtures landed
-  on the narrower patterns. Measured that day: 33 of 72 patterns were reachable by no fixture
-  at all. **Count coverage per pattern, not per rule, and give every deliberately-broad
-  pattern a fixture only it can satisfy** — otherwise the broad pattern is not falsifiable.
-  See `gotchas.md`.
+- **A router rule deserves a test suite, and a per-rule test suite is not enough.** A test
+  suite is what catches a predicate gap; a reading is not. But a green per-rule suite is
+  compatible with any number of dead patterns, because fixtures land on whichever pattern
+  matches first and the broad ones collect none. **Count coverage per pattern, not per rule,
+  and give every deliberately-broad pattern a fixture only it can satisfy** — otherwise the
+  broad pattern is not falsifiable. The measured case is in `gotchas.md` and is not restated
+  here.
 - The dedupe-per-session behaviour is a real trap when probing. Vary `session_id` every time.
 
-## References
-
-Verified against a live `skill-router.py` UserPromptSubmit hook on one machine, 2026-08-18.
-The stdin envelope shape (`session_id`, `prompt`) and the dedupe behaviour are properties of
-that hook implementation; re-read the hook before assuming them elsewhere.
+The procedures above were verified against a live `skill-router.py` UserPromptSubmit hook on
+one machine, 2026-08-18. The stdin envelope shape (`session_id`, `prompt`) and the dedupe
+behaviour are properties of that hook implementation; re-read the hook before assuming them
+elsewhere.

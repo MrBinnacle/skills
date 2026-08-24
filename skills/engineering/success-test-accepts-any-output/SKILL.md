@@ -1,25 +1,6 @@
 ---
 name: success-test-accepts-any-output
-description: |
-  Fix for a hand-rolled success check that passes when the operation failed,
-  because the check tests the SHAPE of the output rather than the fact of
-  success. Use when: (1) a retry loop or script reports OK but the effect did
-  not happen — no comment posted, no file written, no row inserted; (2) a `gh
-  api ... --jq .field` call prints an error body to stdout and a `[ -n "$var" ]`
-  test accepts it; (3) a test helper compares `String(got) === String(want)` so
-  `check(1, '1')` and `check([1], '1')` pass; (4) a CI step or verification
-  script goes green while the thing it verifies is broken. Root cause is that
-  the success predicate accepts any non-empty / stringifiable output, and
-  failure output is also non-empty and stringifiable. The mirror case counts
-  too: (5) a probe reports NOT-FOUND, SILENT, or NO-MATCH across a whole
-  batch, and the tool never ran — a wrong path or a failed import prints the
-  same empty output as a true negative. Fix: assert the specific shape
-  success produces (a URL, an ID, a matching type), verify by RE-READING the
-  external state rather than trusting the command's own output, and carry a
-  known-good positive control in any run whose finding is an absence.
-author: Claude Code
-version: 1.1.0
-date: 2026-08-23
+description: A success check that accepts any non-empty output passes when the operation failed, because failure output is non-empty too. Use when a script reports OK but nothing happened, or a probe reports NOT-FOUND across a whole batch.
 ---
 
 # A Success Test That Accepts Any Output Is Not a Test
@@ -192,9 +173,10 @@ swap was behaviour-preserving rather than merely green.
 - `2>/dev/null` on a CLI that writes errors to stdout converts a loud failure
   into a silent one. Check where the tool actually writes errors before
   redirecting.
-- See also: `github-linkcheck-404-throttle-false-negative` (a link checker
-  reporting green because throttling suppressed the requests),
-  `ci-npm-audit-step-false-negative-trap` (a gate that only fires on a trigger
-  nobody pulls), `mock-masked-stub-trap` (a test passing because the mock, not
-  the code, satisfied it). These four are a family candidate in the author's private
-  registry, which this collection does not ship.
+- **The family this belongs to.** The same defect wears several costumes: a link checker
+  reporting green because throttling suppressed the requests, a CI gate that only fires on a
+  trigger nobody pulls, and a test passing because the mock rather than the code satisfied it.
+  The last of those is
+  [`mock-masked-stub-trap`](../mock-masked-stub-trap/SKILL.md). In every case the predicate is
+  satisfied by the failure it was written to catch, so the question to ask of any green is:
+  what input would make this red?

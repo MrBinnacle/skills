@@ -4,8 +4,10 @@
   T3 tracer round, where a pre-registered prediction was falsified by a known class of error
   before the experiment ran and the halt itself was recorded as the deliverable.
 
-- [OBSERVED 2026-08-16] Second independent occurrence, harvested 2026-08-24 by a corpus sweep
-  and verified by reading the source. A different personal project (`fosse`), a different
+- [OBSERVED 2026-08-16] Second independent occurrence.
+  Found 2026-08-24 by a corpus sweep and verified by reading the source; that later date is
+  when the record was harvested, not when the event happened.
+  A different personal project, a different
   proximate event: a planning document twice repeated the claim "validator not yet rewritten",
   attributing the gap to an issue that never scoped the validator. The claim was empirically
   re-tested — the validator was actually run against the real catalog and against a malformed

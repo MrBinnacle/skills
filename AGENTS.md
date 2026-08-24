@@ -61,7 +61,11 @@ updates every installed copy and local↔repo drift is structurally impossible:
 2. Copy it into the correct bucket, **de-personalize** (the gate blocks residue), flatten to the
    per-skill flat layout, and add `EVIDENCE.md` + `gotchas.md`.
 2a. **Normalize the frontmatter, because `_quarantine/` and `skills/` do not use the same
-   keys.** Published cards carry `name` + `description`, plus `disable-model-invocation` where
+   keys.** Rewrite the `description` to the published bar in the same pass: ≤ 200 characters,
+   written as a router. Measured 2026-08-24, every one of the 22 candidates was over it, from 285
+   to 1272 characters, while every published card sat between 123 and 200. No validator checks
+   this either, so it is the same kind of step as the key-stripping below — the edit *is* the
+   enforcement. Published cards carry `name` + `description`, plus `disable-model-invocation` where
    the topology rule above calls for it — nothing else. Candidates carry four different
    dialects: measured 2026-08-23, 12 of 22 held `author` / `version` / `date`, 6 held a
    `metadata: type:` block over an undeclared vocabulary (`pattern`, `trap`, `workaround`,
@@ -172,15 +176,21 @@ PASS line, which is where to read the inventory state from.
 
 The same script also derives the front page's **origin tiering** from each card's `EVIDENCE.md`
 `Origin` field, over a closed vocabulary of `OBSERVED` (a dated real incident), `DESIGNED` (built
-on purpose) and `DISTILLED` (written from research, no triggering incident). `README.md` states
-that tiering in two places — "Where these came from" and "What the receipts are worth" — and both
-must state all three numbers on one line, in that order. An Origin field opening with a word
-outside the vocabulary is refused rather than guessed at, on the same rule as the controlled
-fields: a card that has not said which tier it is cannot be counted into either.
+on purpose) and `DISTILLED` (written from research, no triggering incident). An Origin field
+opening with a word outside the vocabulary is refused rather than guessed at, on the same rule as
+the controlled fields: a card that has not said which tier it is cannot be counted into either.
 
-A miss turns the build red; do not treat any single prose line as the checklist. The front-page
-slogan ("N cards, not N hundred") is rhetoric, not a validator site — update it only if the
-voice still fits.
+⛔ **The page states no tally of cards, of tiers, or of anything else that tracks repository
+state. Owner ruling 2026-08-24: do not add one back.** The rule now reads in one direction only —
+any tally the page *does* state must agree with the records, and zero tallies is the expected
+case. An earlier edition required `README.md` to state the tiering in exactly two places, which
+made the page's arithmetic mandatory: every admission and every retirement turned the build red
+until someone re-derived two numbers by hand, in prose no reader had asked for. That is the same
+maintenance tax the banner's counts were retired for on 2026-08-23, and the same one that had
+pinned `9 published card(s)` inside `scripts/test_validate_card_files.py`. Prose that must be
+re-checked whenever a card moves is a liability, not a receipt; the receipts live in the cards.
+
+A miss turns the build red; do not treat any single prose line as the checklist.
 
 ## The rotation and harvest pass
 

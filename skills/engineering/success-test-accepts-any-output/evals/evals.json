@@ -1,0 +1,36 @@
+{
+  "skill_name": "success-test-accepts-any-output",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "My retry loop posts a comment and checks success with `url=$(gh api .../comments -F body=@msg.md --jq .html_url 2>/dev/null); if [ -n \"$url\" ]; then echo OK; fi`. It printed OK for both targets. Ship it?",
+      "expected_output": "Rejects the predicate. An API error body is non-empty and gh prints it to stdout, so the test cannot distinguish success from failure, and 2>/dev/null hides the diagnostic while leaving the error body in the variable. Prescribes asserting the URL shape and re-reading the comment list.",
+      "assertions": [
+        "States that a non-empty test cannot separate success from failure because failure output is also non-empty.",
+        "Flags 2>/dev/null as converting a loud failure into a silent one, and requires checking where the tool writes errors before redirecting.",
+        "Requires re-reading the external state through a separate call, because a command's own output is not evidence its effect occurred."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Our test helper does `const ok = String(got) === String(want)`. It is simple and every suite is green. What would you change?",
+      "expected_output": "Replaces stringified comparison with identity comparison, because check([1], '1') and check(1, '1') both pass under stringification. Requires the caller to reduce non-primitives, since only the caller knows which property it means, and prescribes recording assertion counts before and after so the swap is proven behaviour-preserving.",
+      "assertions": [
+        "Names the concrete false pass: values of different types that stringify alike are accepted as equal.",
+        "Prescribes identity comparison and keeps stringification only for the human-readable message.",
+        "Requires before-and-after assertion counts, treating an identical count as proof nothing relied on the looseness and a new failure as a genuine find rather than a regression."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I probed six phrases against the router and every single one came back MISS, including two that are committed passing fixtures. Write that up as the finding: the router matches nothing.",
+      "expected_output": "Refuses to record the finding. A clean sweep of negatives including known-good cases is evidence against the harness, not the subject, because an empty output from a probe that never ran is byte-identical to a true negative. Prescribes a known-good positive control that must come back positive before any negative is believed.",
+      "assertions": [
+        "Treats the two known-good fixtures returning negative as the signal that the harness is broken.",
+        "States that a claim of absence has no external state to re-read, so the re-read rule does not apply and a positive control is the substitute.",
+        "Names the clean sweep as the tell, because a real predicate gap is usually partial rather than total."
+      ]
+    }
+  ]
+}
