@@ -1,5 +1,5 @@
 ---
-"@mrbinnacle/skills": minor
+"mrbinnacle-skills": minor
 ---
 
 Promote six cards out of `_quarantine/` into the collection, and stop the page counting itself.
