@@ -767,7 +767,29 @@ jobs:
         run: |
           set -euo pipefail
           npm ci --no-audit --no-fund
+          # Scoped to what this ref adds: catches a bad header on arrival.
           npx --yes changeset status --since=origin/main
+          # Unscoped, and this is the line that actually blocks a release.
+          # `--since` compares against origin/main, so ON main that set is
+          # empty and the scoped check above exits 0 over a tree whose release
+          # plan does not assemble. That is exactly what happened: the header
+          # the comment above describes was fixed by adding the scoped check,
+          # which could never see the offending changeset already sitting on
+          # main. CI stayed green from 2026-08-24 while `changeset version`
+          # refused to run at all. An unscoped status assembles the full
+          # release plan over every pending changeset, so it fails on any bad
+          # header regardless of when it landed.
+          #
+          # It needs a LOCAL `main` ref. The scoped call above names
+          # `origin/main` explicitly, but the unscoped one falls back to the
+          # `baseBranch` in .changeset/config.json and resolves it as a local
+          # branch. On a pull request the checkout is detached, so that branch
+          # does not exist and changesets fails with "Failed to find where HEAD
+          # diverged" -- an environment fault that looks nothing like a bad
+          # changeset. Create the ref only when it is missing, because on a push
+          # to main it is already checked out and cannot be force-updated.
+          git rev-parse --verify --quiet main >/dev/null || git branch main origin/main
+          npx --yes changeset status
       # And the same rule: prove it can fail. A changeset naming a package that
       # is not in the workspace must be refused.
       #
@@ -800,3 +822,43 @@ jobs:
           grep -q 'which is not in the workspace' "$log" \
             || { echo "::error::the changeset control failed for the WRONG reason - it did not report an out-of-workspace package"; exit 1; }
           echo "control: malformed changeset rejected as expected, and for the right reason"
+
+      # And prove the UNSCOPED line earns its place: it must catch what the
+      # scoped line CANNOT see. This control reproduces the exact condition --
+      # a bad changeset already present in the tree that both refs share --
+      # and asserts the two lines DISAGREE. The scoped check is required to
+      # exit 0 here; if it ever starts failing, this control no longer
+      # reproduces the defect and says so rather than passing quietly.
+      #
+      # Verified locally before it shipped: scoped exit 0, unscoped exit 1,
+      # message matched. Restores with a SOFT reset, never --hard, so a
+      # mistake here cannot destroy a working tree.
+      - name: Poison control - the unscoped plan catches what --since cannot
+        run: |
+          set -euo pipefail
+          base="$(git rev-parse HEAD)"
+          poison=".changeset/zzz-poison-unscoped.md"
+          printf -- '---\n"@mrbinnacle/skills": patch\n---\n\nPoison control.\n' > "$poison"
+          git add "$poison"
+          git -c user.name=ci -c user.email=ci@local commit -q -m "poison control"
+          git branch -f zzz-poison-base HEAD
+          scoped=0
+          npx --yes changeset status --since=zzz-poison-base > "$RUNNER_TEMP/scoped.log" 2>&1 || scoped=$?
+          unscoped=0
+          npx --yes changeset status > "$RUNNER_TEMP/unscoped.log" 2>&1 || unscoped=$?
+          git branch -q -d zzz-poison-base
+          git reset -q --soft "$base"
+          git restore --staged "$poison"
+          rm -f "$poison"
+          cat "$RUNNER_TEMP/scoped.log"
+          cat "$RUNNER_TEMP/unscoped.log"
+          if [ "$scoped" -ne 0 ]; then
+            echo "::error::the scoped check was expected to be BLIND here - this control no longer reproduces the defect it was written for"
+            exit 1
+          fi
+          if [ "$unscoped" -eq 0 ]; then
+            echo "::error::the unscoped check ACCEPTED a changeset naming a package outside the workspace"
+            exit 1
+          fi
+          grep -q 'which is not in the workspace' "$RUNNER_TEMP/unscoped.log" || { echo "::error::the unscoped control failed for the WRONG reason"; exit 1; }
+          echo "control: scoped blind (exit 0), unscoped rejected it for the right reason"
