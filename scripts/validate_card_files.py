@@ -63,7 +63,36 @@ REQUIRED_FILES: Final[tuple[str, ...]] = ("SKILL.md", "gotchas.md", "EVIDENCE.md
 # the check that makes them contract.
 OCCASIONS_ROW: Final[str] = "Occasions counted"
 RESCREEN_ROW: Final[str] = "Re-screen trigger"
-REQUIRED_EVIDENCE_ROWS: Final[tuple[str, ...]] = (OCCASIONS_ROW, RESCREEN_ROW)
+
+# The measured-demand row (#106). A dispatch is one invocation of a card --
+# demand evidence, never recurrence, lift or worth (docs/adr/0001: a dispatch
+# count is fan-out, and writing it into the recurrence row is the inflation
+# ADMISSION.md criterion 2 refuses). The row is required so it cannot be
+# silently dropped, and its form is checked: it opens with an integer or the
+# exact phrase "No recorded dispatch" (the two trap cards fire through hook
+# mechanisms the platform counter cannot see, so their zero must read as "no
+# recorded dispatch", never "unused"), and it carries its measurement date,
+# because a measured figure without a date cannot be judged stale.
+DISPATCH_ROW: Final[str] = "Dispatches recorded"
+# [1-9]: a zero written as a numeral is refused -- the invariant is that a
+# zero reads "No recorded dispatch", so the counter's blindness to hook and
+# always-loaded firings cannot be read as "unused".
+DISPATCH_OPEN_RE: Final[re.Pattern[str]] = re.compile(
+    r"^\s*(?:[1-9]\d*\b|No recorded dispatch\b)"
+)
+# The date check anchors on the "measured <date>" clause, not on any date in
+# the row: every live row also carries the delta-log inception date in its
+# boilerplate, so a bare DATE_RE search would stay satisfied after the actual
+# measurement clause was dropped.
+DISPATCH_MEASURED_RE: Final[re.Pattern[str]] = re.compile(
+    r"\bmeasured 20\d{2}-\d{2}-\d{2}\b"
+)
+
+REQUIRED_EVIDENCE_ROWS: Final[tuple[str, ...]] = (
+    OCCASIONS_ROW,
+    DISPATCH_ROW,
+    RESCREEN_ROW,
+)
 
 # ADMISSION.md criterion 2: the failure recurs independently, "it is not a
 # one-off". One counted occasion is a one-off, so the card says so in its own
@@ -128,8 +157,8 @@ def missing_files(card: Path) -> list[str]:
     return [name for name in REQUIRED_FILES if not (card / name).is_file()]
 
 
-def corroborating_text(card: Path, row: str) -> str:
-    """Everything the card records EXCEPT the occasions row itself.
+def corroborating_text(card: Path, *rows: str) -> str:
+    """Everything the card records EXCEPT the given rows themselves.
 
     A count is only as good as what it points at. Checking the row's dates
     against the row's own text would pass any number a card cares to write
@@ -148,13 +177,23 @@ def corroborating_text(card: Path, row: str) -> str:
     a recount rather than a refactor: AGENTS.md step 1 says record the
     occurrence where it happened, and moving those records is a call for
     whoever holds them.
+
+    The dispatch row is excised alongside the occasions row (cross-review
+    finding, 2026-08-24): every published card's dispatch row carries its
+    measurement date and the delta-log inception date, so leaving it in the
+    haystack auto-corroborates those two dates for any count a maintainer
+    cares to write -- a sibling row is corroboration only when it records
+    something, and the dispatch row's dates are boilerplate, not records.
     """
     parts = []
     for path in sorted(card.rglob("*.md")):
         if not path.is_file():
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
-        parts.append(text.replace(row, "") if row else text)
+        for row in rows:
+            if row:
+                text = text.replace(row, "")
+        parts.append(text)
     return "\n".join(parts)
 
 
@@ -172,6 +211,20 @@ def evidence_breaches(card: Path) -> list[str]:
         for name in REQUIRED_EVIDENCE_ROWS
         if not rows.get(name, "").strip("* `")
     ]
+    dispatch = rows.get(DISPATCH_ROW, "")
+    if dispatch.strip("* `"):
+        if not DISPATCH_OPEN_RE.match(dispatch):
+            breaches.append(
+                f"{DISPATCH_ROW} must open with a nonzero integer count or "
+                f"the exact phrase 'No recorded dispatch': {dispatch[:60]!r}"
+            )
+        elif not DISPATCH_MEASURED_RE.search(dispatch):
+            breaches.append(
+                f"{DISPATCH_ROW} states no 'measured <date>' clause. A "
+                "measured figure without its measurement date cannot be "
+                "re-derived or judged stale"
+            )
+
     occasions = rows.get(OCCASIONS_ROW, "")
     counted = COUNT_RE.match(occasions)
     if not counted:
@@ -194,7 +247,7 @@ def evidence_breaches(card: Path) -> list[str]:
             f"{OCCASIONS_ROW} states {count} but cites {len(dates)} dated "
             f"reference(s): {', '.join(dates) or 'none'}"
         )
-    haystack = corroborating_text(card, occasions)
+    haystack = corroborating_text(card, occasions, dispatch)
     uncorroborated = [d for d in dates if d not in haystack]
     if uncorroborated:
         breaches.append(

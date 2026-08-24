@@ -8,4 +8,5 @@ failing for exactly one reason.
 | Field | Value |
 |---|---|
 | **Occasions counted** | 0 - fixture card, no occurrence to count. RECURRENCE-THIN. |
+| **Dispatches recorded** | No recorded dispatch, fixture counter, measured 2026-01-01. |
 | **Re-screen trigger** | Fixture; never screened, never re-screened. |
