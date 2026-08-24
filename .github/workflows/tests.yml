@@ -44,6 +44,12 @@ jobs:
         with:
           python-version: "3.13"
 
+      # Both suites must also show ", no-drift" in the roster: the suite reports
+      # parity NOT VERIFIED (and still exits 0) when it cannot find its sibling,
+      # which is correct on a single-card install and self-disabling here, where
+      # both cards are always present. Without this grep, a refactor that moves
+      # or renames either card turns the parity gate off silently while CI
+      # stays green — the exact failure class the parity contract exists on.
       - name: Producer validator suite
         run: |
           set -euo pipefail
@@ -52,6 +58,8 @@ jobs:
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::producer suite emitted no PASS line — it did not run"; exit 1; }
+          echo "$out" | grep -q ', no-drift' \
+            || { echo "::error::producer suite did not verify parity — no-drift absent from the pass roster"; exit 1; }
 
       - name: Receiver validator suite
         run: |
@@ -61,6 +69,8 @@ jobs:
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::receiver suite emitted no PASS line — it did not run"; exit 1; }
+          echo "$out" | grep -q ', no-drift' \
+            || { echo "::error::receiver suite did not verify parity — no-drift absent from the pass roster"; exit 1; }
 
       # A gate that cannot fail guards nothing. A stale packet must be rejected,
       # so this asserts the shipped validator still refuses one.
