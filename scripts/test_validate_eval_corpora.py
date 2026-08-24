@@ -40,7 +40,10 @@ import validate_eval_corpora as corpora  # noqa: E402
 FAILURES: list[str] = []
 
 CARD_NAME = "probe-card"
-ONE_BREACH = "1 eval corpus breach(es)"
+# Anchored on "REJECTED: " so a count merely ENDING in 1 (11, 21, ...) cannot
+# satisfy the single-reason guard -- cross-review found the bare substring
+# matched "11 eval corpus breach(es)" starting at its second character.
+ONE_BREACH = "REJECTED: 1 eval corpus breach(es)"
 
 
 def check(name: str, condition: bool, detail: str = "") -> None:
@@ -249,6 +252,40 @@ def case_empty_assertion_rejected(root: Path) -> None:
     expect_rejection(root, "a corpus with an empty assertion", "states an empty assertion at position 2")
 
 
+def case_unknown_top_level_key_rejected(root: Path) -> None:
+    """The corpus vocabulary is closed at the top level.
+
+    A contract file that accepts unknown keys can grow measurement-shaped
+    keys (verdict, score) and become a self-certified measurement record --
+    the shape the checker's own docstring says it exists to refuse.
+    """
+    write_tree(root, mutate(lambda c: c.update(verdict="PASS")))
+    expect_rejection(root, "a corpus with an unknown top-level key", "unknown key(s) 'verdict'")
+
+
+def case_unknown_case_key_rejected(root: Path) -> None:
+    """The case vocabulary is closed too, so a typo'd optional cannot drift."""
+    write_tree(root, mutate(lambda c: c["cases"][1].update(score=0.95)))
+    expect_rejection(root, "a case with an unknown key", "unknown key(s) 'score'")
+
+
+def case_nameless_frontmatter_rejected(root: Path) -> None:
+    """A SKILL.md with frontmatter but no name line is a breach, not a skip.
+
+    Cross-review reproduced the silent pass: no other validator owns the
+    frontmatter name, so skipping here made the drift check unable to fire on
+    exactly the rename shape it exists to catch.
+    """
+    card = write_tree(root)
+    (card / "SKILL.md").write_text(
+        "---\ndescription: A probe card with no name line.\n---\n\n# probe\n",
+        encoding="utf-8",
+    )
+    expect_rejection(
+        root, "a card whose frontmatter states no name", "states no frontmatter name"
+    )
+
+
 def case_second_file_in_evals_rejected(root: Path) -> None:
     """Exactly one corpus per card is enforced, not assumed.
 
@@ -301,7 +338,7 @@ def case_every_live_corpus_names_its_card() -> None:
             mismatched.append(f"{card.name}: no corpus")
             continue
         declared = json.loads(corpus.read_text(encoding="utf-8")).get("skill_name")
-        live = corpora.frontmatter_name(card)
+        _, live = corpora.frontmatter_name(card)
         if declared != live:
             mismatched.append(f"{card.name}: {declared!r} != {live!r}")
     check("every live corpus names its card's frontmatter name", not mismatched, "; ".join(mismatched))
@@ -342,6 +379,9 @@ def main() -> None:
         case_empty_expected_output_rejected,
         case_too_few_assertions_rejected,
         case_empty_assertion_rejected,
+        case_unknown_top_level_key_rejected,
+        case_unknown_case_key_rejected,
+        case_nameless_frontmatter_rejected,
         case_second_file_in_evals_rejected,
     )
     for case in in_tempdir:

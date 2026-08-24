@@ -531,6 +531,6 @@ jobs:
           fi
           grep -q 'states no evals/evals.json' "$log" \
             || { echo "::error::corpus-less fixture failed for the wrong reason"; cat "$log"; exit 1; }
-          grep -q '1 eval corpus breach(es)' "$log" \
+          grep -q 'REJECTED: 1 eval corpus breach(es)' "$log" \
             || { echo "::error::corpus-less fixture was red for more than one reason"; cat "$log"; exit 1; }
           echo "control: a published card with no corpus rejected as expected"

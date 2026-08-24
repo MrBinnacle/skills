@@ -76,6 +76,18 @@ MIN_ASSERTIONS: Final[int] = 2
 # the situation a card fires in from "fix the build".
 MIN_PROMPT_CHARS: Final[int] = 40
 
+# The corpus vocabulary is CLOSED (cross-review finding, 2026-08-24). A
+# contract file that accepts unknown keys can grow measurement-shaped keys --
+# verdict, score, result, passed -- and become a self-certified measurement
+# record, the exact shape the docstring above says this checker exists to
+# refuse; a typo'd optional ("notes", "Note") also drifts silently. `note` is
+# the one free-text optional, at both levels, because the live corpora carry
+# it.
+TOP_LEVEL_KEYS: Final[frozenset[str]] = frozenset({"skill_name", "cases", "note"})
+CASE_KEYS: Final[frozenset[str]] = frozenset(
+    {"id", "prompt", "expected_output", "assertions", "note"}
+)
+
 FRONTMATTER_NAME_RE: Final[re.Pattern[str]] = re.compile(
     r"\A---\s*\n(.*?)\n---\s*(?:\n|\Z)", re.DOTALL
 )
@@ -88,21 +100,26 @@ def quote(value: object, limit: int = 60) -> str:
     return rendered if len(rendered) <= limit else rendered[: limit - 3] + "..."
 
 
-def frontmatter_name(card: Path) -> str | None:
-    """The card's live `name`, or None when there is no SKILL.md to read.
+def frontmatter_name(card: Path) -> tuple[bool, str | None]:
+    """(skill_md_exists, live name or None).
 
     A card with no SKILL.md is validate_card_files.py's finding, not this
-    script's, so the name assertion is skipped rather than reported twice in
-    different words. The corpus itself is still required.
+    script's, so that shape is skipped rather than reported twice in
+    different words. A SKILL.md that exists but states no frontmatter name is
+    NOBODY else's finding -- validate_card_files.py checks file presence and
+    evidence rows only -- so the caller reports it here rather than skipping:
+    a rename that drops or mangles the name line is exactly the drift the
+    skill_name assertion exists to catch (cross-review reproduced the silent
+    pass).
     """
     skill_md = card / "SKILL.md"
     if not skill_md.is_file():
-        return None
+        return (False, None)
     block = FRONTMATTER_NAME_RE.match(skill_md.read_text(encoding="utf-8", errors="replace"))
     if block is None:
-        return None
+        return (True, None)
     found = NAME_LINE_RE.search(block.group(1))
-    return found.group(1) if found else None
+    return (True, found.group(1) if found else None)
 
 
 def case_breaches(index: int, case: Any, seen_ids: dict[Any, int], seen_prompts: dict[str, int]) -> list[str]:
@@ -116,6 +133,14 @@ def case_breaches(index: int, case: Any, seen_ids: dict[Any, int], seen_prompts:
         return [f"{where} is not an object: {quote(case)}"]
 
     breaches: list[str] = []
+
+    unknown = sorted(set(case) - CASE_KEYS)
+    if unknown:
+        breaches.append(
+            f"{where} states unknown key(s) {', '.join(map(quote, unknown))}. "
+            "The case vocabulary is closed, so a contract case cannot carry "
+            "a verdict, score or result"
+        )
 
     identifier = case.get("id")
     # bool is an int in Python and would silently make True and 1 the same id.
@@ -210,10 +235,24 @@ def corpus_breaches(card: Path) -> list[str]:
     if not isinstance(data, dict):
         return breaches + [f"{CORPUS_PATH} is not a JSON object: {quote(data)}"]
 
+    unknown = sorted(set(data) - TOP_LEVEL_KEYS)
+    if unknown:
+        breaches.append(
+            f"{CORPUS_PATH} states unknown key(s) {', '.join(map(quote, unknown))}. "
+            "The corpus vocabulary is closed, so a contract cannot grow "
+            "measurement-shaped keys or silently typo an optional one"
+        )
+
     declared = data.get("skill_name")
-    live = frontmatter_name(card)
+    has_skill_md, live = frontmatter_name(card)
     if not isinstance(declared, str) or not declared.strip():
         breaches.append(f"{CORPUS_PATH} states no skill_name: {quote(declared)}")
+    elif has_skill_md and live is None:
+        breaches.append(
+            "SKILL.md states no frontmatter name, so the corpus's skill_name "
+            f"{quote(declared)} cannot be checked against the card. A name "
+            "assertion that silently skips is a drift check that cannot fire"
+        )
     elif live is not None and declared != live:
         breaches.append(
             f"{CORPUS_PATH} states skill_name {quote(declared)} but the card's "
