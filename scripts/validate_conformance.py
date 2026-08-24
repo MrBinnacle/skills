@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Run the standing obligations (`conformance v1`) against the published tree.
+"""Run the standing obligations (`conformance v2`) against the published tree.
 
-SECURITY.md declares six standing obligations a published card owes for as long
+SECURITY.md declares seven standing obligations a published card owes for as long
 as it stays published. This script is the driver behind that section. It reports
 PASS / FAIL / CANNOT-CHECK per card per obligation, and CANNOT-CHECK is a
 distinct reported state -- never folded into PASS. An obligation the collection
@@ -26,14 +26,17 @@ WHAT IS DELEGATED, AND WHY
     O1's format vocabulary is validate_skill_formats.py's predicate, imported
     and called rather than restated -- one vocabulary, one place to widen it.
     O4's controlled-field names are validate_scoreboard.py's CONTROLLED_FIELDS
-    for the same reason. O6 is validate_scoreboard.py's whole run.
+    for the same reason. O6 is validate_scoreboard.py's whole run. O7 reads the
+    manifest directly -- it is this repository's own artifact, so there is no
+    other predicate to delegate to.
 
 SCOPE: CARD VS REPO
-    Four obligations are properties of one card and are scored per card. Two
-    (O1's walk and O6's scoreboard) are repo-wide predicates whose subject is
-    the tree, and are evaluated ONCE and reported in their own block. Copying a
-    single repo verdict into nine identical cells would multiply one finding by
-    the card count and make the totals lie about how much was checked.
+    Four obligations are properties of one card and are scored per card.
+    Three -- O1's walk, O6's scoreboard and O7's manifest -- are repo-wide
+    predicates whose subject is the tree. They are evaluated ONCE and reported
+    in their own block. Copying a single repo verdict into fifteen identical
+    cells would multiply one finding by the card count and make the totals lie
+    about how much was checked.
 
 Usage:
     python scripts/validate_conformance.py
@@ -42,6 +45,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -59,7 +63,7 @@ PASS: Final[str] = "PASS"
 FAIL: Final[str] = "FAIL"
 CANT: Final[str] = "CANNOT-CHECK"
 
-CONFORMANCE_VERSION: Final[str] = "conformance v1"
+CONFORMANCE_VERSION: Final[str] = "conformance v2"
 
 # The SECURITY.md section states this date as the trial's pre-registered exit.
 # It is asserted equal by the suite so the workflow header, the policy section
@@ -86,6 +90,7 @@ OBLIGATIONS: Final[tuple[Obligation, ...]] = (
     Obligation("O4", "EVIDENCE.md present with all controlled fields", CARD),
     Obligation("O5", "controlled fields do not contradict a published receipt", CARD),
     Obligation("O6", "scoreboard lockstep", REPO),
+    Obligation("O7", "plugin manifest and published tree agree", REPO),
 )
 
 CARD_OBLIGATIONS: Final[tuple[Obligation, ...]] = tuple(
@@ -290,9 +295,105 @@ def check_scoreboard_lockstep(root: Path) -> Result:
     return Result(PASS if proc.returncode == 0 else FAIL, tail)
 
 
+MANIFEST_REL: Final[str] = ".claude-plugin/marketplace.json"
+
+
+PUBLISHED_PREFIX: Final[str] = "skills/"
+
+
+def manifest_exposed_cards(root: Path) -> tuple[list[str], list[str], list[str]]:
+    """Every published card the manifest names, and the two ways an entry is bad.
+
+    Returns (exposed_names, dangling_paths, off_tree_paths).
+
+    A path is DANGLING when no SKILL.md sits at it -- which covers a renamed
+    card and a typo alike, and is the only reading that does not require the
+    checker to guess intent.
+
+    A path is OFF-TREE when a SKILL.md does sit at it but the path is outside
+    `skills/`. This is its own category because it is the one breach that
+    RESOLVES: `_quarantine/` candidates have real SKILL.md files, so a
+    quarantine card named by the manifest is neither dangling nor missing, and
+    a check built only from those two states reports PASS while shipping an
+    unadmitted card to everyone who installs. Demonstrated green on this tree
+    before this category existed.
+    """
+    data = json.loads((root / MANIFEST_REL).read_text(encoding="utf-8"))
+    exposed: list[str] = []
+    dangling: list[str] = []
+    off_tree: list[str] = []
+    for plugin in data.get("plugins", []):
+        for entry in plugin.get("skills", []):
+            rel = str(entry).removeprefix("./")
+            if not (root / rel / "SKILL.md").is_file():
+                dangling.append(str(entry))
+            elif not rel.startswith(PUBLISHED_PREFIX):
+                off_tree.append(str(entry))
+            else:
+                exposed.append(Path(rel).name)
+    return exposed, dangling, off_tree
+
+
+def check_plugin_manifest(root: Path) -> Result:
+    """O7: the manifest and the published tree name the same cards, both ways.
+
+    Both directions are required, and the repository has the receipt for why.
+    The sibling occasions check ran forward-only -- a count could not rise
+    without a record -- and an UNDERCOUNT stayed green until August 2026,
+    because nothing asked the reverse question. A manifest check that validates
+    only the paths it names has exactly that hole: drop a card from the
+    manifest and every remaining path still resolves.
+
+    Absent or malformed is FAIL, not CANNOT-CHECK. The manifest is this
+    repository's own artifact, so its absence is a breach -- the collection
+    ships no install path. CANNOT-CHECK is reserved for what this repository
+    genuinely cannot see from inside itself, which is O5 and nothing else.
+    """
+    manifest = root / MANIFEST_REL
+    if not manifest.is_file():
+        return Result(
+            FAIL,
+            f"{MANIFEST_REL} absent: the collection declares no install path, so "
+            "the native plugin route does not exist",
+        )
+    try:
+        exposed, dangling, off_tree = manifest_exposed_cards(root)
+    except ValueError as exc:  # json.JSONDecodeError subclasses ValueError
+        return Result(FAIL, f"{MANIFEST_REL} is not parseable JSON: {exc}")
+    except OSError as exc:
+        return Result(FAIL, f"{MANIFEST_REL} could not be read: {exc}")
+
+    published = [c.name for c in find_cards(root)]
+    if not published:
+        return Result(CANT, "no published cards under this root to compare against")
+
+    duplicated = sorted({n for n in exposed if exposed.count(n) > 1})
+    unexposed = sorted(set(published) - set(exposed))
+
+    breaches = []
+    if dangling:
+        breaches.append("named with no card at the path: " + ", ".join(sorted(dangling)))
+    if off_tree:
+        breaches.append(
+            "named but not published -- outside skills/: " + ", ".join(sorted(off_tree))
+        )
+    if unexposed:
+        breaches.append("published but named by no plugin: " + ", ".join(unexposed))
+    if duplicated:
+        breaches.append("named by more than one plugin: " + ", ".join(duplicated))
+    if breaches:
+        return Result(FAIL, "; ".join(breaches))
+    return Result(
+        PASS,
+        f"{len(published)} published card(s), each named exactly once by the "
+        "manifest, and every named path resolves",
+    )
+
+
 REPO_CHECKS = {
     "O1": check_declared_formats,
     "O6": check_scoreboard_lockstep,
+    "O7": check_plugin_manifest,
 }
 
 

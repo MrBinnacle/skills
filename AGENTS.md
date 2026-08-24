@@ -117,6 +117,29 @@ Every bucket folder must have a `README.md` that lists every skill in the bucket
 
 The top-level `README.md` must list every shipped skill under its bucket. Skills not in any bucket README are not shipped — move them to an `in-progress/` bucket or remove them.
 
+## The plugin manifest is the machine-readable source of truth
+
+`.claude-plugin/marketplace.json` states what this collection ships, in the form Claude Code's own
+plugin mechanism reads. It groups the published cards **one plugin per bucket** — `engineering`,
+`orchestration`, `meta` — which makes the membership check a pure derivation from the tree with no
+judgement in it. Any other grouping needs a hand-maintained card-to-plugin mapping, which is a
+second census to keep in sync.
+
+**Two surfaces, two jobs, and the tie-break is fixed.** The manifest is the machine-readable
+statement; the bucket READMEs are the human-readable one. **Where they disagree, the manifest wins
+and the README is reconciled to it** — the manifest is what an installer executes, so a README that
+disagrees is a stale description of something already shipping.
+
+`validate_conformance.py` obligation **O7** checks both directions on every run: a path the
+manifest names with no card at it, and a published card no plugin names. One direction is not
+enough, and this repository has the receipt — the occasions check ran forward-only and an
+undercount stayed green until August 2026. **A promotion or a retirement edits the manifest in the
+same commit as the `git mv`,** or O7 reds the pull request.
+
+⚠ **Do not hand-type the `skills` arrays.** Derive them from `git ls-files 'skills/**/SKILL.md'`.
+A hand-typed path that is one character wrong is caught by O7, but a hand-typed list that is merely
+*stale* is the failure this section exists to prevent, and it is cheaper to never author it.
+
 ## Recording a new occurrence
 
 Recurrence accrues in the ordinary course of work, not in a special counting session. The

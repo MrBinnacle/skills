@@ -1,0 +1,51 @@
+{
+  "name": "mrbinnacle-skills",
+  "owner": {
+    "name": "MrBinnacle",
+    "url": "https://github.com/MrBinnacle/skills"
+  },
+  "metadata": {
+    "description": "Agent skills that each carry a dated incident, a recurrence count, and a stated screen result."
+  },
+  "plugins": [
+    {
+      "name": "mrbinnacle-engineering",
+      "description": "Workflow disciplines for shipping software: traps that survive review, and the checks that catch them.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/engineering/click-clirunner-env-none-deletes",
+        "./skills/engineering/closure-mode-at-boundaries",
+        "./skills/engineering/git-pull-rebase-trap",
+        "./skills/engineering/github-pages-deploy-verification",
+        "./skills/engineering/halt-as-deliverable",
+        "./skills/engineering/im-down",
+        "./skills/engineering/im-up",
+        "./skills/engineering/mock-masked-stub-trap",
+        "./skills/engineering/pretooluse-bash-guard-prose-false-positive",
+        "./skills/engineering/success-test-accepts-any-output"
+      ]
+    },
+    {
+      "name": "mrbinnacle-orchestration",
+      "description": "Disciplines for multi-agent work - dispatch, joinability, and synthesis across parallel agents.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/orchestration/downstream-instruction-framing",
+        "./skills/orchestration/parallel-review-disposition-schema",
+        "./skills/orchestration/subagent-research-reliability"
+      ]
+    },
+    {
+      "name": "mrbinnacle-meta",
+      "description": "Skills about the skill system itself: whether a skill should exist, and whether it can be reached.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/meta/router-skill-predicate-gap",
+        "./skills/meta/skill-necessity-gate"
+      ]
+    }
+  ]
+}
