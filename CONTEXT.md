@@ -37,3 +37,14 @@ Passes all four admission criteria on recorded evidence today. Distinct from the
 instrument's *evidence admissibility*, which gates whether an observation may feed
 aggregation — a card can be admissible while every observation about it is inadmissible.
 Qualify on contact when both senses are near: "admissible card" vs "admissible evidence".
+
+**Occasion**:
+One independent occurrence of the failure a card addresses, counted and dated after the fact.
+Two is the threshold below which a card carries `RECURRENCE-THIN`.
+_Avoid_: use, usage, invocation, dispatch — each counts runs of the card, and `ADMISSION.md`
+criterion 2 refuses a count inflated by fan-out.
+
+**Dispatch**:
+One invocation of a card. Evidence of demand, never of recurrence, lift or worth.
+_Avoid_: occasion — a card invoked many times over one failure has many dispatches and one
+occasion.
