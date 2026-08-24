@@ -80,8 +80,33 @@ Found by the rotation and harvest pass over this collection, in the pass's own s
 - **This narrows Check 0's two routes: they are not interchangeable.** Occurrence 1 recovered with
   `SendMessage` **plus** one authorised absolute path. Occurrence 2 used `SendMessage` alone and
   recovered nothing. On this evidence route 2 — the file at a named path — is the load-bearing
-  half, and route 1 is not a substitute for it. Route 2 was not exercised in occurrence 2, so its
-  standalone sufficiency is untested.
+  half, and route 1 is not a substitute for it.
+
+### Route 2 tested directly, same session, 2026-08-24
+
+The paragraph above originally recorded route 2's standalone sufficiency as untested. It was then
+tested against the same four agents, and the result is recorded here rather than folded into the
+claim above, so the order of evidence stays visible.
+
+- **Route 1, three attempts, zero recoveries.** The dispatch itself, a `SendMessage` restating the
+  output contract verbatim, and a third wake. Each produced an idle notification carrying no
+  content. Nine idle notifications in total across the four agents.
+- **Route 2, one attempt, immediate recovery.** Three agents were re-instructed with the bounded
+  write escalation quoted in `Check 0`, each naming one absolute path. **Two of three wrote their
+  file within the same wake**, 10,869 and 14,175 bytes, containing the requested verbatim card
+  extracts in the requested block format. The third had not written at the time of recording.
+- **The returns were substantive, not acknowledgements.** One block quotes a card's origin
+  paragraph verbatim, names the section it sits under, and lists the distinctive literals asked
+  for. The agents had done the work throughout; none of it could reach the session through plain
+  text.
+- **One partial return, recorded rather than rounded up.** The seven-block file contained five
+  blocks. Route 2 delivered, and delivered incompletely, in the same run.
+
+**Finding: route 2 is sufficient on its own and route 1 is not.** `Check 0` presents the two routes
+as redundancy — "so one failing is survivable". That framing understates the asymmetry. Route 1
+failed three times against the identical task, agents and session in which route 2 succeeded on the
+first attempt. **State the file path in the dispatch. Treat `SendMessage` as a supplement to it,
+never as the channel.** A future edit to `Check 0` should reorder the two routes accordingly.
 
 **The two occurrences are independent.** Different repository, different agent type (`Explore`
 against `reader`), different task (repository research against text extraction), six days apart.
