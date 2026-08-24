@@ -67,6 +67,12 @@ updates every installed copy and local↔repo drift is structurally impossible:
    `npm run version` to roll pending changesets into a version bump + `CHANGELOG.md` update,
    commit it, and tag by hand if wanted.
 
+   ⚠ **`npm run version` fails closed without a `GITHUB_TOKEN` in the environment.** The
+   changelog generator is `@changesets/changelog-github`, which resolves pull-request and author
+   links through the GitHub API, so a run with no token stops partway through a release rather
+   than at its start. Nothing stated this until 2026-08-24 and the next person to cut a release
+   discovered it mid-run. Export a token with `public_repo` scope before running it.
+
 **Promotion of a new skill** (private → published):
 
 1. Author and prove the skill privately. It must pass the [admission policy](ADMISSION.md) and
@@ -77,14 +83,17 @@ updates every installed copy and local↔repo drift is structurally impossible:
 2a. **Normalize the frontmatter, because `_quarantine/` and `skills/` do not use the same
    keys.** Rewrite the `description` to the published bar in the same pass: ≤ 200 characters,
    written as a router. Measured 2026-08-24, every one of the 22 candidates was over it, from 285
-   to 1272 characters, while every published card sat between 123 and 200. No validator checks
-   this either, so it is the same kind of step as the key-stripping below — the edit *is* the
-   enforcement. Published cards carry `name` + `description`, plus `disable-model-invocation` where
+   to 1272 characters, while every published card sat between 123 and 200. **The 200 bar is
+   enforced by nothing but this step** — the spec gate only checks the specification's own 1024
+   limit, which every one of those candidates was inside. The edit *is* the enforcement. Published cards carry `name` + `description`, plus `disable-model-invocation` where
    the topology rule above calls for it — nothing else. Candidates carry four different
    dialects: measured 2026-08-23, 12 of 22 held `author` / `version` / `date`, 6 held a
    `metadata: type:` block over an undeclared vocabulary (`pattern`, `trap`, `workaround`,
-   `discipline`), 4 held neither. Strip the extras on promotion. No validator reads frontmatter,
-   so nothing will catch a leftover key — this step is the whole enforcement.
+   `discipline`), 4 held neither. Strip the extras on promotion. ⚠ **`validate_spec_conformance.py`
+   now catches a leftover `author` / `date` / `version` on a PUBLISHED card** — that allowance is
+   scoped to `_quarantine/` only, so a candidate promoted without step 2a reds the build. It does
+   NOT catch a leftover `metadata:` block, which is spec-legal; for that key this step is still the
+   whole enforcement.
 3. PR → gate → merge (with a changeset).
 4. **Then** replace the maintainer's local real dir with a symlink to the repo copy
    (`link-skills.ps1`), so from that point the published skill has exactly one copy and cannot
@@ -101,6 +110,38 @@ updates every installed copy and local↔repo drift is structurally impossible:
 - **`gotchas.md` is required** — append-only log of OBSERVED + ANTICIPATED failure modes. Seed with `[ANTICIPATED]` entries; replace or supplement with observed gotchas. Never delete entries — gotchas are stress-test signal, not failure evidence.
 - **Discipline vs implementation** — make explicit in `SKILL.md` which parts of the skill are the stable contract vs. illustrative. Adopters need to know what they can swap.
 - **Factual claims are dated and checkable — verify them before shipping AND before correcting.** A skill that asserts platform behavior (a flag, a hook payload, an API) rots when the platform changes. Verify against live docs or an empirical repro before you ship a claim, and again before you "fix" one — a wrong correction to an evidence-first repo is worse than the original error. Record the check (version, date) where it's load-bearing.
+
+## Where this repository diverges from the Agent Skills specification, on purpose
+
+The published [Agent Skills specification](https://agentskills.io/specification) ships a
+reference validator, `skills-ref`. CI runs it over both trees
+(`scripts/validate_spec_conformance.py`). It is the only conformance instrument here that its
+maintainer did not write, which is the entire reason for adopting it — every other gate can be
+wrong in the same direction as the cards it grades.
+
+⚠ **It rejected two published cards on its first run**, both for an unquoted YAML description
+scalar containing a `: ` or a `{`. Claude Code's parser tolerates them; a spec-conformant reader
+cannot load them. No gate here saw it because **no gate here reads frontmatter**. Quote any
+description containing `:`, `{`, `[`, `#` or a leading `*`.
+
+The conventions above predate the specification. Where they still differ, each difference is a
+decision, recorded so it reads as a choice rather than as ignorance of the document:
+
+| This repository | The specification | Why the difference stands |
+|---|---|---|
+| Frontmatter is `name` + `description` only, plus `disable-model-invocation` | also permits `license`, `compatibility`, `metadata`, `allowed-tools` | Narrower on purpose. The extra keys are legal and unused; adding them would widen the dialect spread step 2a exists to close. **`disable-model-invocation` goes the other way** — it is outside the spec vocabulary and is a real Claude Code key with load-bearing behaviour: it is what stops a procedure card auto-firing. It stays, and the spec gate carries a named allowance for it. |
+| `description` capped at 200 characters | permits 1024 | Stricter on purpose. An installed card's description is loaded at startup whether or not the card fires, so length is paid for by every session. |
+| Flat per-skill layout | recommends `references/`, `scripts/`, `assets/` | A card here is small enough that a subdirectory adds a hop without adding structure. Revisit per skill if one genuinely needs multiple domains. |
+| `evals/` per card | not in the specification | This repository's own convention, checked by `validate_eval_corpora.py`. It is an addition, not a divergence — nothing in the spec forbids it. |
+
+⛔ **The `metadata:` blocks stripped from candidates on promotion are spec-LEGAL.** Step 2a is a
+house rule narrowing the vocabulary, not a correction of a non-conforming card. Say it that way
+when explaining the step.
+
+**Tolerated divergences are printed on every run of the spec gate.** A silent allowance is a
+silent gate, and the allowance list is scoped per tree: the published tree tolerates exactly one
+error class, the candidate tree tolerates the three that promotion already closes. Anything else
+fails, in either tree.
 
 ## Vocabulary of record
 
@@ -324,23 +365,29 @@ mechanism working. An evolving ecosystem, not a chop list.
    Done when every published card has a row and every never-fired card carries one of the
    three diagnoses above or a dated "discriminator unrun".
 
-   **Scan the pointer surface in the same step, because no gate does.** Seven validators now
+   **Scan the pointer surface in the same step, because no gate does.** Eight validators now
    run in CI — file presence and the `EVIDENCE.md` controlled rows (`validate_card_files.py`),
    the banner line and the derived counts (`validate_scoreboard.py`), skill-file formats
    (`validate_skill_formats.py`), voice provenance (`validate_voice_provenance.py`), the eval
-   corpora (`validate_eval_corpora.py`), the brand kit (`validate_brand_kit.py`), and the
-   scheduled conformance sweep (`validate_conformance.py`) — plus the link check and the
-   residue gate.
+   corpora (`validate_eval_corpora.py`), the brand kit (`validate_brand_kit.py`), the
+   scheduled conformance sweep (`validate_conformance.py`), and the official Agent Skills spec
+   validator (`validate_spec_conformance.py`) — plus the link check and the residue gate.
 
-   **Not one of them reads a card's `description`.** One of them, `validate_eval_corpora.py`,
-   now parses frontmatter, but only the `name` key, and only to refuse a corpus whose
-   `skill_name` has drifted from the card it claims. Check that before concluding the gates
-   have grown to cover retrieval: they have not, and the count rising from four to seven is
+   **Not one of them reads a card's `description` AS A ROUTER**, which is the only thing that
+   decides whether a model-invocable card is ever reached. Two of them touch the field and
+   neither answers that question. `validate_eval_corpora.py` parses frontmatter, but only the
+   `name` key, and only to refuse a corpus whose `skill_name` has drifted from the card it
+   claims. `validate_spec_conformance.py` reads the description's SHAPE — that it is valid YAML
+   and inside the specification's 1024-character limit — and shape is not reachability: a
+   perfectly-formed description naming none of the words a user types passes it cleanly. The
+   published 200-character bar is still enforced by nothing but the editor. Check that before
+   concluding the gates
+   have grown to cover retrieval: they have not, and the count rising from four to eight is
    exactly the kind of change that makes a reader assume they have. A card's `description` is
    the only thing that decides
    whether a model-invocable card is ever reached, so the collection currently validates its
    receipts and not its retrieval surface: a card can carry a perfect evidence record, derive
-   correctly into every count, pass all seven gates, and be permanently unreachable. Read each
+   correctly into every count, pass all eight gates, and be permanently unreachable. Read each
    card's `description` against how the situation actually gets phrased, and treat a
    never-fired card's pointer as a suspect before concluding insurance. Note also which cards
    *cannot* fire by construction — `disable-model-invocation: true`, or sitting in
@@ -423,8 +470,8 @@ mechanism working. An evolving ecosystem, not a chop list.
 5. **Reconcile, then validate.** Propagate each count or label change to every derived
    surface, walking the consequence chain before the edit — a one-integer change
    legitimately breaks several pins at once, and each break is the guard working: fix the
-   surface, keep the pin. Then run the whole gate set with `PYTHONUTF8=1` — seven validators
-   and their seven suites:
+   surface, keep the pin. Then run the whole gate set with `PYTHONUTF8=1` — eight validators
+   and their eight suites:
 
    | Validator | Suite | What a pass most often breaks here |
    |---|---|---|
@@ -434,12 +481,13 @@ mechanism working. An evolving ecosystem, not a chop list.
    | `scripts/validate_skill_formats.py` | `scripts/test_validate_skill_formats.py` | a card file whose extension is outside `.md`/`.txt`/`.py`/`.json`, or a `__pycache__` bytecode file with no source beside it. **No size check exists** — the size guidance under "Authoring conventions" is unenforced |
    | `scripts/validate_voice_provenance.py` | `scripts/test_validate_voice_provenance.py` | a quotation in `BRAND.md` section `## Voice` with no `Source:` line citing `VERBATIM.md`. **Scope is that section only** — it reads no `SKILL.md` and no README, so no ordinary prose edit can red it |
    | `scripts/validate_brand_kit.py` | `scripts/test_validate_brand_kit.py` | declared colours, banned words, asset hash pairs |
-   | `scripts/validate_conformance.py --root .` | `scripts/test_validate_conformance.py` | governance surfaces (the scheduled job's own pair) |
+   | `scripts/validate_conformance.py --root .` | `scripts/test_validate_conformance.py` | governance surfaces (the scheduled job's own pair), and O7's manifest-vs-tree check |
+   | `scripts/validate_spec_conformance.py` | `scripts/test_validate_spec_conformance.py` | the OFFICIAL spec validator over both trees. **Needs `npx`.** Its suite tests the allowance classifier only and says so; the live run is CI's |
 
-   ⚠ **Run all seven, not the ones the pass thinks it touched.** The reconciliation step exists
+   ⚠ **Run all eight, not the ones the pass thinks it touched.** The reconciliation step exists
    because a one-integer change propagates further than the editor expects; a gate list trimmed
-   by expectation defeats the same property. This table was four validators until 2026-08-24
-   and shipped stale — if it disagrees with CI, CI is right and this table is the bug. Re-derive
+   by expectation defeats the same property. This table was four validators until 2026-08-24,
+   became seven the same day and eight before the day ended, and shipped stale at four — if it disagrees with CI, CI is right and this table is the bug. Re-derive
    the roster with:
 
    ```
@@ -483,7 +531,7 @@ mechanism working. An evolving ecosystem, not a chop list.
    cannot fire today; a pass that admits past 40 must decide on rotation rather than raise the
    ceiling.
 
-   Done when **all seven validators, all seven suites, and — if a session-boundary card was
+   Done when **all eight validators, all eight suites, and — if a session-boundary card was
    touched — both parity suites and the poison control** pass, AND a re-run of the whole pass
    with no new evidence would produce zero diff: the pass re-derives from current records every
    time, keeps no incremental state, and is safe to run twice.

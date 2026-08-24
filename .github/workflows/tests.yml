@@ -667,3 +667,136 @@ jobs:
           grep -q 'REJECTED: 1 brand kit breach(es)' "$log" \
             || { echo "::error::hex fixture was red for more than one reason"; cat "$log"; exit 1; }
           echo "control: an undeclared hex rejected as expected"
+
+  # ---------------------------------------------------------------------------
+  # The only conformance instrument in this repository its maintainer did not
+  # write. `skills-ref` is the Agent Skills specification's own reference
+  # validator, so it is the one gate that cannot be wrong in the same direction
+  # as the cards it grades.
+  #
+  # It earned its place on the first run: it rejected TWO PUBLISHED CARDS for
+  # invalid YAML frontmatter that every local gate passed, because no local gate
+  # reads frontmatter at all.
+  #
+  # Ubuntu only, deliberately. The check reads card text, which does not vary by
+  # operating system, and running it on both matrix cells would double a package
+  # download to re-answer the same question. The Windows cell exists in the
+  # validator job because THAT job runs code whose behaviour is host-dependent.
+  #
+  # Node is pinned by full commit SHA with the version in a trailing comment,
+  # matching the sibling repository's standing practice. CVE-2025-30066
+  # repointed every tj-actions/changed-files tag from v1 to v45 inside a
+  # 24-hour window; a floating tag is not a pin.
+  spec-conformance:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Allowance suite
+        run: |
+          set -euo pipefail
+          out="$(PYTHONUTF8=1 python scripts/test_validate_spec_conformance.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::allowance suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Agent Skills spec conformance, both trees
+        run: |
+          set -euo pipefail
+          out="$(PYTHONUTF8=1 python scripts/validate_spec_conformance.py --root .)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::spec gate emitted no PASS line - it did not run"; exit 1; }
+
+      # A gate that cannot fail guards nothing. Plant the exact class that
+      # rejected two live cards -- an unquoted description scalar containing a
+      # colon-space -- and require the gate to catch it. Planted in a COPY under
+      # RUNNER_TEMP so a committed breach can never sit in the guarded tree.
+      - name: Poison control - malformed frontmatter must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/spec-poison"
+          log="$RUNNER_TEMP/spec-poison.log"
+          rm -rf "$tree"
+          git clone --quiet --no-hardlinks . "$tree"
+          card="$tree/skills/meta/skill-necessity-gate/SKILL.md"
+          python - "$card" <<'PY'
+          import pathlib, sys
+          p = pathlib.Path(sys.argv[1])
+          t = p.read_text(encoding="utf-8")
+          lines = t.splitlines(keepends=True)
+          for i, line in enumerate(lines):
+              if line.startswith("description:"):
+                  lines[i] = "description: broken: an unquoted scalar with a colon\n"
+                  break
+          else:
+              raise SystemExit("no description line to break - control is vacuous")
+          p.write_text("".join(lines), encoding="utf-8")
+          PY
+          if git -C "$tree" diff --quiet; then
+            echo "::error::the control fixture was not mutated - the control is vacuous"
+            exit 1
+          fi
+          if (cd "$tree" && PYTHONUTF8=1 python scripts/validate_spec_conformance.py --root .) > "$log" 2>&1; then
+            echo "::error::malformed frontmatter was ACCEPTED - the spec gate does not read frontmatter"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'Invalid YAML in frontmatter' "$log" \
+            || { echo "::error::the poison card failed for the wrong reason"; cat "$log"; exit 1; }
+          echo "control: malformed frontmatter rejected as expected"
+
+      # A changeset naming the package `@mrbinnacle/skills` instead of
+      # `mrbinnacle-skills` passed all seven validators and all four CI checks,
+      # and failed only at `changeset version` -- after the merge. Nothing in
+      # the repository validated a changeset header. This is that check.
+      - name: Changeset headers
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npx --yes changeset status --since=origin/main
+      # And the same rule: prove it can fail. A changeset naming a package that
+      # is not in the workspace must be refused.
+      #
+      # This control was VACUOUS when first written. It asserted only a non-zero
+      # exit -- and `changeset status` also exits non-zero with "Some packages
+      # have been changed but no changesets were found", which it did
+      # IDENTICALLY with and without the poison file. Two different faults, one
+      # exit code. The control now asserts the message that separates them, and
+      # it runs only after the honest run above has already exited 0.
+      #
+      # The poison is `git add`ed because changesets discovers changesets
+      # through git. An untracked file is invisible to it, which is the other
+      # way this control read as green while testing nothing.
+      - name: Poison control - a malformed changeset must be rejected
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/changeset-poison.log"
+          poison=".changeset/zzz-poison-control.md"
+          printf -- '---\n"@mrbinnacle/skills": patch\n---\n\nPoison control.\n' > "$poison"
+          git add "$poison"
+          status=0
+          npx --yes changeset status --since=origin/main > "$log" 2>&1 || status=$?
+          git rm -q --cached "$poison"
+          rm -f "$poison"
+          cat "$log"
+          if [ "$status" -eq 0 ]; then
+            echo "::error::a changeset naming a package outside the workspace was ACCEPTED"
+            exit 1
+          fi
+          grep -q 'which is not in the workspace' "$log" \
+            || { echo "::error::the changeset control failed for the WRONG reason - it did not report an out-of-workspace package"; exit 1; }
+          echo "control: malformed changeset rejected as expected, and for the right reason"

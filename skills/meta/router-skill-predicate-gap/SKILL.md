@@ -1,6 +1,6 @@
 ---
 name: router-skill-predicate-gap
-description: A router rule can be live, healthy and match nothing anyone types: the pattern list omits the ordinary word, or a JSON escape left the pattern inert. Use before claiming a discipline is hook-enforced.
+description: "A router rule can be live, healthy and match nothing anyone types: the pattern list omits the ordinary word, or a JSON escape left the pattern inert. Use before claiming a discipline is hook-enforced."
 ---
 
 # Router skill predicate gap
