@@ -616,7 +616,14 @@ jobs:
           # heredoc inside an indented `run:` block never terminates, because
           # only tabs are strippable and YAML forbids dedenting the closing
           # word to column zero.
-          fresh="$(sha256sum "$tree/assets/banner-light.svg" | cut -d" " -f1)"
+          # sha256sum reads STDIN, so no filename reaches its output. Given a
+          # path argument it escapes the name and prefixes the whole line with
+          # a backslash whenever that name contains one -- and RUNNER_TEMP on
+          # the Windows cell is a backslashed path, so the captured hash came back as
+          # `\<hash>` there while ubuntu stayed green. The mutation guard below
+          # caught it; without that guard this control would have built an
+          # unmutated fixture and reported the checker as working.
+          fresh="$(sha256sum < "$tree/assets/banner-light.svg" | cut -d" " -f1)"
           stale="0000000000000000000000000000000000000000000000000000000000000000"
           pair="\"pairs\": [{\"source\": \"assets/banner-dark.svg\", \"export\": \"assets/banner-light.svg\", \"source_sha256\": \"$stale\", \"export_sha256\": \"$fresh\"}],"
           sed -i "s|\"pairs\": \[\],|$pair|" "$tree/assets/tokens.json"
