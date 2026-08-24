@@ -257,12 +257,27 @@ mechanism working. An evolving ecosystem, not a chop list.
    the telemetry. Registry practice (Homebrew's 90-day install floor, Debian's
    cruft-report, npm's download floor) separates the mechanical scan that surfaces
    candidates from the criteria that decide them; this step is that scan. A card absent
-   from the log entirely is a discriminator candidate: search the records for occasions
-   where the card's trap occurred and the card did not fire. Found → retrieval defect (the
-   description never matches how the situation gets phrased; fix the description). None
-   found → insurance (the trap never came up; consistent with `CANT_TELL_YET`). Invocation
-   is retrieval evidence, never an occasion count. Done when every published card has a row
-   and every never-fired card carries a diagnosis or a dated "discriminator unrun".
+   from the log entirely is a discriminator candidate, and there are **three** diagnoses, not
+   two. Take them in this order, because the third one disqualifies the card from the other
+   two and a pass that skips it will confidently mis-file the card:
+
+   1. **Unobservable.** The card fires through a mechanism the platform's dispatch counter
+      cannot see — a hook, a trap, an always-loaded carrier. Its absence from the log is not
+      evidence about retrieval OR about worth; it is a limit of the instrument. Measured
+      2026-08-24, two of the nine published cards are in this case — `git-pull-rebase-trap`
+      and `github-pages-deploy-verification` — and both say so in their own
+      `Dispatches recorded` row, which is why that row's zero must read `No recorded dispatch`
+      and never `0`. **Check this before searching the records**, because the search below
+      cannot distinguish this case from insurance: both return "no occasions found".
+   2. **Retrieval defect.** The records show occasions where the card's trap occurred and the
+      card did not fire. The description never matches how the situation gets phrased — fix
+      the description.
+   3. **Insurance.** No such occasion in the records, and the card is observable. The trap
+      never came up; consistent with `CANT_TELL_YET`.
+
+   Invocation is retrieval evidence, never an occasion count and never a measure of worth.
+   Done when every published card has a row and every never-fired card carries one of the
+   three diagnoses above or a dated "discriminator unrun".
 
    **Scan the pointer surface in the same step, because no gate does.** Seven validators now
    run in CI — file presence and the `EVIDENCE.md` controlled rows (`validate_card_files.py`),
