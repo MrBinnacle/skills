@@ -304,23 +304,58 @@ def cli_cases():
     assert "requires --config and --repo-root" in result.stdout, result.stdout
 
 
-def duplication_case():
+# Every file measured byte-identical across the pair (sha256, 2026-08-24) is
+# in the contract. If a file stops being shared, REMOVE it from this tuple and
+# record why in the removing change -- a contract that silently narrows is the
+# defect the contract exists to catch. snapshot_state.py is absent on purpose:
+# it exists only in im-down and was never shared.
+SHARED_PARITY_CONTRACT = (
+    "CONFIG.example.json",
+    "PACKET-FORMAT.md",
+    "fixture-clean.md",
+    "fixture-failed-probe.md",
+    "fixture-missing-field.md",
+    "fixture-stale.md",
+    "test_validate_packet.py",
+    "validate_packet.py",
+)
+
+
+def duplication_case() -> tuple[bool, str]:
     """The pair ships shared files in two directories. They must not drift.
 
-    Guarding only validate_packet.py was too narrow: test_validate_packet.py and
-    CONFIG.example.json were byte-identical across the pair too, and a change to
-    one side diverged both with nothing to catch it.
+    Guarding only three files was too narrow: eight files are byte-identical
+    across the pair, and a change to any of the other five diverged the cards
+    with nothing to catch it. The contract now names every shared file, and
+    the run reports which files it compared, so a future narrowing shows up
+    in the output rather than only in the source.
+
+    Returns (verified, message). On a single-card install there is no sibling
+    to compare against, so parity is NOT VERIFIED rather than passed -- a
+    suite that prints no-drift having compared nothing reports a property it
+    did not test. A sibling that exists but lacks a contract file has drifted:
+    absence is a difference, not a skip.
     """
-    shared = ("validate_packet.py", "test_validate_packet.py", "CONFIG.example.json")
-    names = ("im-down", "im-up")
-    for name in names:
-        if name == HERE.name:
-            continue
-        for filename in shared:
-            sibling = HERE.parent / name / filename
-            if sibling.exists():
-                assert sibling.read_bytes() == (HERE / filename).read_bytes(), \
-                    f"{filename} has drifted from {name}"
+    sibling_name = {"im-down": "im-up", "im-up": "im-down"}[HERE.name]
+    sibling_dir = HERE.parent / sibling_name
+    if not sibling_dir.is_dir():
+        return (False,
+                f"parity NOT VERIFIED: sibling card '{sibling_name}' is not "
+                f"present, so the {len(SHARED_PARITY_CONTRACT)}-file shared "
+                "contract was not tested")
+    for filename in SHARED_PARITY_CONTRACT:
+        ours = HERE / filename
+        theirs = sibling_dir / filename
+        assert ours.exists(), \
+            f"{filename} is in the parity contract but absent from {HERE.name}"
+        assert theirs.exists(), \
+            f"{filename} is in the parity contract but absent from {sibling_name}"
+        assert theirs.read_bytes() == ours.read_bytes(), \
+            f"{filename} has drifted from {sibling_name}"
+    compared = ", ".join(SHARED_PARITY_CONTRACT)
+    return (True,
+            f"parity: compared {len(SHARED_PARITY_CONTRACT)} shared files "
+            f"against {sibling_name}: {compared}")
 
 
 if __name__ == "__main__":
@@ -334,7 +369,11 @@ if __name__ == "__main__":
     close_commit_cases()
     claimed_head_cases()
     cli_cases()
-    duplication_case()
-    print("PASS: clean, stale, incomplete, failed-probe, placeholder, "
-          "unfailable-check, command-probe, close-commit, close-commit-cli, "
-          "claimed-head, claimed-head-cli, receive-mode-config, no-drift")
+    parity_verified, parity_message = duplication_case()
+    print(parity_message)
+    roster = ("PASS: clean, stale, incomplete, failed-probe, placeholder, "
+              "unfailable-check, command-probe, close-commit, close-commit-cli, "
+              "claimed-head, claimed-head-cli, receive-mode-config")
+    # no-drift appears in the pass roster only when parity was actually
+    # compared; a single-card install reports NOT VERIFIED above instead.
+    print(roster + ", no-drift" if parity_verified else roster)
