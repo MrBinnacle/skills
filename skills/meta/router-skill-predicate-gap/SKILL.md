@@ -65,7 +65,7 @@ needs a shape assertion.
 Note the `session_id` must be unique per probe — these routers dedupe per session, so reusing
 one makes a firing rule look silent.
 
-### 1b. Assert that no pattern holds a control character
+### 2. Assert that no pattern holds a control character
 
 A JSON string escape is not a regex escape. Inside a JSON rule file, `"\b"` is the **backspace
 character**; a regex word boundary must be written `"\\b"`. The damaged pattern is still a
@@ -83,7 +83,7 @@ for i,r in enumerate(json.load(open('skill-rules.json'))['rules']):
 "
 ```
 
-### 2. Read the actual patterns
+### 3. Read the actual patterns
 
 ```sh
 python -c "
@@ -96,7 +96,7 @@ for r in d['rules']:
 Compare against how the artifact is actually requested, not how it is named in the rule
 file.
 
-### 3. Add patterns that target authoring, not mention
+### 4. Add patterns that target authoring, not mention
 
 Match the *verb plus the noun*, so conversation about the thing stays silent while a request
 to produce one fires:
@@ -113,7 +113,7 @@ Validate the JSON before trusting the file:
 python -c "import json;json.load(open('skill-rules.json'));print('JSON valid')"
 ```
 
-### 4. Probe positives and negatives
+### 5. Probe positives and negatives
 
 ```sh
 for p in "write me a plan for issue 18" "draft an implementation plan" "I need a plan"; do
@@ -122,12 +122,17 @@ for p in "write me a plan for issue 18" "draft an implementation plan" "I need a
 done
 ```
 
-Then the false-positive set. **Include words that share the stem** — this is what `\b`
-boundaries are for and the only way to know they hold:
+Then run the false-positive set through the same loop. **Include words that share the stem.**
+That is what `\b` boundaries are for, and probing them is the only way to know they hold:
 
 ```sh
-for p in "run the tests" "the plane landed" "explain the planner architecture"; do ... done
+for p in "run the tests" "the plane landed" "explain the planner architecture"; do
+  out=$(echo "{\"session_id\":\"f-$RANDOM$RANDOM\",\"prompt\":\"$p\"}" | python skill-router.py)
+  echo "$out" | grep -q "<skill-name>" && echo "FIRES  : $p" || echo "SILENT : $p"
+done
 ```
+
+Every line must read `SILENT`. A `FIRES` here is a boundary that does not hold.
 
 ## Verification
 
@@ -151,8 +156,8 @@ were `hand.?off`, `\bADR\b`, `subagent.{0,12}(prompt|brief|dispatch)`,
 `execution plan`.
 
 **The bare word "plan" was not among them.** The skill had fired earlier in that session
-only because the work also involved an ADR — `\bADR\b` matched, and the correct behaviour
-was pure coincidence relative to the rule's stated purpose.
+only because the work also involved an ADR: `\bADR\b` matched, and the correct behaviour
+was coincidence relative to the rule's stated purpose.
 
 Tested negative first: `"write me a plan for issue 18"` → silent. Three patterns added.
 After: fires, and so does `"And triage/skill tooling plan"`, the user's actual message from
