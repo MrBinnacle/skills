@@ -449,6 +449,16 @@ def case_absent_manifest_is_red(root: Path) -> None:
         repo_cell(result.stdout, "O7") == "FAIL",
         result.stdout,
     )
+    # The verdict alone cannot pin this branch. Deleting the `is not a file`
+    # branch entirely leaves a FileNotFoundError that the OSError handler turns
+    # into the same FAIL, so a verdict-only assertion passed with the branch
+    # gone -- demonstrated by mutation on 2026-08-24. Assert the message, which
+    # is the only thing that distinguishes "no install path" from "unreadable".
+    check(
+        "the absent-manifest failure says the manifest is absent",
+        "absent" in repo_line(result.stdout, "O7"),
+        repo_line(result.stdout, "O7"),
+    )
 
 
 def case_malformed_manifest_is_red(root: Path) -> None:
@@ -479,6 +489,94 @@ def case_duplicate_exposure_is_red(root: Path) -> None:
         "O7 is FAIL when one card is named by more than one plugin entry",
         repo_cell(result.stdout, "O7") == "FAIL",
         result.stdout,
+    )
+
+
+WRONG_SHAPES = (
+    ("top-level array", "[]\n"),
+    ("top-level null", "null\n"),
+    ("top-level number", "123\n"),
+    ("plugin entry is a string", '{"plugins": ["x"]}\n'),
+    ("plugins is an object", '{"plugins": {"a": 1}}\n'),
+    ("skills is a string", '{"plugins": [{"skills": "x"}]}\n'),
+)
+
+
+def case_parseable_but_wrong_shape_is_red(root: Path) -> None:
+    """Valid JSON of the wrong shape is a FAIL, not a traceback.
+
+    Every one of these parses, so the JSON handler never sees them. Before the
+    shape guard they raised AttributeError out of the check, past both
+    handlers, and aborted the whole report before a single obligation rendered
+    -- while the docstring promised FAIL. The O1-O6 rows went down with it.
+    """
+    for label, text in WRONG_SHAPES:
+        make_tree(root)
+        write(root / MANIFEST_PATH, text)
+        result = run_checker(root)
+        check(
+            f"O7 is FAIL when the manifest is valid JSON of the wrong shape: {label}",
+            repo_cell(result.stdout, "O7") == "FAIL",
+            (result.stdout + result.stderr)[-400:],
+        )
+        check(
+            f"the report still renders the other obligations: {label}",
+            repo_cell(result.stdout, "O1") in ("PASS", "FAIL", "CANNOT-CHECK"),
+            (result.stdout + result.stderr)[-400:],
+        )
+
+
+def case_spelled_paths_are_not_reported_as_unpublished(root: Path) -> None:
+    """A published card spelled with `././` or a backslash is still published.
+
+    `off_tree` carries the most alarming label this check emits -- "named but
+    not published". It must not be reachable by spelling a path that resolves
+    to a real published card.
+    """
+    make_tree(root)
+    entries = ",\n".join(
+        f'        "{spelling}"'
+        for spelling in (
+            f"././skills/engineering/{CARDS[0]}",
+            f"skills\\\\engineering\\\\{CARDS[1]}",
+        )
+    )
+    write(
+        root / MANIFEST_PATH,
+        manifest_for(CARDS).split('"skills": [')[0]
+        + '"skills": [\n'
+        + entries
+        + "\n      ]\n    }\n  ]\n}\n",
+    )
+    result = run_checker(root)
+    check(
+        "O7 passes when published cards are named with . segments or backslashes",
+        repo_cell(result.stdout, "O7") == "PASS",
+        repo_line(result.stdout, "O7"),
+    )
+
+
+def case_wrong_depth_under_skills_is_red(root: Path) -> None:
+    """A SKILL.md under skills/ at the wrong depth is not a published card.
+
+    It resolves, so it is not dangling; its first segment is `skills`, so a
+    leading-segment test called it published. It would then contribute a
+    phantom name to `exposed` and be validated by neither direction -- the
+    exact hole the two-direction design exists to refuse.
+    """
+    make_tree(root)
+    write(root / "skills" / "engineering" / CARDS[0] / "nested" / "SKILL.md", "# n\n")
+    manifest = manifest_for(CARDS).replace(
+        f'        "./skills/engineering/{CARDS[0]}"',
+        f'        "./skills/engineering/{CARDS[0]}",\n'
+        f'        "./skills/engineering/{CARDS[0]}/nested"',
+    )
+    write(root / MANIFEST_PATH, manifest)
+    result = run_checker(root)
+    check(
+        "O7 is FAIL when a named path is under skills/ at the wrong depth",
+        repo_cell(result.stdout, "O7") == "FAIL",
+        repo_line(result.stdout, "O7"),
     )
 
 
@@ -644,6 +742,9 @@ def main() -> None:
         case_malformed_manifest_is_red,
         case_duplicate_exposure_is_red,
         case_quarantine_card_in_the_manifest_is_red,
+        case_parseable_but_wrong_shape_is_red,
+        case_spelled_paths_are_not_reported_as_unpublished,
+        case_wrong_depth_under_skills_is_red,
     ]
     for func in isolated:
         with tempfile.TemporaryDirectory() as tmp:

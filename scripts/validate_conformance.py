@@ -298,7 +298,40 @@ def check_scoreboard_lockstep(root: Path) -> Result:
 MANIFEST_REL: Final[str] = ".claude-plugin/marketplace.json"
 
 
-PUBLISHED_PREFIX: Final[str] = "skills/"
+PUBLISHED_PREFIX: Final[str] = "skills"
+# A published card sits at exactly skills/<bucket>/<card>, which is the same
+# depth find_cards() globs. Checking the depth rather than only the leading
+# segment closes the gap where an entry resolves to a real SKILL.md at some
+# other depth under skills/: it would contribute a phantom name to `exposed`,
+# match no published card, and be validated by neither direction.
+PUBLISHED_DEPTH: Final[int] = 3
+
+
+class ManifestShapeError(ValueError):
+    """The manifest parses as JSON but is not the shape the loader reads.
+
+    Subclasses ValueError so the caller's existing json handler reports it as
+    one more unreadable-manifest FAIL. Without this, a manifest of `[]`, `null`,
+    `123`, or `{"plugins": ["x"]}` raised AttributeError out of the check, past
+    both handlers, and took the whole O1-O6 report down with it before a single
+    obligation rendered -- while the docstring promised a FAIL.
+    """
+
+
+def normalised_entry(entry: object) -> tuple[str, bool]:
+    """One manifest skill path as posix segments, and whether it escapes root.
+
+    Separators are normalised and `.` segments dropped before any prefix test,
+    because `./skills/x`, `././skills/x` and the backslash-separated
+    spelling all resolve on disk, while only the first matches a raw
+    `startswith`. The code below is the authority on which separators fold.
+
+    Reporting a legitimately published card as "not published" is the most
+    alarming label this check has, and it must not be reachable by spelling.
+    """
+    text = str(entry).replace("\\", "/")
+    segments = [s for s in text.split("/") if s not in ("", ".")]
+    return "/".join(segments), ".." in segments
 
 
 def manifest_exposed_cards(root: Path) -> tuple[list[str], list[str], list[str]]:
@@ -319,18 +352,34 @@ def manifest_exposed_cards(root: Path) -> tuple[list[str], list[str], list[str]]
     before this category existed.
     """
     data = json.loads((root / MANIFEST_REL).read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ManifestShapeError(f"top level is {type(data).__name__}, not an object")
+    plugins = data.get("plugins", [])
+    if not isinstance(plugins, list):
+        raise ManifestShapeError(f"plugins is {type(plugins).__name__}, not an array")
+
     exposed: list[str] = []
     dangling: list[str] = []
     off_tree: list[str] = []
-    for plugin in data.get("plugins", []):
-        for entry in plugin.get("skills", []):
-            rel = str(entry).removeprefix("./")
-            if not (root / rel / "SKILL.md").is_file():
+    for index, plugin in enumerate(plugins):
+        if not isinstance(plugin, dict):
+            raise ManifestShapeError(
+                f"plugins[{index}] is {type(plugin).__name__}, not an object"
+            )
+        entries = plugin.get("skills", [])
+        if not isinstance(entries, list):
+            raise ManifestShapeError(
+                f"plugins[{index}].skills is {type(entries).__name__}, not an array"
+            )
+        for entry in entries:
+            rel, escapes = normalised_entry(entry)
+            segments = rel.split("/")
+            if escapes or not (root / rel / "SKILL.md").is_file():
                 dangling.append(str(entry))
-            elif not rel.startswith(PUBLISHED_PREFIX):
+            elif segments[0] != PUBLISHED_PREFIX or len(segments) != PUBLISHED_DEPTH:
                 off_tree.append(str(entry))
             else:
-                exposed.append(Path(rel).name)
+                exposed.append(segments[-1])
     return exposed, dangling, off_tree
 
 
@@ -358,15 +407,14 @@ def check_plugin_manifest(root: Path) -> Result:
         )
     try:
         exposed, dangling, off_tree = manifest_exposed_cards(root)
+    except ManifestShapeError as exc:
+        return Result(FAIL, f"{MANIFEST_REL} is not a readable manifest: {exc}")
     except ValueError as exc:  # json.JSONDecodeError subclasses ValueError
         return Result(FAIL, f"{MANIFEST_REL} is not parseable JSON: {exc}")
     except OSError as exc:
         return Result(FAIL, f"{MANIFEST_REL} could not be read: {exc}")
 
     published = [c.name for c in find_cards(root)]
-    if not published:
-        return Result(CANT, "no published cards under this root to compare against")
-
     duplicated = sorted({n for n in exposed if exposed.count(n) > 1})
     unexposed = sorted(set(published) - set(exposed))
 
@@ -383,6 +431,16 @@ def check_plugin_manifest(root: Path) -> Result:
         breaches.append("named by more than one plugin: " + ", ".join(duplicated))
     if breaches:
         return Result(FAIL, "; ".join(breaches))
+    if not published:
+        # Never CANNOT-CHECK. That state is reserved for what this repository
+        # genuinely cannot see from inside itself, which is O5 and nothing else;
+        # an empty published tree is something this check CAN see, and a
+        # manifest check over no cards has checked nothing.
+        return Result(
+            FAIL,
+            "no published cards under this root, so the manifest was compared "
+            "against nothing. A run that checked nothing is not a pass",
+        )
     return Result(
         PASS,
         f"{len(published)} published card(s), each named exactly once by the "
