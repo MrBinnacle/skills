@@ -222,6 +222,45 @@ def case_body_prose_stays_out_when_the_heading_is_clean(tmp: Path) -> None:
     expect_pass("body prose below a clean heading passes", baseline_tree(tmp, readme=readme))
 
 
+def case_fenced_code_is_not_a_heading(tmp: Path) -> None:
+    """A shell comment inside a fence starts with '#' and is not a heading.
+
+    Cross-review reproduced the false breach: a fenced '# earn ...' line read
+    as a heading turned working documentation red -- exactly the class the
+    scope rule excludes.
+    """
+    readme = BASELINE_README + (
+        "\n```bash\n# earn a receipt for every run\necho done\n```\n"
+    )
+    expect_pass("a banned word in fenced code passes", baseline_tree(tmp, readme=readme))
+
+
+def case_setext_heading_rejected(tmp: Path) -> None:
+    """A setext heading is part of the headings surface, same as ATX.
+
+    Cross-review reproduced the miss: 'Skills that earn their keep' underlined
+    with equals signs passed while the same words behind '##' were refused.
+    """
+    readme = BASELINE_README + "\nSkills that earn their keep\n====\n"
+    expect_one_breach(
+        "setext heading with a banned word rejected",
+        baseline_tree(tmp, readme=readme),
+        "README.md:headings",
+        "banned word 'earn'",
+    )
+
+
+def case_malformed_package_json_refused(tmp: Path) -> None:
+    """A surface that does not parse is a typed refusal, not a traceback."""
+    root = baseline_tree(tmp)
+    (root / "package.json").write_text('{"description": ,}\n', encoding="utf-8")
+    expect_refusal(
+        "a malformed package.json is a typed refusal",
+        root,
+        "package.json is not valid JSON",
+    )
+
+
 # --------------------------------------------------------------------------
 # SVG copy: the half a regex over <text> would miss.
 # --------------------------------------------------------------------------
@@ -450,6 +489,22 @@ def case_three_digit_hex_normalised(tmp: Path) -> None:
     )
 
 
+def case_alpha_hex_of_declared_colour_passes(tmp: Path) -> None:
+    """An eight-digit export of a declared colour matches its token.
+
+    Inkscape and CSS Color 4 emit #rrggbbaa. Cross-review reproduced the
+    misleading refusal: the alpha form of an already-declared colour was
+    reported as an undeclared colour, telling the maintainer to declare an
+    alpha variant of a token the kit already has. The alpha is dropped in
+    normalisation instead.
+    """
+    svg = BASELINE_SVG.replace("#e6edf3", "#e6edf3ff")
+    expect_pass(
+        "an alpha-carrying hex of a declared colour passes",
+        baseline_tree(tmp, svg=svg),
+    )
+
+
 def case_hex_in_a_comment_ignored(tmp: Path) -> None:
     """A comment renders nothing, and both shipped banners name the removed green."""
     svg = BASELINE_SVG.replace(
@@ -591,6 +646,9 @@ def main() -> None:
         case_readme_body_prose_passes,
         case_readme_heading_rejected,
         case_body_prose_stays_out_when_the_heading_is_clean,
+        case_fenced_code_is_not_a_heading,
+        case_setext_heading_rejected,
+        case_malformed_package_json_refused,
         case_aria_label_only_rejected,
         case_text_element_rejected,
         case_title_and_desc_scanned,
@@ -607,6 +665,7 @@ def main() -> None:
         case_prose_naming_a_hex_declares_nothing,
         case_declared_hex_is_case_insensitive,
         case_three_digit_hex_normalised,
+        case_alpha_hex_of_declared_colour_passes,
         case_hex_in_a_comment_ignored,
         case_style_block_hex_scanned,
         case_empty_ban_list_refused,

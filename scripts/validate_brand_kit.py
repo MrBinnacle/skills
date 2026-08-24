@@ -97,6 +97,14 @@ SVG_GLOB: Final[str] = "assets/*.svg"
 COPY_ELEMENTS: Final[frozenset[str]] = frozenset({"text", "title", "desc"})
 HEX_RE: Final[re.Pattern[str]] = re.compile(r"#[0-9a-fA-F]{3,8}\b")
 HEADING_RE: Final[re.Pattern[str]] = re.compile(r"^#{1,6}\s+(.*)$", re.MULTILINE)
+# Setext headings underline their text with = or - on the next line. They are
+# part of the headings surface too: the repo writes ATX throughout, but a
+# banned word in an H1 written setext-style would otherwise pass the very
+# surface the token file claims is covered (cross-review reproduced it). A
+# table separator row cannot match: its underline carries pipes.
+SETEXT_RE: Final[re.Pattern[str]] = re.compile(
+    r"^(\S[^\n]*)\n(?:=+|-+)[ \t]*$", re.MULTILINE
+)
 KNOWN_KINDS: Final[frozenset[str]] = frozenset(
     {"svg_copy", "markdown_headings", "json_string_field"}
 )
@@ -148,10 +156,50 @@ def svg_hexes(svg: str) -> list[str]:
     return found
 
 
+def strip_fenced_blocks(markdown: str) -> str:
+    """Markdown with its fenced code removed, before any heading scan.
+
+    A shell comment inside a fence starts with '#', and a heading regex over
+    the raw file reads it as a heading -- turning fenced working documentation
+    into a false breach on exactly the class the scope rule excludes
+    (cross-review reproduced it with a fenced '# earn a receipt' line).
+    """
+    kept: list[str] = []
+    fence: str | None = None
+    for line in markdown.splitlines():
+        stripped = line.lstrip()
+        if fence is None and (stripped.startswith("```") or stripped.startswith("~~~")):
+            fence = stripped[:3]
+            continue
+        if fence is not None:
+            if stripped.startswith(fence):
+                fence = None
+            continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
+def markdown_headings(markdown: str) -> list[str]:
+    """ATX and setext headings, with fenced code stripped first."""
+    prose = strip_fenced_blocks(markdown)
+    return HEADING_RE.findall(prose) + SETEXT_RE.findall(prose)
+
+
 def normalise_hex(value: str) -> str:
+    """Lowercased six-digit form; short forms expanded, alpha dropped.
+
+    Four- and eight-digit hexes carry an alpha channel (CSS Color 4; Inkscape
+    exports them). The alpha is dropped so a declared colour exported with
+    alpha still matches its token -- reporting #8b949eff as an undeclared
+    colour told the maintainer to declare an alpha variant of a colour the
+    kit already declares. Odd lengths (5, 7) pass through unchanged and read
+    as undeclared, which is the safe direction for a malformed colour.
+    """
     digits = value[1:].lower()
-    if len(digits) == 3:
+    if len(digits) in (3, 4):
         digits = "".join(digit * 2 for digit in digits)
+    if len(digits) == 8:
+        digits = digits[:6]
     return "#" + digits
 
 
@@ -185,12 +233,18 @@ def surface_copy(root: Path, spec: dict[str, Any]) -> list[tuple[str, str]]:
         if kind == "svg_copy":
             collected.append((f"{relative}:svg-copy", svg_copy(text)))
         elif kind == "markdown_headings":
-            collected.append((f"{relative}:headings", "\n".join(HEADING_RE.findall(text))))
+            collected.append((f"{relative}:headings", "\n".join(markdown_headings(text))))
         else:
             field = spec.get("field")
             if not isinstance(field, str) or not field:
                 raise Refusal(f"json_string_field surface {ascii(glob)} names no field")
-            value = json.loads(text).get(field)
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError as error:
+                # The same wrap load_tokens applies to tokens.json: a raw
+                # traceback breaks the typed-refusal output contract.
+                raise Refusal(f"{relative} is not valid JSON: {error}") from error
+            value = data.get(field) if isinstance(data, dict) else None
             if not isinstance(value, str):
                 raise Refusal(
                     f"{relative} has no string field {ascii(field)}. The surface "
