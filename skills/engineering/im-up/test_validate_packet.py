@@ -336,7 +336,15 @@ def duplication_case() -> tuple[bool, str]:
     did not test. A sibling that exists but lacks a contract file has drifted:
     absence is a difference, not a skip.
     """
-    sibling_name = {"im-down": "im-up", "im-up": "im-down"}[HERE.name]
+    sibling_name = {"im-down": "im-up", "im-up": "im-down"}.get(HERE.name)
+    if sibling_name is None:
+        # A copied or renamed install is a single-card layout, not a crash:
+        # the pre-adoption run must finish and say what it could not test.
+        return (False,
+                f"parity NOT VERIFIED: this card runs from directory "
+                f"'{HERE.name}', not one of the im-down/im-up pair, so the "
+                f"{len(SHARED_PARITY_CONTRACT)}-file shared contract was "
+                "not tested")
     sibling_dir = HERE.parent / sibling_name
     if not sibling_dir.is_dir():
         return (False,
