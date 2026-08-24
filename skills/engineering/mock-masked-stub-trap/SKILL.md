@@ -1,6 +1,6 @@
 ---
 name: mock-masked-stub-trap
-description: Use when reviewing a just-returned implementation that reports all-green tests on a load-bearing branch - spend guards, idempotency, auth, refusal paths. Catches the false pass where a test patches the helper that is a production stub.
+description: A test that patches a helper which is itself a production stub reports green on a branch that never ran. Use when reviewing all-green tests on spend guards, idempotency, auth or refusal paths.
 ---
 
 # Mock-Masked Stub Trap

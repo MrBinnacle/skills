@@ -197,6 +197,73 @@ def corroborating_text(card: Path, *rows: str) -> str:
     return "\n".join(parts)
 
 
+# The published description bar. AGENTS.md step 2a has required <= 200
+# characters since the collection began, and that step was the only thing
+# enforcing it -- "the edit IS the enforcement". On 2026-08-24 six candidates
+# were promoted and THREE shipped over the bar, at 210, 226 and 235, because
+# the promotion pass did not run the authoring skill whose job that is.
+#
+# A discipline that must fire cannot live only in a step a human or a model has
+# to remember. That is this collection's own layer-placement rule, applied to
+# the collection. This check is what makes the bar deterministic.
+#
+# Why 200 rather than the specification's 1024: an installed card's description
+# is loaded at startup whether or not the card ever fires, so its length is
+# paid for by every session in every project that installs it. The
+# specification bounds what a reader can parse. This bounds what a user pays.
+DESCRIPTION_LIMIT: Final[int] = 200
+
+FRONTMATTER_RE: Final[re.Pattern[str]] = re.compile(r"\A---\r?\n(.*?)\r?\n---", re.S)
+DESCRIPTION_LINE_RE: Final[re.Pattern[str]] = re.compile(
+    r"^description:\s*(\S.*?)\s*$", re.MULTILINE
+)
+QUOTE_CHARS: Final[str] = "\"'"
+
+
+def stated_description(card: Path) -> str | None:
+    """The card's description as written, or None if it states none.
+
+    Surrounding quotes are stripped before measuring, so a quoted and an
+    unquoted spelling of the same sentence measure the same. Quoting is a YAML
+    requirement -- two published cards needed it for a colon on 2026-08-24 --
+    and it must not cost a card two characters of its budget.
+    """
+    skill_md = card / "SKILL.md"
+    if not skill_md.is_file():
+        return None
+    block = FRONTMATTER_RE.match(skill_md.read_text(encoding="utf-8", errors="replace"))
+    if block is None:
+        return None
+    found = DESCRIPTION_LINE_RE.search(block.group(1))
+    if found is None:
+        return None
+    value = found.group(1)
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in QUOTE_CHARS:
+        value = value[1:-1]
+    return value
+
+
+def description_breaches(card: Path) -> list[str]:
+    """Breaches of the published description bar, in report order."""
+    if not (card / "SKILL.md").is_file():
+        # Already reported as a missing required file. Saying it twice in
+        # different words would inflate the breach count over one defect.
+        return []
+    description = stated_description(card)
+    if description is None:
+        return [
+            "SKILL.md states no frontmatter description. It is the only thing "
+            "that decides whether a model-invocable card is ever reached"
+        ]
+    if len(description) > DESCRIPTION_LIMIT:
+        return [
+            f"SKILL.md description is {len(description)} characters, over the "
+            f"published bar of {DESCRIPTION_LIMIT}. It is loaded at startup in "
+            "every session that installs this card, whether or not it fires"
+        ]
+    return []
+
+
 def evidence_breaches(card: Path) -> list[str]:
     """Contract breaches in one card's EVIDENCE.md rows, in report order."""
     evidence = card / "EVIDENCE.md"
@@ -306,6 +373,7 @@ def validate(root: Path) -> None:
         for card in cards
         for detail in [f"missing {name}" for name in missing_files(card)]
         + evidence_breaches(card)
+        + description_breaches(card)
     ]
     if breaches:
         for line in breaches:
@@ -322,6 +390,7 @@ def validate(root: Path) -> None:
         + ", ".join(REQUIRED_FILES)
         + "; every EVIDENCE.md states "
         + " and ".join(REQUIRED_EVIDENCE_ROWS)
+        + f"; every description is stated and within {DESCRIPTION_LIMIT} characters"
     )
 
 

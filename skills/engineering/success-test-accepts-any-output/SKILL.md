@@ -1,6 +1,6 @@
 ---
 name: success-test-accepts-any-output
-description: A success check that accepts any non-empty output passes when the operation failed, because failure output is non-empty too. Use when a script reports OK but nothing happened, or a probe reports NOT-FOUND across a whole batch.
+description: A success check accepting any non-empty output passes on failure, because failure output is non-empty too. Use when a script reports OK but nothing happened, or a probe says NOT-FOUND batch-wide.
 ---
 
 # A Success Test That Accepts Any Output Is Not a Test
