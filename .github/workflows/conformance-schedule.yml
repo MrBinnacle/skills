@@ -1,6 +1,6 @@
 name: conformance schedule
 
-# The standing obligations of SECURITY.md's `conformance v1` section, re-run on a
+# The standing obligations of SECURITY.md's `conformance v2` section, re-run on a
 # clock over the published tree.
 #
 # WHY A CLOCK AND NOT A MERGE GATE
@@ -99,7 +99,7 @@ jobs:
           set -euo pipefail
           out="$(python scripts/validate_conformance.py --root .)"
           echo "$out"
-          echo "$out" | grep -q '^PASS: conformance v1' \
+          echo "$out" | grep -q '^PASS: conformance v2' \
             || { echo "::error::conformance sweep emitted no PASS line - it did not run"; exit 1; }
           {
             echo "### Standing obligations sweep"

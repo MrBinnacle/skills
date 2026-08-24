@@ -172,7 +172,7 @@ def case_unnamed_shipped_script_is_red(root: Path) -> None:
     )
     check(
         "the rejection line says which edition rejected",
-        "conformance v1" in result.stderr,
+        "conformance v2" in result.stderr,
         result.stderr.strip(),
     )
 
@@ -340,6 +340,190 @@ def case_o5_is_never_pass_on_the_live_tree() -> None:
 
 
 # ---------------------------------------------------------------------------
+# O7: the plugin manifest and the published tree must agree, BOTH directions.
+#
+# One direction is not enough, and this repository has the receipt: the sibling
+# occasions check ran forward-only -- a count could not rise without a record --
+# and an UNDERCOUNT stayed green until August 2026, because nothing asked the
+# reverse question. A manifest check that only validates the paths it names has
+# the same hole: delete a card from the manifest and every named path still
+# resolves. So there are two failing directions here, and each has its own case.
+#
+# The manifest is data, so all five classes are cheap to build in isolation.
+# ---------------------------------------------------------------------------
+
+MANIFEST_PATH = ".claude-plugin/marketplace.json"
+
+
+def manifest_for(cards: tuple[str, ...]) -> str:
+    """A minimal well-formed manifest exposing exactly the named cards."""
+    entries = ",\n".join(f'        "./skills/engineering/{c}"' for c in cards)
+    return (
+        "{\n"
+        '  "name": "fixture",\n'
+        '  "owner": {"name": "fixture", "url": "https://example.invalid"},\n'
+        '  "plugins": [\n'
+        "    {\n"
+        '      "name": "fixture-engineering",\n'
+        '      "description": "fixture",\n'
+        '      "source": "./",\n'
+        '      "strict": false,\n'
+        '      "skills": [\n' + entries + "\n"
+        "      ]\n"
+        "    }\n"
+        "  ]\n"
+        "}\n"
+    )
+
+
+def repo_line(stdout: str, oid: str) -> str:
+    """The whole reported line for a repo-wide obligation, from the real report."""
+    for line in stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[1] == oid and line.startswith("  "):
+            return line
+    return "(cell not reported)"
+
+
+def repo_cell(stdout: str, oid: str) -> str:
+    """The reported verdict for a repo-wide obligation, from the real report."""
+    line = repo_line(stdout, oid)
+    return line.split()[0] if line.startswith("  ") else "(cell not reported)"
+
+
+def case_manifest_naming_every_card_passes(root: Path) -> None:
+    make_tree(root)
+    write(root / MANIFEST_PATH, manifest_for(CARDS))
+    result = run_checker(root)
+    check(
+        "O7 passes when the manifest names every published card exactly once",
+        repo_cell(result.stdout, "O7") == "PASS",
+        result.stdout,
+    )
+
+
+def case_manifest_naming_a_missing_card_is_red(root: Path) -> None:
+    """Direction one: the manifest points at a path with no card at it."""
+    make_tree(root)
+    write(root / MANIFEST_PATH, manifest_for(CARDS + ("ghost-card",)))
+    result = run_checker(root)
+    check(
+        "O7 is FAIL when the manifest names a path with no card at it",
+        repo_cell(result.stdout, "O7") == "FAIL",
+        result.stdout,
+    )
+    check(
+        "the O7 failure names the missing card rather than a bare count",
+        "ghost-card" in repo_line(result.stdout, "O7"),
+        repo_line(result.stdout, "O7"),
+    )
+
+
+def case_unexposed_card_is_red(root: Path) -> None:
+    """Direction two: a published card no plugin names. The forward-only check
+    stays green here, which is the whole reason this case exists."""
+    make_tree(root)
+    write(root / MANIFEST_PATH, manifest_for(CARDS[:1]))
+    result = run_checker(root)
+    check(
+        "O7 is FAIL when a published card is named by no plugin",
+        repo_cell(result.stdout, "O7") == "FAIL",
+        result.stdout,
+    )
+    check(
+        "the O7 failure names the unexposed card",
+        CARDS[1] in repo_line(result.stdout, "O7"),
+        repo_line(result.stdout, "O7"),
+    )
+
+
+def case_absent_manifest_is_red(root: Path) -> None:
+    """Absent is FAIL, not CANNOT-CHECK. The manifest is this repository's own
+    artifact: if it is gone, the collection ships no install path, and that is a
+    breach rather than an unanswerable question. CANNOT-CHECK is reserved for
+    what this repository genuinely cannot see, which is O5 and nothing else."""
+    make_tree(root)
+    result = run_checker(root)
+    check(
+        "O7 is FAIL when the manifest is absent, not CANNOT-CHECK",
+        repo_cell(result.stdout, "O7") == "FAIL",
+        result.stdout,
+    )
+
+
+def case_malformed_manifest_is_red(root: Path) -> None:
+    make_tree(root)
+    write(root / MANIFEST_PATH, '{"plugins": [ this is not json ]}\n')
+    result = run_checker(root)
+    check(
+        "O7 is FAIL when the manifest is not parseable JSON",
+        repo_cell(result.stdout, "O7") == "FAIL",
+        result.stdout,
+    )
+    line = repo_line(result.stdout, "O7")
+    check(
+        "the malformed-JSON failure says so rather than reporting zero cards",
+        "JSON" in line or "json" in line,
+        line,
+    )
+
+
+def case_duplicate_exposure_is_red(root: Path) -> None:
+    """`exactly once` is in the acceptance criterion, so it gets a case. Two
+    plugins naming one card is a real state -- it is what a bucket move looks
+    like when only half of it lands."""
+    make_tree(root)
+    write(root / MANIFEST_PATH, manifest_for(CARDS + (CARDS[0],)))
+    result = run_checker(root)
+    check(
+        "O7 is FAIL when one card is named by more than one plugin entry",
+        repo_cell(result.stdout, "O7") == "FAIL",
+        result.stdout,
+    )
+
+
+def case_quarantine_card_in_the_manifest_is_red(root: Path) -> None:
+    """The breach that RESOLVES, and the reason off-tree is its own category.
+
+    A `_quarantine/` candidate has a real SKILL.md. Named by the manifest it is
+    neither dangling nor missing, so the two-state version of this check
+    reported PASS while shipping an unadmitted card to every installer. That was
+    demonstrated on the live tree before this case existed.
+    """
+    make_tree(root)
+    write(root / "_quarantine" / "candidate" / "SKILL.md", "# candidate\n")
+    manifest = manifest_for(CARDS).replace(
+        f'        "./skills/engineering/{CARDS[0]}"',
+        f'        "./skills/engineering/{CARDS[0]}",\n'
+        '        "./_quarantine/candidate"',
+    )
+    write(root / MANIFEST_PATH, manifest)
+    result = run_checker(root)
+    check(
+        "O7 is FAIL when the manifest names a card outside skills/",
+        repo_cell(result.stdout, "O7") == "FAIL",
+        result.stdout,
+    )
+    check(
+        "the off-tree failure names the unadmitted card",
+        "candidate" in repo_line(result.stdout, "O7"),
+        repo_line(result.stdout, "O7"),
+    )
+
+
+def case_live_manifest_covers_the_live_tree() -> None:
+    """The live assertion. A fixture-only proof would leave the shipped manifest
+    unchecked, which is the state this obligation exists to end."""
+    report = conformance.evaluate(REPO_ROOT)
+    result = report.repo_wide["O7"]
+    check(
+        "the shipped manifest covers the live published tree",
+        result.verdict == "PASS",
+        f"{result.verdict}: {result.detail}",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Drift: the prose and the list are one statement written twice
 # ---------------------------------------------------------------------------
 
@@ -425,13 +609,13 @@ def case_o5_is_not_promised_as_ci() -> None:
 def case_live_tree_is_checked_and_conforms() -> None:
     result = run_checker(REPO_ROOT)
     check(
-        "the live tree passes conformance v1",
+        "the live tree passes conformance v2",
         result.returncode == 0,
         result.stdout + result.stderr,
     )
     check(
         "the live run emits a PASS line",
-        "PASS: conformance v1" in result.stdout,
+        "PASS: conformance v2" in result.stdout,
         result.stdout,
     )
     report = conformance.evaluate(REPO_ROOT)
@@ -453,6 +637,13 @@ def main() -> None:
         case_o1_agrees_with_the_standalone_format_gate,
         case_missing_format_gate_is_cannot_check_not_pass,
         case_cannot_check_is_distinct_from_pass,
+        case_manifest_naming_every_card_passes,
+        case_manifest_naming_a_missing_card_is_red,
+        case_unexposed_card_is_red,
+        case_absent_manifest_is_red,
+        case_malformed_manifest_is_red,
+        case_duplicate_exposure_is_red,
+        case_quarantine_card_in_the_manifest_is_red,
     ]
     for func in isolated:
         with tempfile.TemporaryDirectory() as tmp:
@@ -464,6 +655,7 @@ def main() -> None:
     case_version_is_declared_once()
     case_trial_exit_date_agrees_everywhere()
     case_o5_is_not_promised_as_ci()
+    case_live_manifest_covers_the_live_tree()
     case_live_tree_is_checked_and_conforms()
 
     print("")
@@ -472,7 +664,7 @@ def main() -> None:
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} case(s): {', '.join(FAILURES)}", file=sys.stderr)
         raise SystemExit(1)
-    print("PASS: conformance v1 suite, all cases correct")
+    print("PASS: conformance v2 suite, all cases correct")
 
 
 if __name__ == "__main__":

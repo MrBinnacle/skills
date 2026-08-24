@@ -13,6 +13,10 @@ A small collection of Claude Code skills I develop from problems encountered in 
 
 The collection is intentionally small. These are the skills I have found useful enough to keep developing and maintaining.
 
+**Install it** with `/plugin marketplace add MrBinnacle/skills` in Claude Code, or
+`npx skills add MrBinnacle/skills` at a shell. Both routes, and what each one puts where, are in
+[Install](#install) below.
+
 ## Admission method
 
 The [admission policy](ADMISSION.md) governs membership. It asks four questions: whether an
@@ -64,6 +68,38 @@ integer that opens the card's `Occasions counted` row.
 | [`subagent-research-reliability`](skills/orchestration/subagent-research-reliability/EVIDENCE.md) | origin-trace | 4 |
 | [`router-skill-predicate-gap`](skills/meta/router-skill-predicate-gap/EVIDENCE.md) | origin-trace | 2 |
 | [`skill-necessity-gate`](skills/meta/skill-necessity-gate/EVIDENCE.md) | unmeasured | 0 |
+
+## Install
+
+Two routes. Both copy skill files onto your machine. Neither installs a framework — see
+[Not a runtime](#not-a-runtime).
+
+**Claude Code plugin marketplace.** The collection ships
+[`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json), which groups the cards into
+one plugin per bucket:
+
+```text
+/plugin marketplace add MrBinnacle/skills
+/plugin install mrbinnacle-engineering
+```
+
+The other two plugins are `mrbinnacle-orchestration` and `mrbinnacle-meta`. Install only the
+buckets you want. An installed card's `description` is loaded at startup whether or not the card
+ever fires, so breadth you do not use is still paid for.
+
+**Installer.** `npx skills add` copies cards into `.claude/skills/` under the directory you run it
+in, or into your home directory with `--global`:
+
+```text
+npx skills add MrBinnacle/skills
+```
+
+It tracks `main` rather than a tag, so it installs the current tip of the collection.
+
+The manifest is the machine-readable statement of what ships. CI refuses any state where the
+manifest and the published tree disagree, in either direction — a path the manifest names with no
+card at it, and a published card no plugin names. That is standing obligation **O7** in
+[`SECURITY.md`](SECURITY.md).
 
 ## Where these came from
 

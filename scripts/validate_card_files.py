@@ -10,12 +10,12 @@ WHY THE ROW CHECKS LIVE HERE AND NOT IN validate_conformance.py's O4
     An earlier edition of this file said row-level checks belong to O4. They do
     not, and the reason is a boundary SECURITY.md draws itself: O4 is about the
     CONTROLLED fields (`Screen result`, `Paired verdict`) that the front-page
-    scoreboard is derived from, under `conformance v1`, whose stated bump rule
+    scoreboard is derived from, under `conformance v2`, whose stated bump rule
     makes "a material change to what counts as meeting one" a version bump --
     and that edition has pre-registered what its first bump carries. The rows
     below are the other contract: ADMISSION.md's criterion 2 (occasions are
     counted, not predicted) and criterion 4 (a card can leave). Admission is
-    "getting in", O4 is "staying", and widening `conformance v1` to carry an
+    "getting in", O4 is "staying", and widening `conformance v2` to carry an
     admission row would bump an edition for a change that is not its subject.
     So: the scoreboard's controlled fields stay O4's; the card contract
     AGENTS.md states -- files and recurrence rows -- is this script's.
