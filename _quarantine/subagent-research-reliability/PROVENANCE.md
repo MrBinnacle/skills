@@ -92,21 +92,53 @@ claim above, so the order of evidence stays visible.
   output contract verbatim, and a third wake. Each produced an idle notification carrying no
   content. Nine idle notifications in total across the four agents.
 - **Route 2, one attempt, immediate recovery.** Three agents were re-instructed with the bounded
-  write escalation quoted in `Check 0`, each naming one absolute path. **Two of three wrote their
-  file within the same wake**, 10,869 and 14,175 bytes, containing the requested verbatim card
-  extracts in the requested block format. The third had not written at the time of recording.
+  write escalation quoted in `Check 0`, each naming one absolute path. **All three created their
+  file. Two delivered complete content** — 6 of 6 blocks (10,869 bytes) and 7 of 7 blocks (20,500
+  bytes, including the `EVIDENCE-ROWS` field requested for three published cards). The third
+  created its file at **0 bytes**.
 - **The returns were substantive, not acknowledgements.** One block quotes a card's origin
   paragraph verbatim, names the section it sits under, and lists the distinctive literals asked
   for. The agents had done the work throughout; none of it could reach the session through plain
   text.
-- **One partial return, recorded rather than rounded up.** The seven-block file contained five
-  blocks. Route 2 delivered, and delivered incompletely, in the same run.
 
-**Finding: route 2 is sufficient on its own and route 1 is not.** `Check 0` presents the two routes
-as redundancy — "so one failing is survivable". That framing understates the asymmetry. Route 1
-failed three times against the identical task, agents and session in which route 2 succeeded on the
-first attempt. **State the file path in the dispatch. Treat `SendMessage` as a supplement to it,
-never as the channel.** A future edit to `Check 0` should reorder the two routes accordingly.
+### A gap in route 2, found by falling into it
+
+**This section originally reported one return as incomplete — "five blocks where seven were asked
+for". That was wrong, and how it went wrong is the finding.**
+
+The file was read while the agent was still writing it. At that moment it held 5 blocks and 14,175
+bytes. It finished at 7 blocks and 20,500 bytes. A partial write was measured and recorded as an
+incomplete delivery.
+
+**`Check 0` tells the dispatcher to name one file path. It does not say how the reader knows the
+write has finished.** File existence is not completion, and a file-based channel has no
+end-of-message marker the way a message does. The failure is quiet in the dangerous direction: a
+partially-written file reads as a complete short answer, and nothing distinguishes the two.
+
+The empty third file is the same gap at its limit — 0 bytes is indistinguishable from "created
+and abandoned" without a completion signal.
+
+**Route 2 needs a completion contract, not just a path.** Require the agent to signal completion
+when the write is done (a `SendMessage` naming the finished file, a sentinel final line, or an
+atomic rename from a temporary name), and treat an unsignalled file as still in flight. Until
+`Check 0` says so, a reader who samples early will report a truncated return as a short one.
+
+**One thing this also corrects about route 1.** The completion signal that resolved this arrived
+*as* a `SendMessage` carrying a content-bearing summary — the first message from any of these
+agents to carry content rather than an idle notification. Route 1 is therefore not inert. What it
+failed to carry, across three attempts, was the *findings*; it succeeded at carrying a *pointer to
+where the findings were written*. That is the division of labour the routes should have.
+
+**Finding: the two routes are not redundant and not interchangeable — they carry different things.**
+`Check 0` presents them as redundancy, "so one failing is survivable". On this evidence that is the
+wrong model. Route 1 carried no findings across three attempts and nine idle notifications; route 2
+carried every finding that arrived. Route 1 then carried the one thing route 2 structurally cannot:
+the signal that the write had finished.
+
+**So: the file path carries the payload, and the message carries completion.** A future edit to
+`Check 0` should say that, and should add the completion contract the gap above describes. Neither
+edit is made here — this is the candidate's evidence record, and changing the check is a change to
+its procedure that belongs in its own reviewable diff.
 
 **The two occurrences are independent.** Different repository, different agent type (`Explore`
 against `reader`), different task (repository research against text extraction), six days apart.
