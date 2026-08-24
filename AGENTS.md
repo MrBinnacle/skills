@@ -13,9 +13,23 @@ Skills are organized into bucket folders under `skills/`:
 Shipped skills carry an `EVIDENCE.md` provenance record (origin incident, occasions counted,
 validated-against, screen/paired result with UNMEASURED first-class, standing cost,
 re-screen trigger). New promotions MUST include one; see top-level README → "The receipts, explained".
-Two of those rows are contract rather than convention — `Occasions counted` and
-`Re-screen trigger` — and `scripts/validate_card_files.py` refuses a published card that
-does not state both; see "Recording a new occurrence" below.
+Three of those rows are contract rather than convention — `Occasions counted`,
+`Dispatches recorded` and `Re-screen trigger` — and `scripts/validate_card_files.py` refuses a
+published card that does not state all three; see "Recording a new occurrence" below.
+
+`Dispatches recorded` (added 2026-08-24) is the measured-demand row, and it is required so it
+cannot be silently dropped. Its form is checked, not just its presence: the row opens with a
+positive integer or with the exact phrase `No recorded dispatch`, and it carries a
+`measured <YYYY-MM-DD>` clause. **A zero written as a numeral is refused.** Two cards fire
+through hook mechanisms the platform's dispatch counter cannot observe, so their zero must read
+as "no recorded dispatch" — a figure the counter cannot see must not be published as "unused".
+A measured figure with no date cannot be judged stale, which is why the date clause is checked
+separately from any other date in the row.
+
+⚠ **A dispatch is not an occasion.** A dispatch counts one invocation of a card: demand
+evidence, never recurrence, lift, or worth. Writing a dispatch count into the recurrence row is
+the fan-out inflation ADMISSION.md criterion 2 refuses. The two rows answer different questions
+and are checked separately.
 
 Each bucket has a `README.md` listing every skill in that bucket with a one-line description, linking the skill name to its `SKILL.md`. Promote and demote skills by adding or removing them from the bucket README.
 
@@ -121,6 +135,22 @@ recurrence is never counted. When a card's problem happens again:
    elsewhere in the card's own files — so a count cannot rise without the record that justifies
    it. The row's dated references *are* its occasions: a dated link to anything else (a triage
    record, a release) does not belong in that row.
+
+   **The check runs in both directions (added 2026-08-24).** The rule above stops a count
+   rising without a record. The reverse rule stops a record sitting uncounted: a line anywhere
+   in the card's own files that carries **both a date and the word `occurrence` or
+   `occurrences`** is an occurrence record, and its date must be cited in the `Occasions
+   counted` row. So step 1 above is not optional bookkeeping you can do and forget — writing
+   the dated entry now obliges the row, and CI says so.
+
+   Two consequences worth knowing before you write the entry. First, the trigger is the
+   collection's own term of art, not any date: screen dates, methodology pins and verification
+   dates are dated lines that are not occurrence records, and they stay uncited. Second, the
+   pattern matches singular and plural but not hyphenated compounds, so `co-occurrences` — a
+   correlational term one live card uses in a row that explicitly disclaims being an occurrence
+   record — does not trip it. If a dated line genuinely is not an occurrence, **reword it**;
+   do not add its date to the row to silence the check, because that inflates the count the
+   row exists to keep honest.
 3. **Fan-out is not recurrence.** Two symptoms of one task, a design session, and a fixture
    proving a validator rejects something are one occasion or none — ADMISSION.md criterion 2's
    own words: "not inflated by fan-out from a single run."
@@ -234,9 +264,20 @@ mechanism working. An evolving ecosystem, not a chop list.
    is retrieval evidence, never an occasion count. Done when every published card has a row
    and every never-fired card carries a diagnosis or a dated "discriminator unrun".
 
-   **Scan the pointer surface in the same step, because no gate does.** The four validators
-   check file presence, `EVIDENCE.md` controlled rows, the banner line, links and residue.
-   **None of them reads frontmatter.** A card's `description` is the only thing that decides
+   **Scan the pointer surface in the same step, because no gate does.** Seven validators now
+   run in CI — file presence and the `EVIDENCE.md` controlled rows (`validate_card_files.py`),
+   the banner line and the derived counts (`validate_scoreboard.py`), skill-file formats
+   (`validate_skill_formats.py`), voice provenance (`validate_voice_provenance.py`), the eval
+   corpora (`validate_eval_corpora.py`), the brand kit (`validate_brand_kit.py`), and the
+   scheduled conformance sweep (`validate_conformance.py`) — plus the link check and the
+   residue gate.
+
+   **Not one of them reads a card's `description`.** One of them, `validate_eval_corpora.py`,
+   now parses frontmatter, but only the `name` key, and only to refuse a corpus whose
+   `skill_name` has drifted from the card it claims. Check that before concluding the gates
+   have grown to cover retrieval: they have not, and the count rising from four to seven is
+   exactly the kind of change that makes a reader assume they have. A card's `description` is
+   the only thing that decides
    whether a model-invocable card is ever reached, so the collection currently validates its
    receipts and not its retrieval surface: a card can carry a perfect evidence record, derive
    correctly into every count, pass all four gates, and be permanently unreachable. Read each
@@ -322,13 +363,31 @@ mechanism working. An evolving ecosystem, not a chop list.
 5. **Reconcile, then validate.** Propagate each count or label change to every derived
    surface, walking the consequence chain before the edit — a one-integer change
    legitimately breaks several pins at once, and each break is the guard working: fix the
-   surface, keep the pin. Then run the gate set with `PYTHONUTF8=1`:
-   `scripts/validate_card_files.py`, `scripts/validate_scoreboard.py`,
-   `scripts/test_validate_card_files.py`, `scripts/test_readme_admission_lead.py`,
-   `scripts/validate_eval_corpora.py` (a renamed card breaks its corpus's `skill_name`, and
-   this is where the pass sees it rather than at PR time) — and
-   `scripts/test_validate_conformance.py` plus `scripts/validate_conformance.py --root .`
-   (the scheduled job's own pair) when the pass touched governance surfaces. Done when all
+   surface, keep the pin. Then run the whole gate set with `PYTHONUTF8=1` — seven validators
+   and their seven suites:
+
+   | Validator | Suite | What a pass most often breaks here |
+   |---|---|---|
+   | `scripts/validate_card_files.py` | `scripts/test_validate_card_files.py` | the three contract rows, and the occasions check in both directions |
+   | `scripts/validate_scoreboard.py` | `scripts/test_readme_admission_lead.py` | derived counts, the banner line, origin tiering |
+   | `scripts/validate_eval_corpora.py` | `scripts/test_validate_eval_corpora.py` | a renamed card breaks its corpus's `skill_name` |
+   | `scripts/validate_skill_formats.py` | `scripts/test_validate_skill_formats.py` | card file shape and size limits |
+   | `scripts/validate_voice_provenance.py` | `scripts/test_validate_voice_provenance.py` | prose register on edited surfaces |
+   | `scripts/validate_brand_kit.py` | `scripts/test_validate_brand_kit.py` | declared colours, banned words, asset hash pairs |
+   | `scripts/validate_conformance.py --root .` | `scripts/test_validate_conformance.py` | governance surfaces (the scheduled job's own pair) |
+
+   ⚠ **Run all seven, not the ones the pass thinks it touched.** The reconciliation step exists
+   because a one-integer change propagates further than the editor expects; a gate list trimmed
+   by expectation defeats the same property. This table was four validators until 2026-08-24
+   and shipped stale — if it disagrees with CI, CI is right and this table is the bug. Check it
+   with `grep -rn 'scripts/validate_\|scripts/test_' .github/workflows/`.
+
+   **If the pass touched either session-boundary card, parity is a gate.** `im-up` and `im-down`
+   share eight files, and each card's suite verifies the pair against its sibling. The suite
+   reports parity NOT VERIFIED **and still exits 0** when it cannot find its sibling, so CI
+   greps the pass roster for `, no-drift` rather than trusting the exit code. A rename or a move
+   that hides one card from the other turns the parity gate off silently while every suite stays
+   green — read the roster line, not the exit status. Done when all
    pass AND a re-run of the whole pass with no new evidence would produce zero diff: the
    pass re-derives from current records every time, keeps no incremental state, and is safe
    to run twice.
@@ -339,7 +398,15 @@ mechanism working. An evolving ecosystem, not a chop list.
    `PROVENANCE.md` before diagnosing drift or duplication — one candidate is a staged patch
    to an already-promoted card, and it has been misread as version drift once already. Done
    when every surfaced candidate carries a disposition or a dated deferral.
-7. **Ship.** Branch → PR with a changeset; merge is the maintainer's. The PR body reports
+7. **Ship.** Branch → PR with a changeset. Merge authority is the maintainer's to hold or to
+   delegate, and this file does not fix which — it fixes the gates, which hold either way: CI
+   green, and the PR head SHA matching the branch ref before the button is pressed. That second
+   gate is not ceremony. A PR merged while later commits were still being pushed froze its head
+   at the merged SHA while the branch ref moved on, stranding the follow-on commit on a closed
+   PR, and `gh pr checks` reported green for the older head throughout. Compare `git ls-remote`
+   against the PR's `headRefOid`. **Publication is a separate authority and stays the
+   maintainer's regardless**: a release tag, a new published asset, the repository's social
+   preview or About settings. The PR body reports
    every disposition, flattering or not.
 
 **The ordering is a constraint, not a preference.** Harvest before repair, because the
