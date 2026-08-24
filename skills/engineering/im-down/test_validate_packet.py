@@ -222,19 +222,36 @@ def claimed_head_cases():
         assert not validator.validate_unclaimed_head(config, repo, own)
         new_head = validator.git(repo, "rev-parse", "HEAD")
 
-        # Most-recent-by-filename is the packet consulted: a malformed newest
-        # file degrades to today's behaviour, even though an older packet
-        # claims the current HEAD.
-        write_prior_packet(packet_dir, "20260102T000000Z-bbbb.md", new_head)
-        (packet_dir / "20260103T000000Z-cccc.md").write_text(
-            "no markers here", encoding="utf-8")
-        assert not validator.validate_unclaimed_head(config, repo, own)
+        # A stray unreadable file cannot disable the guard: the scan walks
+        # past it, newest-first, to the first prior that parses and records a
+        # head. README sorts lexicographically after digit-led timestamps, so
+        # treating the raw maximum as "the" prior packet would make one stray
+        # file reopen the hole this check closes -- permanently and silently.
+        claiming = write_prior_packet(packet_dir, "20260102T000000Z-bbbb.md", new_head)
+        (packet_dir / "README.md").write_text("no markers here", encoding="utf-8")
+        errors = validator.validate_unclaimed_head(config, repo, own)
+        assert any(claiming.name in e for e in errors), errors
 
-        # A manifest without repository.head degrades rather than refuses.
+        # A manifest that is valid JSON but not an object is skipped, not
+        # crashed on: the receipt contract is 0/2, never a raw traceback.
+        (packet_dir / "20260103T000000Z-cccc.md").write_text(
+            "<!-- SESSION-PACKET-V1\n[1, 2]\nSESSION-PACKET-V1 -->\n",
+            encoding="utf-8",
+        )
+        errors = validator.validate_unclaimed_head(config, repo, own)
+        assert any(claiming.name in e for e in errors), errors
+
+        # A manifest without repository.head is walked past the same way.
         (packet_dir / "20260104T000000Z-dddd.md").write_text(
             '<!-- SESSION-PACKET-V1\n{"repository": {}}\nSESSION-PACKET-V1 -->\n',
             encoding="utf-8",
         )
+        errors = validator.validate_unclaimed_head(config, repo, own)
+        assert any(claiming.name in e for e in errors), errors
+
+        # With no usable prior at all -- every file unreadable or headless --
+        # the check degrades to today's behaviour rather than refusing.
+        claiming.unlink()
         assert not validator.validate_unclaimed_head(config, repo, own)
 
         # The packet under validation may already sit in the directory as the

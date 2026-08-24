@@ -187,13 +187,19 @@ def validate_unclaimed_head(
     may write the file into the directory before validating it, and a packet
     must not refuse itself for claiming the HEAD it correctly records.
 
+    The scan walks the directory newest-first and compares against the first
+    file that parses as a packet and records a head. Taking the raw filename
+    maximum instead would let one stray file -- a README sorts after digit-led
+    timestamp names -- become "newest", fail to parse, and disable the guard
+    silently and permanently, reopening the exact hole this check closes.
+
     Opt-in by config: with no packet_dir declared this returns nothing.
 
-    Known limit, accepted as smaller than the hole it closes: with nothing to
-    compare against -- an empty packet directory, an unreadable or markerless
-    newest packet, a manifest with no repository.head -- this degrades to the
-    previous behaviour instead of refusing, because a fresh clone has no prior
-    packet and must still be able to produce its first one.
+    Known limit, accepted as smaller than the hole it closes: with no usable
+    prior at all -- an empty packet directory, or nothing in it that parses
+    and records repository.head -- this degrades to the previous behaviour
+    instead of refusing, because a fresh clone has no prior packet and must
+    still be able to produce its first one.
     """
     packet_dir_name = (config or {}).get("packet_dir")
     if not packet_dir_name:
@@ -207,24 +213,27 @@ def validate_unclaimed_head(
     priors = sorted(p for p in packet_dir.glob("*.md") if p.resolve() != own)
     if not priors:
         return []
-    newest = priors[-1]
-    try:
-        prior_data, _ = extract(newest)
-    except (OSError, ValueError):
-        return []
-    repository = prior_data.get("repository")
-    claimed = repository.get("head") if isinstance(repository, dict) else None
-    if not claimed:
-        return []
     current_head = git(repo_root, "rev-parse", "HEAD")
-    if claimed != current_head:
-        return []
-    return [
-        f"HEAD {current_head} is already claimed by prior packet {newest.name}: "
-        "this session has not closed yet. Close first, then produce -- the "
-        "close moves HEAD, and a packet made before it records a HEAD the "
-        "receiver will reject as stale."
-    ]
+    for newest in reversed(priors):
+        try:
+            prior_data, _ = extract(newest)
+        except (OSError, ValueError):
+            continue
+        if not isinstance(prior_data, dict):
+            continue
+        repository = prior_data.get("repository")
+        claimed = repository.get("head") if isinstance(repository, dict) else None
+        if not claimed:
+            continue
+        if claimed != current_head:
+            return []
+        return [
+            f"HEAD {current_head} is already claimed by prior packet "
+            f"{newest.name}: this session has not closed yet. Close first, "
+            "then produce -- the close moves HEAD, and a packet made before "
+            "it records a HEAD the receiver will reject as stale."
+        ]
+    return []
 
 
 def validate_structure(data: dict, text: str) -> list[str]:
