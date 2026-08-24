@@ -30,36 +30,54 @@ stress-test signal.)*
   not re-litigate' but it's never an ALWAYS framing." The before/after in SKILL.md's Example is
   that artifact pair verbatim (identifiers genericized). Direct origin of this skill.
 
-- **2026-08-23 / corpus harvest across 28 project directories, 614 files:** a rotation pass
-  searched every reachable session record and handoff for this card's origin failure. It found
-  the pattern institutionalized in a second, unrelated project: four phase-handoff documents
-  each carrying a `## DECISIONS ALREADY MADE (do not re-litigate)` section, and a planning
-  boilerplate that templates it, so every handoff generated from it inherits the framing.
+- **2026-08-23 / corpus harvest, 1358 files across 28 project directories:** a rotation pass
+  searched every reachable session record, handoff, audit and research document for this
+  card's origin failure. Each card's search signature was required to locate that card's own
+  known origin incident before its result counted; a signature that cannot find the occurrence
+  we know happened cannot interpret a zero.
 
-  **These are dated 2026-04-29 (three of them, one drafting pass), 2026-05-02, and 2026-06-02
-  for the boilerplate. All of them PREDATE this card's 2026-06-07 origin, and none is counted
-  as an occasion.** Recurrence means the failure happened again after the discipline existed;
-  that is the question `Occasions counted` exists to answer, and these cannot answer it. They
-  are recorded here because they are evidence of a different and useful kind: the origin
-  incident was not a one-off misstep but the moment a standing practice got caught. A
-  boilerplate had been emitting the refused framing into every handoff for five weeks before
-  anyone named the rule.
+  **What the sweep located.** The refused framing is institutionalized in a second, unrelated
+  project: four phase-handoff documents each carrying a `## DECISIONS ALREADY MADE (do not
+  re-litigate)` section, and a planning boilerplate that templates it, so every handoff
+  generated from it inherits the framing. Dated 2026-04-29 (three of them, one drafting pass),
+  2026-05-02, and 2026-06-02 for the boilerplate.
 
-  The three same-day documents would in any case be fan-out from one drafting pass, which
-  criterion 2 already refuses to count separately.
+  **All of them predate this card's 2026-06-07 origin, and none is counted.** Recurrence means
+  the failure happened again after the discipline existed; that is what `Occasions counted`
+  answers, and these cannot answer it. They are recorded because they establish something the
+  origin entry alone does not: the incident was the moment a standing practice got caught, not
+  a single lapse. A boilerplate had been emitting the framing into every handoff for five weeks
+  before anyone named the rule. The three same-day documents would in any case be fan-out from
+  one drafting pass.
+
+  **The sweep also found the discipline visibly applied**, which is the more useful signal for
+  a retention question. A 2026-08 audit synthesis heads its inherited-decisions section
+  `do not re-litigate; surface a fork if you must` — the card's prescribed form, granting the
+  fork the card exists to protect. That is compliance, not an occurrence.
 
   **Open policy question, surfaced rather than decided:** neither `ADMISSION.md` nor
-  `AGENTS.md` says whether pre-origin corroboration belongs in `Occasions counted` at all.
-  This card stays `RECURRENCE-THIN` at 1 under the reading above. A different reading, that
-  the row records occurrences of the failure regardless of when the card was written, would
-  move it to 2 and drop the label. The maintainer owns which reading the collection uses. The
-  evidence is preserved here either way.
+  `AGENTS.md` says whether pre-origin corroboration belongs in `Occasions counted`. This card
+  stays `RECURRENCE-THIN` at 1 under the reading above. The other reading, that the row records
+  occurrences of the failure whenever they happened, moves it to 2 and drops the label. The
+  maintainer owns which reading the collection uses; the dated evidence is preserved here for
+  either.
 
-  **Negative results from the same sweep, recorded because an unsearched card and a searched
-  card with no finds are not the same claim.** `closure-mode-at-boundaries`: no occurrence
-  outside the card's own files. `github-pages-deploy-verification`: zero matches anywhere in
-  the corpus. `git-pull-rebase-trap`: 28 matches, every one of them the card, its guard, its
-  fixtures, research about it, or a project convention citing it, which is adoption rather
-  than occurrence and is consistent with the insurance diagnosis. `im-up`: the only hit is the
-  2026-08-23 skipped-close already counted on `im-down`; counting it twice would be the
-  fan-out the policy refuses.
+- **2026-08-23 / the same sweep, run twice, and the first run was void.** The first pass
+  scanned 614 files and reported a confident zero for
+  `github-pages-deploy-verification`. A positive control run afterwards showed that card's
+  signature could not locate its own documented origin incident: 0 of 4 patterns matched the
+  gotchas entry describing it. **The zero was uninterpretable, not a finding.** The glob was
+  also missing `docs/**` recursively, so the corpus was 45 percent short.
+
+  Re-run with corrected signatures and a passing control on every card, over 1358 files:
+  `github-pages-deploy-verification` still has zero occurrences outside the collection, and
+  that zero now means something. `closure-mode-at-boundaries`: one external hit, an archive
+  referencing the card. `git-pull-rebase-trap`: 34 external hits, every one the card, its
+  guard, its fixtures, research about it, a deliberate end-to-end demonstration, or a project
+  convention warning against it — adoption, not occurrence, consistent with the insurance
+  diagnosis. `im-up`: only the 2026-08-23 skipped-close already counted on `im-down`.
+
+  **The lesson belongs to the harvest, not to this card:** a sweep that reports absences is a
+  test whose negative result is the product, and it needs the same positive control any other
+  negative-finding run needs. See `success-test-accepts-any-output` rule 4, which this pass
+  added on the same day and then violated in its own instrument.

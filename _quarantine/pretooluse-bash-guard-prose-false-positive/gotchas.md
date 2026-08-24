@@ -1,6 +1,6 @@
 # gotchas — pretooluse-bash-guard-prose-false-positive (append-only)
 
-- [OBSERVED 2026-08-23] Three reproductions in a single rotation pass, on two different
+- [OBSERVED 2026-08-23] Four reproductions in a single rotation pass, on two different
   guards, none of them a defect in the guarded behaviour.
 
   **On a corpus-search guard.** A `PreToolUse` hook refuses a bare `find` over a

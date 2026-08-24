@@ -102,7 +102,7 @@ You misapplied this pattern when:
 
 From the skill-harness 2026-06-09 session, second-half:
 
-State-drift catch: SOP doc `docs/dispatch/post-v0.1-signal-acquisition-plan.md` §#2 marked 6-item first-touch hardening punch list as PENDING. Reality (commit `09af6ae`, 2026-06-08): items 1-4 + 6 already shipped. Item 5 was partial (legend defined but placed under wrong command's output). Walking the documented reproduction recipe as a T1 reader on Claude Code subscription auth surfaced a deeper gap: the extractor on `skill init` was Anthropic-direct-only and couldn't run for the case-study author's own environment profile, which the case study itself documented.
+State-drift catch: SOP doc a separate project's SOP doc (`docs/dispatch/post-v0.1-signal-acquisition-plan.md` in that repo, not this one) §#2 marked 6-item first-touch hardening punch list as PENDING. Reality (commit `09af6ae`, 2026-06-08): items 1-4 + 6 already shipped. Item 5 was partial (legend defined but placed under wrong command's output). Walking the documented reproduction recipe as a T1 reader on Claude Code subscription auth surfaced a deeper gap: the extractor on `skill init` was Anthropic-direct-only and couldn't run for the case-study author's own environment profile, which the case study itself documented.
 
 **Phase A** — commit `6c9ff3f`:
 - Updated SOP doc item-status from PENDING to ✅ DONE
@@ -129,7 +129,7 @@ The audit trail reads cleanly: state-drift catch → Phase A doc honesty → PM 
 - This skill is the *execution response*; the *narrative reframing* of the catch is the domain of `[[halt-as-deliverable]]`. Both apply when discipline catches something the author missed; they answer different questions ("how do we ship this?" vs "what does this become?").
 - For catches that DON'T surface an engineering gap (just stale docs), skip Phase B entirely. Just do the doc-honesty pass.
 - For catches where the engineering work is small enough to bundle with the doc fixes AND doesn't cross an authorization boundary, the two-phase split adds overhead. Use single-commit bundle instead. The pattern is for the both-meaningful case.
-- The "PM authorization" boundary is project-specific. In a solo project, it might be "I am the PM and I decide." In a structured project, it might be a documented owner map (per skill-harness's `docs/dispatch/post-v0.1-signal-acquisition-plan.md` line 252). The skill works either way — just apply your project's authorization rule.
+- The "PM authorization" boundary is project-specific. In a solo project, it might be "I am the PM and I decide." In a structured project, it might be a documented owner map (per that project's `docs/dispatch/post-v0.1-signal-acquisition-plan.md` line 252). The skill works either way — just apply your project's authorization rule.
 - Don't let Phase B's engineering work block Phase A's doc honesty. The whole point of splitting is that the docs become honest FAST while the engineering work proceeds on its own cadence.
 
 ## See also

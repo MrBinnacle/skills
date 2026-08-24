@@ -259,8 +259,12 @@ mechanism working. An evolving ecosystem, not a chop list.
      AND before "fixing" a claim, per the same rule: a wrong correction to an evidence-first
      collection is worse than the original error. A claim Context7 cannot confirm is marked
      unverified rather than quietly kept.
-   - **Its frontmatter drifted** — see 2a; and on repair, bump `version` (minor for a content
-     change) and set `date` to the day of the repair.
+   - **Its frontmatter drifted** — see 2a. On repair, if the card already carries `version`
+     and `date`, bump the version (minor for a content change) and set the date to the day of
+     the repair, so it does not claim a revision it no longer matches. **If the card carries
+     neither, leave it that way.** Adding those keys to a card that never had them widens the
+     dialect spread 2a exists to close, and the published tree strips them on promotion
+     regardless — so the fields are a candidate-side convenience, never a requirement.
 
    **Repair is skill authoring, so stack the skill that does it.** Do not edit a card
    freehand. Run the repair through `writing-for-agents` (Pocock plugin,
