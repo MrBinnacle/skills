@@ -2,15 +2,20 @@
   <style>
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
   </style>
-  <!-- receipt glyph -->
+  <!-- receipt glyph. The stamped line and seal were #3fb950 - harness.prompt,
+       the sibling instrument's confirmed-success colour - which dressed the
+       inventory as a measurement (tokens.json > color.usage_rules). They are now
+       repo.muted, a declared structural neutral. No chromatic accent was
+       substituted: minting a new hex to replace a borrowed one would close the
+       gap by inventing a token, and the receipt reads as a receipt without it. -->
   <g transform="translate(24,25)">
     <path d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"
           fill="none" stroke="#e6edf3" stroke-width="3" stroke-linejoin="round"/>
     <line x1="14" y1="24" x2="58" y2="24" stroke="#e6edf3" stroke-width="3" stroke-linecap="round"/>
     <line x1="14" y1="40" x2="58" y2="40" stroke="#e6edf3" stroke-width="3" stroke-linecap="round"/>
-    <line x1="14" y1="56" x2="40" y2="56" stroke="#3fb950" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="53" cy="56" r="6.5" fill="none" stroke="#3fb950" stroke-width="2.5"/>
-    <circle cx="53" cy="56" r="2" fill="#3fb950"/>
+    <line x1="14" y1="56" x2="40" y2="56" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="53" cy="56" r="6.5" fill="none" stroke="#8b949e" stroke-width="2.5"/>
+    <circle cx="53" cy="56" r="2" fill="#8b949e"/>
   </g>
   <!-- wordmark -->
   <text x="128" y="76" class="mono" font-size="44" font-weight="700" fill="#e6edf3">skills</text>
