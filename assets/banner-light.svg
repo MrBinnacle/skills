@@ -2,15 +2,18 @@
   <style>
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
   </style>
-  <!-- receipt glyph -->
+  <!-- receipt glyph. The stamped line and seal were #2da44e, the light-surface
+       rendering of the sibling instrument's confirmed-success colour. They are
+       now light.muted, declared in the kit by the same change that removed them
+       here. See the note in banner-dark.svg for why no accent replaced it. -->
   <g transform="translate(24,25)">
     <path d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"
           fill="none" stroke="#1f2328" stroke-width="3" stroke-linejoin="round"/>
     <line x1="14" y1="24" x2="58" y2="24" stroke="#1f2328" stroke-width="3" stroke-linecap="round"/>
     <line x1="14" y1="40" x2="58" y2="40" stroke="#1f2328" stroke-width="3" stroke-linecap="round"/>
-    <line x1="14" y1="56" x2="40" y2="56" stroke="#2da44e" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="53" cy="56" r="6.5" fill="none" stroke="#2da44e" stroke-width="2.5"/>
-    <circle cx="53" cy="56" r="2" fill="#2da44e"/>
+    <line x1="14" y1="56" x2="40" y2="56" stroke="#57606a" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="53" cy="56" r="6.5" fill="none" stroke="#57606a" stroke-width="2.5"/>
+    <circle cx="53" cy="56" r="2" fill="#57606a"/>
   </g>
   <!-- wordmark -->
   <text x="128" y="76" class="mono" font-size="44" font-weight="700" fill="#1f2328">skills</text>
