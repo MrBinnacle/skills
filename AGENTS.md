@@ -132,25 +132,31 @@ recurrence is never counted. When a card's problem happens again:
 2. **Then count it.** Add the dated reference to the card's `Occasions counted` row and
    increment the integer that opens the row. `scripts/validate_card_files.py` requires that
    integer to equal the number of dates in the row, and requires each of those dates to appear
-   elsewhere in the card's own files — so a count cannot rise without the record that justifies
-   it. The row's dated references *are* its occasions: a dated link to anything else (a triage
+   elsewhere in the card's own **`.md` files** — so a count cannot rise without the record that
+   justifies it. The row's dated references *are* its occasions: a dated link to anything else (a triage
    record, a release) does not belong in that row.
 
    **The check runs in both directions (added 2026-08-24).** The rule above stops a count
-   rising without a record. The reverse rule stops a record sitting uncounted: a line anywhere
-   in the card's own files that carries **both a date and the word `occurrence` or
+   rising without a record. The reverse rule stops a record sitting uncounted: a line in any
+   **`.md` file** under the card that carries **both a date and the word `occurrence` or
    `occurrences`** is an occurrence record, and its date must be cited in the `Occasions
    counted` row. So step 1 above is not optional bookkeeping you can do and forget — writing
    the dated entry now obliges the row, and CI says so.
 
+   ⚠ **Both directions scan `card.rglob("*.md")` and nothing else.** A dated occurrence recorded
+   in a `.py`, `.txt` or `.json` file inside the card is invisible to the check — it will neither
+   satisfy a count nor oblige one. Record occurrences in markdown, or the guard cannot help you.
+
    Two consequences worth knowing before you write the entry. First, the trigger is the
    collection's own term of art, not any date: screen dates, methodology pins and verification
    dates are dated lines that are not occurrence records, and they stay uncited. Second, the
-   pattern matches singular and plural but not hyphenated compounds, so `co-occurrences` — a
-   correlational term one live card uses in a row that explicitly disclaims being an occurrence
-   record — does not trip it. If a dated line genuinely is not an occurrence, **reword it**;
-   do not add its date to the row to silence the check, because that inflates the count the
-   row exists to keep honest.
+   pattern is `(?<![\w-])occurrences?\b`: it matches singular and plural, and the lookbehind
+   excludes a **preceding** hyphen only. So `co-occurrences` and `re-occurrence` do not trip it
+   — the first is a correlational term one live card uses in a row that explicitly disclaims
+   being an occurrence record — but a **trailing** hyphen does not protect anything, and
+   `occurrence-record (2026-08-24)` **does** trip it. If a dated line genuinely is not an
+   occurrence, **reword it**; do not add its date to the row to silence the check, because that
+   inflates the count the row exists to keep honest.
 3. **Fan-out is not recurrence.** Two symptoms of one task, a design session, and a fixture
    proving a validator rejects something are one occasion or none — ADMISSION.md criterion 2's
    own words: "not inflated by fan-out from a single run."
@@ -258,20 +264,36 @@ mechanism working. An evolving ecosystem, not a chop list.
    cruft-report, npm's download floor) separates the mechanical scan that surfaces
    candidates from the criteria that decide them; this step is that scan. A card absent
    from the log entirely is a discriminator candidate, and there are **three** diagnoses, not
-   two. Take them in this order, because the third one disqualifies the card from the other
-   two and a pass that skips it will confidently mis-file the card:
+   two. Take them in this order, because the first one disqualifies the card from branch 3 and
+   a pass that skips it will confidently mis-file the card as insurance:
 
    1. **Unobservable.** The card fires through a mechanism the platform's dispatch counter
       cannot see — a hook, a trap, an always-loaded carrier. Its absence from the log is not
-      evidence about retrieval OR about worth; it is a limit of the instrument. Measured
-      2026-08-24, two of the nine published cards are in this case — `git-pull-rebase-trap`
-      and `github-pages-deploy-verification` — and both say so in their own
-      `Dispatches recorded` row, which is why that row's zero must read `No recorded dispatch`
-      and never `0`. **Check this before searching the records**, because the search below
-      cannot distinguish this case from insurance: both return "no occasions found".
+      **dispositive** about retrieval, and is no evidence at all about worth; it is a limit of
+      the instrument. Note the precise scope: the counter still observes the model-invocation
+      path, and a zero there is weak but real evidence that the card's description was never
+      picked. The counter is blind to the enforcing path only, so the absence caps how much
+      that zero can carry — it does not erase it. Measured 2026-08-24, two of the fifteen
+      published cards are in this case — `git-pull-rebase-trap` and
+      `github-pages-deploy-verification` — and both say so in their own `Dispatches recorded`
+      row, which is why that row's zero must read `No recorded dispatch` and never `0`.
+
+      ⚠ **The evidence behind those two differs in kind, and this branch does not make them
+      equal.** `git-pull-rebase-trap` has a dedicated PreToolUse guard with a test beside it, in
+      the maintainer's private environment; the mechanism demonstrably exists.
+      `github-pages-deploy-verification` has **no dedicated guard** — only a prompt-router
+      nudge, and a nudge is not a hook firing: if the model acts on a nudge by calling the Skill
+      tool, the counter *would* see it. So for that card the absence is equally consistent with
+      the nudge never firing and with the nudge firing and being ignored. Do not file a card
+      here on a router nudge alone; either name the guard, or record the absence as
+      undiagnosed. **Check this branch before searching the records**, because the search below
+      cannot distinguish an unobservable card from insurance: both return "no occasions found".
    2. **Retrieval defect.** The records show occasions where the card's trap occurred and the
       card did not fire. The description never matches how the situation gets phrased — fix
-      the description.
+      the description. ⚠ **Branch 1 does not close this one.** A hook-fired card has its own
+      version of this failure — the trap occurred and the hook did not fire — and it is
+      detectable from the session records without the counter. Run branch 2 on an unobservable
+      card too; only branch 3 is foreclosed.
    3. **Insurance.** No such occasion in the records, and the card is observable. The trap
       never came up; consistent with `CANT_TELL_YET`.
 
@@ -295,7 +317,7 @@ mechanism working. An evolving ecosystem, not a chop list.
    the only thing that decides
    whether a model-invocable card is ever reached, so the collection currently validates its
    receipts and not its retrieval surface: a card can carry a perfect evidence record, derive
-   correctly into every count, pass all four gates, and be permanently unreachable. Read each
+   correctly into every count, pass all seven gates, and be permanently unreachable. Read each
    card's `description` against how the situation actually gets phrased, and treat a
    never-fired card's pointer as a suspect before concluding insurance. Note also which cards
    *cannot* fire by construction — `disable-model-invocation: true`, or sitting in
@@ -386,26 +408,62 @@ mechanism working. An evolving ecosystem, not a chop list.
    | `scripts/validate_card_files.py` | `scripts/test_validate_card_files.py` | the three contract rows, and the occasions check in both directions |
    | `scripts/validate_scoreboard.py` | `scripts/test_readme_admission_lead.py` | derived counts, the banner line, origin tiering |
    | `scripts/validate_eval_corpora.py` | `scripts/test_validate_eval_corpora.py` | a renamed card breaks its corpus's `skill_name` |
-   | `scripts/validate_skill_formats.py` | `scripts/test_validate_skill_formats.py` | card file shape and size limits |
-   | `scripts/validate_voice_provenance.py` | `scripts/test_validate_voice_provenance.py` | prose register on edited surfaces |
+   | `scripts/validate_skill_formats.py` | `scripts/test_validate_skill_formats.py` | a card file whose extension is outside `.md`/`.txt`/`.py`/`.json`, or a `__pycache__` bytecode file with no source beside it. **No size check exists** — the size guidance under "Authoring conventions" is unenforced |
+   | `scripts/validate_voice_provenance.py` | `scripts/test_validate_voice_provenance.py` | a quotation in `BRAND.md` section `## Voice` with no `Source:` line citing `VERBATIM.md`. **Scope is that section only** — it reads no `SKILL.md` and no README, so no ordinary prose edit can red it |
    | `scripts/validate_brand_kit.py` | `scripts/test_validate_brand_kit.py` | declared colours, banned words, asset hash pairs |
    | `scripts/validate_conformance.py --root .` | `scripts/test_validate_conformance.py` | governance surfaces (the scheduled job's own pair) |
 
    ⚠ **Run all seven, not the ones the pass thinks it touched.** The reconciliation step exists
    because a one-integer change propagates further than the editor expects; a gate list trimmed
    by expectation defeats the same property. This table was four validators until 2026-08-24
-   and shipped stale — if it disagrees with CI, CI is right and this table is the bug. Check it
-   with `grep -rn 'scripts/validate_\|scripts/test_' .github/workflows/`.
+   and shipped stale — if it disagrees with CI, CI is right and this table is the bug. Re-derive
+   the roster with:
 
-   **If the pass touched either session-boundary card, parity is a gate.** `im-up` and `im-down`
-   share eight files, and each card's suite verifies the pair against its sibling. The suite
-   reports parity NOT VERIFIED **and still exits 0** when it cannot find its sibling, so CI
-   greps the pass roster for `, no-drift` rather than trusting the exit code. A rename or a move
-   that hides one card from the other turns the parity gate off silently while every suite stays
-   green — read the roster line, not the exit status. Done when all
-   pass AND a re-run of the whole pass with no new evidence would produce zero diff: the
-   pass re-derives from current records every time, keeps no incremental state, and is safe
-   to run twice.
+   ```
+   grep -rnE 'python3? +[^ ]*(validate_|test_)' .github/workflows/
+   ```
+
+   ⚠ **Use that form, not a `scripts/`-scoped grep.** Three CI gates do not live in `scripts/` —
+   both session-boundary parity suites and the stale-packet poison control, all under
+   `skills/engineering/im-{down,up}/`. A `scripts/`-scoped grep returns a clean confirmation
+   while those three are still unrun, which is a re-derivation that certifies its own blind spot.
+
+   **If the pass touched either session-boundary card, parity is a gate, and here are the
+   commands.** `im-up` and `im-down` share eight files, and each card's suite verifies the pair
+   against its sibling. Run both from inside the card directory — the suites locate their sibling
+   by relative path:
+
+   ```
+   cd skills/engineering/im-down && python test_validate_packet.py
+   cd skills/engineering/im-up   && python test_validate_packet.py
+   ```
+
+   Each must print `, no-drift` in its pass roster. The suite reports parity NOT VERIFIED **and
+   still exits 0** when it cannot find its sibling, so CI greps the roster for that token rather
+   than trusting the exit code, and so must you. A rename or a move that hides one card from the
+   other turns the parity gate off silently while every suite stays green — read the roster line,
+   not the exit status. The third off-`scripts/` gate is the poison control, which asserts the
+   gate can still fail:
+
+   ```
+   cd skills/engineering/im-down
+   python validate_packet.py fixture-stale.md --mode produce --repo-root <repo root>
+   ```
+
+   It must exit **non-zero** and print `REJECTED`. Note the mode is `produce`, not `receive` —
+   the control asserts the producer refuses to emit a packet against a HEAD that has moved.
+
+   **One further gate is scheduled, not per-PR, and a rotation pass should know it exists.**
+   `conformance-schedule.yml` runs an **Outgrown-rotation guard** before its sweep: it fails the
+   scheduled run if the published card count exceeds `MAX_CARDS_PER_RUN` (40) or equals zero. It
+   is a rotation tripwire, not a conformance result. Measured 2026-08-24 the count is 15, so it
+   cannot fire today; a pass that admits past 40 must decide on rotation rather than raise the
+   ceiling.
+
+   Done when **all seven validators, all seven suites, and — if a session-boundary card was
+   touched — both parity suites and the poison control** pass, AND a re-run of the whole pass
+   with no new evidence would produce zero diff: the pass re-derives from current records every
+   time, keeps no incremental state, and is safe to run twice.
 6. **Adjudicate.** Four dispositions, not two: admit, retire, **repair** (step 3), or a dated
    deferral. New candidates enter through the [admission policy](ADMISSION.md), answered via
    the gate card; retirement candidates leave through "Retirement" above. `_quarantine/`
