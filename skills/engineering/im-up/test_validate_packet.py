@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -164,6 +165,117 @@ def cli_close_commit_case(repo: Path):
     assert "is not the close commit" in result.stdout, result.stdout
 
 
+def write_prior_packet(directory: Path, name: str, head: str) -> Path:
+    """A minimal prior packet: markers plus a manifest recording one head."""
+    manifest = json.dumps({"repository": {"head": head}})
+    path = directory / name
+    path.write_text(
+        f"<!-- SESSION-PACKET-V1\n{manifest}\nSESSION-PACKET-V1 -->\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def claimed_head_cases():
+    """Produce mode refuses a HEAD the most recent prior packet already claimed.
+
+    This is the session boundary validate_close_commit cannot see: a session
+    that committed nothing still sits on the previous close, and the marker
+    test passes there. The packet directory knows better -- the previous close
+    already claimed that HEAD.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+        (repo / "README.md").write_text("fixture", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "chore(state): close\n\nRITUAL: retro+1"],
+                       cwd=repo, check=True, capture_output=True)
+        head = validator.git(repo, "rev-parse", "HEAD")
+        packet_dir = repo / "packets"
+        packet_dir.mkdir()
+        config = {"packet_dir": "packets"}
+        own = repo / "new-packet.md"
+
+        # Nothing to compare against: an empty packet directory degrades to
+        # today's behaviour. A fresh clone must be able to produce packet one.
+        assert not validator.validate_unclaimed_head(config, repo, own)
+
+        # No packet_dir declared: the check is opt-in and returns nothing.
+        assert not validator.validate_unclaimed_head({}, repo, own)
+        assert not validator.validate_unclaimed_head(None, repo, own)
+
+        # The most recent prior packet claims this HEAD: refused, and the
+        # message names both the HEAD and the packet that claimed it.
+        prior = write_prior_packet(packet_dir, "20260101T000000Z-aaaa.md", head)
+        errors = validator.validate_unclaimed_head(config, repo, own)
+        assert any("already claimed" in e for e in errors), errors
+        assert any(prior.name in e for e in errors), errors
+        assert any(head in e for e in errors), errors
+
+        # A fresh close moved HEAD: no prior packet claims it, so it passes.
+        subprocess.run(["git", "commit", "--allow-empty",
+                        "-m", "chore(state): close again\n\nRITUAL: retro+1"],
+                       cwd=repo, check=True, capture_output=True)
+        assert not validator.validate_unclaimed_head(config, repo, own)
+        new_head = validator.git(repo, "rev-parse", "HEAD")
+
+        # Most-recent-by-filename is the packet consulted: a malformed newest
+        # file degrades to today's behaviour, even though an older packet
+        # claims the current HEAD.
+        write_prior_packet(packet_dir, "20260102T000000Z-bbbb.md", new_head)
+        (packet_dir / "20260103T000000Z-cccc.md").write_text(
+            "no markers here", encoding="utf-8")
+        assert not validator.validate_unclaimed_head(config, repo, own)
+
+        # A manifest without repository.head degrades rather than refuses.
+        (packet_dir / "20260104T000000Z-dddd.md").write_text(
+            '<!-- SESSION-PACKET-V1\n{"repository": {}}\nSESSION-PACKET-V1 -->\n',
+            encoding="utf-8",
+        )
+        assert not validator.validate_unclaimed_head(config, repo, own)
+
+        # The packet under validation may already sit in the directory as the
+        # newest file, correctly recording the current HEAD. It is not a PRIOR
+        # packet and must not refuse itself.
+        own_in_dir = write_prior_packet(packet_dir, "20260105T000000Z-eeee.md", new_head)
+        assert not validator.validate_unclaimed_head(config, repo, own_in_dir)
+
+        # But any OTHER producer at that same HEAD is refused by that entry.
+        errors = validator.validate_unclaimed_head(config, repo, own)
+        assert any(own_in_dir.name in e for e in errors), errors
+
+        cli_claimed_head_case(repo, packet_dir)
+
+
+def cli_claimed_head_case(repo: Path, packet_dir: Path):
+    """Produce mode runs BOTH refusals: the new check did not replace the old.
+
+    HEAD here lacks the ritual marker AND is claimed by the newest prior
+    packet, so both messages must appear in one receipt.
+    """
+    subprocess.run(["git", "commit", "--allow-empty", "-m", "later work, no ritual line"],
+                   cwd=repo, check=True, capture_output=True)
+    head = validator.git(repo, "rev-parse", "HEAD")
+    write_prior_packet(packet_dir, "20260106T000000Z-ffff.md", head)
+    config = repo / "boundary.json"
+    config.write_text(
+        '{"close_commit": {"contains": "RITUAL:"}, "packet_dir": "packets"}',
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        ["python", str(HERE / "validate_packet.py"), str(HERE / "fixture-clean.md"),
+         "--mode", "produce", "--repo-root", str(repo), "--config", str(config)],
+        text=True, capture_output=True,
+    )
+    assert result.returncode == 2, result.stdout
+    assert "is not the close commit" in result.stdout, result.stdout
+    assert "already claimed" in result.stdout, result.stdout
+
+
 def cli_cases():
     """Receive mode must not degrade to silent acceptance without a config."""
     result = subprocess.run(
@@ -203,8 +315,9 @@ if __name__ == "__main__":
     lint_cases()
     repository_cases()
     close_commit_cases()
+    claimed_head_cases()
     cli_cases()
     duplication_case()
     print("PASS: clean, stale, incomplete, failed-probe, placeholder, "
           "unfailable-check, command-probe, close-commit, close-commit-cli, "
-          "receive-mode-config, no-drift")
+          "claimed-head, claimed-head-cli, receive-mode-config, no-drift")
