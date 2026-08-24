@@ -195,6 +195,29 @@ def case_dates_must_be_corroborated_by_the_record(root: Path) -> None:
     )
 
 
+def case_dispatch_row_does_not_corroborate_occasions(root: Path) -> None:
+    """The dispatch row's dates are boilerplate, not records.
+
+    Cross-review finding: the row plants its measurement date into every
+    card, so leaving it in the corroboration haystack would auto-corroborate
+    that date for any count a maintainer cares to write. The row is excised
+    alongside the occasions row, so a cited date recorded ONLY there is
+    uncorroborated.
+    """
+    evidence = CONFORMING_EVIDENCE.replace(
+        "| 1 - 2026-03-04 the one incident. RECURRENCE-THIN.",
+        "| 2 - 2026-03-04 the one incident; 2026-03-05 nothing records this.",
+    )
+    write_card(root, "dispatch-corroborated-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a cited date recorded only in the dispatch row is uncorroborated",
+        result.returncode != 0 and "2026-03-05" in result.stderr
+        and "no other" in result.stderr,
+        result.stdout + result.stderr,
+    )
+
+
 def case_missing_dispatch_row_is_rejected(root: Path) -> None:
     """The dispatch row is contract: dropping it must not pass silently."""
     evidence = CONFORMING_EVIDENCE.replace(
@@ -212,12 +235,17 @@ def case_missing_dispatch_row_is_rejected(root: Path) -> None:
 
 
 def case_dispatch_row_opening_is_checked(root: Path) -> None:
-    """The row opens with a count or the exact zero phrase, nothing else."""
+    """The row opens with a nonzero count or the exact zero phrase.
+
+    A zero written as a numeral is refused too: the counter is blind to hook
+    and always-loaded firings, so its zero must read 'No recorded dispatch'
+    and can never be read as 'unused'.
+    """
     evidence = CONFORMING_EVIDENCE.replace(
         "| 5 dispatches, fixture counter, measured 2026-03-05.",
         "| some dispatches happened, measured 2026-03-05.",
     )
-    write_card(root, "prose-dispatch-card", evidence, CONFORMING_GOTCHAS)
+    card = write_card(root, "prose-dispatch-card", evidence, CONFORMING_GOTCHAS)
     result = run_checker(root)
     check(
         "a dispatch row opening with prose is rejected",
@@ -225,10 +253,30 @@ def case_dispatch_row_opening_is_checked(root: Path) -> None:
         and "integer count or the exact phrase" in result.stderr,
         result.stdout + result.stderr,
     )
+    (card / "EVIDENCE.md").write_text(
+        CONFORMING_EVIDENCE.replace(
+            "| 5 dispatches, fixture counter, measured 2026-03-05.",
+            "| 0 dispatches, fixture counter, measured 2026-03-05.",
+        ),
+        encoding="utf-8",
+    )
+    numeral_zero = run_checker(root)
+    check(
+        "a zero written as a numeral is rejected",
+        numeral_zero.returncode != 0
+        and "integer count or the exact phrase" in numeral_zero.stderr,
+        numeral_zero.stdout + numeral_zero.stderr,
+    )
 
 
 def case_dispatch_row_needs_its_measurement_date(root: Path) -> None:
-    """A measured figure without its date cannot be judged stale."""
+    """A measured figure without its 'measured <date>' clause is refused.
+
+    Anchored on the clause, not on any date in the row: the live rows carry
+    the delta-log inception date in their boilerplate, so a bare date search
+    stays satisfied after the actual measurement clause is dropped
+    (cross-review reproduced exactly that evasion).
+    """
     evidence = CONFORMING_EVIDENCE.replace(
         "| 5 dispatches, fixture counter, measured 2026-03-05.",
         "| 5 dispatches, fixture counter, date never recorded.",
@@ -236,9 +284,22 @@ def case_dispatch_row_needs_its_measurement_date(root: Path) -> None:
     write_card(root, "undated-dispatch-card", evidence, CONFORMING_GOTCHAS)
     result = run_checker(root)
     check(
-        "a dispatch row without a measurement date is rejected",
-        result.returncode != 0 and "no measurement date" in result.stderr,
+        "a dispatch row without a measured clause is rejected",
+        result.returncode != 0 and "no 'measured <date>' clause" in result.stderr,
         result.stdout + result.stderr,
+    )
+    boilerplate_only = CONFORMING_EVIDENCE.replace(
+        "| 5 dispatches, fixture counter, measured 2026-03-05.",
+        "| 5 dispatches, fixture counter predating the log (2026-03-01).",
+    )
+    (root / "skills" / "engineering" / "undated-dispatch-card" / "EVIDENCE.md").write_text(
+        boilerplate_only, encoding="utf-8"
+    )
+    evaded = run_checker(root)
+    check(
+        "a boilerplate date without the measured clause is still rejected",
+        evaded.returncode != 0 and "no 'measured <date>' clause" in evaded.stderr,
+        evaded.stdout + evaded.stderr,
     )
     zero = CONFORMING_EVIDENCE.replace(
         "| 5 dispatches, fixture counter, measured 2026-03-05.",
@@ -530,6 +591,7 @@ def main() -> None:
         case_missing_dispatch_row_is_rejected,
         case_dispatch_row_opening_is_checked,
         case_dispatch_row_needs_its_measurement_date,
+        case_dispatch_row_does_not_corroborate_occasions,
         case_uncited_occurrence_record_is_rejected,
         case_plural_occurrence_record_is_rejected,
         case_hyphenated_compound_is_not_an_occurrence_record,
