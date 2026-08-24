@@ -1,15 +1,6 @@
 ---
 name: pretooluse-bash-guard-prose-false-positive
-description: |
-  A PreToolUse Bash guard that scans the whole command string blocks commits and scripts
-  that merely *mention* the pattern it polices. Use when: (1) a hook you just wrote blocked
-  its own installing commit, (2) a guard fires on a commit message, heredoc, or comment
-  describing the thing it forbids, (3) `git commit -F- <<'EOF'` is blocked by a rule aimed
-  at a different command, (4) you are writing any PreToolUse matcher on Bash. Covers
-  command-position anchoring and heredoc body/shell separation.
-author: Claude Code
-version: 1.1.0
-date: 2026-08-23
+description: A PreToolUse Bash guard reads the whole command string, so it blocks commit messages, heredocs and docs that only mention what it forbids. Use when a hook blocks its own install, or when writing a Bash matcher.
 ---
 
 # PreToolUse Bash Guards Match Prose, Not Just Commands
@@ -118,7 +109,3 @@ Minimum test matrix for any Bash guard:
   *describing* an anti-pattern contains the anti-pattern verbatim.
 - Prefer prose-tolerant detection over a suppression escape hatch. An `ACK=1` bypass gets
   used reflexively and the guard stops meaning anything.
-
-## See also
-
-- `claude-code-stop-hook-envelope` — the Stop-hook equivalent of the envelope contract

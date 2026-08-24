@@ -1,0 +1,36 @@
+{
+  "skill_name": "click-clirunner-env-none-deletes",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "I want a CLI test that proves the tool refuses to run when ANTHROPIC_API_KEY is unset. I built the environment as `clean_env = {k: v for k, v in os.environ.items() if k != 'ANTHROPIC_API_KEY'}` and passed it as `env=clean_env` to CliRunner.invoke. The test passes. Good?",
+      "expected_output": "Rejects the construction. CliRunner's env= is an override map, not a replacement environment, so a key omitted from the dict is left untouched in os.environ. Prescribes `env={'ANTHROPIC_API_KEY': None}`, because Click reads a None value as a delete for the duration of the invocation.",
+      "assertions": [
+        "States that env= overrides only the keys the dict names and that an absent key is not deleted.",
+        "Prescribes the {key: None} form and explains that None is a delete rather than an omission.",
+        "Warns that the passing test proves nothing: the assertion may be satisfied by a different code path while the intended branch never runs."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Simplest fix then — I will pass `env={}` so the invocation starts from a completely empty environment.",
+      "expected_output": "Corrects the mental model rather than accepting the fix. An empty dict overrides nothing and deletes nothing, so it is identical to passing no env= at all. Contrasts this with subprocess.run(env=...), which does replace the whole environment, and names that cross-tool inconsistency as the source of the confusion.",
+      "assertions": [
+        "States that env={} is identical to omitting env= entirely and isolates nothing.",
+        "Names the contrast with subprocess.run(env=...), where env= replaces the entire environment.",
+        "Requires every variable that must be absent to be named explicitly with a None value."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The refusal test passes on my machine and in CI. That is two environments, so the isolation must be right. Anything else worth doing before I merge?",
+      "expected_output": "Withholds the conclusion, because both environments may simply lack the variable. Prescribes the falsification: remove the {key: None} and confirm the test then fails, and run it on a machine where the variable is genuinely set. Offers monkeypatch.delenv as the clearer default when the code under test is not exclusively a CLI entry point.",
+      "assertions": [
+        "States that two passing environments do not distinguish real isolation from a variable that was absent in both.",
+        "Prescribes deliberately removing the isolation and confirming the test fails, which proves the assertion actually fires.",
+        "Offers monkeypatch.delenv(key, raising=False) as the clearer-semantics alternative outside a pure CLI entry point."
+      ]
+    }
+  ]
+}
