@@ -820,10 +820,22 @@ jobs:
         with:
           node-version: "22"
 
+      # The `|| { echo; exit; }` is load-bearing, not defensive noise. Under
+      # `set -e` a bare `out="$(cmd)"` ABORTS AT THE ASSIGNMENT when cmd exits
+      # non-zero, so `echo "$out"` never runs and the suite's own diagnostic is
+      # discarded. A failing run then logs the step source and
+      # `##[error]Process completed with exit code 1` and NO test output --
+      # which is what a failing run of this step actually looked like (#170).
+      # The anti-vacuity grep below is well-conceived and could never fire,
+      # because the failure path never reached it.
+      #
+      # This shape is repeated at ~20 other steps in this file. They are left
+      # alone here on purpose: this pull request's claim is that it changes the
+      # empty-changeset verdict and nothing else. Tracked separately.
       - name: Release-gate suite
         run: |
           set -euo pipefail
-          out="$(python scripts/test_release_gate.py)"
+          out="$(python scripts/test_release_gate.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::release-gate suite emitted no PASS line - it did not run"; exit 1; }

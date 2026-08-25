@@ -280,9 +280,18 @@ def workspace_packages(root: Path, data: object) -> set[str]:
 def changeset_header_packages(text: str) -> list[str]:
     """The package names one changeset declares, in file order.
 
-    Raises ChangesetHeaderError when there is no frontmatter block at all, it
-    never closes, or it names no package -- each a file `changeset version`
-    would refuse when assembling the plan.
+    Raises ChangesetHeaderError when there is no frontmatter block at all, or
+    when it never closes -- each a file `changeset version` would refuse when
+    assembling the plan.
+
+    A frontmatter that opens and closes but names no package is VALID and
+    returns []. That is the 8-byte artifact `changeset add --empty` writes,
+    which the changesets CLI names in its own error text as the remedy for a
+    change that needs no release. Measured on a tree containing one:
+    `changeset status` exits 0 and assembles the plan. This function used to
+    raise on it and report "release plan does not assemble" -- a consequence
+    inferred from a syntactic property and never checked against the tool
+    being modelled (#170).
     """
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
@@ -298,8 +307,6 @@ def changeset_header_packages(text: str) -> list[str]:
         match = re.match(r'^\s*("?)([^":]+?)\1\s*:', line)
         if match:
             keys.append(match.group(2))
-    if not keys:
-        raise ChangesetHeaderError("frontmatter names no package")
     return keys
 
 
