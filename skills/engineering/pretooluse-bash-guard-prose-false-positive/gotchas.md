@@ -95,3 +95,16 @@
   The 2026-08-23 entry's own closing rule ("a predicate that decides whether something
   will RUN must read command structure, not text") predicted exactly this collision; the
   fix had been wired to one caller, not the class.
+
+- [OBSERVED 2026-08-24, recorded 2026-08-25] Three further blocks in one session of the
+  private research repo (its S321), on three different guards, every one correct by its
+  own rule and every one fired by prose rather than by the action the rule polices: a
+  commit body describing a safe choice the session had made, a commit body containing
+  the words "pull request", and a JSON payload containing a filename. All three recovered
+  by this card's standing remedy — move the prose to a file and pass it by path. Recorded
+  with a stated limit: the session's close packet preserved the prose classes that
+  triggered each block but not the predicate names, so this entry counts the occasions
+  without attributing them to specific rules. The recording itself was late: the session
+  that observed the blocks closed without writing this entry, and the debt was carried in
+  its close packet as an owed row. A card whose admission rests on counted recurrence is
+  undercounted exactly when its author is busiest, which is when the guards fire most.
