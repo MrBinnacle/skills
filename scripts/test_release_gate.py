@@ -68,6 +68,16 @@ def changeset_md(package: str = "mrbinnacle-skills", level: str = "patch") -> st
     return f'---\n"{package}": {level}\n---\n\nA described change.\n'
 
 
+def changelog_md(section_version: str, *, dated: bool = True) -> str:
+    """A changelog carrying one section, in this repository's shape.
+
+    ``dated=False`` writes the heading without the release date - the
+    half-rolled state behind criterion three.
+    """
+    date = " - 2026-08-10" if dated else ""
+    return f"# Changelog\n\nAll notable changes.\n\n## v{section_version}{date}\n\nShipped.\n"
+
+
 def manifest_json(versions: Sequence[str | None]) -> str:
     """A manifest shaped like the shipped one, with one entry per version given.
 
@@ -98,12 +108,14 @@ def manifest_json(versions: Sequence[str | None]) -> str:
 def seeded_tree(
     root: Path, *, package: str = "1.2.0", versions: Sequence[str | None] | None = None
 ) -> Path:
-    """The conforming baseline: every declared version equals the package's."""
+    """The conforming baseline: every declared version equals the package's,
+    and the changelog carries a dated section for that version."""
     write(root / "package.json", package_json(package))
     write(
         root / ".claude-plugin" / "marketplace.json",
         manifest_json([package] if versions is None else versions),
     )
+    write(root / "CHANGELOG.md", changelog_md(package))
     return root
 
 
@@ -440,6 +452,79 @@ def case_release_mode_ignores_the_changeset_readme() -> None:
         )
 
 
+# --------------------------------------------------- G4 dated changelog section
+#
+# The incident: a sibling repository tagged a release whose changelog section
+# had never been rolled. The tag promised a version's worth of changes; the
+# changelog had no entry for it. Here, the version being released is the one
+# package.json declares, and its changelog section must exist AND carry a
+# date - an undated heading is a section half-rolled.
+
+
+def case_missing_changelog_section_is_refused() -> None:
+    """package.json declares 1.3.0 while the newest rolled entry is 1.2.0:
+    the release would ship a version whose entry was never written."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp), package="1.3.0", versions=["1.3.0"])
+        write(root / "CHANGELOG.md", changelog_md("1.2.0"))
+        result = run_gate("--root", str(root))
+        check(
+            "a version with no changelog section is refused",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal names the missing dated section and the version",
+            "no dated section for version 1.3.0" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the changelog refusal is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_undated_changelog_section_is_refused() -> None:
+    """A section that names the version but carries no date is not a dated
+    section: the roll never recorded when the version was delivered."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / "CHANGELOG.md", changelog_md("1.2.0", dated=False))
+        result = run_gate("--root", str(root))
+        check(
+            "a version heading without a date is refused",
+            result.returncode != 0 and "carries no release date" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_absent_changelog_fails_closed() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        (root / "CHANGELOG.md").unlink()
+        result = run_gate("--root", str(root))
+        check(
+            "an unreadable CHANGELOG.md is a failure, not a skip",
+            result.returncode != 0 and "could not be read" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_version_number_inside_a_larger_one_is_not_a_section_match() -> None:
+    """1.2.0 must not be satisfied by a `## v11.2.0` heading: the match is
+    boundary-checked in both directions."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / "CHANGELOG.md", changelog_md("11.2.0"))
+        result = run_gate("--root", str(root))
+        check(
+            "a superset version heading does not satisfy the section requirement",
+            result.returncode != 0 and "no dated section for version 1.2.0" in result.stdout,
+            result.stdout,
+        )
+
+
 # ------------------------------------------------------------------- --write
 
 
@@ -680,6 +765,10 @@ def main() -> None:
         case_unconsumed_changesets_block_release_mode,
         case_release_mode_counts_every_remaining_changeset,
         case_release_mode_ignores_the_changeset_readme,
+        case_missing_changelog_section_is_refused,
+        case_undated_changelog_section_is_refused,
+        case_absent_changelog_fails_closed,
+        case_version_number_inside_a_larger_one_is_not_a_section_match,
         case_write_derives_every_entry_from_the_package,
         case_write_is_idempotent,
         case_write_fails_closed_on_unreadable_inputs,

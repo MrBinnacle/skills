@@ -41,6 +41,12 @@ Checks (all must pass; failures are listed, not first-fail):
       of changesets pend against a changelog whose newest entry describes a
       version nobody ever received.
 
+  G4  CHANGELOG.md carries a dated section for the version being released --
+      the one package.json declares. The incident behind it: a sibling
+      repository tagged a release whose changelog section had never been
+      rolled. A heading that names the version but carries no date does not
+      satisfy the requirement; half-rolled is still unrolled.
+
 Generation (--write) and verification live in this one module because they
 must agree about what the correct value is; two modules cannot. --write stamps
 every entry from package.json, then falls through to the same verification a
@@ -77,6 +83,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 PACKAGE_REL = "package.json"
 MANIFEST_REL = ".claude-plugin/marketplace.json"
+CHANGELOG_REL = "CHANGELOG.md"
 CHANGESET_DIR_REL = ".changeset"
 CHANGESET_README = "README.md"
 
@@ -293,6 +300,46 @@ def gate_unconsumed_changesets(root: Path, errors: list[str]) -> None:
     )
 
 
+def gate_changelog_section(root: Path, errors: list[str], declared: str | None) -> None:
+    """G4: CHANGELOG.md must carry a dated section for the released version.
+
+    The version being released is the one package.json declares. Its changelog
+    section is the record that the roll happened; the incident behind this
+    check is a release tagged while its changelog section had never been
+    rolled. A section that names the version under an undated heading does not
+    satisfy the requirement - half-rolled is still unrolled.
+
+    A None version means package.json was already reported unreadable or
+    unusable upstream; nothing here can add to that verdict.
+    """
+    if declared is None:
+        return
+    path = root / CHANGELOG_REL
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        errors.append(f"G4: {CHANGELOG_REL} could not be read: {exc}")
+        return
+    version_re = re.compile(rf"(?<![\w.])v?{re.escape(declared)}(?![\w.])")
+    date_re = re.compile(r"\d{4}-\d{2}-\d{2}")
+    named = [
+        line
+        for line in text.splitlines()
+        if line.startswith("## ") and version_re.search(line)
+    ]
+    if not named:
+        errors.append(
+            f"G4: {CHANGELOG_REL} has no dated section for version {declared} - "
+            "the release would ship a version whose entry was never rolled"
+        )
+        return
+    if not any(date_re.search(line) for line in named):
+        errors.append(
+            f"G4: {CHANGELOG_REL} names version {declared} under a heading that "
+            "carries no release date - a dated section is required"
+        )
+
+
 def gate_manifest_version_lockstep(
     root: Path,
     errors: list[str],
@@ -427,6 +474,7 @@ def main(argv: list[str] | None = None) -> int:
     workspace = workspace_packages(root, package_data) if package_data is not None else None
     version = gate_manifest_version_lockstep(root, errors, declared) or "unknown"
     gate_changeset_plan(root, errors, workspace)
+    gate_changelog_section(root, errors, declared)
     if args.release:
         gate_unconsumed_changesets(root, errors)
 
@@ -439,12 +487,13 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"RELEASE GATE: PASS - releasable at version {version}: plugin "
             f"versions in lockstep with {PACKAGE_REL}, release plan assembles, "
-            "no unconsumed changesets."
+            "changelog section dated, no unconsumed changesets."
         )
     else:
         print(
-            f"RELEASE GATE: PASS - plugin versions in lockstep with {PACKAGE_REL} "
-            f"at version {version}."
+            f"RELEASE GATE: PASS - surfaces healthy at version {version}: "
+            f"plugin versions in lockstep with {PACKAGE_REL}, release plan "
+            "assembles, changelog section dated."
         )
     return 0
 
