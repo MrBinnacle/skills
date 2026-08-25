@@ -793,6 +793,138 @@ def case_g6_passes_a_git_release_tree_the_suite_cannot_reach_npx_for() -> None:
     )
 
 
+# ----------------------------------------------------- G7 workflow actions pinned
+
+
+def workflow_with_uses(root: Path, *uses_lines: str) -> None:
+    """A workflow file whose steps carry the given `uses:` lines verbatim."""
+    body = "name: control\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"
+    for line in uses_lines:
+        body += f"      - {line}\n"
+    write(root / ".github" / "workflows" / "control.yml", body)
+
+
+def case_a_pinned_workflow_passes_release() -> None:
+    """A workflow whose every `uses:` is pinned to a 40-hex SHA passes G7."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        workflow_with_uses(
+            root,
+            "uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4",
+            "uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5",
+        )
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a workflow pinned to commit SHAs passes the release gate",
+            result.returncode == 0 and "RELEASE GATE: PASS" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_a_mutable_workflow_ref_is_refused_at_release() -> None:
+    """A floating tag is not a pin (CVE-2025-30066 repointed every
+    tj-actions/changed-files tag from v1 to v45 inside 24 hours). G7 must refuse
+    it, naming the file, the line, and the mutable ref, and it must be the only
+    fault in a tree whose every other surface is clean."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        workflow_with_uses(
+            root,
+            "uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4",
+            "uses: actions/setup-python@v5",
+            "uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0",
+        )
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a workflow using a mutable ref is refused at release",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal is reported under G7",
+            "G7:" in result.stdout and "mutable ref" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal names the file and the offending line",
+            ".github/workflows/control.yml:8" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal names the mutable ref a reader would type",
+            "actions/setup-python@v5" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the two pinned lines are not also reported",
+            result.stdout.count("G7:") == 1,
+            result.stdout,
+        )
+        check(
+            "the mutable-ref refusal is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_an_abbreviated_sha_is_not_a_pin() -> None:
+    """A short SHA is still mutable: GitHub Actions requires the full 40 hex,
+    and an abbreviated ref is the shape a careless re-pin takes."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        workflow_with_uses(root, "uses: actions/checkout@11d5960a # abbreviated")
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "an abbreviated SHA is refused as a mutable ref",
+            result.returncode != 0
+            and "G7:" in result.stdout
+            and "actions/checkout@11d5960a" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_a_local_action_is_not_in_scope() -> None:
+    """A `./` action is repo code pinned by the commit, not a third-party
+    action pinned by a SHA, so G7 must leave it alone."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        workflow_with_uses(root, "uses: ./.github/actions/local")
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a local ./ action is not flagged as a mutable ref",
+            result.returncode == 0 and "G7:" not in result.stdout,
+            result.stdout,
+        )
+
+
+def case_g7_skips_when_no_workflows() -> None:
+    """A tree with no workflow directory has nothing to re-pin. This is what
+    keeps the seeded-tree lockstep/changeset/changelog cases single-reason."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a tree with no workflows does not fail on the pinning check",
+            "G7:" not in result.stdout,
+            result.stdout,
+        )
+
+
+def case_live_workflow_actions_are_pinned() -> None:
+    """The live assertion: every shipped `uses:` is pinned to a full 40-hex SHA.
+    This is the acceptance criterion pinned against the real artifact rather
+    than only against fixtures built to pass."""
+    sys.path.insert(0, str(SCRIPT_DIR))
+    import release_gate as gate  # noqa: E402
+    errors: list[str] = []
+    gate.gate_workflow_pins(REPO_ROOT, errors)
+    check(
+        "every shipped workflow action is pinned to a full commit SHA",
+        not errors,
+        str(errors),
+    )
+
+
 # --------------------------------------------------------- compound refusal list
 
 
@@ -1221,6 +1353,12 @@ def main() -> None:
         case_live_manifest_and_tree_agree,
         case_g6_reds_when_the_spec_validator_cannot_run,
         case_g6_passes_a_git_release_tree_the_suite_cannot_reach_npx_for,
+        case_a_pinned_workflow_passes_release,
+        case_a_mutable_workflow_ref_is_refused_at_release,
+        case_an_abbreviated_sha_is_not_a_pin,
+        case_a_local_action_is_not_in_scope,
+        case_g7_skips_when_no_workflows,
+        case_live_workflow_actions_are_pinned,
     )
     for case in cases:
         case()
