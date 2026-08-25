@@ -77,15 +77,27 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
+REPO = SCRIPT_DIR.parent
 PACKAGE_REL = "package.json"
 MANIFEST_REL = ".claude-plugin/marketplace.json"
 CHANGELOG_REL = "CHANGELOG.md"
 CHANGESET_DIR_REL = ".changeset"
 CHANGESET_README = "README.md"
+WORKFLOW_DIR_REL = ".github/workflows"
+
+# Delegated predicates, imported (not restated) so the release gate's
+# re-assertion cannot drift from the per-PR check it re-runs. O7 lives in
+# validate_conformance; the external spec validator is its own script run as a
+# subprocess below.
+import validate_conformance as conformance  # noqa: E402
 
 
 class ManifestShapeError(ValueError):
@@ -340,6 +352,149 @@ def gate_changelog_section(root: Path, errors: list[str], declared: str | None) 
         )
 
 
+def gate_manifest_tree_agreement(root: Path, errors: list[str]) -> None:
+    """G5: the manifest and the published tree name the same cards, both ways.
+
+    Re-asserted at release (the version bump's merge, per ADR 0002) rather than
+    only on the pull request that introduced the change. The predicate is O7 in
+    validate_conformance, imported and called rather than restated -- one
+    direction is not enough, and the repository has the receipt for why: the
+    sibling occasions check ran forward-only and an UNDERCOUNT stayed green
+    until August 2026, because nothing asked the reverse question. A manifest
+    check that validates only the paths it names has the same hole: drop a card
+    from the manifest and every named path still resolves.
+
+    Skips cleanly when nothing is published. The lockstep/changeset/changelog
+    cases build seeded trees with no skills/, and G5 must not turn them red:
+    there is no published tree to re-assert against. O7 itself refuses an
+    empty skills/ tree as "checked nothing", so the skip is gated on the
+    directory's presence rather than the predicate's verdict.
+    """
+    if not (root / "skills").is_dir():
+        return
+    result = conformance.check_plugin_manifest(root)
+    if result.verdict == conformance.FAIL:
+        errors.append(f"G5: {result.detail}")
+
+
+SPEC_SCRIPT = SCRIPT_DIR / "validate_spec_conformance.py"
+
+
+def _is_git_work_tree(root: Path) -> bool:
+    """True when `git ls-files` can enumerate under `root`.
+
+    The external spec validator discovers cards through `git ls-files` (see its
+    own docstring: a filesystem walk undercounts junctions on the maintainer's
+    Windows host). A tree that is not a git repository has no `git ls-files`, so
+    the validator cannot enumerate, so G6 cannot re-assert it. The live checkout
+    is always a git tree; a fixture under RUNNER_TEMP is not, and G6 skipping it
+    is what keeps the sibling poison controls single-reason.
+    """
+    probe = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
+        capture_output=True,
+        text=True,
+    )
+    return probe.returncode == 0
+
+
+def gate_spec_conformance(root: Path, errors: list[str]) -> None:
+    """G6: the external specification validator is clean over the published tree.
+
+    The only conformance instrument in this repository its maintainer did not
+    author, which is exactly why it caught two PUBLISHED CARDS carrying invalid
+    YAML frontmatter that every repository-local gate passed. Re-asserting it
+    at release runs the same command the per-PR spec-conformance job runs, so a
+    direct push that bypasses that job still meets the spec before the version
+    becomes permanent.
+
+    Delegated to validate_spec_conformance.py as a subprocess (the published
+    tree plus the candidate queue, with the candidate allowances the queue
+    earns) rather than restated: one allowance list, one place. Skips when
+    nothing is published, and when the tree is not a git repository the
+    validator cannot enumerate -- the live run is a git checkout, so the skip
+    only ever applies to fixtures.
+    """
+    if not (root / "skills").is_dir():
+        return
+    if not _is_git_work_tree(root):
+        return
+    if not SPEC_SCRIPT.is_file():
+        errors.append(
+            "G6: scripts/validate_spec_conformance.py is absent - the external "
+            "spec validator cannot run, so the published tree is unverified"
+        )
+        return
+    proc = subprocess.run(
+        [sys.executable, str(SPEC_SCRIPT), "--root", str(root)],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        lines = (proc.stdout + proc.stderr).strip().splitlines()
+        tail = lines[-1] if lines else "(no output)"
+        errors.append(
+            "G6: external specification validator reports violations over the "
+            f"published tree: {tail}"
+        )
+
+
+USES_RE = re.compile(r"^\s*-?\s*uses:\s+(.+?)\s*$")
+SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
+
+
+def _uses_value(raw: str) -> str:
+    """One `uses:` scalar with its trailing comment stripped and quotes removed.
+
+    `actions/checkout@<sha> # v4` is the house pinning style; the version lives
+    in a comment so a reader can follow it while the action is locked to a SHA.
+    Stripping the comment is what lets G7 read the ref a reader would type, not
+    the annotation beside it.
+    """
+    value = re.sub(r"\s+#.*$", "", raw).strip()
+    if value and value[0] in "\"'" and value[-1] == value[0]:
+        value = value[1:-1]
+    return value
+
+
+def gate_workflow_pins(root: Path, errors: list[str]) -> None:
+    """G7: every workflow `uses:` action is pinned to a full 40-hex commit SHA.
+
+    #147 pinned every action; this keeps #147 from rotting back. A floating tag
+    is not a pin (CVE-2025-30066 repointed every tj-actions/changed-files tag
+    from v1 to v45 inside 24 hours), so any `uses:` whose ref is not a 40-hex
+    SHA is a listed failure naming the file, the line, and the mutable ref. A
+    local action (`./...` with no `@`) is repo code pinned by the commit, so it
+    is not in scope.
+
+    Skips when there is no workflow directory. Reads workflows as text because
+    the ref is a scalar on one line; the repo's workflows all pin inline.
+    """
+    workflow_dir = root / WORKFLOW_DIR_REL
+    if not workflow_dir.is_dir():
+        return
+    for path in sorted(workflow_dir.glob("*.yml")) + sorted(workflow_dir.glob("*.yaml")):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            errors.append(f"G7: {path.name} could not be read: {exc}")
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
+            match = USES_RE.match(line)
+            if not match:
+                continue
+            value = _uses_value(match.group(1))
+            if "@" not in value:
+                continue  # a local action, pinned by the commit
+            ref = value.rsplit("@", 1)[1]
+            if not SHA_RE.fullmatch(ref):
+                rel = path.relative_to(root).as_posix()
+                errors.append(
+                    f"G7: {rel}:{lineno} uses a mutable ref, not a pinned commit "
+                    f"SHA: {value}"
+                )
+
+
 def gate_manifest_version_lockstep(
     root: Path,
     errors: list[str],
@@ -457,8 +612,11 @@ def main(argv: list[str] | None = None) -> int:
         "--release",
         action="store_true",
         help="run the release-time checks as well: refuse while unconsumed "
-        "changesets remain (G3). The argument-less run answers 'are the "
-        "surfaces healthy today'; this one answers 'may this version ship'.",
+        "changesets remain (G3), and re-assert the per-PR obligations at the "
+        "moment the version becomes permanent (G5 manifest and tree agree, "
+        "G6 external spec validator clean, G7 workflow actions pinned). The "
+        "argument-less run answers 'are the surfaces healthy today'; this "
+        "one answers 'may this version ship'.",
     )
     args = parser.parse_args(argv)
     root: Path = args.root.resolve()
@@ -477,6 +635,9 @@ def main(argv: list[str] | None = None) -> int:
     gate_changelog_section(root, errors, declared)
     if args.release:
         gate_unconsumed_changesets(root, errors)
+        gate_manifest_tree_agreement(root, errors)
+        gate_spec_conformance(root, errors)
+        gate_workflow_pins(root, errors)
 
     if errors:
         print(f"RELEASE GATE: BLOCKED - {len(errors)} stale surface(s) at version {version}:")
@@ -487,7 +648,9 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"RELEASE GATE: PASS - releasable at version {version}: plugin "
             f"versions in lockstep with {PACKAGE_REL}, release plan assembles, "
-            "changelog section dated, no unconsumed changesets."
+            "changelog section dated, no unconsumed changesets, manifest and "
+            "published tree agree, external spec validator clean, workflow "
+            "actions pinned."
         )
     else:
         print(

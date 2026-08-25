@@ -525,6 +525,175 @@ def case_version_number_inside_a_larger_one_is_not_a_section_match() -> None:
         )
 
 
+# ----------------------------------------------------- #152 re-asserted at release
+#
+# ADR 0002 makes the version bump's merge the moment a version becomes
+# permanent, so the obligations that already hold on every pull request are
+# re-asserted at that moment: the manifest and the published tree name the
+# same cards (O7), the external specification validator is clean over the
+# published tree, and every workflow action is still pinned to a commit SHA.
+# Each is a --release check (it answers "may this version ship", not "are the
+# surfaces healthy today") and each ships its own poison control in CI below.
+#
+# These cases build a tree that CARRIES a published `skills/` tree, because the
+# seeded_tree helper above has none. A seeded tree with no skills is the state
+# the lockstep/changeset/changelog cases above rely on to stay single-reason,
+# so the new checks must skip cleanly when there is nothing published to
+# re-assert - and they do, which is itself pinned by a case below.
+
+SKILLS_BUCKET = "engineering"
+
+
+def skill_card(root: Path, name: str, *, description: str = "fixture card") -> Path:
+    """A minimal published card: a SKILL.md two levels under skills/."""
+    folder = root / "skills" / SKILLS_BUCKET / name
+    write(folder / "SKILL.md", f"---\nname: {name}\ndescription: {description}\n---\n\n# {name}\n")
+    return folder
+
+
+def manifest_with_skills(root: Path, cards: tuple[str, ...], version: str = "1.2.0") -> None:
+    """A manifest naming exactly the given cards, one plugin, in lockstep."""
+    entries = ",\n".join(f'"./skills/{SKILLS_BUCKET}/{c}"' for c in cards)
+    write(
+        root / ".claude-plugin" / "marketplace.json",
+        "{\n"
+        '  "name": "fixture-skills",\n'
+        '  "owner": {"name": "fixture", "url": "https://example.invalid"},\n'
+        '  "plugins": [\n'
+        "    {\n"
+        '      "name": "fixture-engineering",\n'
+        '      "description": "fixture",\n'
+        '      "source": "./",\n'
+        '      "strict": false,\n'
+        f'      "skills": [{entries}],\n'
+        f'      "version": "{version}"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n",
+    )
+
+
+def release_tree_with_skills(root: Path, cards: tuple[str, ...], package: str = "1.2.0") -> Path:
+    """A tree releasable except for whatever the case plants: package in
+    lockstep with a manifest naming every card, a dated changelog, no pending
+    changesets, no workflows."""
+    write(root / "package.json", package_json(package))
+    manifest_with_skills(root, cards, version=package)
+    write(root / "CHANGELOG.md", changelog_md(package))
+    for name in cards:
+        skill_card(root, name)
+    return root
+
+
+# ----------------------------------------------------- G5 manifest and tree agree
+
+
+def case_manifest_and_tree_agree_passes_release() -> None:
+    """A release tree whose manifest names every published card passes G5."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = release_tree_with_skills(Path(tmp), ("alpha-card", "beta-card"))
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a release tree whose manifest covers the tree passes",
+            result.returncode == 0 and "RELEASE GATE: PASS" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_manifest_naming_a_missing_card_is_refused_at_release() -> None:
+    """Direction one: the manifest points at a path with no card at it. O7 was
+    forward-only once and an undercount stayed green; both directions are
+    required, and this is the direction a forward-only check still passes."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = release_tree_with_skills(Path(tmp), ("alpha-card",))
+        # name a ghost card the tree does not publish
+        manifest_with_skills(root, ("alpha-card", "ghost-card"))
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a manifest naming a path with no card is refused at release",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal names the manifest/tree disagreement",
+            "G5:" in result.stdout and "no card at the path" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal names the ghost card",
+            "ghost-card" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the manifest/tree refusal is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_unexposed_card_is_refused_at_release() -> None:
+    """Direction two: a published card no plugin names. The forward-only
+    check stays green here, which is the whole reason this direction exists."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = release_tree_with_skills(Path(tmp), ("alpha-card", "beta-card"))
+        # drop beta-card from the manifest while leaving it published
+        manifest_with_skills(root, ("alpha-card",))
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a published card named by no plugin is refused at release",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal names the unexposed card",
+            "G5:" in result.stdout
+            and "named by no plugin" in result.stdout
+            and "beta-card" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the unexposed-card refusal is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_g5_skips_when_nothing_is_published() -> None:
+    """A seeded tree (no skills/) must not turn red on G5: there is nothing
+    published to re-assert. This is what keeps the lockstep/changeset/changelog
+    cases single-reason."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a tree with no skills/ does not fail on the manifest/tree check",
+            "G5:" not in result.stdout,
+            result.stdout,
+        )
+
+
+def case_live_manifest_and_tree_agree() -> None:
+    """The live assertion: the shipped manifest covers the live published
+    tree, both directions. The conformance suite pins O7 over the live tree
+    too; this pins the release gate's re-assertion of it."""
+    sys.path.insert(0, str(SCRIPT_DIR))
+    import release_gate as gate  # noqa: E402
+    import validate_conformance as conformance  # noqa: E402
+    result = conformance.check_plugin_manifest(REPO_ROOT)
+    check(
+        "the live manifest and published tree agree, both directions",
+        result.verdict == "PASS",
+        f"{result.verdict}: {result.detail}",
+    )
+    errors: list[str] = []
+    gate.gate_manifest_tree_agreement(REPO_ROOT, errors)
+    check(
+        "the release gate's G5 re-assertion passes over the live tree",
+        not errors,
+        str(errors),
+    )
+
+
 # --------------------------------------------------------- compound refusal list
 
 
@@ -946,6 +1115,11 @@ def main() -> None:
         case_ci_control_refuses_a_changeset_outside_the_workspace,
         case_ci_control_blocks_a_declared_release_over_unconsumed_changesets,
         case_ci_control_refuses_an_unrolled_changelog,
+        case_manifest_and_tree_agree_passes_release,
+        case_manifest_naming_a_missing_card_is_refused_at_release,
+        case_unexposed_card_is_refused_at_release,
+        case_g5_skips_when_nothing_is_published,
+        case_live_manifest_and_tree_agree,
     )
     for case in cases:
         case()
