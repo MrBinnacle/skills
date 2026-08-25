@@ -12,10 +12,10 @@ false agreement. Ordered by how soon the failure is likely to bite you.
   informed proposals from a less-informed reviewer, with a per-decision "Revisit if:" clause
   ([the receipt](downstream-instruction-framing/EVIDENCE.md)).
 
-- [**subagent-research-reliability**](subagent-research-reliability/SKILL.md) — web-research
-  subagents fail silently two ways: the agent's tool grant can't actually search (it no-ops or
-  fabricates), or the search returns hallucinated citations. Pre-dispatch tool-grant check +
-  post-return citation-verification pass; both failure modes observed and caught in one session
+- [**subagent-research-reliability**](subagent-research-reliability/SKILL.md) — subagent
+  research fails three ways silently: a dead letter (plain text never reaches the main session),
+  a tool grant that can't actually search, and post-return claims that don't hold. Pre-dispatch:
+  name the return channel and verify tool grants. Post-return: verify every claim, negatives first
   ([the receipt](subagent-research-reliability/EVIDENCE.md)).
 
 - [**parallel-review-disposition-schema**](parallel-review-disposition-schema/SKILL.md) —

@@ -43,3 +43,13 @@ stress-test signal.)*
   proves nothing if you only READ half of it. Re-check length before relying on any summary of a
   subagent's file. (Also recorded in `cite-verified-research-sweep/gotchas.md`; kept here too
   because it fires on ANY background-subagent read, not only during a research sweep.)
+- **2026-08-24 / rotation and harvest pass, a different repository:** four `reader` subagents were
+  dispatched to extract origin text from 25 skill cards. The dispatch named no return channel;
+  each prompt ended "Your final message IS the data." All four idled without delivering content.
+  Re-instructing with `SendMessage` alone (output contract restated, three rounds) produced nine
+  idle notifications and zero recoveries. Naming one absolute file path per agent via the bounded
+  write escalation then recovered 3 of 3 agents given a path; the fourth, never given a channel,
+  never delivered. One of the three had its file write blocked by the host's own tooling guard and
+  still delivered — full content fell back through `SendMessage`. This occurrence confirms Check 0's
+  redundancy framing: the routes fail for unrelated causes, so one failing is survivable, and the
+  load-bearing instruction is to name a payload channel at all.
