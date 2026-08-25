@@ -68,6 +68,38 @@ Checks (all must pass; failures are listed, not first-fail):
       back. A floating tag is not a pin. Skips when there is no workflow
       directory.
 
+  G8  (--release only) The tag this release would create -- ``v<version>`` --
+      is Semantic Versioning normal form (``X.Y.Z``, no leading zeros, no
+      prerelease or build metadata). ADR 0002 made the next release take the
+      normal form from ``v1.2.0`` onward, and release immutability is enabled
+      on this repository: a spent tag name can never be reused, so a botched
+      release spends a version number permanently and a post-hoc check cannot
+      serve. The gate refuses a version that is not normal form BEFORE the tag
+      is cut, blocking rather than reporting.
+
+  G9  (--release only) The working tree is clean. A release that ships while
+      the worktree carries uncommitted changes delivers something other than
+      what the version bump commit recorded, so the gate refuses a dirty
+      tree. Skips a tree that is not a git work tree with a HEAD commit -- a
+      fixture with only ``git init`` has no committed state to dirty, and the
+      live checkout is always clean by construction in CI.
+
+Mode detection (#153):
+  A release ref is one whose ``package.json`` version CHANGED relative to its
+  merge-base with the default branch. The release-only checks (G3, G5, G6, G7,
+  G8, G9) run when the gate declares itself a release -- either via the
+  ``--release`` flag (the override a fixture or an explicit run uses) or via
+  this auto-detection. Release-only checks false on an ordinary pull request:
+  ``changesets consumed`` is untrue of every ordinary PR that adds a changeset,
+  which is most of them, so a gate that ran them unconditionally would
+  deadlock the repository. Detection compares HEAD's package.json version to
+  the version at ``git merge-base HEAD <base>`` for the first resolvable base
+  ref (``origin/main``, ``main``, ``origin/master``, ``master``). A tree that
+  is not a git work tree, has no HEAD commit, or names no resolvable base ref
+  is ordinary -- so a fixture under RUNNER_TEMP with no history stays ordinary
+  unless ``--release`` forces it, which is what keeps the seeded-tree cases
+  single-reason.
+
 Generation (--write) and verification live in this one module because they
 must agree about what the correct value is; two modules cannot. --write stamps
 every entry from package.json, then falls through to the same verification a
@@ -79,9 +111,14 @@ shape is a listed failure -- never a skip and never a pass.
 
 Where it runs:
 
-- tests.yml, a NON-BLOCKING job on every pull request and push to main.
-  Non-blocking while the tracer matures: the blocking pre-publication gate
-  ADR 0002 owes lands with the release pipeline, not with this ticket.
+- tests.yml job ``Release gate (fit to release)``, on every pull request and
+  push to main. The job carries no ``continue-on-error``, so a refusal fails
+  the check rather than reporting and continuing. Mode-awareness is what lets
+  one gate serve both an ordinary PR (which adds a changeset) and a release
+  PR (which bumps the version) without deadlocking: release-only checks fire
+  solely when the version changed. Making the check *required* on the default
+  branch is a ``protect-main`` ruleset edit (context name equals the job
+  ``name:``) and is not conferred by the workflow file alone.
 - Anywhere locally: `python scripts/release_gate.py` takes no arguments and
   returns the verdict CI prints for the same tree.
 
@@ -424,6 +461,75 @@ def _is_git_work_tree(root: Path) -> bool:
     return probe.returncode == 0
 
 
+# The release-only checks fire when the gate is in release mode. Release mode
+# is declared two ways: the --release flag (an override a fixture or explicit
+# run uses) and auto-detection, which treats a ref whose package.json version
+# CHANGED relative to its merge-base with the default branch as a release ref.
+# A tree that is not a git work tree, has no HEAD commit, or names no
+# resolvable base ref is ordinary -- so a fixture under RUNNER_TEMP with no
+# history stays ordinary unless --release forces it, which is what keeps the
+# seeded-tree cases single-reason.
+BASE_REF_CANDIDATES = ("origin/main", "origin/master", "main", "master")
+
+
+def _git_ok(root: Path, args: list[str]) -> tuple[bool, str]:
+    """Run a git command in `root`, returning (ok, stdout-trimmed)."""
+    proc = subprocess.run(
+        ["git", "-C", str(root), *args],
+        capture_output=True,
+        text=True,
+    )
+    return proc.returncode == 0, proc.stdout
+
+
+def detect_release_ref(root: Path, current_version: str | None) -> bool:
+    """True when this ref is a release ref: the package.json version changed
+    relative to the merge-base with the default branch.
+
+    Compares `current_version` (already read from package.json by the caller)
+    against the version at ``git merge-base HEAD <base>`` for the first
+    resolvable base ref in BASE_REF_CANDIDATES. A release ref is one whose
+    version BUMPED on this branch -- exactly the PR that delivers a new
+    version per ADR 0002, which is the moment the release-only obligations
+    must hold.
+
+    Returns False (ordinary) when the tree is not a git work tree, has no
+    HEAD commit, names no resolvable base ref, or the base carries no
+    readable package.json version. False here is the safe default: an
+    ordinary ref skips the release-only checks, and ``--release`` remains the
+    explicit override for fixtures and deliberate release runs.
+    """
+    if current_version is None:
+        return False
+    head_ok, _ = _git_ok(root, ["rev-parse", "--verify", "HEAD"])
+    if not head_ok:
+        return False
+    base_ref: str | None = None
+    for candidate in BASE_REF_CANDIDATES:
+        ok, _ = _git_ok(root, ["rev-parse", "--verify", candidate])
+        if ok:
+            base_ref = candidate
+            break
+    if base_ref is None:
+        return False
+    mb_ok, merge_base = _git_ok(root, ["merge-base", "HEAD", base_ref])
+    if not mb_ok or not merge_base.strip():
+        return False
+    show_ok, blob = _git_ok(root, ["show", f"{merge_base.strip()}:{PACKAGE_REL}"])
+    if not show_ok:
+        return False
+    try:
+        base_data = json.loads(blob)
+    except ValueError:
+        return False
+    if not isinstance(base_data, dict):
+        return False
+    base_version = base_data.get("version")
+    if not isinstance(base_version, str) or not base_version.strip():
+        return False
+    return base_version != current_version
+
+
 def gate_spec_conformance(root: Path, errors: list[str]) -> None:
     """G6: the external specification validator is clean over the published tree.
 
@@ -529,6 +635,65 @@ def gate_workflow_pins(root: Path, errors: list[str]) -> None:
                     f"G7: {rel}:{lineno} uses a mutable ref, not a pinned commit "
                     f"SHA: {value}"
                 )
+
+
+# Semantic Versioning 2.0.0 normal form: MAJOR.MINOR.PATCH, each a non-negative
+# integer with NO leading zeros, and nothing else -- no prerelease, no build
+# metadata. ADR 0002 takes the normal form from the next release onward, so the
+# tag this release cuts (v<version>) must round-trip through this.
+SEMVER_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+
+
+def gate_tag_normal_form(root: Path, errors: list[str], declared: str | None) -> None:
+    """G8 (--release): the tag this release cuts is Semantic Versioning normal form.
+
+    The tag name is ``v`` + the package.json version, so the version being
+    normal form is the whole requirement -- a non-normal version produces a tag
+    that is not ``vX.Y.Z``. Release immutability is enabled on this repository
+    and a spent tag name can never be reused, so the gate refuses BEFORE the
+    tag is cut, blocking rather than reporting: a botched release spends a
+    version number permanently and a post-hoc check cannot recover it.
+
+    A None version means package.json was already reported unreadable or
+    unusable upstream; nothing here can add to that verdict.
+    """
+    if declared is None:
+        return
+    if not SEMVER_RE.fullmatch(declared):
+        errors.append(
+            f"G8: the release tag v{declared} is not Semantic Versioning normal "
+            "form (X.Y.Z, no leading zeros, no prerelease or build metadata) - "
+            "release immutability means a malformed tag cannot be re-cut later"
+        )
+
+
+def gate_clean_tree(root: Path, errors: list[str]) -> None:
+    """G9 (--release): the working tree is clean at release time.
+
+    A release that ships while the worktree carries uncommitted changes
+    delivers something other than what the version bump commit recorded. The
+    gate refuses a dirty tree. Skips a tree that is not a git work tree with a
+    HEAD commit: a fixture with only ``git init`` (no commit) has no committed
+    state to dirty, and the live checkout is always clean by construction in
+    CI. The skip is what keeps the seeded-tree and G6-fixture cases
+    single-reason.
+    """
+    head_ok, _ = _git_ok(root, ["rev-parse", "--verify", "HEAD"])
+    if not head_ok:
+        return
+    status_ok, status = _git_ok(root, ["status", "--porcelain"])
+    if not status_ok:
+        # A git tree whose status cannot be read is a fail-closed input, not a
+        # skip -- the gate cannot assert the tree is clean it cannot inspect.
+        errors.append("G9: the working tree status could not be read")
+        return
+    if status.strip():
+        dirty = [ln.strip() for ln in status.splitlines() if ln.strip()]
+        preview = "; ".join(dirty[:5])
+        errors.append(
+            "G9: the working tree is not clean at release time - "
+            f"{len(dirty)} uncommitted change(s): {preview}"
+        )
 
 
 def gate_manifest_version_lockstep(
@@ -647,12 +812,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--release",
         action="store_true",
-        help="run the release-time checks as well: refuse while unconsumed "
-        "changesets remain (G3), and re-assert the per-PR obligations at the "
-        "moment the version becomes permanent (G5 manifest and tree agree, "
-        "G6 external spec validator clean, G7 workflow actions pinned). The "
-        "argument-less run answers 'are the surfaces healthy today'; this "
-        "one answers 'may this version ship'.",
+        help="force release mode: run the release-time checks (G3 unconsumed "
+        "changesets, G5 manifest/tree, G6 external spec validator, G7 workflow "
+        "pins, G8 tag normal form, G9 clean tree) in addition to the everyday "
+        "ones. Without --release the gate auto-detects release mode: a ref "
+        "whose package.json version changed relative to its merge-base with "
+        "the default branch is a release ref and runs the release-time checks "
+        "anyway. The flag is the override a fixture or an explicit run uses; "
+        "an ordinary ref (version unchanged) answers 'are the surfaces "
+        "healthy today', a release ref answers 'may this version ship'.",
     )
     args = parser.parse_args(argv)
     root: Path = args.root.resolve()
@@ -669,24 +837,34 @@ def main(argv: list[str] | None = None) -> int:
     version = gate_manifest_version_lockstep(root, errors, declared) or "unknown"
     gate_changeset_plan(root, errors, workspace)
     gate_changelog_section(root, errors, declared)
-    if args.release:
+    # Release mode is declared two ways: the --release flag (an override a
+    # fixture or explicit run uses) and auto-detection, which treats a ref
+    # whose package.json version changed relative to its merge-base with the
+    # default branch as a release ref. Release-only checks false on an
+    # ordinary PR that adds a changeset, which is most PRs -- running them
+    # unconditionally would deadlock the repository.
+    release_mode = args.release or detect_release_ref(root, declared)
+    if release_mode:
         gate_unconsumed_changesets(root, errors)
         gate_manifest_tree_agreement(root, errors)
         gate_spec_conformance(root, errors)
         gate_workflow_pins(root, errors)
+        gate_tag_normal_form(root, errors, declared)
+        gate_clean_tree(root, errors)
 
     if errors:
         print(f"RELEASE GATE: BLOCKED - {len(errors)} stale surface(s) at version {version}:")
         for error in errors:
             print(f"  FAIL  {error}")
         return 1
-    if args.release:
+    if release_mode:
         print(
             f"RELEASE GATE: PASS - releasable at version {version}: plugin "
             f"versions in lockstep with {PACKAGE_REL}, release plan assembles, "
             "changelog section dated, no unconsumed changesets, manifest and "
             "published tree agree, external spec validator clean, workflow "
-            "actions pinned."
+            "actions pinned, release tag is SemVer normal form, working tree "
+            "clean."
         )
     else:
         print(

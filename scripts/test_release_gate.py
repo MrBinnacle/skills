@@ -21,6 +21,7 @@ THE SEEDED TREE PASSES BY CONSTRUCTION
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -87,6 +88,65 @@ def git_init(root: Path) -> None:
     subprocess.run(
         ["git", "-C", str(root), "add", "-A"], check=True, capture_output=True
     )
+
+
+def git_commit(root: Path, message: str = "commit") -> None:
+    """Commit the staged tree with a fixed identity, so a fixture has a HEAD
+    the release-mode detector can compare against its base ref."""
+    env = dict(os.environ)
+    env.update(
+        {
+            "GIT_AUTHOR_NAME": "fixture",
+            "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
+            "GIT_COMMITTER_NAME": "fixture",
+            "GIT_COMMITTER_EMAIL": "fixture@example.invalid",
+        }
+    )
+    subprocess.run(["git", "-C", str(root), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(root), "commit", "-q", "-m", message],
+        check=True,
+        capture_output=True,
+        env=env,
+    )
+
+
+def git_repo_with_base(
+    root: Path,
+    base_version: str,
+    head_version: str,
+    *,
+    pending: bool = False,
+) -> Path:
+    """A git tree with a `main` base ref at `base_version` and HEAD at
+    `head_version` on a `candidate` branch.
+
+    The release-mode detector compares HEAD's package.json version against the
+    version at ``git merge-base HEAD main`` (the branch point), so a head
+    version that differs from the base is auto-detected as a release ref and a
+    head version equal to the base is ordinary -- WITHOUT the ``--release``
+    flag. A `main` branch is forced at the base commit so the detector's base
+    candidate resolves in a fixture that has no `origin` remote.
+
+    When ``pending`` is set, a well-formed changeset naming the workspace
+    package is committed at HEAD, so G3's unconsumed-changesets refusal is the
+    thing that distinguishes a release ref from an ordinary one over the same
+    tree.
+    """
+    write(root / "package.json", package_json(base_version))
+    write(root / ".claude-plugin" / "marketplace.json", manifest_json([base_version]))
+    write(root / "CHANGELOG.md", changelog_md(base_version))
+    git_init(root)
+    git_commit(root, "base")
+    subprocess.run(["git", "-C", str(root), "branch", "-f", "main"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(root), "checkout", "-q", "-b", "candidate"], check=True, capture_output=True)
+    write(root / "package.json", package_json(head_version))
+    write(root / ".claude-plugin" / "marketplace.json", manifest_json([head_version]))
+    write(root / "CHANGELOG.md", changelog_md(head_version))
+    if pending:
+        write(root / ".changeset" / "zzz-pending.md", changeset_md(level="minor"))
+    git_commit(root, "candidate")
+    return root
 
 
 def write(path: Path, text: str) -> None:
@@ -966,6 +1026,261 @@ def case_live_workflow_actions_are_pinned() -> None:
     )
 
 
+# ------------------------------------------------- #153 mode-awareness, G8, G9
+#
+# The gate becomes a required status check. A gate required on every pull
+# request without mode-awareness deadlocks the repository, because the
+# release-only checks are false on every ordinary PR that adds a changeset.
+# The gate therefore distinguishes a release ref from an ordinary one by
+# whether the package.json version CHANGED relative to the merge-base with the
+# default branch, and runs the release-only subset solely in release mode.
+# The --release flag remains the override a fixture or an explicit run uses.
+
+
+def case_a_version_bump_is_auto_detected_as_a_release_ref() -> None:
+    """Criterion 1: a git tree whose package.json version changed relative to
+    its base is a release ref even with no --release flag. The same tree with
+    an unchanged version is ordinary. The distinguishing evidence is G3 -- the
+    unconsumed-changesets check that runs in release mode only -- over a tree
+    that carries a pending changeset either way, which is also criterion 8 at
+    the unit level (a check that runs in one mode and not the other)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        release_root = git_repo_with_base(Path(tmp), "1.2.0", "1.3.0", pending=True)
+        release = run_gate("--root", str(release_root))
+        check(
+            "a version bump is auto-detected as a release ref (no --release)",
+            release.returncode != 0,
+            release.stdout,
+        )
+        check(
+            "the auto-detected release ref runs G3, the release-only check",
+            "unconsumed changeset" in release.stdout,
+            release.stdout,
+        )
+        check(
+            "the release-ref refusal is single-reason",
+            "1 stale surface(s)" in release.stdout,
+            release.stdout,
+        )
+    with tempfile.TemporaryDirectory() as tmp:
+        ordinary_root = git_repo_with_base(Path(tmp), "1.2.0", "1.2.0", pending=True)
+        ordinary = run_gate("--root", str(ordinary_root))
+        check(
+            "a version unchanged relative to the base is ordinary and passes",
+            ordinary.returncode == 0 and "RELEASE GATE: PASS" in ordinary.stdout,
+            ordinary.stdout,
+        )
+        check(
+            "the ordinary ref does NOT run G3 -- the release-only check is absent",
+            "unconsumed changeset" not in ordinary.stdout,
+            ordinary.stdout,
+        )
+
+
+def case_an_ordinary_git_ref_with_a_changeset_passes() -> None:
+    """Criterion 3: an ordinary pull request that adds a changeset passes the
+    gate. This is the deadlock the mode-awareness exists to prevent -- the same
+    tree, treated as a release, refuses on G3; treated as ordinary, it passes."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = git_repo_with_base(Path(tmp), "1.2.0", "1.2.0", pending=True)
+        result = run_gate("--root", str(root))
+        check(
+            "an ordinary git ref with a pending changeset passes",
+            result.returncode == 0 and "RELEASE GATE: PASS" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the ordinary ref leaves the release-only G3 silent",
+            "unconsumed changeset" not in result.stdout,
+            result.stdout,
+        )
+
+
+def case_a_release_git_ref_with_unconsumed_changesets_fails() -> None:
+    """Criterion 4: a release ref (version changed, auto-detected, no --release)
+    with unconsumed changesets fails the gate. The release would ship while the
+    plan still held entries -- the exact refusal G3 exists to make, now driven
+    by mode detection rather than a flag."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = git_repo_with_base(Path(tmp), "1.2.0", "1.3.0", pending=True)
+        result = run_gate("--root", str(root))
+        check(
+            "a release git ref with unconsumed changesets fails",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal is the unconsumed-changesets check (G3)",
+            "unconsumed changeset" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal is single-reason",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_release_flag_still_forces_release_mode_on_a_fixture() -> None:
+    """The --release flag is the override a fixture (no git, no base ref) uses
+    to force release mode. Auto-detection alone returns ordinary for a
+    history-less tree, so the flag must keep working or every seeded-tree
+    release case goes green for the wrong reason."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / ".changeset" / "zzz-pending.md", changeset_md())
+        plain = run_gate("--root", str(root))
+        forced = run_gate("--release", "--root", str(root))
+        check(
+            "a fixture with no git history is ordinary without the flag",
+            plain.returncode == 0 and "RELEASE GATE: PASS" in plain.stdout,
+            plain.stdout,
+        )
+        check(
+            "--release still forces release mode on a history-less fixture",
+            forced.returncode != 0 and "unconsumed changeset" in forced.stdout,
+            forced.stdout,
+        )
+
+
+# ----------------------------------------------------- G8 tag is SemVer normal form
+#
+# The tag a release cuts is `v<version>`. Release immutability is enabled on
+# this repository, so a spent tag name can never be reused -- a malformed tag
+# spent at cut time cannot be re-cut later, which is why G8 blocks rather than
+# reports. ADR 0002 takes the normal form (X.Y.Z) from the next release onward.
+
+
+def case_non_semver_normal_form_version_is_refused_at_release() -> None:
+    """Criterion 5: a version that is not Semantic Versioning normal form
+    produces a tag that is not vX.Y.Z, and the gate refuses it BEFORE the tag
+    is cut. Each shape is a distinct way a maintainer mistypes a version, and
+    each must refuse under G8 naming the tag and the requirement."""
+    for bad in (
+        "1.2",          # too few fields
+        "1.2.3-beta",   # prerelease suffix
+        "1.2.0+build",  # build metadata
+        "v1.2.0",       # leading v already in the version
+        "1.02.0",       # leading zero
+    ):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = seeded_tree(Path(tmp), package=bad, versions=[bad])
+            write(root / "CHANGELOG.md", changelog_md(bad))
+            result = run_gate("--release", "--root", str(root))
+            check(
+                f"a non-SemVer-normal version ({bad!r}) is refused at release",
+                result.returncode != 0 and "G8:" in result.stdout,
+                result.stdout,
+            )
+            check(
+                f"the G8 refusal names the malformed tag v{bad}",
+                f"v{bad}" in result.stdout and "Semantic Versioning normal form" in result.stdout,
+                result.stdout,
+            )
+            check(
+                f"the G8 refusal is single-reason for {bad!r}",
+                "1 stale surface(s)" in result.stdout,
+                result.stdout,
+            )
+
+
+def case_semver_normal_form_version_passes_g8() -> None:
+    """A normal-form version (X.Y.Z) passes G8 -- the positive half of the
+    contract, against the real normal form ADR 0002 requires."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))  # 1.2.0, normal form
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a SemVer-normal version passes G8",
+            "G8:" not in result.stdout,
+            result.stdout,
+        )
+
+
+def case_g8_is_release_only() -> None:
+    """G8 is a release-only check: an ordinary ref with a non-normal version
+    is not about to cut a tag, so the gate must not refuse it on G8. This is
+    what keeps an in-progress bump (version half-typed) from turning every
+    ordinary run red."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp), package="1.2", versions=["1.2"])
+        write(root / "CHANGELOG.md", changelog_md("1.2"))
+        result = run_gate("--root", str(root))
+        check(
+            "G8 does not fire in ordinary mode over a non-normal version",
+            "G8:" not in result.stdout,
+            result.stdout,
+        )
+
+
+# ----------------------------------------------------- G9 clean working tree
+#
+# A release that ships while the worktree carries uncommitted changes delivers
+# something other than what the version bump commit recorded, so G9 refuses a
+# dirty tree. It skips a tree without a HEAD commit (a fixture with only `git
+# init` has no committed state to dirty), which keeps the seeded-tree and G6
+# cases single-reason.
+
+
+def case_dirty_tree_is_refused_at_release() -> None:
+    """Criterion 6: a dirty working tree is refused in release mode. The tree
+    is a real release ref (version changed, auto-detected) committed clean,
+    then dirtied with one uncommitted file -- so G9 is the only fault."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = git_repo_with_base(Path(tmp), "1.2.0", "1.3.0")
+        write(root / "uncommitted.txt", "a change the version bump did not record\n")
+        result = run_gate("--root", str(root))
+        check(
+            "a dirty working tree is refused in release mode",
+            result.returncode != 0 and "G9:" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the G9 refusal names the uncommitted change",
+            "uncommitted.txt" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the clean-tree refusal is single-reason",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_clean_release_tree_passes_g9() -> None:
+    """The positive half: a clean release ref (committed, version changed)
+    passes the gate, and G9 is silent. The whole tree must be releasable, so
+    this also pins that auto-detection + G8 + G9 compose cleanly."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = git_repo_with_base(Path(tmp), "1.2.0", "1.3.0")
+        result = run_gate("--root", str(root))
+        check(
+            "a clean release ref passes the gate",
+            result.returncode == 0 and "RELEASE GATE: PASS" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "G9 is silent on a clean tree",
+            "G9:" not in result.stdout,
+            result.stdout,
+        )
+
+
+def case_g9_skips_a_fixture_with_no_head_commit() -> None:
+    """G9 skips a tree that has no HEAD commit -- a fixture with only `git
+    init` (the G6 control's shape) has no committed state to dirty. This is
+    what keeps the G6 poison control single-reason once G9 lands."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        git_init(root)  # init + add, no commit -> no HEAD
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "G9 skips a git tree with no HEAD commit",
+            "G9:" not in result.stdout,
+            result.stdout,
+        )
+
+
 # --------------------------------------------------------- compound refusal list
 
 
@@ -1140,7 +1455,8 @@ def case_ci_runs_the_same_argumentless_command() -> None:
         "CI runs the gate with no arguments - the same command a local run uses",
         "python scripts/release_gate.py" in step
         and "--root" not in step
-        and "--write" not in step,
+        and "--write" not in step
+        and "--release" not in step,
         step,
     )
     check(
@@ -1156,21 +1472,56 @@ def case_ci_runs_the_same_argumentless_command() -> None:
     )
 
 
-def case_ci_job_is_non_blocking_and_on_every_pull_request() -> None:
-    """Criterion 7: advisory while the tracer matures. The blocking gate ADR
-    0002 owes arrives with the release pipeline; until then a refusal must be
-    visible without gating merges on a process that cannot act on it yet."""
+def case_ci_job_is_blocking_and_on_every_pull_request() -> None:
+    """Criterion 7 (#153), in-repo half: the gate job must be able to block
+    merges. A `continue-on-error` job reports its verdict but cannot stop a
+    release, and release immutability means a botched release cannot be
+    un-published, so advisory is no longer enough. The job must therefore NOT
+    carry continue-on-error, must publish a stable status-check context (its
+    `name:` field) a ruleset can require, and the workflow must run on
+    pull_request and on push to the default branch.
+
+    The other half of criterion 7 -- listing that context under the
+    `protect-main` ruleset's required_status_checks -- is a GitHub ruleset
+    edit outside this repository's tree. This case does not claim that half
+    is done; it pins the preconditions the ruleset edit acts on, and notes
+    the exact context string the operator must add."""
     job = workflow_job("release-gate")
     triggers = WORKFLOW.read_text("utf-8")[: WORKFLOW.read_text("utf-8").index("jobs:")]
     check(
-        "the release-gate job is non-blocking (continue-on-error)",
-        "continue-on-error: true" in job,
+        "the release-gate job is blocking (no continue-on-error)",
+        "continue-on-error" not in job,
+        job,
+    )
+    # workflow_job returns the body AFTER the job key, so the name: line sits
+    # at the top of the body. The exact string is the status context GitHub
+    # reports and the string the protect-main ruleset must list.
+    check(
+        "the release-gate job publishes the status context a ruleset can require",
+        "name: Release gate (fit to release)" in job,
         job,
     )
     check(
         "the workflow runs on pull_request",
         "pull_request:" in triggers,
         triggers,
+    )
+    check(
+        "the workflow runs on push (the default-branch trigger a required check needs)",
+        "push:" in triggers,
+        triggers,
+    )
+    if "continue-on-error" in job:
+        note(
+            "release-gate is non-blocking -- #153 criterion 7 requires it to block; "
+            "a 'required' ruleset entry over a continue-on-error job gates nothing"
+        )
+    note(
+        "criterion 7 ruleset half is operator-side: add status context "
+        "'Release gate (fit to release)' to protect-main required_status_checks. "
+        "Measured 2026-08-25 the ruleset still lists only linkcheck, "
+        "residue-check, spec-conformance, validator (ubuntu-latest), "
+        "validator (windows-latest)."
     )
 
 
@@ -1481,6 +1832,80 @@ def case_ci_release_gate_sets_up_node_for_the_spec_validator() -> None:
     )
 
 
+# ------------------------------------------------------- #153 mode-awareness control
+#
+# Criterion 8: a control proves an ordinary ref and a release ref receive
+# DIFFERENT check sets, by asserting a check that runs in one and not the
+# other. The control builds two git trees from the same recipe -- one whose
+# version changed (a release ref), one whose version did not (ordinary) --
+# and runs the SHIPPED gate on each with NO --release flag, so the only thing
+# that differs is the auto-detection. G3 (unconsumed changesets) must run on
+# the release ref and refuse it, and must NOT run on the ordinary ref, which
+# passes.
+
+
+def case_ci_control_ordinary_and_release_refs_receive_different_check_sets() -> None:
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - ordinary and release refs receive different check sets",
+    )
+    check(
+        "CI carries the mode-awareness poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the control builds both refs from one recipe (make_tree)",
+        "make_tree" in step,
+        step,
+    )
+    check(
+        "the control builds an ordinary ref whose version did not change",
+        '"1.2.0"' in step and "ordinary" in step,
+        step,
+    )
+    check(
+        "the control builds a release ref whose version changed",
+        "1.3.0" in step and "release" in step,
+        step,
+    )
+    check(
+        "the control forces a `main` base ref the detector can resolve",
+        "branch -f main" in step,
+        step,
+    )
+    check(
+        "the control runs the SHIPPED gate WITHOUT --release on the ordinary ref",
+        'python scripts/release_gate.py --root "$ordinary"' in step,
+        step,
+    )
+    check(
+        "the control requires the ordinary ref to PASS",
+        "^RELEASE GATE: PASS" in step,
+        step,
+    )
+    check(
+        "the control requires the ordinary ref NOT to run G3",
+        "the ordinary ref ran the release-only G3 check" in step,
+        step,
+    )
+    check(
+        "the control runs the SHIPPED gate WITHOUT --release on the release ref",
+        'python scripts/release_gate.py --root "$release"' in step,
+        step,
+    )
+    check(
+        "the control requires the release ref to refuse on G3",
+        "'unconsumed changeset'" in step,
+        step,
+    )
+    check(
+        "the control requires the release ref to refuse for one reason",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
 def main() -> None:
     cases = (
         case_lockstep_passes,
@@ -1510,7 +1935,7 @@ def main() -> None:
         case_write_fails_closed_on_unreadable_inputs,
         case_live_tree_in_lockstep,
         case_ci_runs_the_same_argumentless_command,
-        case_ci_job_is_non_blocking_and_on_every_pull_request,
+        case_ci_job_is_blocking_and_on_every_pull_request,
         case_ci_control_drives_the_gate_red_for_the_right_reason,
         case_control_tree_is_temporary_not_committed,
         case_ci_control_refuses_a_changeset_outside_the_workspace,
@@ -1533,7 +1958,18 @@ def main() -> None:
         case_ci_control_refuses_a_manifest_disagreeing_with_the_tree,
         case_ci_control_refuses_a_spec_violation_over_the_published_tree,
         case_ci_control_refuses_a_mutable_workflow_ref,
+        case_ci_control_ordinary_and_release_refs_receive_different_check_sets,
         case_ci_release_gate_sets_up_node_for_the_spec_validator,
+        case_a_version_bump_is_auto_detected_as_a_release_ref,
+        case_an_ordinary_git_ref_with_a_changeset_passes,
+        case_a_release_git_ref_with_unconsumed_changesets_fails,
+        case_release_flag_still_forces_release_mode_on_a_fixture,
+        case_non_semver_normal_form_version_is_refused_at_release,
+        case_semver_normal_form_version_passes_g8,
+        case_g8_is_release_only,
+        case_dirty_tree_is_refused_at_release,
+        case_clean_release_tree_passes_g9,
+        case_g9_skips_a_fixture_with_no_head_commit,
     )
     for case in cases:
         case()

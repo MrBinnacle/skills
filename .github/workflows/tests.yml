@@ -786,12 +786,27 @@ jobs:
   release-gate:
     name: Release gate (fit to release)
     runs-on: ubuntu-latest
-    continue-on-error: true
     defaults:
       run:
         shell: bash
     steps:
+      # Full history: the gate auto-detects a release ref by whether the
+      # package.json version changed relative to its merge-base with the
+      # default branch, which needs the base ref's history in the checkout. A
+      # shallow checkout (the default fetch-depth: 1) has neither the merge-base
+      # nor a resolvable `origin/main`, so detection would fall back to ordinary
+      # and a release PR would pass the release-only checks it must fail.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      # On a pull request the checkout materialises the merge commit, not the
+      # base branch, so the `origin/main` the detector looks for is fetched
+      # explicitly here. Without it a release PR could not be distinguished
+      # from an ordinary one and the required gate would gate the wrong set.
+      - name: Fetch base branch for release-mode detection
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags origin "$GITHUB_BASE_REF"
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -1083,6 +1098,73 @@ jobs:
           grep -q '1 stale surface(s)' "$log" \
             || { echo "::error::the mutable-ref fixture was red for more than one reason"; cat "$log"; exit 1; }
           echo "control: mutable workflow ref rejected as expected"
+
+      # #153 mode-awareness control. The gate is a required status check, so a
+      # gate that ran the release-only checks on every pull request would
+      # deadlock the repository: 'changesets consumed' is false of every
+      # ordinary PR that adds a changeset. The gate distinguishes a release ref
+      # from an ordinary one by whether the package.json version CHANGED
+      # relative to its base, and this control proves the two receive DIFFERENT
+      # check sets by asserting a check that runs in one and not the other.
+      #
+      # The control builds two git trees from ONE recipe -- one whose version
+      # changed (a release ref), one whose version did not (ordinary) -- and
+      # runs the SHIPPED gate on each with NO --release flag, so the only thing
+      # that differs is the auto-detection. A `main` base ref is forced at the
+      # base commit so the detector's base candidate resolves in a fixture
+      # with no `origin` remote. G3 (unconsumed changesets) must run on the
+      # release ref and refuse it, and must NOT run on the ordinary ref,
+      # which passes -- the same tree, two check sets, by version change alone.
+      - name: Poison control - ordinary and release refs receive different check sets
+        run: |
+          set -euo pipefail
+          make_tree() {
+            tree="$1"; head_version="$2"
+            rm -rf "$tree"
+            mkdir -p "$tree/.claude-plugin"
+            printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+            printf '{"plugins": [{"name": "control-plugin", "skills": [], "version": "1.2.0"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+            printf '# Changelog\n\n## v1.2.0 - 2026-08-25\n\nBase.\n' > "$tree/CHANGELOG.md"
+            git -C "$tree" init -q
+            git -C "$tree" config user.email fixture@example.invalid
+            git -C "$tree" config user.name fixture
+            git -C "$tree" add -A
+            git -C "$tree" commit -q -m base
+            git -C "$tree" branch -f main
+            git -C "$tree" checkout -q -b candidate
+            printf '{"name": "mrbinnacle-skills", "version": "%s"}\n' "$head_version" > "$tree/package.json"
+            printf '{"plugins": [{"name": "control-plugin", "skills": [], "version": "%s"}]}\n' "$head_version" > "$tree/.claude-plugin/marketplace.json"
+            printf '# Changelog\n\n## v%s - 2026-08-25\n\nShipped.\n' "$head_version" > "$tree/CHANGELOG.md"
+            mkdir -p "$tree/.changeset"
+            printf -- '---\n"mrbinnacle-skills": minor\n---\n\nA pending change.\n' > "$tree/.changeset/zzz-pending.md"
+            git -C "$tree" add -A
+            git -C "$tree" commit -q -m candidate
+          }
+          ordinary="$RUNNER_TEMP/control-mode-ordinary"
+          release="$RUNNER_TEMP/control-mode-release"
+          make_tree "$ordinary" "1.2.0"
+          make_tree "$release" "1.3.0"
+          # ordinary ref: version unchanged -> G3 must NOT run -> gate passes
+          if ! python scripts/release_gate.py --root "$ordinary" | grep -q '^RELEASE GATE: PASS'; then
+            echo "::error::an ordinary ref (version unchanged) was not treated as ordinary"
+            exit 1
+          fi
+          if python scripts/release_gate.py --root "$ordinary" 2>&1 | grep -q 'unconsumed changeset'; then
+            echo "::error::the ordinary ref ran the release-only G3 check"
+            exit 1
+          fi
+          # release ref: version changed -> G3 must run -> gate refuses
+          log="$RUNNER_TEMP/control-mode-release.log"
+          if python scripts/release_gate.py --root "$release" > "$log" 2>&1; then
+            echo "::error::a release ref (version changed) was not treated as a release"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'unconsumed changeset' "$log" \
+            || { echo "::error::the release ref did not run the release-only G3 check"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the release ref was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: ordinary and release refs receive different check sets, by version change alone"
 
   # ---------------------------------------------------------------------------
   # The only conformance instrument in this repository its maintainer did not
