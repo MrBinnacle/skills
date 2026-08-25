@@ -63,9 +63,17 @@ updates every installed copy and local↔repo drift is structurally impossible:
    check**. A PR that trips the residue gate is told the file, line, and generic replacement.
 3. Add a **changeset** (`npx changeset`) describing the change — this generates the changelog
    entry and the version bump.
-4. Merge to `main`. Cutting a release is a **manual** step (no auto-release CI): run
-   `npm run version` to roll pending changesets into a version bump + `CHANGELOG.md` update,
-   commit it, and tag by hand if wanted.
+4. The maintainer merges the version-bump pull request to `main`. The merge is the
+   delivery event — changed cards reach installed users when a version bump merges to
+   `main`, not when a tag is pushed. There is no auto-release CI: the maintainer runs
+   `npm run version` to roll pending changesets into a version bump and a `CHANGELOG.md`
+   update, commits it, then runs `python scripts/release_gate.py` to report release
+   fitness before merging. The gate lists every stale surface in one run rather than
+   failing at the first. Release immutability is enabled on this repository, and a tag
+   name cannot be reused once spent, so a botched release spends a version number
+   permanently and the gate blocks before the merge rather than reporting after it.
+   [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) records the decision and
+   the narrow surface a version promises.
 
    ⚠ **`npm run version` fails closed without a `GITHUB_TOKEN` in the environment.** The
    changelog generator is `@changesets/changelog-github`, which resolves pull-request and author
