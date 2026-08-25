@@ -1,7 +1,8 @@
 # Changelog
 
-All notable changes to the collection. The `npx skills add` installer tracks `main`, so
-tags and this file are informational — a reading aid, not a pin.
+All notable changes to the collection. A release is a delivery event: changed cards reach
+installed users when a version is released, not on every merge to `main`. See
+[ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
 ## v1.2.0 — 2026-08-10
 
