@@ -24,7 +24,8 @@
         "./skills/engineering/mock-masked-stub-trap",
         "./skills/engineering/pretooluse-bash-guard-prose-false-positive",
         "./skills/engineering/success-test-accepts-any-output"
-      ]
+      ],
+      "version": "1.2.0"
     },
     {
       "name": "mrbinnacle-orchestration",
@@ -35,7 +36,8 @@
         "./skills/orchestration/downstream-instruction-framing",
         "./skills/orchestration/parallel-review-disposition-schema",
         "./skills/orchestration/subagent-research-reliability"
-      ]
+      ],
+      "version": "1.2.0"
     },
     {
       "name": "mrbinnacle-meta",
@@ -45,7 +47,8 @@
       "skills": [
         "./skills/meta/router-skill-predicate-gap",
         "./skills/meta/skill-necessity-gate"
-      ]
+      ],
+      "version": "1.2.0"
     }
   ]
 }

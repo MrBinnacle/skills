@@ -338,6 +338,31 @@ def case_write_fails_closed_on_unreadable_inputs() -> None:
             )
 
 
+def case_live_tree_in_lockstep() -> None:
+    """The shipped tree, checked exactly as a maintainer checks it: no
+    arguments. This pins the acceptance criterion against the real artifact --
+    every live plugin entry declares a version, derived by --write from
+    package.json -- rather than only against fixtures built to pass."""
+    result = run_gate()
+    check(
+        "the live tree passes the gate with no arguments",
+        result.returncode == 0 and "RELEASE GATE: PASS" in result.stdout,
+        result.stdout + result.stderr,
+    )
+    package = json.loads((REPO_ROOT / "package.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (REPO_ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+    )
+    undeclared = [
+        p["name"] for p in manifest["plugins"] if p.get("version") != package["version"]
+    ]
+    check(
+        "every live plugin entry declares the package.json version",
+        not undeclared,
+        f"entries not at {package['version']}: {undeclared}",
+    )
+
+
 def main() -> None:
     cases = (
         case_lockstep_passes,
@@ -354,6 +379,7 @@ def main() -> None:
         case_write_derives_every_entry_from_the_package,
         case_write_is_idempotent,
         case_write_fails_closed_on_unreadable_inputs,
+        case_live_tree_in_lockstep,
     )
     for case in cases:
         case()
