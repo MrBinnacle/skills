@@ -63,6 +63,11 @@ def package_json(version: str) -> str:
     return json.dumps({"name": "mrbinnacle-skills", "version": version}, indent=2) + "\n"
 
 
+def changeset_md(package: str = "mrbinnacle-skills", level: str = "patch") -> str:
+    """A changeset file the way changesets writes them."""
+    return f'---\n"{package}": {level}\n---\n\nA described change.\n'
+
+
 def manifest_json(versions: Sequence[str | None]) -> str:
     """A manifest shaped like the shipped one, with one entry per version given.
 
@@ -280,6 +285,83 @@ def case_zero_plugins_rejected() -> None:
         check(
             "a manifest with no plugin entries is refused",
             result.returncode != 0 and "no plugin entries" in result.stdout,
+            result.stdout,
+        )
+
+
+# ------------------------------------------------------- G2 release plan assembles
+#
+# The incident: `.changeset/quarantine-starts-shipping.md` declared
+# `@mrbinnacle/skills` while the workspace package is `mrbinnacle-skills`, so
+# `changeset version` refused to assemble a release plan - and the check written
+# for that defect ran `changeset status --since=origin/main`, which examines an
+# EMPTY set on main, so CI stayed green from 2026-08-24 over a tree no release
+# could be cut from (#144 fixed CI; G2 gives the gate its own unscoped verdict).
+
+
+def case_out_of_workspace_changeset_is_refused() -> None:
+    """The full pending set must assemble into a release plan. One changeset
+    naming a package outside the workspace means it never will, wherever the
+    file sits relative to whatever ref a scoped comparison names."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(
+            root / ".changeset" / "zzz-out-of-workspace.md",
+            changeset_md(package="@mrbinnacle/skills"),
+        )
+        result = run_gate("--root", str(root))
+        check(
+            "a changeset naming a package outside the workspace is refused",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal names the plan-assembly failure specifically",
+            "does not assemble" in result.stdout and "not in the workspace" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal names the file and the offending package",
+            "zzz-out-of-workspace.md" in result.stdout and "@mrbinnacle/skills" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the plan failure is the only fault the run finds in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_malformed_changeset_frontmatter_fails_closed() -> None:
+    """A changeset whose header cannot be read is exactly as fatal to the plan
+    as one naming a wrong package: changesets itself would refuse it. Fail
+    closed - listed, never skipped."""
+    for bad, why in (
+        ('---\n"@mrbinnacle/skills": patch\n', "frontmatter that never closes"),
+        ("prose only, no frontmatter\n", "no frontmatter at all"),
+    ):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = seeded_tree(Path(tmp))
+            write(root / ".changeset" / "zzz-broken-header.md", bad)
+            result = run_gate("--root", str(root))
+            check(
+                f"an unreadable changeset ({why}) fails closed",
+                result.returncode != 0 and "unreadable frontmatter" in result.stdout,
+                result.stdout,
+            )
+
+
+def case_valid_pending_changesets_pass_the_everyday_run() -> None:
+    """Pending changesets are the process working between releases: well-formed
+    ones naming workspace packages must never turn an ordinary run red."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / ".changeset" / "a-good-one.md", changeset_md(level="minor"))
+        write(root / ".changeset" / "b-good-two.md", changeset_md())
+        result = run_gate("--root", str(root))
+        check(
+            "well-formed pending changesets pass the ordinary run",
+            result.returncode == 0 and "RELEASE GATE: PASS" in result.stdout,
             result.stdout,
         )
 
@@ -518,6 +600,9 @@ def main() -> None:
         case_unparseable_manifest_fails_closed,
         case_shape_broken_manifest_fails_closed,
         case_zero_plugins_rejected,
+        case_out_of_workspace_changeset_is_refused,
+        case_malformed_changeset_frontmatter_fails_closed,
+        case_valid_pending_changesets_pass_the_everyday_run,
         case_write_derives_every_entry_from_the_package,
         case_write_is_idempotent,
         case_write_fails_closed_on_unreadable_inputs,

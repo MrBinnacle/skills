@@ -22,6 +22,15 @@ Checks (all must pass; failures are listed, not first-fail):
       Zero entries is its own refusal: a run that compared against nothing
       checked nothing.
 
+  G2  The full pending changeset set assembles into a release plan: every
+      .changeset/*.md names a package the workspace contains. This is the
+      gate's own unscoped `changeset status`. The scoped `--since=origin/main`
+      form examines an empty set when run on main, which is how a changeset
+      naming @mrbinnacle/skills kept CI green from 2026-08-24 while blocking
+      every release (#144 fixed CI; G2 gives the gate its own verdict). An
+      unreadable frontmatter is the same refusal by another route: changesets
+      itself would refuse to assemble over it.
+
 Generation (--write) and verification live in this one module because they
 must agree about what the correct value is; two modules cannot. --write stamps
 every entry from package.json, then falls through to the same verification a
@@ -50,12 +59,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 PACKAGE_REL = "package.json"
 MANIFEST_REL = ".claude-plugin/marketplace.json"
+CHANGESET_DIR_REL = ".changeset"
+CHANGESET_README = "README.md"
 
 
 class ManifestShapeError(ValueError):
@@ -64,6 +76,15 @@ class ManifestShapeError(ValueError):
     Subclasses ValueError so one handler reports it as an unreadable manifest.
     validate_conformance.py documented the alternative the hard way: a
     wrong-shaped manifest raised AttributeError out past both handlers.
+    """
+
+
+class ChangesetHeaderError(ValueError):
+    """A changeset file carries no frontmatter the release plan can read.
+
+    Subclasses ValueError so one handler reports it as an unassemblable plan.
+    `changeset version` refuses such a file outright, so the gate refusing it
+    is the same verdict earlier and cheaper.
     """
 
 
@@ -117,53 +138,171 @@ def source_version(data: object) -> str:
     return version
 
 
-def gate_manifest_version_lockstep(root: Path, errors: list[str]) -> str | None:
-    """G1: manifest entry versions and package.json agree, both directions.
+def read_package_source(root: Path, errors: list[str]) -> tuple[object | None, str | None]:
+    """Read package.json once for every check that derives from it.
 
-    Reads each input independently so one unreadable file still lets the other
-    side report everything wrong with itself; every finding lands in `errors`
-    because the gate reports EVERY failure in one run. Returns the derived
-    version, or None when nothing derivable was read.
+    Reports faults under G1, whose lockstep comparison is the primary consumer
+    and whose messages this preserves byte for byte. Returns (data, version);
+    either may be None when the fault is already listed -- never silently.
     """
-    version: str | None = None
     data = read_json_or_report(root / PACKAGE_REL, PACKAGE_REL, errors)
+    version: str | None = None
     if data is not None:
         try:
             version = source_version(data)
         except ValueError as exc:
             errors.append(f"G1: {PACKAGE_REL} is not usable: {exc}")
+    return data, version
 
+
+def workspace_packages(root: Path, data: object) -> set[str]:
+    """Every package name a changeset may legally declare: the root package
+    plus any npm/Yarn workspaces members. A member whose own manifest cannot
+    be read contributes no name, so changesets naming it refuse as
+    out-of-workspace -- the fail-closed direction."""
+    names: set[str] = set()
+    if not isinstance(data, dict):
+        return names
+    name = data.get("name")
+    if isinstance(name, str) and name.strip():
+        names.add(name)
+    raw = data.get("workspaces")
+    patterns: list[str] = []
+    if isinstance(raw, list):
+        patterns = [p for p in raw if isinstance(p, str)]
+    elif isinstance(raw, dict):
+        packages = raw.get("packages")
+        if isinstance(packages, list):
+            patterns = [p for p in packages if isinstance(p, str)]
+    for pattern in patterns:
+        for member in sorted(root.glob(pattern)):
+            member_manifest = member / "package.json"
+            if not member.is_dir() or not member_manifest.is_file():
+                continue
+            try:
+                member_data = json.loads(member_manifest.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if isinstance(member_data, dict):
+                member_name = member_data.get("name")
+                if isinstance(member_name, str) and member_name.strip():
+                    names.add(member_name)
+    return names
+
+
+def changeset_header_packages(text: str) -> list[str]:
+    """The package names one changeset declares, in file order.
+
+    Raises ChangesetHeaderError when there is no frontmatter block at all, it
+    never closes, or it names no package -- each a file `changeset version`
+    would refuse when assembling the plan.
+    """
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        raise ChangesetHeaderError("frontmatter does not open with ---")
+    closing = next(
+        (i for i in range(1, len(lines)) if lines[i].strip() == "---"),
+        None,
+    )
+    if closing is None:
+        raise ChangesetHeaderError("frontmatter does not close with ---")
+    keys: list[str] = []
+    for line in lines[1:closing]:
+        match = re.match(r'^\s*("?)([^":]+?)\1\s*:', line)
+        if match:
+            keys.append(match.group(2))
+    if not keys:
+        raise ChangesetHeaderError("frontmatter names no package")
+    return keys
+
+
+def gate_changeset_plan(root: Path, errors: list[str], workspace: set[str] | None) -> None:
+    """G2: the full pending changeset set must assemble into a release plan.
+
+    This is the gate's own unscoped `changeset status`: it examines EVERY
+    pending changeset regardless of any compared ref, which is exactly what
+    the scoped `--since=origin/main` check could not do on main, where that
+    set is empty. One changeset naming a package outside the workspace means
+    `changeset version` will refuse to run, so no release can be cut; an
+    unreadable frontmatter means the same thing by a different route. Both are
+    listed failures -- never skips.
+
+    A None workspace means package.json was already reported unreadable or
+    unusable upstream; nothing here can add to that verdict.
+    """
+    if workspace is None:
+        return
+    changeset_dir = root / CHANGESET_DIR_REL
+    if not changeset_dir.is_dir():
+        return
+    files = sorted(p for p in changeset_dir.glob("*.md") if p.name != CHANGESET_README)
+    for path in files:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            errors.append(f"G2: {path.name} could not be read: {exc}")
+            continue
+        try:
+            packages = changeset_header_packages(text)
+        except ValueError as exc:
+            errors.append(
+                f"G2: release plan does not assemble - {path.name} has "
+                f"unreadable frontmatter: {exc}"
+            )
+            continue
+        for package in packages:
+            if package not in workspace:
+                errors.append(
+                    f"G2: release plan does not assemble - {path.name} names "
+                    f"{package!r}, which is not in the workspace"
+                )
+
+
+def gate_manifest_version_lockstep(
+    root: Path,
+    errors: list[str],
+    declared: str | None,
+) -> str | None:
+    """G1: manifest entry versions and package.json agree, both directions.
+
+    `declared` comes from the shared package.json read; None means that read
+    already reported its fault and there is nothing to compare against. Reads
+    the manifest independently so one unreadable file still lets the other
+    side report everything wrong with itself; every finding lands in `errors`
+    because the gate reports EVERY failure in one run. Returns the declared
+    version, or None when nothing derivable was read.
+    """
     manifest_data = read_json_or_report(root / MANIFEST_REL, MANIFEST_REL, errors)
     if manifest_data is None:
-        return version
+        return declared
     try:
         entries = plugin_entries(manifest_data)
     except ValueError as exc:
         errors.append(f"G1: {MANIFEST_REL} is not a readable manifest: {exc}")
-        return version
+        return declared
 
     if not entries:
         errors.append(
             f"G1: {MANIFEST_REL} declares no plugin entries - a run that "
             "checked nothing is not a pass"
         )
-        return version
+        return declared
 
     for index, entry in enumerate(entries):
         name = entry.get("name", f"plugins[{index}]")
-        declared = entry.get("version")
-        if not isinstance(declared, str) or not declared.strip():
+        entry_version = entry.get("version")
+        if not isinstance(entry_version, str) or not entry_version.strip():
             errors.append(
                 f"G1: version drift - {MANIFEST_REL} plugin {name!r} declares "
                 "no version"
-                + (f" (package.json declares {version})" if version else "")
+                + (f" (package.json declares {declared})" if declared else "")
             )
-        elif version is not None and declared != version:
+        elif declared is not None and entry_version != declared:
             errors.append(
                 f"G1: version drift - {MANIFEST_REL} plugin {name!r} declares "
-                f"{declared} but {PACKAGE_REL} declares {version}"
+                f"{entry_version} but {PACKAGE_REL} declares {declared}"
             )
-    return version
+    return declared
 
 
 def write_manifest_versions(root: Path, errors: list[str]) -> bool:
@@ -242,8 +381,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  FAIL  {error}")
         return 1
 
-    derived: str | None = gate_manifest_version_lockstep(root, errors)
-    version = derived or "unknown"
+    package_data, declared = read_package_source(root, errors)
+    workspace = workspace_packages(root, package_data) if package_data is not None else None
+    version = gate_manifest_version_lockstep(root, errors, declared) or "unknown"
+    gate_changeset_plan(root, errors, workspace)
 
     if errors:
         print(f"RELEASE GATE: BLOCKED - {len(errors)} stale surface(s) at version {version}:")
