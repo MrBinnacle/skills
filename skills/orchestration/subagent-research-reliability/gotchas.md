@@ -46,11 +46,10 @@ stress-test signal.)*
 - **2026-08-24 / rotation and harvest pass, a different repository:** four `reader` subagents were
   dispatched to extract origin text from 25 skill cards. The dispatch named no return channel;
   each prompt ended "Your final message IS the data." All four idled without delivering content.
-  Re-instructing with `SendMessage` restating the output contract verbatim produced a second idle
-  notification each — nine idle notifications total across four agents. Delivery succeeded only
-  after naming one absolute file path per agent via the bounded write escalation quoted in Check 0.
-  3 of 3 agents given a path returned complete content; the fourth, never given a path, never
-  delivered. This occurrence confirms Check 0's two routes are not interchangeable: route 1
-  (`SendMessage` alone) recovered nothing; route 2 (named file) carried payload. The key finding
-  is that naming any channel at all is what matters — which channel mattered less than that a
-  channel existed.
+  Re-instructing with `SendMessage` alone (output contract restated, three rounds) produced nine
+  idle notifications and zero recoveries. Naming one absolute file path per agent via the bounded
+  write escalation then recovered 3 of 3 agents given a path; the fourth, never given a channel,
+  never delivered. One of the three had its file write blocked by the host's own tooling guard and
+  still delivered — full content fell back through `SendMessage`. This occurrence confirms Check 0's
+  redundancy framing: the routes fail for unrelated causes, so one failing is survivable, and the
+  load-bearing instruction is to name a payload channel at all.

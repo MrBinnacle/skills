@@ -19,13 +19,13 @@ was never the problem. The channel was, and it cost a wrong commit.
 ## Dead letter, 2026-08-24
 
 Four `reader` subagents were dispatched to extract origin text from 25 skill cards. The dispatch
-named no return channel. All four idled without delivering. Re-instructing with `SendMessage`
-restating the output contract produced a second idle notification each — nine idle notifications
-total. Delivery succeeded only after naming one absolute file path per agent via the bounded write
-escalation. 3 of 3 agents given a path returned complete content; the fourth, never given a path,
-never delivered. This confirms Check 0's two routes are not interchangeable: route 1 (`SendMessage`
-alone) recovered nothing; route 2 (named file) carried payload. The key finding is that naming any
-channel at all is what matters — which channel mattered less than that a channel existed.
+named no return channel. All four idled without delivering. `SendMessage` alone (three rounds)
+produced nine idle notifications and zero recoveries. Naming one absolute file path per agent via
+the bounded write escalation recovered 3 of 3 given a path; the fourth, never given a channel,
+never delivered. One of those three had the file write blocked by the host's tooling guard and
+still delivered — full content fell back through `SendMessage`. Check 0's redundancy framing held:
+the routes fail for unrelated causes, and naming a payload channel at all is what separates
+delivery from silence.
 
 ## Notes
 
