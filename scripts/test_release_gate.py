@@ -531,8 +531,9 @@ def main() -> None:
         print(f"FAILED: {len(FAILURES)} case(s): " + ", ".join(FAILURES))
         raise SystemExit(1)
     print(
-        f"PASS: release gate verified across {len(cases)} temporary tree(s); "
-        "every refusal asserts its own message, never only a non-zero exit."
+        f"PASS: release gate verified across {len(cases)} contract case(s) - "
+        "seeded trees, the live tree, and the CI wiring - every refusal "
+        "asserting its own message, never only a non-zero exit."
     )
 
 
