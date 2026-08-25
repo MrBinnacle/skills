@@ -683,6 +683,61 @@ jobs:
           echo "control: an undeclared hex rejected as expected"
 
   # ---------------------------------------------------------------------------
+  # The release gate (ADR 0002), tracer bullet #149: one stated reason to
+  # refuse a release -- manifest version lockstep -- end to end. The script,
+  # the manifest surface it generated, and the poison control proving the
+  # refusal is real.
+  #
+  # NON-BLOCKING on purpose, for now. ADR 0002 makes the merge of a
+  # version-bump PR the delivery event and owes a BLOCKING pre-publication
+  # gate with the release pipeline; until that pipeline exists a red verdict
+  # here has nothing to stop, so gating merges on it would block on a process
+  # that cannot yet act on what it reports. Advisory means the drift is named
+  # at review time instead of tag time. When the pipeline lands, this job's
+  # command becomes its first requirement.
+  #
+  # Ubuntu only, deliberately: the gate reads JSON files, which do not vary by
+  # operating system. The Windows cell exists in the validator job because
+  # THAT job runs code whose behaviour is host-dependent.
+  #
+  # Actions are pinned by full commit SHA with the version in a trailing
+  # comment, matching every other job in this file. A floating tag is not a pin.
+  release-gate:
+    name: Release gate (manifest version lockstep)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+
+      - name: Release-gate suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_release_gate.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::release-gate suite emitted no PASS line - it did not run"; exit 1; }
+
+      # No arguments here or locally, on purpose: both surfaces must run the
+      # same command so neither can grow flags the other lacks and drift into
+      # verifying different contracts. The grep is the house rule from the
+      # validator job above - an exit code alone cannot tell "passed" from
+      # "did not run".
+      - name: Run release gate
+        run: |
+          set -euo pipefail
+          out="$(python scripts/release_gate.py)"
+          echo "$out"
+          echo "$out" | grep -q '^RELEASE GATE: PASS' \
+            || { echo "::error::release gate refused this tree"; exit 1; }
+
+  # ---------------------------------------------------------------------------
   # The only conformance instrument in this repository its maintainer did not
   # write. `skills-ref` is the Agent Skills specification's own reference
   # validator, so it is the one gate that cannot be wrong in the same direction

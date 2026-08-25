@@ -21,6 +21,7 @@ THE SEEDED TREE PASSES BY CONSTRUCTION
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -29,6 +30,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 GATE = SCRIPT_DIR / "release_gate.py"
 REPO_ROOT = SCRIPT_DIR.parent
+WORKFLOW = REPO_ROOT / ".github" / "workflows" / "tests.yml"
 
 FAILURES: list[str] = []
 
@@ -363,6 +365,79 @@ def case_live_tree_in_lockstep() -> None:
     )
 
 
+# ------------------------------------------------------------------ CI wiring
+#
+# The gate's verdict must not depend on where it runs: CI executes the same
+# argument-less command a local run does, so neither surface can grow flags or
+# context the other lacks. These cases read tests.yml the way the eval-corpus
+# suite reads it -- as text, asserting the wiring that exists rather than
+# parsing YAML into a different dialect.
+
+
+def workflow_job(name: str) -> str:
+    """One job's body from tests.yml, from its key to the next top-level job."""
+    match = re.search(rf"(?ms)^  {re.escape(name)}:\n(.*?)(?=^  \S|\Z)", WORKFLOW.read_text("utf-8"))
+    return match.group(1) if match else ""
+
+
+def named_step(job: str, step_name: str) -> str:
+    """One step's body, from its `name:` line to the next `- name:` line."""
+    match = re.search(
+        rf"(?ms)^      - name: {re.escape(step_name)}\n(.*?)(?=^      - name: |\Z)", job
+    )
+    return match.group(1) if match else ""
+
+
+def case_ci_runs_the_same_argumentless_command() -> None:
+    """Criterion 6, CI half: what CI runs is what a local run runs. A gate
+    whose CI form carries different flags verifies a different contract than
+    the one the maintainer can run, and the difference would be invisible
+    until the two disagreed about a release."""
+    job = workflow_job("release-gate")
+    step = named_step(job, "Run release gate")
+    check(
+        "the CI release-gate job exists",
+        bool(job),
+        "no 'release-gate:' job found in .github/workflows/tests.yml",
+    )
+    check(
+        "CI runs the gate with no arguments - the same command a local run uses",
+        "python scripts/release_gate.py" in step
+        and "--root" not in step
+        and "--write" not in step,
+        step,
+    )
+    check(
+        "CI asserts the PASS verdict line, not only an exit code",
+        "RELEASE GATE: PASS" in step,
+        step,
+    )
+    suite_step = named_step(job, "Release-gate suite")
+    check(
+        "CI runs this suite itself and requires its PASS line",
+        "python scripts/test_release_gate.py" in suite_step and "^PASS:" in suite_step,
+        suite_step,
+    )
+
+
+def case_ci_job_is_non_blocking_and_on_every_pull_request() -> None:
+    """Criterion 7: advisory while the tracer matures. The blocking gate ADR
+    0002 owes arrives with the release pipeline; until then a refusal must be
+    visible without gating merges on a process that cannot act on it yet."""
+    job = workflow_job("release-gate")
+    triggers = WORKFLOW.read_text("utf-8")[: WORKFLOW.read_text("utf-8").index("jobs:")]
+    check(
+        "the release-gate job is non-blocking (continue-on-error)",
+        "continue-on-error: true" in job,
+        job,
+    )
+    check(
+        "the workflow runs on pull_request",
+        "pull_request:" in triggers,
+        triggers,
+    )
+
+
 def main() -> None:
     cases = (
         case_lockstep_passes,
@@ -380,6 +455,8 @@ def main() -> None:
         case_write_is_idempotent,
         case_write_fails_closed_on_unreadable_inputs,
         case_live_tree_in_lockstep,
+        case_ci_runs_the_same_argumentless_command,
+        case_ci_job_is_non_blocking_and_on_every_pull_request,
     )
     for case in cases:
         case()
