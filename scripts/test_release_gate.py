@@ -797,6 +797,115 @@ def case_control_tree_is_temporary_not_committed() -> None:
     )
 
 
+# ------------------------------------------------------- #150 controls in CI
+#
+# Each new check ships its own poison control, and each control asserts its
+# own distinguishing message rather than a bare non-zero exit - two faults
+# share one exit code, which is the exact defect the vacuous changeset
+# control documented in this file's history.
+
+
+def case_ci_control_refuses_a_changeset_outside_the_workspace() -> None:
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - a changeset outside the workspace must be rejected",
+    )
+    check(
+        "CI carries the G2 plan-assembly poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the G2 control plants an out-of-workspace changeset",
+        '"@mrbinnacle/skills"' in step and ".changeset/zzz-poison-plan.md" in step,
+        step,
+    )
+    check(
+        "the G2 control verifies the plant before trusting the verdict",
+        "was not mutated" in step,
+        step,
+    )
+    check(
+        "the G2 control runs the SHIPPED gate against the planted tree",
+        'python scripts/release_gate.py --root "$tree"' in step,
+        step,
+    )
+    check(
+        "the G2 control requires the assembly-specific message, not only a non-zero exit",
+        "'not in the workspace'" in step and "'zzz-poison-plan.md'" in step,
+        step,
+    )
+    check(
+        "the G2 control requires a single-reason refusal",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
+def case_ci_control_blocks_a_declared_release_over_unconsumed_changesets() -> None:
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - unconsumed changesets must block a declared release",
+    )
+    check(
+        "CI carries the G3 release-mode poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the G3 control first requires the ordinary run to PASS the same tree",
+        "^RELEASE GATE: PASS" in step,
+        step,
+    )
+    check(
+        "the G3 control then drives the declared release red",
+        "--release --root" in step,
+        step,
+    )
+    check(
+        "the G3 control requires the unconsumed-specific message",
+        "'unconsumed changeset(s) remain at release time'" in step,
+        step,
+    )
+    check(
+        "the G3 control requires a single-reason refusal",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
+def case_ci_control_refuses_an_unrolled_changelog() -> None:
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - an unrolled changelog must be rejected",
+    )
+    check(
+        "CI carries the G4 changelog poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the G4 control plants a version with no rolled section",
+        '"version": "1.2.0"' in step and "v0.9.0" in step,
+        step,
+    )
+    check(
+        "the G4 control runs the SHIPPED gate against the planted tree",
+        'python scripts/release_gate.py --root "$tree"' in step,
+        step,
+    )
+    check(
+        "the G4 control requires the dated-section-specific message",
+        "'no dated section for version 1.2.0'" in step,
+        step,
+    )
+    check(
+        "the G4 control requires a single-reason refusal",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
 def main() -> None:
     cases = (
         case_lockstep_passes,
@@ -829,6 +938,9 @@ def main() -> None:
         case_ci_job_is_non_blocking_and_on_every_pull_request,
         case_ci_control_drives_the_gate_red_for_the_right_reason,
         case_control_tree_is_temporary_not_committed,
+        case_ci_control_refuses_a_changeset_outside_the_workspace,
+        case_ci_control_blocks_a_declared_release_over_unconsumed_changesets,
+        case_ci_control_refuses_an_unrolled_changelog,
     )
     for case in cases:
         case()
