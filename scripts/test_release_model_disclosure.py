@@ -31,6 +31,8 @@ ADR_RELATIVE = "(docs/adr/0002-a-release-is-a-delivery-event.md)"
 
 FAILURES: list[str] = []
 
+PROMISE_LEAD = "**What a version promises.**"
+
 
 def check(name: str, condition: bool, detail: str = "") -> None:
     if condition:
@@ -73,9 +75,60 @@ def case_preamble_states_the_delivery_model() -> None:
     )
 
 
+def section(text: str, heading: str) -> str:
+    """The body of one `## ` section, ending at the next heading."""
+    match = re.search(rf"(?ms)^## {re.escape(heading)}\n(.*?)(?=^## |\Z)", text)
+    return match.group(1) if match else ""
+
+
+def promise_paragraph(install_body: str) -> str:
+    """The paragraph led by the version-promise disclosure, for focused checks."""
+    lines = install_body.splitlines()
+    start = next((i for i, line in enumerate(lines) if line.startswith(PROMISE_LEAD)), None)
+    if start is None:
+        return ""
+    end = next((i for i in range(start + 1, len(lines)) if not lines[i].strip()), len(lines))
+    return "\n".join(lines[start:end])
+
+
+def case_readme_states_the_declared_surface() -> None:
+    body = section(README.read_text(encoding="utf-8"), "Install")
+    check(
+        "install section carries the version-promise disclosure",
+        PROMISE_LEAD in body,
+        body.strip(),
+    )
+    collapsed = " ".join(promise_paragraph(body).split()).lower()
+    check(
+        "the promise names the install path and the card format, "
+        "and excludes the card set",
+        "the install path and the card format" in collapsed
+        and "not the card set" in collapsed,
+        collapsed,
+    )
+    check(
+        "the promise links ADR 0002 and the record exists",
+        ADR_RELATIVE in collapsed and ADR.is_file(),
+        collapsed,
+    )
+
+
+def case_readme_states_card_moves_are_minor() -> None:
+    collapsed = " ".join(
+        promise_paragraph(section(README.read_text(encoding="utf-8"), "Install")).split()
+    )
+    check(
+        "the readme states plainly that admitting or retiring a card is a minor change",
+        bool(re.search(r"[Aa]dmitting or retiring a card is a minor change", collapsed)),
+        collapsed,
+    )
+
+
 def main() -> None:
     case_preamble_carries_no_reading_aid_claim()
     case_preamble_states_the_delivery_model()
+    case_readme_states_the_declared_surface()
+    case_readme_states_card_moves_are_minor()
     print()
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} case(s): {', '.join(FAILURES)}")
