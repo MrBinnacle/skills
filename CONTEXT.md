@@ -48,3 +48,17 @@ criterion 2 refuses a count inflated by fan-out.
 One invocation of a card. Evidence of demand, never of recurrence, lift or worth.
 _Avoid_: occasion — a card invoked many times over one failure has many dispatches and one
 occasion.
+
+**Release**:
+The act of delivering changed cards to installed users. Delivery happens when a version bump
+merges to `main`; the tag and the GitHub release record it afterwards. Before 2026-08-24 the
+word named a tag that delivered nothing, because both install routes track `main`.
+_Avoid_: tag, publish — a tag records a release and does not constitute one.
+
+**Declared surface**:
+What the version number promises: the install path and the on-disk shape of a card. The card
+set is deliberately outside it, so admitting or retiring a card is a minor change rather than a
+breaking one. This is Semantic Versioning's *public API* for this collection, declared in
+[`docs/adr/0002-a-release-is-a-delivery-event.md`](docs/adr/0002-a-release-is-a-delivery-event.md).
+_Avoid_: bare "public API" — this collection ships no code interface, and the unqualified phrase
+invites a reader to assume the card set is covered when it is not.
