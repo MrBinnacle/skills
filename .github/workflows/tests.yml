@@ -797,6 +797,14 @@ jobs:
         with:
           python-version: "3.13"
 
+      # The G6 poison control below re-runs the external spec validator, which
+      # needs `npx`. setup-node carries it on PATH. Pinned to a full commit SHA
+      # with the version in a trailing comment, matching every other line here;
+      # G7 re-asserts that pin at release.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
       - name: Release-gate suite
         run: |
           set -euo pipefail
@@ -958,6 +966,123 @@ jobs:
           grep -q '1 stale surface(s)' "$log" \
             || { echo "::error::the unrolled-changelog fixture was red for more than one reason"; cat "$log"; exit 1; }
           echo "control: unrolled changelog rejected as expected, naming the missing dated section"
+
+      # G5's control, and the receipt for why both directions are required: the
+      # manifest names a ghost card the tree does not publish. The forward-only
+      # check stays green here, because every NAMED path still resolves; the
+      # reverse question is what catches the dropped entry. Every other surface
+      # is conforming, so the manifest/tree disagreement is the only fault.
+      - name: Poison control - a manifest that disagrees with the published tree must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-release-manifest-tree"
+          log="$RUNNER_TEMP/control-release-manifest-tree.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/.claude-plugin" "$tree/skills/engineering/alpha-card"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          {
+            printf '{\n  "name": "fixture",\n  "plugins": [\n'
+            printf '    {"name": "fixture", "skills": ["./skills/engineering/alpha-card", "./skills/engineering/ghost-card"], "version": "1.2.0"}\n'
+            printf '  ]\n}\n'
+          } > "$tree/.claude-plugin/marketplace.json"
+          printf '# a skill\n' > "$tree/skills/engineering/alpha-card/SKILL.md"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
+          grep -q 'ghost-card' "$tree/.claude-plugin/marketplace.json" \
+            || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          if python scripts/release_gate.py --release --root "$tree" > "$log" 2>&1; then
+            echo "::error::a manifest disagreeing with the published tree was ACCEPTED - the gate no longer refuses it"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G5:' "$log" \
+            || { echo "::error::the manifest/tree fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'no card at the path' "$log" \
+            || { echo "::error::the manifest/tree fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'ghost-card' "$log" \
+            || { echo "::error::the refusal does not name the ghost card"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the manifest/tree fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: manifest disagreeing with the published tree rejected as expected"
+
+      # G6's control. The external spec validator is the only conformance
+      # instrument here the maintainer did not author, which is why it caught two
+      # PUBLISHED cards with invalid YAML frontmatter every local gate passed.
+      # This plants that exact class -- an unquoted description scalar with a
+      # colon-space -- and requires the gate to refuse it. The validator
+      # enumerates cards through git ls-files, so the poison tree is a git tree.
+      - name: Poison control - a spec violation over the published tree must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-release-spec"
+          log="$RUNNER_TEMP/control-release-spec.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/.claude-plugin" "$tree/skills/engineering/poison-card"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          {
+            printf '{\n  "name": "fixture",\n  "plugins": [\n'
+            printf '    {"name": "fixture", "skills": ["./skills/engineering/poison-card"], "version": "1.2.0"}\n'
+            printf '  ]\n}\n'
+          } > "$tree/.claude-plugin/marketplace.json"
+          printf -- '---\nname: poison-card\ndescription: broken: an unquoted scalar with a colon\n---\n\n# poison-card\n' > "$tree/skills/engineering/poison-card/SKILL.md"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
+          git -C "$tree" init -q
+          git -C "$tree" add -A
+          grep -q 'broken: an unquoted' "$tree/skills/engineering/poison-card/SKILL.md" \
+            || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          if python scripts/release_gate.py --release --root "$tree" > "$log" 2>&1; then
+            echo "::error::a spec violation over the published tree was ACCEPTED - the gate no longer refuses it"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G6:' "$log" \
+            || { echo "::error::the spec-violation fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'external specification validator' "$log" \
+            || { echo "::error::the spec-violation fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'Invalid YAML' "$log" \
+            || { echo "::error::the refusal does not name the breach class"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the spec-violation fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: spec violation over the published tree rejected as expected"
+
+      # G7's control, and the rot #147's pins exist to prevent: one workflow
+      # line reverted from a pinned SHA back to a floating tag. A floating tag
+      # is not a pin (CVE-2025-30066 repointed every tj-actions/changed-files
+      # tag from v1 to v45 inside 24 hours), so G7 must refuse it and name the
+      # file, the line, and the mutable ref. No skills, so G5/G6 skip and the
+      # pin is the only fault.
+      - name: Poison control - a mutable workflow ref must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-release-pins"
+          log="$RUNNER_TEMP/control-release-pins.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/.claude-plugin" "$tree/.github/workflows"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '{"plugins": [{"name": "control-plugin", "skills": [], "version": "1.2.0"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
+          {
+            printf 'name: control\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n'
+            printf '      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4\n'
+            printf '      - uses: actions/setup-python@v5\n'
+          } > "$tree/.github/workflows/control.yml"
+          grep -q 'actions/setup-python@v5' "$tree/.github/workflows/control.yml" \
+            || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          if python scripts/release_gate.py --release --root "$tree" > "$log" 2>&1; then
+            echo "::error::a mutable workflow ref was ACCEPTED - the gate no longer refuses it"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G7:' "$log" \
+            || { echo "::error::the mutable-ref fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'mutable ref' "$log" \
+            || { echo "::error::the mutable-ref fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'actions/setup-python@v5' "$log" \
+            || { echo "::error::the refusal does not name the mutable ref"; cat "$log"; exit 1; }
+          grep -q 'control.yml' "$log" \
+            || { echo "::error::the refusal does not name the workflow file"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the mutable-ref fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: mutable workflow ref rejected as expected"
 
   # ---------------------------------------------------------------------------
   # The only conformance instrument in this repository its maintainer did not

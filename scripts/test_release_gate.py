@@ -1311,6 +1311,135 @@ def case_ci_control_refuses_an_unrolled_changelog() -> None:
     )
 
 
+# ------------------------------------------------------- #152 controls in CI
+
+
+def case_ci_control_refuses_a_manifest_disagreeing_with_the_tree() -> None:
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - a manifest that disagrees with the published tree must be rejected",
+    )
+    check(
+        "CI carries the G5 manifest/tree poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the G5 control plants a ghost card the tree does not publish",
+        "./skills/engineering/ghost-card" in step and "alpha-card/SKILL.md" in step,
+        step,
+    )
+    check(
+        "the G5 control runs the SHIPPED gate at release against the planted tree",
+        "release_gate.py --release --root" in step,
+        step,
+    )
+    check(
+        "the G5 control requires the manifest/tree-specific message",
+        "'G5:'" in step and "'no card at the path'" in step and "'ghost-card'" in step,
+        step,
+    )
+    check(
+        "the G5 control requires a single-reason refusal",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
+def case_ci_control_refuses_a_spec_violation_over_the_published_tree() -> None:
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - a spec violation over the published tree must be rejected",
+    )
+    check(
+        "CI carries the G6 spec-violation poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the G6 control plants the exact class that rejected two live cards",
+        "broken: an unquoted scalar with a colon" in step,
+        step,
+    )
+    check(
+        "the G6 control makes the poison tree a git tree the validator can enumerate",
+        "git -C \"$tree\" init" in step and "git -C \"$tree\" add" in step,
+        step,
+    )
+    check(
+        "the G6 control runs the SHIPPED gate at release against the planted tree",
+        "release_gate.py --release --root" in step,
+        step,
+    )
+    check(
+        "the G6 control requires the spec-validator-specific message",
+        "'G6:'" in step and "'external specification validator'" in step and "'Invalid YAML'" in step,
+        step,
+    )
+    check(
+        "the G6 control requires a single-reason refusal",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
+def case_ci_control_refuses_a_mutable_workflow_ref() -> None:
+    """Criterion 5: the pinning check reds when any `uses:` line is reverted to
+    a mutable ref. The control reverts one pinned line back to a floating tag
+    and requires the refusal to name the file, the ref, and itself."""
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - a mutable workflow ref must be rejected",
+    )
+    check(
+        "CI carries the G7 mutable-ref poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the G7 control reverts a pinned line to a mutable ref",
+        "actions/setup-python@v5" in step,
+        step,
+    )
+    check(
+        "the G7 control keeps one line pinned so the control is not vacuous",
+        "actions/checkout@11d5960a326750d5838078e36cf38b85af677262" in step,
+        step,
+    )
+    check(
+        "the G7 control runs the SHIPPED gate at release against the planted tree",
+        "release_gate.py --release --root" in step,
+        step,
+    )
+    check(
+        "the G7 control requires the mutable-ref-specific message",
+        "'G7:'" in step and "'mutable ref'" in step and "'actions/setup-python@v5'" in step,
+        step,
+    )
+    check(
+        "the G7 control requires the refusal to name the workflow file",
+        "'control.yml'" in step,
+        step,
+    )
+    check(
+        "the G7 control requires a single-reason refusal",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
+def case_ci_release_gate_sets_up_node_for_the_spec_validator() -> None:
+    """The G6 control re-runs the external spec validator, which needs npx. The
+    release-gate job must set up node -- and that line is itself a `uses:` that
+    G7 re-asserts is pinned, closing the loop."""
+    job = workflow_job("release-gate")
+    check(
+        "the release-gate job sets up node for npx",
+        "actions/setup-node@" in job,
+        job,
+    )
+
+
 def main() -> None:
     cases = (
         case_lockstep_passes,
@@ -1359,6 +1488,10 @@ def main() -> None:
         case_a_local_action_is_not_in_scope,
         case_g7_skips_when_no_workflows,
         case_live_workflow_actions_are_pinned,
+        case_ci_control_refuses_a_manifest_disagreeing_with_the_tree,
+        case_ci_control_refuses_a_spec_violation_over_the_published_tree,
+        case_ci_control_refuses_a_mutable_workflow_ref,
+        case_ci_release_gate_sets_up_node_for_the_spec_validator,
     )
     for case in cases:
         case()
