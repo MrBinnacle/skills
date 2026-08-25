@@ -431,11 +431,21 @@ def gate_spec_conformance(root: Path, errors: list[str]) -> None:
         text=True,
     )
     if proc.returncode != 0:
-        lines = (proc.stdout + proc.stderr).strip().splitlines()
-        tail = lines[-1] if lines else "(no output)"
+        output = proc.stdout + proc.stderr
+        # The validator prints one `BREACH <path>: <error>` line per violation;
+        # surfacing those names the offending card and the class (the two live
+        # cards rejected on 2026-08-24 failed as `Invalid YAML in frontmatter`).
+        # When it could not run at all (no npx) it prints no BREACH lines, so the
+        # REJECTED summary carries its own reason instead.
+        breaches = [ln.strip() for ln in output.splitlines() if ln.strip().startswith("BREACH")]
+        if breaches:
+            detail = "; ".join(breaches[:5])
+        else:
+            lines = output.strip().splitlines()
+            detail = lines[-1] if lines else "(no output)"
         errors.append(
-            "G6: external specification validator reports violations over the "
-            f"published tree: {tail}"
+            "G6: external specification validator did not pass over the "
+            f"published tree: {detail}"
         )
 
 

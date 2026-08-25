@@ -34,6 +34,7 @@ REPO_ROOT = SCRIPT_DIR.parent
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "tests.yml"
 
 FAILURES: list[str] = []
+NOTES: list[str] = []
 
 
 def check(name: str, condition: bool, detail: str = "") -> None:
@@ -44,6 +45,12 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         FAILURES.append(name)
 
 
+def note(text: str) -> None:
+    """Record something the suite did NOT verify, rather than leave it silent."""
+    print(f"note {text}")
+    NOTES.append(text)
+
+
 def run_gate(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(GATE), *args],
@@ -51,6 +58,34 @@ def run_gate(*args: str) -> subprocess.CompletedProcess[str]:
         text=True,
         encoding="utf-8",
         check=False,
+    )
+
+
+def run_gate_with_env(env: dict[str, str], *args: str) -> subprocess.CompletedProcess[str]:
+    """Run the gate under a controlled environment.
+
+    G6 re-asserts the external spec validator, which needs `npx` and a package
+    download. The suite refuses to require that (a suite that fails on a plane
+    is a suite people stop running): instead it drives G6 down the validator's
+    own `npx`-absent fail-closed path, which is deterministic and network-free.
+    The env narrows PATH so `git` stays reachable (the validator enumerates
+    cards through it) while `npx` does not, and `python` runs through
+    sys.executable's absolute path."""
+    return subprocess.run(
+        [sys.executable, str(GATE), *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+
+
+def git_init(root: Path) -> None:
+    """Make a fixture a git tree the spec validator can enumerate with git ls-files."""
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(root), "add", "-A"], check=True, capture_output=True
     )
 
 
@@ -694,6 +729,70 @@ def case_live_manifest_and_tree_agree() -> None:
     )
 
 
+# ----------------------------------------------------- G6 external spec validator
+
+
+# A PATH that keeps `git` (the validator enumerates cards through it) and drops
+# `npx`, so the external spec validator takes its own network-free fail-closed
+# path instead of the suite needing a package download. `python` runs through
+# sys.executable's absolute path, so it does not need to be on PATH here.
+NO_NPX_PATH = "/usr/bin:/bin"
+
+
+def case_g6_reds_when_the_spec_validator_cannot_run() -> None:
+    """G6 wraps the external spec validator as a subprocess and reports its
+    verdict. Driven down the validator's own `npx`-absent path so the suite needs
+    no network: the validator refuses to run without npx, and G6 must refuse the
+    release on that refusal -- a release the external validator never verified
+    is not a release the gate may pass. The tree is a git tree with a published
+    card and a manifest in lockstep, so G1/G5 are silent and G6 is the only
+    finding."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = release_tree_with_skills(Path(tmp), ("alpha-card",))
+        git_init(root)
+        result = run_gate_with_env(
+            {"PATH": NO_NPX_PATH, "PYTHONUTF8": "1"},
+            "--release",
+            "--root",
+            str(root),
+        )
+        check(
+            "a release whose external spec validator could not run is refused",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal is reported under G6",
+            "G6:" in result.stdout
+            and "external specification validator" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal carries the validator's own reason (npx absent)",
+            "npx" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the spec-validator refusal is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_g6_passes_a_git_release_tree_the_suite_cannot_reach_npx_for() -> None:
+    """The mirror of the case above, over a git tree. When npx IS reachable the
+    validator runs; the suite cannot assume that, so this case is the one that
+    would carry the live npx run and is therefore left to CI. It is asserted
+    here only as wiring (the control exists) and as the skip that keeps a
+    non-git fixture single-reason (the release_tree_with_skills cases above)."""
+    note(
+        "the live G6 subprocess run against the real reference validator is "
+        "NOT exercised here -- it needs npx and a package download. CI's poison "
+        "control under the release-gate job proves it reds; this suite proves "
+        "G6 skips a non-git tree and refuses one whose validator could not run."
+    )
+
+
 # --------------------------------------------------------- compound refusal list
 
 
@@ -1120,10 +1219,14 @@ def main() -> None:
         case_unexposed_card_is_refused_at_release,
         case_g5_skips_when_nothing_is_published,
         case_live_manifest_and_tree_agree,
+        case_g6_reds_when_the_spec_validator_cannot_run,
+        case_g6_passes_a_git_release_tree_the_suite_cannot_reach_npx_for,
     )
     for case in cases:
         case()
     print()
+    for text in NOTES:
+        print(f"NOT VERIFIED: {text}")
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} case(s): " + ", ".join(FAILURES))
         raise SystemExit(1)
