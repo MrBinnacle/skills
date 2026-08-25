@@ -109,8 +109,6 @@ records why.
 
 ## Where these came from
 
-Every card here is here because I had a reason to make it.
-
 Most originated in something that went wrong, or nearly did. I recorded the failure pattern and developed a reusable intervention. Their records say `OBSERVED`, with dates.
 
 Some were designed for recurring work that I wanted to handle differently. Their records say `DESIGNED`.
@@ -123,7 +121,7 @@ These are **provenance categories, not quality scores**.
 * **DESIGNED** — created intentionally for a recurring need.
 * **DISTILLED** — derived from research rather than an incident.
 
-Each card states its own tier in its `EVIDENCE.md`, and that record is the only place the tier is asserted. This page states no tally of them, deliberately: a number here would have to be re-checked every time a card enters or leaves, and that is a maintenance tax with no reader on the other end. `scripts/validate_scoreboard.py` still derives the tiers from the records and checks any tally the page does state, so a figure here can be wrong but cannot be wrong quietly.
+Each card states its own tier in its `EVIDENCE.md`, and that record is the only place the tier is asserted. This page states no tally of them, deliberately: a number here would have to be re-checked every time a card enters or leaves, and that is a maintenance tax with no reader on the other end. `scripts/validate_scoreboard.py` still derives the tiers from the records and checks any tally the page does state.
 
 ## What they address
 
@@ -182,7 +180,7 @@ The repository separates **where a skill came from** from **what evidence exists
 | `OBSERVED IN USE` | A documented event occurred during actual use.       |
 | `UNMEASURED`      | No qualifying measurement exists yet.                |
 
-These states make different claims. They are not interchangeable.
+These states make different claims.
 
 ### Controlled results
 
@@ -225,13 +223,9 @@ Retirement does not erase the record. [`RETIRED.md`](RETIRED.md) preserves the a
 
 ### Not a catalog
 
-This is a short list, and it is meant to stay one.
-
 The repository is not intended to maximize coverage. If you want breadth, [Matt Pocock's skills collection](https://github.com/mattpocock/skills) is a better place to browse.
 
 ### Not proof that these skills work
-
-Publication is not validation.
 
 One card has a controlled screen and its result is `CANT_TELL_YET`. The rest have no controlled result.
 
@@ -250,10 +244,6 @@ I am also building [`skill-harness`](https://github.com/MrBinnacle/skill-harness
 It runs with/without comparisons and records insufficient evidence instead of producing a result that the evidence does not support.
 
 The two repositories were developed concurrently. The relationship between the skills and the evaluation system is still being investigated.
-
-The skills are the things being evaluated.
-
-The harness is the thing being used to evaluate them.
 
 Whether the harness provides valid evidence about skill efficacy is itself an open question.
 
