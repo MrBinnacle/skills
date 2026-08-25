@@ -25,6 +25,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from collections.abc import Sequence
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -62,7 +63,7 @@ def package_json(version: str) -> str:
     return json.dumps({"name": "mrbinnacle-skills", "version": version}, indent=2) + "\n"
 
 
-def manifest_json(versions: list[str | None]) -> str:
+def manifest_json(versions: Sequence[str | None]) -> str:
     """A manifest shaped like the shipped one, with one entry per version given.
 
     ``None`` stamps an entry that declares no version at all -- the second
@@ -89,7 +90,9 @@ def manifest_json(versions: list[str | None]) -> str:
     return json.dumps(data, indent=2) + "\n"
 
 
-def seeded_tree(root: Path, *, package: str = "1.2.0", versions: list[str] | None = None) -> Path:
+def seeded_tree(
+    root: Path, *, package: str = "1.2.0", versions: Sequence[str | None] | None = None
+) -> Path:
     """The conforming baseline: every declared version equals the package's."""
     write(root / "package.json", package_json(package))
     write(

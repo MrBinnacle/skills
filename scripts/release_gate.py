@@ -236,18 +236,17 @@ def main(argv: list[str] | None = None) -> int:
     root: Path = args.root.resolve()
 
     errors: list[str] = []
-    if args.write:
-        if not write_manifest_versions(root, errors):
-            version = "unknown"
-            print(f"RELEASE GATE: BLOCKED - {len(errors)} stale surface(s):")
-            for error in errors:
-                print(f"  FAIL  {error}")
-            return 1
+    if args.write and not write_manifest_versions(root, errors):
+        print(f"RELEASE GATE: BLOCKED - {len(errors)} stale surface(s):")
+        for error in errors:
+            print(f"  FAIL  {error}")
+        return 1
 
-    version = gate_manifest_version_lockstep(root, errors)
+    derived: str | None = gate_manifest_version_lockstep(root, errors)
+    version = derived or "unknown"
 
     if errors:
-        print(f"RELEASE GATE: BLOCKED - {len(errors)} stale surface(s) at version {version or 'unknown'}:")
+        print(f"RELEASE GATE: BLOCKED - {len(errors)} stale surface(s) at version {version}:")
         for error in errors:
             print(f"  FAIL  {error}")
         return 1
