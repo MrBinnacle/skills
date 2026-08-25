@@ -694,15 +694,45 @@ def case_unexposed_card_is_refused_at_release() -> None:
 
 
 def case_g5_skips_when_nothing_is_published() -> None:
-    """A seeded tree (no skills/) must not turn red on G5: there is nothing
-    published to re-assert. This is what keeps the lockstep/changeset/changelog
-    cases single-reason."""
+    """A seeded tree (no skills/, empty skills arrays) must not turn red on G5:
+    O7's vacuum ("checked nothing") is the fixture state, not a disagreement.
+    This is what keeps the lockstep/changeset/changelog cases single-reason."""
     with tempfile.TemporaryDirectory() as tmp:
         root = seeded_tree(Path(tmp))
         result = run_gate("--release", "--root", str(root))
         check(
             "a tree with no skills/ does not fail on the manifest/tree check",
             "G5:" not in result.stdout,
+            result.stdout,
+        )
+
+
+def case_manifest_naming_cards_with_no_skills_dir_is_refused() -> None:
+    """A missing skills/ directory is not a skip when the manifest still names
+    cards. Gating the skip on directory presence left that disagreement green
+    (the manifest claims cards; the tree is gone) while claiming the surfaces
+    agree. O7 itself refuses the dangling paths; G5 must surface that refusal.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        # no skills/ directory, but the manifest names a card that is not there
+        manifest_with_skills(root, ("ghost-card",))
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a missing skills/ dir with a manifest that names cards is refused",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal is the dangling-path disagreement, not a vacuum skip",
+            "G5:" in result.stdout
+            and "no card at the path" in result.stdout
+            and "ghost-card" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the missing-tree disagreement is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
             result.stdout,
         )
 
@@ -779,17 +809,28 @@ def case_g6_reds_when_the_spec_validator_cannot_run() -> None:
         )
 
 
-def case_g6_passes_a_git_release_tree_the_suite_cannot_reach_npx_for() -> None:
-    """The mirror of the case above, over a git tree. When npx IS reachable the
-    validator runs; the suite cannot assume that, so this case is the one that
-    would carry the live npx run and is therefore left to CI. It is asserted
-    here only as wiring (the control exists) and as the skip that keeps a
-    non-git fixture single-reason (the release_tree_with_skills cases above)."""
-    note(
-        "the live G6 subprocess run against the real reference validator is "
-        "NOT exercised here -- it needs npx and a package download. CI's poison "
-        "control under the release-gate job proves it reds; this suite proves "
-        "G6 skips a non-git tree and refuses one whose validator could not run."
+def case_live_spec_conformance_when_npx_is_reachable() -> None:
+    """Criterion 2 against the real artifact: when npx is on PATH, G6 must
+    pass over the live published tree. Skipped with a note when npx is absent
+    so a plane without node still runs the rest of the suite; CI's release-gate
+    job sets up node, so the green path is exercised there via this case.
+    """
+    import shutil
+
+    if shutil.which("npx") is None:
+        note(
+            "live G6 green path not run -- npx is not on PATH. "
+            "CI's release-gate job sets up node so this case runs there."
+        )
+        return
+    sys.path.insert(0, str(SCRIPT_DIR))
+    import release_gate as gate  # noqa: E402
+    errors: list[str] = []
+    gate.gate_spec_conformance(REPO_ROOT, errors)
+    check(
+        "the live published tree is clean under the external spec validator",
+        not errors,
+        str(errors),
     )
 
 
@@ -1479,9 +1520,10 @@ def main() -> None:
         case_manifest_naming_a_missing_card_is_refused_at_release,
         case_unexposed_card_is_refused_at_release,
         case_g5_skips_when_nothing_is_published,
+        case_manifest_naming_cards_with_no_skills_dir_is_refused,
         case_live_manifest_and_tree_agree,
         case_g6_reds_when_the_spec_validator_cannot_run,
-        case_g6_passes_a_git_release_tree_the_suite_cannot_reach_npx_for,
+        case_live_spec_conformance_when_npx_is_reachable,
         case_a_pinned_workflow_passes_release,
         case_a_mutable_workflow_ref_is_refused_at_release,
         case_an_abbreviated_sha_is_not_a_pin,

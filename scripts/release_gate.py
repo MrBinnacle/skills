@@ -47,6 +47,27 @@ Checks (all must pass; failures are listed, not first-fail):
       rolled. A heading that names the version but carries no date does not
       satisfy the requirement; half-rolled is still unrolled.
 
+  G5  (--release only) The manifest and the published tree name the same
+      cards, both directions. Re-asserts O7 at the moment a version becomes
+      permanent. One direction is not enough: the sibling occasions check ran
+      forward-only and an undercount stayed green until August 2026. Delegated
+      to validate_conformance.check_plugin_manifest rather than restated. The
+      only skip is O7's own vacuum ("no published cards... checked nothing"),
+      which is the seeded-fixture state; a missing skills/ directory with a
+      manifest that still names cards is a real disagreement and must refuse.
+
+  G6  (--release only) The external specification validator is clean over the
+      published tree. skills-ref is the only conformance instrument here the
+      maintainer did not author -- it caught two published cards with invalid
+      YAML frontmatter every local gate passed. Delegated as a subprocess so
+      the allowance list lives in one place. Skips a non-git tree (the
+      validator enumerates via git ls-files) and when nothing is published.
+
+  G7  (--release only) Every workflow uses: action is pinned to a full 40-hex
+      commit SHA. #147 pinned every action; this keeps the pins from rotting
+      back. A floating tag is not a pin. Skips when there is no workflow
+      directory.
+
 Generation (--write) and verification live in this one module because they
 must agree about what the correct value is; two modules cannot. --write stamps
 every entry from package.json, then falls through to the same verification a
@@ -77,7 +98,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -364,17 +384,23 @@ def gate_manifest_tree_agreement(root: Path, errors: list[str]) -> None:
     check that validates only the paths it names has the same hole: drop a card
     from the manifest and every named path still resolves.
 
-    Skips cleanly when nothing is published. The lockstep/changeset/changelog
-    cases build seeded trees with no skills/, and G5 must not turn them red:
-    there is no published tree to re-assert against. O7 itself refuses an
-    empty skills/ tree as "checked nothing", so the skip is gated on the
-    directory's presence rather than the predicate's verdict.
+    The only skip is O7's own vacuum refusal: no published cards and nothing
+    named, reported as "checked nothing". That is the seeded lockstep/
+    changeset/changelog fixture state, and G5 must not turn those red. A
+    missing skills/ directory is NOT a skip on its own -- O7 still catches a
+    manifest that names ghost paths when the tree has been deleted, and
+    gating the skip on directory presence left that disagreement green.
     """
-    if not (root / "skills").is_dir():
-        return
     result = conformance.check_plugin_manifest(root)
-    if result.verdict == conformance.FAIL:
-        errors.append(f"G5: {result.detail}")
+    if result.verdict != conformance.FAIL:
+        return
+    # O7's vacuum only: "no published cards under this root, so the manifest
+    # was compared against nothing. A run that checked nothing is not a pass".
+    # Any other FAIL is a real disagreement (dangling path, unexposed card,
+    # off-tree entry) and must block the release.
+    if "checked nothing" in result.detail:
+        return
+    errors.append(f"G5: {result.detail}")
 
 
 SPEC_SCRIPT = SCRIPT_DIR / "validate_spec_conformance.py"
