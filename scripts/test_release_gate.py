@@ -458,6 +458,75 @@ def case_malformed_changeset_frontmatter_fails_closed() -> None:
             )
 
 
+def case_deliberate_empty_changeset_passes_with_malformed_control() -> None:
+    """The 8-byte artifact `changeset add --empty` writes must PASS G2.
+
+    #170: spec-conformance demands a changeset for any changed package, and
+    the changesets CLI names `changeset add --empty` as the remedy when the
+    change ships nothing to installed users. G2 rejected that exact file as
+    "unreadable frontmatter", so the pair of gates admitted no legal move: an
+    author could only falsify a release with a real patch bump or bypass a
+    required check.
+
+    The control is in this same case ON PURPOSE. A tree that passes proves
+    nothing on its own -- it passes identically if the changeset file is never
+    written, or if G2 stops reading .changeset entirely. The unclosed
+    frontmatter written into the SAME directory of the SAME seeded tree must
+    still FAIL, which is what proves the gate read the directory at all. The
+    two assertions cannot drift apart because deleting either one leaves the
+    other visibly unpaired.
+    """
+    empty_changeset = "---\n---\n"
+    check(
+        "the fixture is the artifact `changeset add --empty` writes: 8 bytes",
+        len(empty_changeset.encode("utf-8")) == 8,
+        f"{len(empty_changeset.encode('utf-8'))} bytes: {empty_changeset!r}",
+    )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        target = root / ".changeset" / "zzz-deliberate-empty.md"
+        write(target, empty_changeset)
+        result = run_gate("--root", str(root))
+        check(
+            "a deliberate empty changeset passes the gate",
+            result.returncode == 0,
+            result.stdout + result.stderr,
+        )
+        check(
+            "the pass line is the ordinary healthy verdict, not a skip",
+            "RELEASE GATE: PASS" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the empty changeset is named nowhere in the output as a fault",
+            target.name not in result.stdout,
+            result.stdout,
+        )
+
+    # CONTROL, same tree shape, same directory: the gate must still read
+    # .changeset and still refuse a frontmatter that genuinely breaks
+    # `changeset version`. Without this, the pass above is indistinguishable
+    # from a gate that stopped looking.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(
+            root / ".changeset" / "zzz-deliberate-empty.md",
+            '---\n"mrbinnacle-skills": patch\n',
+        )
+        result = run_gate("--root", str(root))
+        check(
+            "CONTROL: an unclosed frontmatter in the same slot still fails",
+            result.returncode != 0 and "unreadable frontmatter" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "CONTROL: the refusal names the closing --- specifically",
+            "does not close" in result.stdout,
+            result.stdout,
+        )
+
+
 def case_valid_pending_changesets_pass_the_everyday_run() -> None:
     """Pending changesets are the process working between releases: well-formed
     ones naming workspace packages must never turn an ordinary run red."""
@@ -1921,6 +1990,7 @@ def main() -> None:
         case_zero_plugins_rejected,
         case_out_of_workspace_changeset_is_refused,
         case_malformed_changeset_frontmatter_fails_closed,
+        case_deliberate_empty_changeset_passes_with_malformed_control,
         case_valid_pending_changesets_pass_the_everyday_run,
         case_unconsumed_changesets_block_release_mode,
         case_release_mode_counts_every_remaining_changeset,
