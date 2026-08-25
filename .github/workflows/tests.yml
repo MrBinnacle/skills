@@ -201,6 +201,20 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::README admission-lead suite emitted no PASS line - it did not run"; exit 1; }
 
+      # The release-model disclosure (ADR 0002): the changelog preamble states
+      # the delivery model and the README's Install section states the declared
+      # surface, with no count on either. PYTHONUTF8 for the same reason as the
+      # admission-lead suite above: failure details quote em-dash prose.
+      - name: Release-model disclosure suite
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_release_model_disclosure.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::release-model disclosure suite emitted no PASS line - it did not run"; exit 1; }
+
       # SECURITY.md commits to a closed format vocabulary inside skill folders.
       # These steps are the check behind that sentence. They run AFTER the
       # validator suites above on purpose: those suites import the shipped
