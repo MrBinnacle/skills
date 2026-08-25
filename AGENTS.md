@@ -194,6 +194,25 @@ same commit as the `git mv`,** or O7 reds the pull request.
 A hand-typed path that is one character wrong is caught by O7, but a hand-typed list that is merely
 *stale* is the failure this section exists to prevent, and it is cheaper to never author it.
 
+## An issue you did not create
+
+An issue filed by someone outside this repository arrives raw — it is not agent-ready, and
+handing it to a build agent as filed skips the verification that makes tickets here safe to
+build from. Route it:
+
+1. **Triage before building.** Categorise it and verify the claim. For a defect report,
+   that means a reproduction you ran, not a description you believed: the factory's defect
+   contract requires reproduction evidence before an implement run, and an issue without one
+   is not buildable yet.
+2. **A confirmed report about a published card is an occurrence.** The reporter did the
+   field work; the incident is real recurrence evidence. Record and count it under
+   "Recording a new occurrence" below **before** any fix lands, so the evidence survives
+   even if the fix stalls.
+3. **Only a verified, self-contained leaf ticket gets `ready-for-agent`** — with its
+   blocking edges declared, like every ticket the spec pipeline produces.
+4. **Never re-triage pipeline tickets.** Tickets produced from a spec are already
+   agent-ready; triage is only for what arrived raw.
+
 ## Recording a new occurrence
 
 Recurrence accrues in the ordinary course of work, not in a special counting session. The
