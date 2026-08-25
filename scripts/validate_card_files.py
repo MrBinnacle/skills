@@ -98,7 +98,7 @@ REQUIRED_EVIDENCE_ROWS: Final[tuple[str, ...]] = (
 # one-off". One counted occasion is a one-off, so the card says so in its own
 # file rather than leaving a reader to do the arithmetic. The label is required
 # BELOW the threshold and refused at or above it: a stale honesty label is its
-# own kind of dishonest, and a card that earned its way out of the tier should
+# own kind of dishonest, and a card that has left the tier should
 # not keep wearing the warning.
 INDEPENDENT_OCCASIONS: Final[int] = 2
 THIN_LABEL: Final[str] = "RECURRENCE-THIN"

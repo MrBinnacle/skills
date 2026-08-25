@@ -42,7 +42,7 @@ description: Security-first frontend skill for single-file HTML artifacts and se
 
 **Mindset**
 - Apply anti-slop frontend discipline. No generic Bootstrap patterns. No stock filler
-  copy. Clean typography. Purposeful whitespace. Every element earns its place.
+  copy. Clean typography. Purposeful whitespace. Every element has a reason to be there.
 
 ## Step 4. Verification
 

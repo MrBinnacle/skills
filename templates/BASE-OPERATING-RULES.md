@@ -247,7 +247,7 @@ specific outcome, not a vague direction) · **SUCCESS CRITERIA** (falsifiable pa
 - Subagents have their own context window — that isolation is the point.
 - Default to **read-only** exploration; the main agent performs writes after the subagent
   reports back. Lift the read-only default per-segment, stating the bounded escalation
-  explicitly (what's allowed, for what segment, with what audit). Autonomy is earned per
+  explicitly (what's allowed, for what segment, with what audit). Autonomy is granted per
   segment through audited evidence, not granted globally.
 - Always include success criteria (prevents infinite loops) and a return condition
   (prevents an agent that never hands back). Summarize context — never dump raw content.
@@ -378,7 +378,7 @@ Section 14 applied to this collection — nine skills, grouped by when you'd rea
 
 Project-specific rules go in each repo's own `./CLAUDE.md` — never here. Keep this global
 file thin; push repo-specific grounding down to the delta and reusable workflows out to
-Skills. A delta earns its lines by answering what this file cannot know: what the repo is,
+Skills. A delta justifies its lines by answering what this file cannot know: what the repo is,
 who owns which decisions, which commands gate a change, and what is out of scope.
 
 There is a worked example one directory up: this repo's own [`CLAUDE.md`](../CLAUDE.md) is a

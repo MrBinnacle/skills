@@ -1,6 +1,6 @@
 name: links
 
-# Every skill here is about not trusting a green light you didn't earn.
+# Every skill here is about not trusting a green light you did not verify.
 # This checks that the links in our own docs actually resolve — on every PR,
 # and weekly, to catch link rot before a reader does.
 

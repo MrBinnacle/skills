@@ -9,7 +9,7 @@ card it belongs to and holding cases a runner could execute.
 WHAT A CORPUS IS, AND WHAT IT IS NOT
     A corpus is a CONTRACT. It describes what a run should assert. It records
     no run, no score and no verdict, and its presence says nothing about
-    whether the card earns its keep. Every card's evidence verdict is set by
+    whether the card holds its place. Every card's evidence verdict is set by
     the measurement instrument, not by this file existing. Nothing here reads
     or writes an EVIDENCE.md, on purpose: a checker that could touch a verdict
     is a checker that could manufacture one.
