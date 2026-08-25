@@ -219,7 +219,13 @@ def case_agents_procedure_describes_delivery_event_not_tag_by_hand() -> None:
 
 def case_agents_names_the_release_fitness_command() -> None:
     """Criterion 2: the procedure names the single command that reports release fitness
-    (python scripts/release_gate.py) and states that it reports all failures at once."""
+    (python scripts/release_gate.py) and states that it reports all failures at once.
+
+    After npm run version, package.json has moved and the manifest has not. Bare
+    release_gate.py then refuses G1 lockstep on every real bump. The procedure must
+    name --write so the stamp and the fitness report are the same step a maintainer
+    actually runs; naming the script without the flag describes a command that cannot
+    pass on the tree it is supposed to clear."""
     body = release_procedure(AGENTS.read_text(encoding="utf-8"))
     collapsed = " ".join(body.split())
     check(
@@ -228,8 +234,13 @@ def case_agents_names_the_release_fitness_command() -> None:
         collapsed,
     )
     check(
+        "AGENTS.md names --write so the post-bump gate can pass lockstep",
+        "--write" in collapsed,
+        collapsed,
+    )
+    check(
         "AGENTS.md states the gate reports all failures at once",
-        "one run" in collapsed.lower(),
+        "every stale surface" in collapsed.lower() and "one run" in collapsed.lower(),
         collapsed,
     )
 
@@ -302,6 +313,30 @@ def case_agents_procedure_follows_the_authoring_discipline() -> None:
     )
 
 
+def case_changeset_readme_no_longer_states_the_old_model() -> None:
+    """The changesets folder README is maintainer release procedure too. It shipped
+    with 'tag it by hand if you want a tag' and 'reading aid, not a pin' — the same
+    pre-ADR-0002 model AGENTS.md step 4 carried. Leaving it would keep the false
+    model one hop from the command the procedure names."""
+    body = (ROOT / ".changeset" / "README.md").read_text(encoding="utf-8")
+    collapsed = " ".join(body.split()).lower()
+    check(
+        ".changeset/README.md does not say tag by hand",
+        "tag it by hand" not in collapsed and "tag by hand" not in collapsed,
+        collapsed,
+    )
+    check(
+        ".changeset/README.md no longer calls versions a reading aid, not a pin",
+        "reading aid" not in collapsed and "not a pin" not in collapsed,
+        collapsed,
+    )
+    check(
+        ".changeset/README.md names the delivery event and the write-mode gate",
+        "delivery event" in collapsed and "release_gate.py" in collapsed and "--write" in collapsed,
+        collapsed,
+    )
+
+
 def main() -> None:
     case_preamble_carries_no_reading_aid_claim()
     case_preamble_states_the_delivery_model()
@@ -315,6 +350,7 @@ def main() -> None:
     case_agents_states_the_token_prerequisite()
     case_agents_names_who_performs_the_delivering_merge()
     case_agents_procedure_follows_the_authoring_discipline()
+    case_changeset_readme_no_longer_states_the_old_model()
     print()
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} case(s): {', '.join(FAILURES)}")

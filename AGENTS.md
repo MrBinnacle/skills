@@ -67,10 +67,11 @@ updates every installed copy and local↔repo drift is structurally impossible:
    delivery event — changed cards reach installed users when a version bump merges to
    `main`, not when a tag is pushed. There is no auto-release CI: the maintainer runs
    `npm run version` to roll pending changesets into a version bump and a `CHANGELOG.md`
-   update, commits it, then runs `python scripts/release_gate.py` to report release
-   fitness before merging. The gate lists every stale surface in one run rather than
-   failing at the first. Release immutability is enabled on this repository, and a tag
-   name cannot be reused once spent, so a botched release spends a version number
+   update, then runs `python scripts/release_gate.py --write` to stamp every plugin
+   version from `package.json` and report release fitness. The gate lists every stale
+   surface in one run rather than failing at the first. Commit the result and merge
+   only when the gate is green. Release immutability is enabled on this repository, and
+   a tag name cannot be reused once spent, so a botched release spends a version number
    permanently and the gate blocks before the merge rather than reporting after it.
    [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) records the decision and
    the narrow surface a version promises.
