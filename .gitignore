@@ -25,3 +25,6 @@ npm-debug.log*
 *.log
 .tmp/
 tmp/
+
+# sandcastle factory worktrees/logs (local build residue, never committed)
+.sandcastle/

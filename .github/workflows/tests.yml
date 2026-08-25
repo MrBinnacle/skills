@@ -1265,6 +1265,19 @@ jobs:
         run: |
           set -euo pipefail
           npm ci --no-audit --no-fund
+          # RELEASE-REF CARVE-OUT (#153's mode detection, applied to this step).
+          # A release ref consumes every pending changeset by design, so both
+          # status calls below report "packages changed but no changesets
+          # found" - the CORRECT state for a delivery PR, not a bad header.
+          # The required release-gate job owns release-mode validation of the
+          # plan, so this step self-skips exactly when the package version
+          # changed relative to origin/main.
+          base_version=$(git show origin/main:package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
+          head_version=$(node -p "require('./package.json').version")
+          if [ "$base_version" != "$head_version" ]; then
+            echo "release ref detected ($base_version -> $head_version): changesets are consumed by design; the release-gate job validates this ref."
+            exit 0
+          fi
           # Scoped to what this ref adds: catches a bad header on arrival.
           npx --yes changeset status --since=origin/main
           # Unscoped, and this is the line that actually blocks a release.
