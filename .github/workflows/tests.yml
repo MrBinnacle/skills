@@ -183,6 +183,79 @@ jobs:
             || { echo "::error::origin-tier-drift fixture failed for the wrong reason"; cat control-origin.log; exit 1; }
           echo "control: drifted origin tiering rejected as expected"
 
+      # The front page's "Admission method" paragraph restates counts the S295
+      # disposition record owns: how many cards it triaged, stood, called thin,
+      # and called ceiling-likely. Those were hand-maintained prose -- the same
+      # shape that left the origin tiering claiming seven when the records read
+      # six (2026-08-15). This check recomputes each stated count from the one
+      # record the page links and refuses on disagreement, naming the count and
+      # both values.
+      #
+      # PYTHONUTF8 for the same reason as the admission-lead suite: failure
+      # details quote prose.
+      - name: Disposition-counts suite
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_disposition_counts.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::disposition-counts suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Disposition-counts check
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_disposition_counts.py)"
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::disposition-counts check emitted no PASS line - it did not run"; exit 1; }
+
+      # A gate that cannot fail guards nothing. The breach shape is a README
+      # that states a disposition count the linked record does not support.
+      # Built in RUNNER_TEMP rather than checked in -- a committed breaching
+      # README would sit inside the guarded tree and turn the real run red. The
+      # control asserts the SPECIFIC mismatch message (the count name and both
+      # values), not merely a non-zero exit; the mutation is verified to have
+      # changed something before the check runs.
+      - name: Poison control - a README disposition count that disagrees must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-disposition-count"
+          log="$RUNNER_TEMP/control-disposition-count.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/dispositions"
+          {
+            printf '# Disposition record\n\n'
+            printf 'Date: 2026-08-15.\n\n## Verdicts\n\n'
+            printf '| Card | Verdict | Basis |\n|---|---|---|\n'
+            printf '| engineering/a | STANDS | basis. |\n'
+            printf '| engineering/b | RECURRENCE-THIN | basis. |\n'
+            printf '| engineering/c | CEILING-LIKELY | basis. |\n\n'
+            printf 'All three cards carry a re-screen trigger.\n'
+          } > "$tree/dispositions/2026-08-15-S295-admission-triage.md"
+          {
+            printf '# Title\n\n## Admission method\n\n'
+            printf 'The [record](dispositions/2026-08-15-S295-admission-triage.md) '
+            printf 'applied the policy to all three published cards. It found '
+            printf 'two card that stand, one with thin recurrence records, and '
+            printf 'one with a ceiling-likely screen result.\n'
+          } > "$tree/README.md"
+          grep -q 'two card that stand' "$tree/README.md" \
+            || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          if python scripts/validate_disposition_counts.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::the disagreeing README count was ACCEPTED - the check does not recompute from the record"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'stand' "$log" \
+            || { echo "::error::the refusal does not name the count"; cat "$log"; exit 1; }
+          grep -q 'README states' "$log" \
+            || { echo "::error::the refusal does not name the README value"; cat "$log"; exit 1; }
+          grep -q 'records read' "$log" \
+            || { echo "::error::the refusal does not name the record value"; cat "$log"; exit 1; }
+          echo "control: a disagreeing README disposition count rejected as expected, naming the count and both values"
+
       # The front page's admission lead and its per-card evidence census. The
       # census is derived through the two validators above rather than restated,
       # so this step goes red when the table and the cards disagree -- the drift
