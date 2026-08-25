@@ -101,6 +101,12 @@ manifest and the published tree disagree, in either direction — a path the man
 card at it, and a published card no plugin names. That is standing obligation **O7** in
 [`SECURITY.md`](SECURITY.md).
 
+**What a version promises.** The install path and the card format — not the card set. Admitting
+or retiring a card is a minor change, so the cards you can install are expected to change under
+a minor release; moving the install path or changing the format of a card would be a major one.
+That narrowing is deliberate, and [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md)
+records why.
+
 ## Where these came from
 
 Every card here is here because I had a reason to make it.
