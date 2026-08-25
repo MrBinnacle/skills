@@ -25,6 +25,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from collections.abc import Sequence
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -62,7 +63,22 @@ def package_json(version: str) -> str:
     return json.dumps({"name": "mrbinnacle-skills", "version": version}, indent=2) + "\n"
 
 
-def manifest_json(versions: list[str | None]) -> str:
+def changeset_md(package: str = "mrbinnacle-skills", level: str = "patch") -> str:
+    """A changeset file the way changesets writes them."""
+    return f'---\n"{package}": {level}\n---\n\nA described change.\n'
+
+
+def changelog_md(section_version: str, *, dated: bool = True) -> str:
+    """A changelog carrying one section, in this repository's shape.
+
+    ``dated=False`` writes the heading without the release date - the
+    half-rolled state behind criterion three.
+    """
+    date = " - 2026-08-10" if dated else ""
+    return f"# Changelog\n\nAll notable changes.\n\n## v{section_version}{date}\n\nShipped.\n"
+
+
+def manifest_json(versions: Sequence[str | None]) -> str:
     """A manifest shaped like the shipped one, with one entry per version given.
 
     ``None`` stamps an entry that declares no version at all -- the second
@@ -89,13 +105,17 @@ def manifest_json(versions: list[str | None]) -> str:
     return json.dumps(data, indent=2) + "\n"
 
 
-def seeded_tree(root: Path, *, package: str = "1.2.0", versions: list[str] | None = None) -> Path:
-    """The conforming baseline: every declared version equals the package's."""
+def seeded_tree(
+    root: Path, *, package: str = "1.2.0", versions: Sequence[str | None] | None = None
+) -> Path:
+    """The conforming baseline: every declared version equals the package's,
+    and the changelog carries a dated section for that version."""
     write(root / "package.json", package_json(package))
     write(
         root / ".claude-plugin" / "marketplace.json",
         manifest_json([package] if versions is None else versions),
     )
+    write(root / "CHANGELOG.md", changelog_md(package))
     return root
 
 
@@ -281,6 +301,281 @@ def case_zero_plugins_rejected() -> None:
         )
 
 
+# ------------------------------------------------------- G2 release plan assembles
+#
+# The incident: `.changeset/quarantine-starts-shipping.md` declared
+# `@mrbinnacle/skills` while the workspace package is `mrbinnacle-skills`, so
+# `changeset version` refused to assemble a release plan - and the check written
+# for that defect ran `changeset status --since=origin/main`, which examines an
+# EMPTY set on main, so CI stayed green from 2026-08-24 over a tree no release
+# could be cut from (#144 fixed CI; G2 gives the gate its own unscoped verdict).
+
+
+def case_out_of_workspace_changeset_is_refused() -> None:
+    """The full pending set must assemble into a release plan. One changeset
+    naming a package outside the workspace means it never will, wherever the
+    file sits relative to whatever ref a scoped comparison names."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(
+            root / ".changeset" / "zzz-out-of-workspace.md",
+            changeset_md(package="@mrbinnacle/skills"),
+        )
+        result = run_gate("--root", str(root))
+        check(
+            "a changeset naming a package outside the workspace is refused",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal names the plan-assembly failure specifically",
+            "does not assemble" in result.stdout and "not in the workspace" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal names the file and the offending package",
+            "zzz-out-of-workspace.md" in result.stdout and "@mrbinnacle/skills" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the plan failure is the only fault the run finds in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_malformed_changeset_frontmatter_fails_closed() -> None:
+    """A changeset whose header cannot be read is exactly as fatal to the plan
+    as one naming a wrong package: changesets itself would refuse it. Fail
+    closed - listed, never skipped."""
+    for bad, why in (
+        ('---\n"@mrbinnacle/skills": patch\n', "frontmatter that never closes"),
+        ("prose only, no frontmatter\n", "no frontmatter at all"),
+    ):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = seeded_tree(Path(tmp))
+            write(root / ".changeset" / "zzz-broken-header.md", bad)
+            result = run_gate("--root", str(root))
+            check(
+                f"an unreadable changeset ({why}) fails closed",
+                result.returncode != 0 and "unreadable frontmatter" in result.stdout,
+                result.stdout,
+            )
+
+
+def case_valid_pending_changesets_pass_the_everyday_run() -> None:
+    """Pending changesets are the process working between releases: well-formed
+    ones naming workspace packages must never turn an ordinary run red."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / ".changeset" / "a-good-one.md", changeset_md(level="minor"))
+        write(root / ".changeset" / "b-good-two.md", changeset_md())
+        result = run_gate("--root", str(root))
+        check(
+            "well-formed pending changesets pass the ordinary run",
+            result.returncode == 0 and "RELEASE GATE: PASS" in result.stdout,
+            result.stdout,
+        )
+
+
+# ------------------------------------------------- G3 unconsumed at release time
+#
+# The incident: dozens of changesets pend against a changelog whose newest
+# entry describes a version nobody ever received. Between releases, pending
+# changesets ARE the process working. At release time they are fatal: ADR 0002
+# makes the version bump's merge the delivery event, and `changeset version`
+# consumes every pending file when it rolls. One left behind means the release
+# ships while the plan still holds entries - some change silently misses the
+# release it was filed against.
+
+
+def case_unconsumed_changesets_block_release_mode() -> None:
+    """The ordinary run passes a pending changeset through; a declared release
+    refuses it. The boundary is the point: mid-cycle accumulation is legal,
+    releasing over an unconsumed plan is not."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / ".changeset" / "zzz-pending.md", changeset_md())
+        plain = run_gate("--root", str(root))
+        check(
+            "the ordinary run passes one well-formed pending changeset",
+            plain.returncode == 0 and "RELEASE GATE: PASS" in plain.stdout,
+            plain.stdout,
+        )
+        release = run_gate("--release", "--root", str(root))
+        check(
+            "--release refuses while an unconsumed changeset remains",
+            release.returncode != 0,
+            release.stdout,
+        )
+        check(
+            "the refusal names unconsumed changesets specifically",
+            "unconsumed changeset" in release.stdout and "zzz-pending.md" in release.stdout,
+            release.stdout,
+        )
+
+
+def case_release_mode_counts_every_remaining_changeset() -> None:
+    """One finding, naming every file left: the count is the size of what the
+    release would have shipped without."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / ".changeset" / "a-left-in.md", changeset_md(level="minor"))
+        write(root / ".changeset" / "b-left-two.md", changeset_md())
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "--release reports every remaining file under one finding",
+            result.returncode != 0
+            and "2 unconsumed changeset(s)" in result.stdout
+            and "a-left-in.md" in result.stdout
+            and "b-left-two.md" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the unconsumed finding is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_release_mode_ignores_the_changeset_readme() -> None:
+    """.changeset/README.md ships with every changesets install. It is
+    documentation, not a pending change, and must never block a release."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / ".changeset" / "README.md", "# Changesets\n\nHow to use them.\n")
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "--release passes a tree whose only .changeset markdown is README.md",
+            result.returncode == 0 and "RELEASE GATE: PASS" in result.stdout,
+            result.stdout,
+        )
+
+
+# --------------------------------------------------- G4 dated changelog section
+#
+# The incident: a sibling repository tagged a release whose changelog section
+# had never been rolled. The tag promised a version's worth of changes; the
+# changelog had no entry for it. Here, the version being released is the one
+# package.json declares, and its changelog section must exist AND carry a
+# date - an undated heading is a section half-rolled.
+
+
+def case_missing_changelog_section_is_refused() -> None:
+    """package.json declares 1.3.0 while the newest rolled entry is 1.2.0:
+    the release would ship a version whose entry was never written."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp), package="1.3.0", versions=["1.3.0"])
+        write(root / "CHANGELOG.md", changelog_md("1.2.0"))
+        result = run_gate("--root", str(root))
+        check(
+            "a version with no changelog section is refused",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal names the missing dated section and the version",
+            "no dated section for version 1.3.0" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the changelog refusal is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_undated_changelog_section_is_refused() -> None:
+    """A section that names the version but carries no date is not a dated
+    section: the roll never recorded when the version was delivered."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / "CHANGELOG.md", changelog_md("1.2.0", dated=False))
+        result = run_gate("--root", str(root))
+        check(
+            "a version heading without a date is refused",
+            result.returncode != 0 and "carries no release date" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_absent_changelog_fails_closed() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        (root / "CHANGELOG.md").unlink()
+        result = run_gate("--root", str(root))
+        check(
+            "an unreadable CHANGELOG.md is a failure, not a skip",
+            result.returncode != 0 and "could not be read" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_version_number_inside_a_larger_one_is_not_a_section_match() -> None:
+    """1.2.0 must not be satisfied by a `## v11.2.0` heading: the match is
+    boundary-checked in both directions."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / "CHANGELOG.md", changelog_md("11.2.0"))
+        result = run_gate("--root", str(root))
+        check(
+            "a superset version heading does not satisfy the section requirement",
+            result.returncode != 0 and "no dated section for version 1.2.0" in result.stdout,
+            result.stdout,
+        )
+
+
+# --------------------------------------------------------- compound refusal list
+
+
+def case_all_three_refusals_land_in_one_run() -> None:
+    """One tree, three unmet checks, three listed failures in a single run.
+    A first-fail gate would show one and hide the other two until each was
+    fixed in turn - three review rounds to learn what this run says at once.
+    The manifest is held in lockstep so the count proves the three findings
+    are exactly G2, G3 and G4."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp), package="1.3.0", versions=["1.3.0"])
+        write(root / "CHANGELOG.md", changelog_md("1.2.0"))
+        write(root / ".changeset" / "a-valid.md", changeset_md(level="minor"))
+        write(
+            root / ".changeset" / "b-misnamed.md",
+            changeset_md(package="@mrbinnacle/skills"),
+        )
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a tree failing all three checks is refused",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the plan-assembly failure is listed",
+            "does not assemble" in result.stdout
+            and "@mrbinnacle/skills" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the unconsumed-changesets failure is listed",
+            "unconsumed changeset(s) remain" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the missing dated section is listed",
+            "no dated section for version 1.3.0" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "all three failures are counted by the blocked line",
+            "3 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "lockstep stayed silent - the three findings are G2, G3 and G4 alone",
+            "version drift" not in result.stdout,
+            result.stdout,
+        )
+
+
 # ------------------------------------------------------------------- --write
 
 
@@ -459,6 +754,11 @@ def case_ci_control_drives_the_gate_red_for_the_right_reason() -> None:
         control,
     )
     check(
+        "the control plants a conforming changelog so G4 cannot share the refusal",
+        "CHANGELOG.md" in control and "v1.2.0" in control,
+        control,
+    )
+    check(
         "the control requires the lockstep-specific message, not only a non-zero exit",
         "'version drift'" in control,
         control,
@@ -502,6 +802,115 @@ def case_control_tree_is_temporary_not_committed() -> None:
     )
 
 
+# ------------------------------------------------------- #150 controls in CI
+#
+# Each new check ships its own poison control, and each control asserts its
+# own distinguishing message rather than a bare non-zero exit - two faults
+# share one exit code, which is the exact defect the vacuous changeset
+# control documented in this file's history.
+
+
+def case_ci_control_refuses_a_changeset_outside_the_workspace() -> None:
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - a changeset outside the workspace must be rejected",
+    )
+    check(
+        "CI carries the G2 plan-assembly poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the G2 control plants an out-of-workspace changeset",
+        '"@mrbinnacle/skills"' in step and ".changeset/zzz-poison-plan.md" in step,
+        step,
+    )
+    check(
+        "the G2 control verifies the plant before trusting the verdict",
+        "was not mutated" in step,
+        step,
+    )
+    check(
+        "the G2 control runs the SHIPPED gate against the planted tree",
+        'python scripts/release_gate.py --root "$tree"' in step,
+        step,
+    )
+    check(
+        "the G2 control requires the assembly-specific message, not only a non-zero exit",
+        "'not in the workspace'" in step and "'zzz-poison-plan.md'" in step,
+        step,
+    )
+    check(
+        "the G2 control requires a single-reason refusal",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
+def case_ci_control_blocks_a_declared_release_over_unconsumed_changesets() -> None:
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - unconsumed changesets must block a declared release",
+    )
+    check(
+        "CI carries the G3 release-mode poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the G3 control first requires the ordinary run to PASS the same tree",
+        "^RELEASE GATE: PASS" in step,
+        step,
+    )
+    check(
+        "the G3 control then drives the declared release red",
+        "--release --root" in step,
+        step,
+    )
+    check(
+        "the G3 control requires the unconsumed-specific message",
+        "'unconsumed changeset(s) remain at release time'" in step,
+        step,
+    )
+    check(
+        "the G3 control requires a single-reason refusal",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
+def case_ci_control_refuses_an_unrolled_changelog() -> None:
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - an unrolled changelog must be rejected",
+    )
+    check(
+        "CI carries the G4 changelog poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the G4 control plants a version with no rolled section",
+        '"version": "1.2.0"' in step and "v0.9.0" in step,
+        step,
+    )
+    check(
+        "the G4 control runs the SHIPPED gate against the planted tree",
+        'python scripts/release_gate.py --root "$tree"' in step,
+        step,
+    )
+    check(
+        "the G4 control requires the dated-section-specific message",
+        "'no dated section for version 1.2.0'" in step,
+        step,
+    )
+    check(
+        "the G4 control requires a single-reason refusal",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
 def main() -> None:
     cases = (
         case_lockstep_passes,
@@ -515,6 +924,17 @@ def main() -> None:
         case_unparseable_manifest_fails_closed,
         case_shape_broken_manifest_fails_closed,
         case_zero_plugins_rejected,
+        case_out_of_workspace_changeset_is_refused,
+        case_malformed_changeset_frontmatter_fails_closed,
+        case_valid_pending_changesets_pass_the_everyday_run,
+        case_unconsumed_changesets_block_release_mode,
+        case_release_mode_counts_every_remaining_changeset,
+        case_release_mode_ignores_the_changeset_readme,
+        case_missing_changelog_section_is_refused,
+        case_undated_changelog_section_is_refused,
+        case_absent_changelog_fails_closed,
+        case_version_number_inside_a_larger_one_is_not_a_section_match,
+        case_all_three_refusals_land_in_one_run,
         case_write_derives_every_entry_from_the_package,
         case_write_is_idempotent,
         case_write_fails_closed_on_unreadable_inputs,
@@ -523,6 +943,9 @@ def main() -> None:
         case_ci_job_is_non_blocking_and_on_every_pull_request,
         case_ci_control_drives_the_gate_red_for_the_right_reason,
         case_control_tree_is_temporary_not_committed,
+        case_ci_control_refuses_a_changeset_outside_the_workspace,
+        case_ci_control_blocks_a_declared_release_over_unconsumed_changesets,
+        case_ci_control_refuses_an_unrolled_changelog,
     )
     for case in cases:
         case()

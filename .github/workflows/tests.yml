@@ -683,10 +683,16 @@ jobs:
           echo "control: an undeclared hex rejected as expected"
 
   # ---------------------------------------------------------------------------
-  # The release gate (ADR 0002), tracer bullet #149: one stated reason to
-  # refuse a release -- manifest version lockstep -- end to end. The script,
-  # the manifest surface it generated, and the poison control proving the
-  # refusal is real.
+  # The release gate (ADR 0002). Tracer bullet #149 shipped one stated reason
+  # to refuse a release -- manifest version lockstep -- end to end. Issue #150
+  # joins three release-readiness siblings to it: G2, the full pending
+  # changeset set must assemble into a plan (the unscoped-status check; the
+  # scoped form examined an empty set on main and kept CI green over a tree no
+  # release could be cut from); G3, in --release mode, no unconsumed changeset
+  # may remain (dozens pend against a changelog whose newest entry describes a
+  # version nobody received); G4, CHANGELOG.md must carry a dated section for
+  # the version package.json declares (a sibling tagged a release whose
+  # section had never been rolled). Each ships its own poison control below.
   #
   # NON-BLOCKING on purpose, for now. ADR 0002 makes the merge of a
   # version-bump PR the delivery event and owes a BLOCKING pre-publication
@@ -703,7 +709,7 @@ jobs:
   # Actions are pinned by full commit SHA with the version in a trailing
   # comment, matching every other job in this file. A floating tag is not a pin.
   release-gate:
-    name: Release gate (manifest version lockstep)
+    name: Release gate (fit to release)
     runs-on: ubuntu-latest
     continue-on-error: true
     defaults:
@@ -768,6 +774,10 @@ jobs:
             printf '  ]\n'
             printf '}\n'
           } > "$tree/.claude-plugin/marketplace.json"
+          # Conforming changelog so G4 stays silent: a missing CHANGELOG.md is
+          # its own refusal, and the single-reason grep below would then prove
+          # nothing about lockstep. Every sibling control plants the same way.
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
           grep -q '"version": "0.0.0"' "$tree/.claude-plugin/marketplace.json" \
             || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
           if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
@@ -782,6 +792,97 @@ jobs:
           grep -q '1 stale surface(s)' "$log" \
             || { echo "::error::the drifted fixture was red for more than one reason"; cat "$log"; exit 1; }
           echo "control: drifted manifest version rejected as expected, naming the lockstep failure"
+
+      # G2's control, and the incident it reproduces: a changeset naming
+      # @mrbinnacle/skills while the workspace package is mrbinnacle-skills.
+      # Every other input is conforming, so the only thing this tree can fail
+      # on is the plan refusing to assemble - and the control requires THAT
+      # message, not merely a non-zero exit. The scoped `--since=origin/main`
+      # status exited 0 over exactly this tree on main; G2 examines the full
+      # pending set and must not.
+      - name: Poison control - a changeset outside the workspace must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-release-plan"
+          log="$RUNNER_TEMP/control-release-plan.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/.claude-plugin" "$tree/.changeset"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '{"plugins": [{"name": "control-plugin", "skills": [], "version": "1.2.0"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\n"@mrbinnacle/skills": patch\n---\n\nPoison control.\n' > "$tree/.changeset/zzz-poison-plan.md"
+          grep -q '@mrbinnacle/skills' "$tree/.changeset/zzz-poison-plan.md" \
+            || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::an out-of-workspace changeset was ACCEPTED - the gate no longer refuses an unassemblable plan"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'not in the workspace' "$log" \
+            || { echo "::error::the changeset-plan fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'zzz-poison-plan.md' "$log" \
+            || { echo "::error::the refusal does not name the offending changeset"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the changeset-plan fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: out-of-workspace changeset rejected as expected, naming the unassemblable plan"
+
+      # G3's control proves BOTH halves of the mode boundary in one run: the
+      # same tree passes the argument-less command (pending changesets are the
+      # process working between releases) and fails once the run declares
+      # itself a release. A control that only ran --release could not tell a
+      # working boundary from a check that always fires.
+      - name: Poison control - unconsumed changesets must block a declared release
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-release-consume"
+          log="$RUNNER_TEMP/control-release-consume.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/.claude-plugin" "$tree/.changeset"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '{"plugins": [{"name": "control-plugin", "skills": [], "version": "1.2.0"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\n"mrbinnacle-skills": minor\n---\n\nA change nobody rolled.\n' > "$tree/.changeset/zzz-poison-pending.md"
+          if ! python scripts/release_gate.py --root "$tree" | grep -q '^RELEASE GATE: PASS'; then
+            echo "::error::the ordinary run REFUSED one well-formed pending changeset - mid-cycle accumulation must stay legal"
+            exit 1
+          fi
+          if python scripts/release_gate.py --release --root "$tree" > "$log" 2>&1; then
+            echo "::error::unconsumed changesets were ACCEPTED at release time - the release mode no longer refuses them"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'unconsumed changeset(s) remain at release time' "$log" \
+            || { echo "::error::the unconsumed-changesets fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'zzz-poison-pending.md' "$log" \
+            || { echo "::error::the refusal does not name the pending file"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the unconsumed-changesets fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: unconsumed changesets blocked a declared release as expected"
+
+      # G4's control, in the sibling repository's exact shape: the version was
+      # declared and the tag was cut, but the changelog section for it was
+      # never rolled. The changelog here is well-formed for 0.9.0, so nothing
+      # but the missing dated section for 1.2.0 can fail this tree.
+      - name: Poison control - an unrolled changelog must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-release-changelog"
+          log="$RUNNER_TEMP/control-release-changelog.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/.claude-plugin"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '{"plugins": [{"name": "control-plugin", "skills": [], "version": "1.2.0"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+          printf '# Changelog\n\n## v0.9.0 - 2026-07-01\n\nAn older release.\n' > "$tree/CHANGELOG.md"
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a release with no changelog section was ACCEPTED - the roll check no longer refuses one"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'no dated section for version 1.2.0' "$log" \
+            || { echo "::error::the unrolled-changelog fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the unrolled-changelog fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: unrolled changelog rejected as expected, naming the missing dated section"
 
   # ---------------------------------------------------------------------------
   # The only conformance instrument in this repository its maintainer did not
