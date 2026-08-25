@@ -754,6 +754,11 @@ def case_ci_control_drives_the_gate_red_for_the_right_reason() -> None:
         control,
     )
     check(
+        "the control plants a conforming changelog so G4 cannot share the refusal",
+        "CHANGELOG.md" in control and "v1.2.0" in control,
+        control,
+    )
+    check(
         "the control requires the lockstep-specific message, not only a non-zero exit",
         "'version drift'" in control,
         control,

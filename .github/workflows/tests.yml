@@ -774,6 +774,10 @@ jobs:
             printf '  ]\n'
             printf '}\n'
           } > "$tree/.claude-plugin/marketplace.json"
+          # Conforming changelog so G4 stays silent: a missing CHANGELOG.md is
+          # its own refusal, and the single-reason grep below would then prove
+          # nothing about lockstep. Every sibling control plants the same way.
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
           grep -q '"version": "0.0.0"' "$tree/.claude-plugin/marketplace.json" \
             || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
           if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
