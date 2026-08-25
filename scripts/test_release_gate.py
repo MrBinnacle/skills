@@ -438,6 +438,70 @@ def case_ci_job_is_non_blocking_and_on_every_pull_request() -> None:
     )
 
 
+def case_ci_control_drives_the_gate_red_for_the_right_reason() -> None:
+    """Criterion 8: the control proves the refusal is real AND specific. Two
+    different faults share one exit code -- the changeset control below the
+    release-gate job documents exiting identically with and without its
+    poison -- so the control must require the message that names the lockstep
+    failure, and the failure count that proves it failed for one reason."""
+    control = named_step(
+        workflow_job("release-gate"),
+        "Poison control - a drifted manifest version must be rejected",
+    )
+    check(
+        "CI carries the release-gate poison control",
+        bool(control),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the control runs the SHIPPED gate against the planted tree",
+        "python scripts/release_gate.py --root" in control,
+        control,
+    )
+    check(
+        "the control requires the lockstep-specific message, not only a non-zero exit",
+        "'version drift'" in control,
+        control,
+    )
+    check(
+        "the control requires the refusal to name the drifted plugin",
+        "control-plugin-drifted" in control,
+        control,
+    )
+    check(
+        "the control requires a single-reason failure, not incidental breakage",
+        "1 stale surface(s)" in control,
+        control,
+    )
+
+
+def case_control_tree_is_temporary_not_committed() -> None:
+    """Criterion 9: a committed breaching fixture would sit inside the guarded
+    tree and turn the real run permanently red, buying back green with an
+    exclusion list - the hole the format gate's control comment describes."""
+    control = named_step(
+        workflow_job("release-gate"),
+        "Poison control - a drifted manifest version must be rejected",
+    )
+    check(
+        "the control builds its breaching tree under RUNNER_TEMP",
+        'tree="$RUNNER_TEMP/' in control,
+        control,
+    )
+    tracked = subprocess.run(
+        ["git", "ls-files", "scripts/fixtures"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=False,
+    ).stdout
+    check(
+        "no release-gate fixture tree is committed under scripts/fixtures",
+        "release" not in tracked.lower(),
+        tracked,
+    )
+
+
 def main() -> None:
     cases = (
         case_lockstep_passes,
@@ -457,6 +521,8 @@ def main() -> None:
         case_live_tree_in_lockstep,
         case_ci_runs_the_same_argumentless_command,
         case_ci_job_is_non_blocking_and_on_every_pull_request,
+        case_ci_control_drives_the_gate_red_for_the_right_reason,
+        case_control_tree_is_temporary_not_committed,
     )
     for case in cases:
         case()

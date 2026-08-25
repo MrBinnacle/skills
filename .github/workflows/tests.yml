@@ -737,6 +737,52 @@ jobs:
           echo "$out" | grep -q '^RELEASE GATE: PASS' \
             || { echo "::error::release gate refused this tree"; exit 1; }
 
+      # A gate that cannot fail guards nothing. The breach shape here is one
+      # plugin entry declaring a version package.json does not - the exact
+      # staleness ADR 0002 refuses, and the reason a hand-typed manifest
+      # version is banned. Built under RUNNER_TEMP rather than checked in: a
+      # committed breaching fixture would sit inside the guarded tree and turn
+      # every real run permanently red.
+      #
+      # The control asserts the MESSAGE naming the lockstep failure, not
+      # merely a non-zero exit. Two different faults share one exit code - the
+      # changeset control in the spec-conformance job exited identically with
+      # and without its poison file - so an exit-code-only assertion cannot
+      # tell "refused for the right reason" from "failed for any reason at
+      # all". The single-reason grep is the same discipline the other controls
+      # here follow: red for two reasons proves nothing about either.
+      - name: Poison control - a drifted manifest version must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-release-gate"
+          log="$RUNNER_TEMP/control-release-gate.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/.claude-plugin"
+          printf '{"name": "control", "version": "1.2.0"}\n' > "$tree/package.json"
+          {
+            printf '{\n'
+            printf '  "plugins": [\n'
+            printf '    {"name": "control-plugin-clean-a", "skills": [], "version": "1.2.0"},\n'
+            printf '    {"name": "control-plugin-drifted", "skills": [], "version": "0.0.0"},\n'
+            printf '    {"name": "control-plugin-clean-b", "skills": [], "version": "1.2.0"}\n'
+            printf '  ]\n'
+            printf '}\n'
+          } > "$tree/.claude-plugin/marketplace.json"
+          grep -q '"version": "0.0.0"' "$tree/.claude-plugin/marketplace.json" \
+            || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a drifted manifest version was ACCEPTED - the gate no longer refuses a stale surface"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'version drift' "$log" \
+            || { echo "::error::the drifted fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q 'control-plugin-drifted' "$log" \
+            || { echo "::error::the refusal does not name the drifted plugin"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the drifted fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: drifted manifest version rejected as expected, naming the lockstep failure"
+
   # ---------------------------------------------------------------------------
   # The only conformance instrument in this repository its maintainer did not
   # write. `skills-ref` is the Agent Skills specification's own reference
