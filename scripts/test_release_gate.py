@@ -34,6 +34,7 @@ REPO_ROOT = SCRIPT_DIR.parent
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "tests.yml"
 
 FAILURES: list[str] = []
+NOTES: list[str] = []
 
 
 def check(name: str, condition: bool, detail: str = "") -> None:
@@ -44,6 +45,12 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         FAILURES.append(name)
 
 
+def note(text: str) -> None:
+    """Record something the suite did NOT verify, rather than leave it silent."""
+    print(f"note {text}")
+    NOTES.append(text)
+
+
 def run_gate(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(GATE), *args],
@@ -51,6 +58,34 @@ def run_gate(*args: str) -> subprocess.CompletedProcess[str]:
         text=True,
         encoding="utf-8",
         check=False,
+    )
+
+
+def run_gate_with_env(env: dict[str, str], *args: str) -> subprocess.CompletedProcess[str]:
+    """Run the gate under a controlled environment.
+
+    G6 re-asserts the external spec validator, which needs `npx` and a package
+    download. The suite refuses to require that (a suite that fails on a plane
+    is a suite people stop running): instead it drives G6 down the validator's
+    own `npx`-absent fail-closed path, which is deterministic and network-free.
+    The env narrows PATH so `git` stays reachable (the validator enumerates
+    cards through it) while `npx` does not, and `python` runs through
+    sys.executable's absolute path."""
+    return subprocess.run(
+        [sys.executable, str(GATE), *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+
+
+def git_init(root: Path) -> None:
+    """Make a fixture a git tree the spec validator can enumerate with git ls-files."""
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(root), "add", "-A"], check=True, capture_output=True
     )
 
 
@@ -525,6 +560,412 @@ def case_version_number_inside_a_larger_one_is_not_a_section_match() -> None:
         )
 
 
+# ----------------------------------------------------- #152 re-asserted at release
+#
+# ADR 0002 makes the version bump's merge the moment a version becomes
+# permanent, so the obligations that already hold on every pull request are
+# re-asserted at that moment: the manifest and the published tree name the
+# same cards (O7), the external specification validator is clean over the
+# published tree, and every workflow action is still pinned to a commit SHA.
+# Each is a --release check (it answers "may this version ship", not "are the
+# surfaces healthy today") and each ships its own poison control in CI below.
+#
+# These cases build a tree that CARRIES a published `skills/` tree, because the
+# seeded_tree helper above has none. A seeded tree with no skills is the state
+# the lockstep/changeset/changelog cases above rely on to stay single-reason,
+# so the new checks must skip cleanly when there is nothing published to
+# re-assert - and they do, which is itself pinned by a case below.
+
+SKILLS_BUCKET = "engineering"
+
+
+def skill_card(root: Path, name: str, *, description: str = "fixture card") -> Path:
+    """A minimal published card: a SKILL.md two levels under skills/."""
+    folder = root / "skills" / SKILLS_BUCKET / name
+    write(folder / "SKILL.md", f"---\nname: {name}\ndescription: {description}\n---\n\n# {name}\n")
+    return folder
+
+
+def manifest_with_skills(root: Path, cards: tuple[str, ...], version: str = "1.2.0") -> None:
+    """A manifest naming exactly the given cards, one plugin, in lockstep."""
+    entries = ",\n".join(f'"./skills/{SKILLS_BUCKET}/{c}"' for c in cards)
+    write(
+        root / ".claude-plugin" / "marketplace.json",
+        "{\n"
+        '  "name": "fixture-skills",\n'
+        '  "owner": {"name": "fixture", "url": "https://example.invalid"},\n'
+        '  "plugins": [\n'
+        "    {\n"
+        '      "name": "fixture-engineering",\n'
+        '      "description": "fixture",\n'
+        '      "source": "./",\n'
+        '      "strict": false,\n'
+        f'      "skills": [{entries}],\n'
+        f'      "version": "{version}"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n",
+    )
+
+
+def release_tree_with_skills(root: Path, cards: tuple[str, ...], package: str = "1.2.0") -> Path:
+    """A tree releasable except for whatever the case plants: package in
+    lockstep with a manifest naming every card, a dated changelog, no pending
+    changesets, no workflows."""
+    write(root / "package.json", package_json(package))
+    manifest_with_skills(root, cards, version=package)
+    write(root / "CHANGELOG.md", changelog_md(package))
+    for name in cards:
+        skill_card(root, name)
+    return root
+
+
+# ----------------------------------------------------- G5 manifest and tree agree
+
+
+def case_manifest_and_tree_agree_passes_release() -> None:
+    """A release tree whose manifest names every published card passes G5."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = release_tree_with_skills(Path(tmp), ("alpha-card", "beta-card"))
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a release tree whose manifest covers the tree passes",
+            result.returncode == 0 and "RELEASE GATE: PASS" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_manifest_naming_a_missing_card_is_refused_at_release() -> None:
+    """Direction one: the manifest points at a path with no card at it. O7 was
+    forward-only once and an undercount stayed green; both directions are
+    required, and this is the direction a forward-only check still passes."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = release_tree_with_skills(Path(tmp), ("alpha-card",))
+        # name a ghost card the tree does not publish
+        manifest_with_skills(root, ("alpha-card", "ghost-card"))
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a manifest naming a path with no card is refused at release",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal names the manifest/tree disagreement",
+            "G5:" in result.stdout and "no card at the path" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal names the ghost card",
+            "ghost-card" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the manifest/tree refusal is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_unexposed_card_is_refused_at_release() -> None:
+    """Direction two: a published card no plugin names. The forward-only
+    check stays green here, which is the whole reason this direction exists."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = release_tree_with_skills(Path(tmp), ("alpha-card", "beta-card"))
+        # drop beta-card from the manifest while leaving it published
+        manifest_with_skills(root, ("alpha-card",))
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a published card named by no plugin is refused at release",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal names the unexposed card",
+            "G5:" in result.stdout
+            and "named by no plugin" in result.stdout
+            and "beta-card" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the unexposed-card refusal is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_g5_skips_when_nothing_is_published() -> None:
+    """A seeded tree (no skills/, empty skills arrays) must not turn red on G5:
+    O7's vacuum ("checked nothing") is the fixture state, not a disagreement.
+    This is what keeps the lockstep/changeset/changelog cases single-reason."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a tree with no skills/ does not fail on the manifest/tree check",
+            "G5:" not in result.stdout,
+            result.stdout,
+        )
+
+
+def case_manifest_naming_cards_with_no_skills_dir_is_refused() -> None:
+    """A missing skills/ directory is not a skip when the manifest still names
+    cards. Gating the skip on directory presence left that disagreement green
+    (the manifest claims cards; the tree is gone) while claiming the surfaces
+    agree. O7 itself refuses the dangling paths; G5 must surface that refusal.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        # no skills/ directory, but the manifest names a card that is not there
+        manifest_with_skills(root, ("ghost-card",))
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a missing skills/ dir with a manifest that names cards is refused",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal is the dangling-path disagreement, not a vacuum skip",
+            "G5:" in result.stdout
+            and "no card at the path" in result.stdout
+            and "ghost-card" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the missing-tree disagreement is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_live_manifest_and_tree_agree() -> None:
+    """The live assertion: the shipped manifest covers the live published
+    tree, both directions. The conformance suite pins O7 over the live tree
+    too; this pins the release gate's re-assertion of it."""
+    sys.path.insert(0, str(SCRIPT_DIR))
+    import release_gate as gate  # noqa: E402
+    import validate_conformance as conformance  # noqa: E402
+    result = conformance.check_plugin_manifest(REPO_ROOT)
+    check(
+        "the live manifest and published tree agree, both directions",
+        result.verdict == "PASS",
+        f"{result.verdict}: {result.detail}",
+    )
+    errors: list[str] = []
+    gate.gate_manifest_tree_agreement(REPO_ROOT, errors)
+    check(
+        "the release gate's G5 re-assertion passes over the live tree",
+        not errors,
+        str(errors),
+    )
+
+
+# ----------------------------------------------------- G6 external spec validator
+
+
+# A PATH that keeps `git` (the validator enumerates cards through it) and drops
+# `npx`, so the external spec validator takes its own network-free fail-closed
+# path instead of the suite needing a package download. `python` runs through
+# sys.executable's absolute path, so it does not need to be on PATH here.
+NO_NPX_PATH = "/usr/bin:/bin"
+
+
+def case_g6_reds_when_the_spec_validator_cannot_run() -> None:
+    """G6 wraps the external spec validator as a subprocess and reports its
+    verdict. Driven down the validator's own `npx`-absent path so the suite needs
+    no network: the validator refuses to run without npx, and G6 must refuse the
+    release on that refusal -- a release the external validator never verified
+    is not a release the gate may pass. The tree is a git tree with a published
+    card and a manifest in lockstep, so G1/G5 are silent and G6 is the only
+    finding."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = release_tree_with_skills(Path(tmp), ("alpha-card",))
+        git_init(root)
+        result = run_gate_with_env(
+            {"PATH": NO_NPX_PATH, "PYTHONUTF8": "1"},
+            "--release",
+            "--root",
+            str(root),
+        )
+        check(
+            "a release whose external spec validator could not run is refused",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal is reported under G6",
+            "G6:" in result.stdout
+            and "external specification validator" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal carries the validator's own reason (npx absent)",
+            "npx" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the spec-validator refusal is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_live_spec_conformance_when_npx_is_reachable() -> None:
+    """Criterion 2 against the real artifact: when npx is on PATH, G6 must
+    pass over the live published tree. Skipped with a note when npx is absent
+    so a plane without node still runs the rest of the suite; CI's release-gate
+    job sets up node, so the green path is exercised there via this case.
+    """
+    import shutil
+
+    if shutil.which("npx") is None:
+        note(
+            "live G6 green path not run -- npx is not on PATH. "
+            "CI's release-gate job sets up node so this case runs there."
+        )
+        return
+    sys.path.insert(0, str(SCRIPT_DIR))
+    import release_gate as gate  # noqa: E402
+    errors: list[str] = []
+    gate.gate_spec_conformance(REPO_ROOT, errors)
+    check(
+        "the live published tree is clean under the external spec validator",
+        not errors,
+        str(errors),
+    )
+
+
+# ----------------------------------------------------- G7 workflow actions pinned
+
+
+def workflow_with_uses(root: Path, *uses_lines: str) -> None:
+    """A workflow file whose steps carry the given `uses:` lines verbatim."""
+    body = "name: control\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"
+    for line in uses_lines:
+        body += f"      - {line}\n"
+    write(root / ".github" / "workflows" / "control.yml", body)
+
+
+def case_a_pinned_workflow_passes_release() -> None:
+    """A workflow whose every `uses:` is pinned to a 40-hex SHA passes G7."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        workflow_with_uses(
+            root,
+            "uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4",
+            "uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5",
+        )
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a workflow pinned to commit SHAs passes the release gate",
+            result.returncode == 0 and "RELEASE GATE: PASS" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_a_mutable_workflow_ref_is_refused_at_release() -> None:
+    """A floating tag is not a pin (CVE-2025-30066 repointed every
+    tj-actions/changed-files tag from v1 to v45 inside 24 hours). G7 must refuse
+    it, naming the file, the line, and the mutable ref, and it must be the only
+    fault in a tree whose every other surface is clean."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        workflow_with_uses(
+            root,
+            "uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4",
+            "uses: actions/setup-python@v5",
+            "uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0",
+        )
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a workflow using a mutable ref is refused at release",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the refusal is reported under G7",
+            "G7:" in result.stdout and "mutable ref" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal names the file and the offending line",
+            ".github/workflows/control.yml:8" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal names the mutable ref a reader would type",
+            "actions/setup-python@v5" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the two pinned lines are not also reported",
+            result.stdout.count("G7:") == 1,
+            result.stdout,
+        )
+        check(
+            "the mutable-ref refusal is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_an_abbreviated_sha_is_not_a_pin() -> None:
+    """A short SHA is still mutable: GitHub Actions requires the full 40 hex,
+    and an abbreviated ref is the shape a careless re-pin takes."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        workflow_with_uses(root, "uses: actions/checkout@11d5960a # abbreviated")
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "an abbreviated SHA is refused as a mutable ref",
+            result.returncode != 0
+            and "G7:" in result.stdout
+            and "actions/checkout@11d5960a" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_a_local_action_is_not_in_scope() -> None:
+    """A `./` action is repo code pinned by the commit, not a third-party
+    action pinned by a SHA, so G7 must leave it alone."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        workflow_with_uses(root, "uses: ./.github/actions/local")
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a local ./ action is not flagged as a mutable ref",
+            result.returncode == 0 and "G7:" not in result.stdout,
+            result.stdout,
+        )
+
+
+def case_g7_skips_when_no_workflows() -> None:
+    """A tree with no workflow directory has nothing to re-pin. This is what
+    keeps the seeded-tree lockstep/changeset/changelog cases single-reason."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a tree with no workflows does not fail on the pinning check",
+            "G7:" not in result.stdout,
+            result.stdout,
+        )
+
+
+def case_live_workflow_actions_are_pinned() -> None:
+    """The live assertion: every shipped `uses:` is pinned to a full 40-hex SHA.
+    This is the acceptance criterion pinned against the real artifact rather
+    than only against fixtures built to pass."""
+    sys.path.insert(0, str(SCRIPT_DIR))
+    import release_gate as gate  # noqa: E402
+    errors: list[str] = []
+    gate.gate_workflow_pins(REPO_ROOT, errors)
+    check(
+        "every shipped workflow action is pinned to a full commit SHA",
+        not errors,
+        str(errors),
+    )
+
+
 # --------------------------------------------------------- compound refusal list
 
 
@@ -911,6 +1352,135 @@ def case_ci_control_refuses_an_unrolled_changelog() -> None:
     )
 
 
+# ------------------------------------------------------- #152 controls in CI
+
+
+def case_ci_control_refuses_a_manifest_disagreeing_with_the_tree() -> None:
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - a manifest that disagrees with the published tree must be rejected",
+    )
+    check(
+        "CI carries the G5 manifest/tree poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the G5 control plants a ghost card the tree does not publish",
+        "./skills/engineering/ghost-card" in step and "alpha-card/SKILL.md" in step,
+        step,
+    )
+    check(
+        "the G5 control runs the SHIPPED gate at release against the planted tree",
+        "release_gate.py --release --root" in step,
+        step,
+    )
+    check(
+        "the G5 control requires the manifest/tree-specific message",
+        "'G5:'" in step and "'no card at the path'" in step and "'ghost-card'" in step,
+        step,
+    )
+    check(
+        "the G5 control requires a single-reason refusal",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
+def case_ci_control_refuses_a_spec_violation_over_the_published_tree() -> None:
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - a spec violation over the published tree must be rejected",
+    )
+    check(
+        "CI carries the G6 spec-violation poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the G6 control plants the exact class that rejected two live cards",
+        "broken: an unquoted scalar with a colon" in step,
+        step,
+    )
+    check(
+        "the G6 control makes the poison tree a git tree the validator can enumerate",
+        "git -C \"$tree\" init" in step and "git -C \"$tree\" add" in step,
+        step,
+    )
+    check(
+        "the G6 control runs the SHIPPED gate at release against the planted tree",
+        "release_gate.py --release --root" in step,
+        step,
+    )
+    check(
+        "the G6 control requires the spec-validator-specific message",
+        "'G6:'" in step and "'external specification validator'" in step and "'Invalid YAML'" in step,
+        step,
+    )
+    check(
+        "the G6 control requires a single-reason refusal",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
+def case_ci_control_refuses_a_mutable_workflow_ref() -> None:
+    """Criterion 5: the pinning check reds when any `uses:` line is reverted to
+    a mutable ref. The control reverts one pinned line back to a floating tag
+    and requires the refusal to name the file, the ref, and itself."""
+    step = named_step(
+        workflow_job("release-gate"),
+        "Poison control - a mutable workflow ref must be rejected",
+    )
+    check(
+        "CI carries the G7 mutable-ref poison control",
+        bool(step),
+        "no such step found under the release-gate job",
+    )
+    check(
+        "the G7 control reverts a pinned line to a mutable ref",
+        "actions/setup-python@v5" in step,
+        step,
+    )
+    check(
+        "the G7 control keeps one line pinned so the control is not vacuous",
+        "actions/checkout@11d5960a326750d5838078e36cf38b85af677262" in step,
+        step,
+    )
+    check(
+        "the G7 control runs the SHIPPED gate at release against the planted tree",
+        "release_gate.py --release --root" in step,
+        step,
+    )
+    check(
+        "the G7 control requires the mutable-ref-specific message",
+        "'G7:'" in step and "'mutable ref'" in step and "'actions/setup-python@v5'" in step,
+        step,
+    )
+    check(
+        "the G7 control requires the refusal to name the workflow file",
+        "'control.yml'" in step,
+        step,
+    )
+    check(
+        "the G7 control requires a single-reason refusal",
+        "'1 stale surface(s)'" in step,
+        step,
+    )
+
+
+def case_ci_release_gate_sets_up_node_for_the_spec_validator() -> None:
+    """The G6 control re-runs the external spec validator, which needs npx. The
+    release-gate job must set up node -- and that line is itself a `uses:` that
+    G7 re-asserts is pinned, closing the loop."""
+    job = workflow_job("release-gate")
+    check(
+        "the release-gate job sets up node for npx",
+        "actions/setup-node@" in job,
+        job,
+    )
+
+
 def main() -> None:
     cases = (
         case_lockstep_passes,
@@ -946,10 +1516,30 @@ def main() -> None:
         case_ci_control_refuses_a_changeset_outside_the_workspace,
         case_ci_control_blocks_a_declared_release_over_unconsumed_changesets,
         case_ci_control_refuses_an_unrolled_changelog,
+        case_manifest_and_tree_agree_passes_release,
+        case_manifest_naming_a_missing_card_is_refused_at_release,
+        case_unexposed_card_is_refused_at_release,
+        case_g5_skips_when_nothing_is_published,
+        case_manifest_naming_cards_with_no_skills_dir_is_refused,
+        case_live_manifest_and_tree_agree,
+        case_g6_reds_when_the_spec_validator_cannot_run,
+        case_live_spec_conformance_when_npx_is_reachable,
+        case_a_pinned_workflow_passes_release,
+        case_a_mutable_workflow_ref_is_refused_at_release,
+        case_an_abbreviated_sha_is_not_a_pin,
+        case_a_local_action_is_not_in_scope,
+        case_g7_skips_when_no_workflows,
+        case_live_workflow_actions_are_pinned,
+        case_ci_control_refuses_a_manifest_disagreeing_with_the_tree,
+        case_ci_control_refuses_a_spec_violation_over_the_published_tree,
+        case_ci_control_refuses_a_mutable_workflow_ref,
+        case_ci_release_gate_sets_up_node_for_the_spec_validator,
     )
     for case in cases:
         case()
     print()
+    for text in NOTES:
+        print(f"NOT VERIFIED: {text}")
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} case(s): " + ", ".join(FAILURES))
         raise SystemExit(1)
