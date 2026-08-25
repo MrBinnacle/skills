@@ -1455,7 +1455,8 @@ def case_ci_runs_the_same_argumentless_command() -> None:
         "CI runs the gate with no arguments - the same command a local run uses",
         "python scripts/release_gate.py" in step
         and "--root" not in step
-        and "--write" not in step,
+        and "--write" not in step
+        and "--release" not in step,
         step,
     )
     check(
@@ -1471,26 +1472,33 @@ def case_ci_runs_the_same_argumentless_command() -> None:
     )
 
 
-def case_ci_job_is_required_and_on_every_pull_request() -> None:
-    """Criterion 7 (#153): the gate job is a required status check on the
-    default branch. A required check must BLOCK merges -- a `continue-on-error`
-    job reports its verdict but cannot stop a release, and release immutability
-    means a botched release cannot be un-published, so advisory is no longer
-    enough. The job must therefore NOT carry continue-on-error, and the
-    workflow must run on pull_request and on push to the default branch (so the
-    gate runs both on the PR that proposes a release and on the default branch
-    itself).
+def case_ci_job_is_blocking_and_on_every_pull_request() -> None:
+    """Criterion 7 (#153), in-repo half: the gate job must be able to block
+    merges. A `continue-on-error` job reports its verdict but cannot stop a
+    release, and release immutability means a botched release cannot be
+    un-published, so advisory is no longer enough. The job must therefore NOT
+    carry continue-on-error, must publish a stable status-check context (its
+    `name:` field) a ruleset can require, and the workflow must run on
+    pull_request and on push to the default branch.
 
-    "Required" is itself a GitHub branch-protection setting outside the
-    workflow file; what this case can pin from the repo is that the job is
-    blocking (no continue-on-error) and that the triggers cover both the PR
-    and the default branch, which is the precondition a branch-protection rule
-    can require it at all."""
+    The other half of criterion 7 -- listing that context under the
+    `protect-main` ruleset's required_status_checks -- is a GitHub ruleset
+    edit outside this repository's tree. This case does not claim that half
+    is done; it pins the preconditions the ruleset edit acts on, and notes
+    the exact context string the operator must add."""
     job = workflow_job("release-gate")
     triggers = WORKFLOW.read_text("utf-8")[: WORKFLOW.read_text("utf-8").index("jobs:")]
     check(
         "the release-gate job is blocking (no continue-on-error)",
         "continue-on-error" not in job,
+        job,
+    )
+    # workflow_job returns the body AFTER the job key, so the name: line sits
+    # at the top of the body. The exact string is the status context GitHub
+    # reports and the string the protect-main ruleset must list.
+    check(
+        "the release-gate job publishes the status context a ruleset can require",
+        "name: Release gate (fit to release)" in job,
         job,
     )
     check(
@@ -1506,8 +1514,15 @@ def case_ci_job_is_required_and_on_every_pull_request() -> None:
     if "continue-on-error" in job:
         note(
             "release-gate is non-blocking -- #153 criterion 7 requires it to block; "
-            "a 'required' branch-protection rule over a continue-on-error job gates nothing"
+            "a 'required' ruleset entry over a continue-on-error job gates nothing"
         )
+    note(
+        "criterion 7 ruleset half is operator-side: add status context "
+        "'Release gate (fit to release)' to protect-main required_status_checks. "
+        "Measured 2026-08-25 the ruleset still lists only linkcheck, "
+        "residue-check, spec-conformance, validator (ubuntu-latest), "
+        "validator (windows-latest)."
+    )
 
 
 def case_ci_control_drives_the_gate_red_for_the_right_reason() -> None:
@@ -1920,7 +1935,7 @@ def main() -> None:
         case_write_fails_closed_on_unreadable_inputs,
         case_live_tree_in_lockstep,
         case_ci_runs_the_same_argumentless_command,
-        case_ci_job_is_required_and_on_every_pull_request,
+        case_ci_job_is_blocking_and_on_every_pull_request,
         case_ci_control_drives_the_gate_red_for_the_right_reason,
         case_control_tree_is_temporary_not_committed,
         case_ci_control_refuses_a_changeset_outside_the_workspace,

@@ -111,11 +111,14 @@ shape is a listed failure -- never a skip and never a pass.
 
 Where it runs:
 
-- tests.yml, a REQUIRED (blocking) status check on the default branch, on
-  every pull request and push to main. The mode-awareness above is what lets
-  one required gate serve both an ordinary PR (which adds a changeset) and a
-  release PR (which bumps the version) without deadlocking: release-only
-  checks fire solely when the version changed.
+- tests.yml job ``Release gate (fit to release)``, on every pull request and
+  push to main. The job carries no ``continue-on-error``, so a refusal fails
+  the check rather than reporting and continuing. Mode-awareness is what lets
+  one gate serve both an ordinary PR (which adds a changeset) and a release
+  PR (which bumps the version) without deadlocking: release-only checks fire
+  solely when the version changed. Making the check *required* on the default
+  branch is a ``protect-main`` ruleset edit (context name equals the job
+  ``name:``) and is not conferred by the workflow file alone.
 - Anywhere locally: `python scripts/release_gate.py` takes no arguments and
   returns the verdict CI prints for the same tree.
 
