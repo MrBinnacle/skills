@@ -120,7 +120,7 @@ the pre-registration. Where a number cannot be attached, rewrite the claim or dr
 
 **Short declaratives. Sentence case.** Long sentences appear when the thought is genuinely long.
 
-**Hedges earn their place only where the uncertainty is real**, and then name the uncertainty
+**Hedges belong only where the uncertainty is real**, and then name the uncertainty
 rather than gesturing at it. The record hedges — see the trailing hedge on the second specimen
 above — and it is kept rather than tidied, because it is doing work.
 

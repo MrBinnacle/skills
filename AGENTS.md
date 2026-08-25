@@ -260,8 +260,8 @@ recurrence is never counted. When a card's problem happens again:
    states `RECURRENCE-THIN` in its `EVIDENCE.md`; at two it comes off, because a stale honesty
    label is its own kind of dishonest. The check matches the token, so removing the token is
    the whole edit — a card that argues about the label in prose keeps tripping it.
-5. **Dated disposition records are snapshots and are not rewritten.** A card that later earns
-   its way out of the thin tier says so in its own file and in the changeset; the triage record
+5. **Dated disposition records are snapshots and are not rewritten.** A card that later leaves
+   the thin tier says so in its own file and in the changeset; the triage record
    that found it thin keeps saying what it found on the day it ran.
 
 ## Retirement
@@ -480,7 +480,7 @@ mechanism working. An evolving ecosystem, not a chop list.
    screen, so the verdict is `CANT_TELL_YET`, never `CUT`. Running the mill over cards that
    will all ceiling costs a great deal and returns nothing this pass can act on. Steps 1 and
    2 — reading the session records — are the cheapest real evidence in the system, and they
-   are where this pass earns its keep.
+   are where this pass does its real work.
 
    So the routing is narrow and stated:
    - **Default: no screen.** A card stays `UNMEASURED` or `CANT_TELL_YET` and says so. That

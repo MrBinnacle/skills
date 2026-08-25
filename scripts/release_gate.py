@@ -549,7 +549,7 @@ def gate_spec_conformance(root: Path, errors: list[str]) -> None:
 
     Delegated to validate_spec_conformance.py as a subprocess (the published
     tree plus the candidate queue, with the candidate allowances the queue
-    earns) rather than restated: one allowance list, one place. Skips when
+    carries) rather than restated: one allowance list, one place. Skips when
     nothing is published, and when the tree is not a git repository the
     validator cannot enumerate -- the live run is a git checkout, so the skip
     only ever applies to fixtures.

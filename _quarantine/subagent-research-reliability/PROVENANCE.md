@@ -167,7 +167,7 @@ delivered. Which channel mattered less than that a channel existed.
 **Finding: `Check 0`'s core instruction is confirmed, and two additions would strengthen it.**
 
 Confirmed as written: name a return channel in the dispatch, and give two routes so one failing is
-survivable. Both halves earned their place here — naming any channel took delivery from 0 of 4 to
+survivable. Both halves are kept here — naming any channel took delivery from 0 of 4 to
 3 of 3, and the redundancy rescued the one agent whose primary route was blocked.
 
 Two things the check does not yet say, both learned here:

@@ -14,7 +14,7 @@ outgrows a screen is usually holding something that belongs in the global layer,
 
 A small collection of agent skills kept only while evidence supports keeping them. Each skill
 ships a `SKILL.md`, a `gotchas.md` (append-only observed failure modes), and an `EVIDENCE.md`
-provenance record. Skills that stop earning their place are retired into `RETIRED.md` with the
+provenance record. Skills that no longer hold their place are retired into `RETIRED.md` with the
 evidence attached rather than deleted quietly.
 
 The collection is deliberately small. Adding a skill is the exception; the default answer to
@@ -58,7 +58,7 @@ actually supported. Bring a recommendation and the reasoning behind it, not a me
 
 Every question has a respondent, and the maintainer is the last rung, not the first. Their
 attention is the scarcest resource in this repo, so reaching for it is a cost the question has
-to earn. Route it before it gets there:
+to justify. Route it before it gets there:
 
 - **Checkable at source** — a file, a config value, a test, a commit, a label → go and check it.
 - **A fact about a library, API, or framework** → the documentation, fetched now rather than

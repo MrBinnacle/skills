@@ -21,7 +21,7 @@ This skill is itself a deliberately-invoked **procedure** (`disable-model-invoca
 
 ## When to run
 - Someone (incl. you) says "let's make a skill for X" / "should this be a skill?"
-- Auditing an existing skill for whether it earns its context cost.
+- Auditing an existing skill for whether its context cost is justified.
 - Deciding skill vs CLAUDE.md vs memory vs MCP vs pre-tool hook vs named workflow.
 - A skill library feels bloated (see Mode B in [absence-detection.md](absence-detection.md)).
 - **Before building any instrument** (harness, miner, metric, oracle, eval): instruments

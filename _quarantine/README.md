@@ -30,7 +30,7 @@ blocker on every one of them, and it is the reason none has been promoted.
 ## What publishing these does and does not claim
 
 Publishing a candidate claims only that the incident happened and was written down. It makes no
-claim that the card is measured, that it earns its context cost, or that it is recommended.
+claim that the card is measured, that its context cost is justified, or that it is recommended.
 
 This is the same posture the repository already takes with `RETIRED.md` and with the cards
 screened out at the admission gate. What is in the pipeline is visible, not hidden.
