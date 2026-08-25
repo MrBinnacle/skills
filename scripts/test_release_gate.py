@@ -525,6 +525,57 @@ def case_version_number_inside_a_larger_one_is_not_a_section_match() -> None:
         )
 
 
+# --------------------------------------------------------- compound refusal list
+
+
+def case_all_three_refusals_land_in_one_run() -> None:
+    """One tree, three unmet checks, three listed failures in a single run.
+    A first-fail gate would show one and hide the other two until each was
+    fixed in turn - three review rounds to learn what this run says at once.
+    The manifest is held in lockstep so the count proves the three findings
+    are exactly G2, G3 and G4."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp), package="1.3.0", versions=["1.3.0"])
+        write(root / "CHANGELOG.md", changelog_md("1.2.0"))
+        write(root / ".changeset" / "a-valid.md", changeset_md(level="minor"))
+        write(
+            root / ".changeset" / "b-misnamed.md",
+            changeset_md(package="@mrbinnacle/skills"),
+        )
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "a tree failing all three checks is refused",
+            result.returncode != 0,
+            result.stdout,
+        )
+        check(
+            "the plan-assembly failure is listed",
+            "does not assemble" in result.stdout
+            and "@mrbinnacle/skills" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the unconsumed-changesets failure is listed",
+            "unconsumed changeset(s) remain" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the missing dated section is listed",
+            "no dated section for version 1.3.0" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "all three failures are counted by the blocked line",
+            "3 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "lockstep stayed silent - the three findings are G2, G3 and G4 alone",
+            "version drift" not in result.stdout,
+            result.stdout,
+        )
+
+
 # ------------------------------------------------------------------- --write
 
 
@@ -769,6 +820,7 @@ def main() -> None:
         case_undated_changelog_section_is_refused,
         case_absent_changelog_fails_closed,
         case_version_number_inside_a_larger_one_is_not_a_section_match,
+        case_all_three_refusals_land_in_one_run,
         case_write_derives_every_entry_from_the_package,
         case_write_is_idempotent,
         case_write_fails_closed_on_unreadable_inputs,
