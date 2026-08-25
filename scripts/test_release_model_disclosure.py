@@ -33,6 +33,28 @@ FAILURES: list[str] = []
 
 PROMISE_LEAD = "**What a version promises.**"
 
+# The disclosure this ticket adds invites exactly one rotting embellishment: a
+# tally of how many cards ship today ("currently N cards"). Owner rulings retired
+# page tallies twice for being maintenance taxes (2026-08-23 banner, 2026-08-24
+# front page), so the disclosed surfaces carry none -- digits or spelled out.
+# Historical release notes and the derived census table are other instruments'
+# territory: snapshots stay snapshots, and test_readme_admission_lead owns the
+# table.
+_NUMBER = (
+    r"(?:\d+|zero|one|two|three|four|five|six|seven|eight|nine|ten|"
+    r"eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|"
+    r"nineteen|twenty)"
+)
+COUNT_RE = re.compile(
+    rf"\b{_NUMBER}\s+(?:published\s+|shipped\s+|installed\s+)?(?:cards?|skills?)\b",
+    re.IGNORECASE,
+)
+
+
+def stated_counts(text: str) -> list[str]:
+    """Every count-of-cards statement in the text, as the matched spans."""
+    return [match.group(0) for match in COUNT_RE.finditer(text)]
+
 
 def check(name: str, condition: bool, detail: str = "") -> None:
     if condition:
@@ -124,11 +146,47 @@ def case_readme_states_card_moves_are_minor() -> None:
     )
 
 
+def case_disclosed_surfaces_state_no_count() -> None:
+    surfaces = {
+        "changelog preamble": changelog_preamble(CHANGELOG),
+        "readme version-promise paragraph": promise_paragraph(
+            section(README.read_text(encoding="utf-8"), "Install")
+        ),
+    }
+    for label, text in sorted(surfaces.items()):
+        matches = stated_counts(text)
+        check(f"{label} states no count of cards or skills", not matches, str(matches))
+
+
+def case_count_scan_can_fail() -> None:
+    # A gate that cannot fail guards nothing. The refusal direction is exercised
+    # against synthetic prose, because the shipped surfaces are (by design)
+    # clean and would otherwise never show the scan biting.
+    for sample in (
+        "The collection ships 15 cards.",
+        "nine skills today",
+        "twelve published cards",
+    ):
+        check(
+            f"count scan refuses a stated inventory ({sample!r})",
+            bool(stated_counts(sample)),
+            sample,
+        )
+    check(
+        "count scan does not flag ordinary version prose",
+        not stated_counts(
+            "Changed cards reach installed users when a version is released."
+        ),
+    )
+
+
 def main() -> None:
     case_preamble_carries_no_reading_aid_claim()
     case_preamble_states_the_delivery_model()
     case_readme_states_the_declared_surface()
     case_readme_states_card_moves_are_minor()
+    case_disclosed_surfaces_state_no_count()
+    case_count_scan_can_fail()
     print()
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} case(s): {', '.join(FAILURES)}")
