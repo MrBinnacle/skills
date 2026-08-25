@@ -273,7 +273,7 @@ installed users when a version is released, not on every merge to `main`. See
   Contributor and maintainer gauntlets, both intake templates, the front-page exit/entry pair, and the project delta now cite the admission policy directly. Gate 3 (invocation topology) citations stay on the card. The CONTRIBUTING bar sentence distinguishes the four-question policy from the six-gate method.
 
 - [#109](https://github.com/MrBinnacle/skills/pull/109) [`7e9616c`](https://github.com/MrBinnacle/skills/commit/7e9616ceaf7e8a01be0b9807370ebd22ef9c4cdb) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Replace the banner's live scoreboard counts with the ruled orientation line and retire the
-  MB compact mark from the repo identity (owner rulings 2026-08-23, skill-harness [#216](https://github.com/MrBinnacle/skills/issues/216)).
+  MB compact mark from the repo identity (owner rulings 2026-08-23, skill-harness [#216](https://github.com/MrBinnacle/skill-harness/issues/216)).
 
   The banner now reads `These aren't the Claude Code skills you're looking for.` at all five
   validator sites. A static graphic that must track repository state is a maintenance tax, and
