@@ -250,9 +250,11 @@ jobs:
           fi
           grep -q 'stand' "$log" \
             || { echo "::error::the refusal does not name the count"; cat "$log"; exit 1; }
-          grep -q 'README states' "$log" \
+          # Fixture states two stand against a record that reads one - assert
+          # those values, not only the template phrases around them.
+          grep -q 'README states 2' "$log" \
             || { echo "::error::the refusal does not name the README value"; cat "$log"; exit 1; }
-          grep -q 'records read' "$log" \
+          grep -q 'records read 1' "$log" \
             || { echo "::error::the refusal does not name the record value"; cat "$log"; exit 1; }
           echo "control: a disagreeing README disposition count rejected as expected, naming the count and both values"
 

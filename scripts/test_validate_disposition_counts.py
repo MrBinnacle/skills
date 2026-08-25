@@ -26,7 +26,6 @@ A GATE THAT CANNOT FAIL GUARDS NOTHING
 """
 from __future__ import annotations
 
-import re
 import subprocess
 import sys
 import tempfile
@@ -183,8 +182,8 @@ def case_mutated_readme_count_refused() -> None:
             msg.strip(),
         )
         check(
-            "the refusal names both values (README states ... records read ...)",
-            "README states" in msg and "records read" in msg,
+            "the refusal names both values (README states 2, records read 1)",
+            "README states 2" in msg and "records read 1" in msg,
             msg.strip(),
         )
 
@@ -208,8 +207,8 @@ def case_mutated_disposition_record_refused() -> None:
             msg.strip(),
         )
         check(
-            "the refusal names both values",
-            "README states" in msg and "records read" in msg,
+            "the refusal names both values (README states 1, records read 0)",
+            "README states 1" in msg and "records read 0" in msg,
             msg.strip(),
         )
 

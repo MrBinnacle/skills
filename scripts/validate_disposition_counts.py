@@ -45,9 +45,10 @@ _WORDS = {
 }
 
 # Each stated count is a word or digit immediately before the phrase that
-# identifies it. The phrases are anchored to the README's actual wording so a
-# softening ("two cards that hold", "six with light recurrence") is a refusal
-# rather than a silent miss.
+# identifies it. The phrases are anchored to the README's actual wording: a
+# count written against a different phrase is not in the checked vocabulary
+# and is skipped, the same optional-stating rule that retired the origin and
+# banner tallies. Softening is not a refusal - it is an unstated count.
 COUNT_PATTERNS = (
     ("total", re.compile(r"all\s+(\w+)\s+published\s+cards")),
     ("stand", re.compile(r"(\w+)\s+cards?\s+that\s+stand")),
