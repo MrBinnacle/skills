@@ -366,6 +366,80 @@ def case_valid_pending_changesets_pass_the_everyday_run() -> None:
         )
 
 
+# ------------------------------------------------- G3 unconsumed at release time
+#
+# The incident: dozens of changesets pend against a changelog whose newest
+# entry describes a version nobody ever received. Between releases, pending
+# changesets ARE the process working. At release time they are fatal: ADR 0002
+# makes the version bump's merge the delivery event, and `changeset version`
+# consumes every pending file when it rolls. One left behind means the release
+# ships while the plan still holds entries - some change silently misses the
+# release it was filed against.
+
+
+def case_unconsumed_changesets_block_release_mode() -> None:
+    """The ordinary run passes a pending changeset through; a declared release
+    refuses it. The boundary is the point: mid-cycle accumulation is legal,
+    releasing over an unconsumed plan is not."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / ".changeset" / "zzz-pending.md", changeset_md())
+        plain = run_gate("--root", str(root))
+        check(
+            "the ordinary run passes one well-formed pending changeset",
+            plain.returncode == 0 and "RELEASE GATE: PASS" in plain.stdout,
+            plain.stdout,
+        )
+        release = run_gate("--release", "--root", str(root))
+        check(
+            "--release refuses while an unconsumed changeset remains",
+            release.returncode != 0,
+            release.stdout,
+        )
+        check(
+            "the refusal names unconsumed changesets specifically",
+            "unconsumed changeset" in release.stdout and "zzz-pending.md" in release.stdout,
+            release.stdout,
+        )
+
+
+def case_release_mode_counts_every_remaining_changeset() -> None:
+    """One finding, naming every file left: the count is the size of what the
+    release would have shipped without."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / ".changeset" / "a-left-in.md", changeset_md(level="minor"))
+        write(root / ".changeset" / "b-left-two.md", changeset_md())
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "--release reports every remaining file under one finding",
+            result.returncode != 0
+            and "2 unconsumed changeset(s)" in result.stdout
+            and "a-left-in.md" in result.stdout
+            and "b-left-two.md" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the unconsumed finding is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_release_mode_ignores_the_changeset_readme() -> None:
+    """.changeset/README.md ships with every changesets install. It is
+    documentation, not a pending change, and must never block a release."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / ".changeset" / "README.md", "# Changesets\n\nHow to use them.\n")
+        result = run_gate("--release", "--root", str(root))
+        check(
+            "--release passes a tree whose only .changeset markdown is README.md",
+            result.returncode == 0 and "RELEASE GATE: PASS" in result.stdout,
+            result.stdout,
+        )
+
+
 # ------------------------------------------------------------------- --write
 
 
@@ -603,6 +677,9 @@ def main() -> None:
         case_out_of_workspace_changeset_is_refused,
         case_malformed_changeset_frontmatter_fails_closed,
         case_valid_pending_changesets_pass_the_everyday_run,
+        case_unconsumed_changesets_block_release_mode,
+        case_release_mode_counts_every_remaining_changeset,
+        case_release_mode_ignores_the_changeset_readme,
         case_write_derives_every_entry_from_the_package,
         case_write_is_idempotent,
         case_write_fails_closed_on_unreadable_inputs,

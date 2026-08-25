@@ -31,6 +31,16 @@ Checks (all must pass; failures are listed, not first-fail):
       unreadable frontmatter is the same refusal by another route: changesets
       itself would refuse to assemble over it.
 
+  G3  (--release only) No unconsumed changeset remains. `changeset version`
+      consumes every pending file when it rolls, so a file left in
+      .changeset/ at the merge of the version bump means the release shipped
+      while the plan still held entries - a change that silently misses the
+      release it was filed against. Between releases, pending changesets are
+      the process working, which is why this refusal exists only when the run
+      declares itself a release: `--release`. The incident behind it: dozens
+      of changesets pend against a changelog whose newest entry describes a
+      version nobody ever received.
+
 Generation (--write) and verification live in this one module because they
 must agree about what the correct value is; two modules cannot. --write stamps
 every entry from package.json, then falls through to the same verification a
@@ -51,8 +61,9 @@ Where it runs:
 Output is ASCII-only so the Windows CI cell cannot die on a status line,
 matching this repository's other validators.
 
-Run locally: ``python scripts/release_gate.py [--root <repo-root>] [--write]``.
-Exit code 0 = releasable; 1 = at least one surface is stale (each listed).
+Run locally: ``python scripts/release_gate.py [--root <repo-root>] [--write]
+[--release]``. Exit code 0 = releasable; 1 = at least one surface is stale
+(each listed).
 """
 
 from __future__ import annotations
@@ -258,6 +269,30 @@ def gate_changeset_plan(root: Path, errors: list[str], workspace: set[str] | Non
                 )
 
 
+def gate_unconsumed_changesets(root: Path, errors: list[str]) -> None:
+    """G3 (--release): every pending changeset must be consumed by release
+    time.
+
+    `changeset version` consumes what it rolls, so a file left in .changeset/
+    when the version bump merges means the release shipped while the plan
+    still held entries - a change that silently misses the release it was
+    filed against. Between releases this state is the process working, which
+    is why the refusal exists only in --release mode. .changeset/README.md is
+    changesets' own documentation and never counts.
+    """
+    changeset_dir = root / CHANGESET_DIR_REL
+    if not changeset_dir.is_dir():
+        return
+    pending = sorted(p.name for p in changeset_dir.glob("*.md") if p.name != CHANGESET_README)
+    if not pending:
+        return
+    errors.append(
+        f"G3: {len(pending)} unconsumed changeset(s) remain at release time - "
+        "run 'changeset version' to consume them before releasing: "
+        + ", ".join(pending)
+    )
+
+
 def gate_manifest_version_lockstep(
     root: Path,
     errors: list[str],
@@ -371,6 +406,13 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=f"generate every {MANIFEST_REL} plugin version from {PACKAGE_REL}, then verify",
     )
+    parser.add_argument(
+        "--release",
+        action="store_true",
+        help="run the release-time checks as well: refuse while unconsumed "
+        "changesets remain (G3). The argument-less run answers 'are the "
+        "surfaces healthy today'; this one answers 'may this version ship'.",
+    )
     args = parser.parse_args(argv)
     root: Path = args.root.resolve()
 
@@ -385,16 +427,25 @@ def main(argv: list[str] | None = None) -> int:
     workspace = workspace_packages(root, package_data) if package_data is not None else None
     version = gate_manifest_version_lockstep(root, errors, declared) or "unknown"
     gate_changeset_plan(root, errors, workspace)
+    if args.release:
+        gate_unconsumed_changesets(root, errors)
 
     if errors:
         print(f"RELEASE GATE: BLOCKED - {len(errors)} stale surface(s) at version {version}:")
         for error in errors:
             print(f"  FAIL  {error}")
         return 1
-    print(
-        f"RELEASE GATE: PASS - plugin versions in lockstep with {PACKAGE_REL} "
-        f"at version {version}."
-    )
+    if args.release:
+        print(
+            f"RELEASE GATE: PASS - releasable at version {version}: plugin "
+            f"versions in lockstep with {PACKAGE_REL}, release plan assembles, "
+            "no unconsumed changesets."
+        )
+    else:
+        print(
+            f"RELEASE GATE: PASS - plugin versions in lockstep with {PACKAGE_REL} "
+            f"at version {version}."
+        )
     return 0
 
 
