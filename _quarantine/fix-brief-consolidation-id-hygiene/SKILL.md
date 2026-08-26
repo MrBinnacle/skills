@@ -64,7 +64,7 @@ tag in their dispatch prompt. E.g.:
 
 Consolidator pastes the prefixed IDs as-is into the fix-brief. No re-numbering
 step. No collision. The drawback is fix-brief IDs become wordier; the
-load-bearing benefit is collision-impossible.
+benefit that matters is collision-impossible.
 
 ### Option B · Explicit cross-reviewer rollup table
 
@@ -171,7 +171,7 @@ to renumber or split.
   `verbatim-content-subagent-dispatch` (input contract for the reviewers).
 - Disclosure pattern: when a drop is detected post-hoc, the consolidator should
   disclose the drafting error in the next fix-brief (not silently fix it).
-  Maintaining the audit trail is a load-bearing project memory pattern.
+  Maintaining the audit trail is a project memory pattern that must not lapse.
 
 ## See also
 

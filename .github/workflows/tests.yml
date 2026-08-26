@@ -820,7 +820,7 @@ jobs:
         with:
           node-version: "22"
 
-      # The `|| { echo; exit; }` is load-bearing, not defensive noise. Under
+      # Do not drop the `|| { echo; exit; }`. Under
       # `set -e` a bare `out="$(cmd)"` ABORTS AT THE ASSIGNMENT when cmd exits
       # non-zero, so `echo "$out"` never runs and the suite's own diagnostic is
       # discarded. A failing run then logs the step source and

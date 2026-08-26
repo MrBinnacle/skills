@@ -10,7 +10,7 @@ Poison trees are built in a temp directory rather than checked in, for the same
 reason the format gate's are: a committed breaching card would sit inside the
 guarded set and turn the real run permanently red.
 
-The two drift cases are the load-bearing ones. The SECURITY.md section and the
+The two drift cases are the ones that matter. The SECURITY.md section and the
 OBLIGATIONS list are the same statement written twice, and the failure the whole
 design refuses is the two disagreeing without anything going red.
 
