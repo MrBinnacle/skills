@@ -135,7 +135,7 @@ This step is mechanical. Each sub-step is falsifiable.
 1. **Write the parent skill** to `_quarantine/<parent-name>/SKILL.md`. Parent must have its OWN description (not concatenated from children) + trigger conditions + solution structure. The parent skill must pass the existing `using-superpowers` quality bar (see CLAUDE.md `~/.claude/CLAUDE.md` §1.5 skill authoring conventions).
 2. **Physically delete each child** `SKILL.md` and its parent directory if it becomes empty. Use explicit file-deletion operations; never leave a child file with a "deprecated, see parent" stub that's just stale-content-in-disguise.
 3. **Grep verification**: search the entire skills tree (both active and quarantine) for any reference to the deleted child names (file paths, internal links, see-also references). For each match found, either (a) update to point at the new parent, or (b) delete if the reference was itself stale. Verify the post-cleanup grep returns empty.
-4. **Single cohesive commit** containing: the new parent SKILL.md, the child deletions, the registry entry update (status → CONSOLIDATED-INTO-PARENT with disposition date + reason), and any see-also link updates. Commit message body lists every child deleted by full path. The atomicity is load-bearing: a half-applied consolidation that drops a child but doesn't write the parent is a worse state than either-and-or.
+4. **Single cohesive commit** containing: the new parent SKILL.md, the child deletions, the registry entry update (status → CONSOLIDATED-INTO-PARENT with disposition date + reason), and any see-also link updates. Commit message body lists every child deleted by full path. The atomicity is required: a half-applied consolidation that drops a child but doesn't write the parent is a worse state than either-and-or.
 5. **Update the registry entry** status from DISPOSITION-PENDING to CONSOLIDATED-INTO-PARENT in the same commit. Add a `[UPDATE: yyyy-mm-dd]` line under the entry; never edit the original PROPOSED line.
 
 For KEPT-DISTINCT-WITH-SEE-ALSO disposition, the Graduation steps are different: no child deletion, no parent skill creation, just add bidirectional `## See also` links between the family members. The disposition itself is recorded; the children stay as-is.
@@ -159,7 +159,7 @@ You misapplied this skill when:
 - The falsifiability gate was satisfied with English assertions only ("the trigger is clearly distinct because..."). Without fixtures + pseudocode, the gate didn't fire.
 - The skill is loaded by `CLAUDE.md` or a settings.json hook for every session. It must remain just-in-time only.
 
-## Instruction-budget discipline (load-bearing)
+## Instruction-budget discipline
 
 This skill MUST NOT be referenced from CLAUDE.md or settings.json hooks. It loads only when:
 

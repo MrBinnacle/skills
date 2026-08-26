@@ -41,7 +41,7 @@ Three edits, +78 / −26 against the committed version.
    indistinguishable from a finished report. The check specifies two routes — `SendMessage` to
    `main`, plus one absolute path under a bounded write escalation that keeps the repo read-only —
    and includes the escalation wording verbatim.
-2. **`Check 2` widened from citations to any load-bearing claim.** The committed version is scoped
+2. **`Check 2` widened from citations to any claim the work rests on.** The committed version is scoped
    to web sources and URLs. The general case is wider and has its own table: **checked negatives
    first** (a false negative is the one error that looks like a clean result), quoted rules, and
    locators, each with the re-run that tests it.
@@ -79,7 +79,7 @@ Found by the rotation and harvest pass over this collection, in the pass's own s
   mechanical script over the same 25 cards.
 - **This narrows Check 0's two routes: they are not interchangeable.** Occurrence 1 recovered with
   `SendMessage` **plus** one authorised absolute path. Occurrence 2 used `SendMessage` alone and
-  recovered nothing. On this evidence route 2 — the file at a named path — is the load-bearing
+  recovered nothing. On this evidence route 2 — the file at a named path — is the one that carries delivery,
   half, and route 1 is not a substitute for it.
 
 ### Route 2 tested directly, same session, 2026-08-24
@@ -160,7 +160,7 @@ than smoothed over.
    as the payload channel — so one failing genuinely is survivable. Agent C is the proof: route 2
    was blocked outright and the findings still arrived.
 
-**The load-bearing instruction is to name a payload channel at all.** With none named, 0 of 4
+**The instruction that mattered is to name a payload channel at all.** With none named, 0 of 4
 agents delivered across three rounds and nine empty idle notifications. With one named, 3 of 3
 delivered. Which channel mattered less than that a channel existed.
 

@@ -63,7 +63,7 @@ them, and commitment 3 says exactly when they are fine.) Installing one:
    Both print nothing when this commitment holds on your machine. (`-L` matters: installs are
    symlinked, and `find` without it silently skips them. Step 2 exists because a skill that ships
    a script leaves `__pycache__` behind the first time it runs. The `! -path '*/__pycache__/*/*'`
-   on both steps is load-bearing: `*` spans slashes, so without it a file buried a level deeper
+   on both steps is required: `*` spans slashes, so without it a file buried a level deeper
    inside `__pycache__` is skipped by step 1 and waved through by step 2.)
 
    These two commands are generated from the same suffix list the CI walker enforces, and

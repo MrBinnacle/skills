@@ -172,7 +172,7 @@ git ls-files '_quarantine/**/SKILL.md' | wc -l   # candidates
 ```
 
 **Provenance categories are not quality scores.** README.md:120 states this of OBSERVED /
-DESIGNED / DISTILLED. The distinction is load-bearing and must survive any presentation change.
+DESIGNED / DISTILLED. The distinction must survive any presentation change.
 
 **Terminology is fixed.** `CONTEXT.md` is the glossary of record and fixes the meaning of *Card*,
 *Occasion*, *Dispatch*, *Admitted*, *Admissible*, *Release* and *Declared surface* on every
