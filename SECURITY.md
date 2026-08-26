@@ -42,8 +42,12 @@ them, and commitment 3 says exactly when they are fine.) Installing one:
    beside the `<name>.py` it came from. Adding a format is a reviewed change to this policy, not
    a silent commit.
 
-   ⚠ That check **detects** violations; it does not prevent them. `main` has no required status
-   checks, so a nonzero exit is a signal, not a gate. Which is the point of the next paragraph.
+   ⚠ That check now **gates** `main` rather than only reporting on it: a repository ruleset
+   requires it to pass before a pull request can merge, and names no bypass actors, so it binds
+   the maintainer too. Two limits are worth stating plainly. The ruleset does not require a
+   branch to be up to date with `main`, so a check can pass against an older base than the commit
+   it lands on. And a gate on this repository says nothing about the copy on your machine. Which
+   is the point of the next paragraph.
 
    Do not take our word for it — check the copy you actually have. Point this at the folder you
    installed into: `npx skills add` writes to `.claude/skills/<name>` under the directory you ran
