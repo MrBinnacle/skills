@@ -56,7 +56,7 @@ Two gaps remain open:
   text layer; no check can read its copy or colours. Closing it is the social-preview rebuild
   (`MrBinnacle/skills#62`).
 - **Compact mark still in the lockups.** `assets/lockup-horizontal.svg` and
-  `assets/lockup-staged.svg` still draw the retired MB compact mark. What replaces it is a
+  `assets/lockup-stacked.svg` still draw the retired MB compact mark. What replaces it is a
   design decision.
 
 **Author new marks with `currentColor`**, not a literal hex. A file with no hex cannot violate a
