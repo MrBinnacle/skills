@@ -673,7 +673,7 @@ jobs:
       - name: DESIGN.md enforcement-claim suite
         run: |
           set -euo pipefail
-          out="$(python scripts/test_design_enforcement_claim.py)"
+          out="$(python scripts/test_design_enforcement_claim.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::DESIGN.md enforcement-claim suite emitted no PASS line - it did not run"; exit 1; }
