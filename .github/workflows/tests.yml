@@ -54,7 +54,7 @@ jobs:
         run: |
           set -euo pipefail
           cd skills/engineering/im-down
-          out="$(python test_validate_packet.py)"
+          out="$(python test_validate_packet.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::producer suite emitted no PASS line — it did not run"; exit 1; }
@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           cd skills/engineering/im-up
-          out="$(python test_validate_packet.py)"
+          out="$(python test_validate_packet.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::receiver suite emitted no PASS line — it did not run"; exit 1; }
@@ -98,7 +98,7 @@ jobs:
       - name: Banner-line validator
         run: |
           set -euo pipefail
-          out="$(python scripts/validate_scoreboard.py)"
+          out="$(python scripts/validate_scoreboard.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::banner-line validator emitted no PASS line — it did not run"; exit 1; }
@@ -198,7 +198,7 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           set -euo pipefail
-          out="$(python scripts/test_validate_disposition_counts.py)"
+          out="$(python scripts/test_validate_disposition_counts.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::disposition-counts suite emitted no PASS line - it did not run"; exit 1; }
@@ -206,7 +206,7 @@ jobs:
       - name: Disposition-counts check
         run: |
           set -euo pipefail
-          out="$(python scripts/validate_disposition_counts.py)"
+          out="$(python scripts/validate_disposition_counts.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::disposition-counts check emitted no PASS line - it did not run"; exit 1; }
@@ -271,7 +271,7 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           set -euo pipefail
-          out="$(python scripts/test_readme_admission_lead.py)"
+          out="$(python scripts/test_readme_admission_lead.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::README admission-lead suite emitted no PASS line - it did not run"; exit 1; }
@@ -285,7 +285,7 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           set -euo pipefail
-          out="$(python scripts/test_release_model_disclosure.py)"
+          out="$(python scripts/test_release_model_disclosure.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::release-model disclosure suite emitted no PASS line - it did not run"; exit 1; }
@@ -301,7 +301,7 @@ jobs:
       - name: Skill-format gate suite
         run: |
           set -euo pipefail
-          out="$(python scripts/test_validate_skill_formats.py)"
+          out="$(python scripts/test_validate_skill_formats.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::skill-format gate suite emitted no PASS line — it did not run"; exit 1; }
@@ -309,7 +309,7 @@ jobs:
       - name: Skill-format gate
         run: |
           set -euo pipefail
-          out="$(python scripts/validate_skill_formats.py)"
+          out="$(python scripts/validate_skill_formats.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::skill-format gate emitted no PASS line — it did not run"; exit 1; }
@@ -379,7 +379,7 @@ jobs:
       - name: Voice-provenance suite
         run: |
           set -euo pipefail
-          out="$(python scripts/test_validate_voice_provenance.py)"
+          out="$(python scripts/test_validate_voice_provenance.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::voice-provenance suite emitted no PASS line — it did not run"; exit 1; }
@@ -387,7 +387,7 @@ jobs:
       - name: Voice-provenance check
         run: |
           set -euo pipefail
-          out="$(python scripts/validate_voice_provenance.py)"
+          out="$(python scripts/validate_voice_provenance.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::voice-provenance check emitted no PASS line — it did not run"; exit 1; }
@@ -499,7 +499,7 @@ jobs:
       - name: Conformance suite
         run: |
           set -euo pipefail
-          out="$(python scripts/test_validate_conformance.py)"
+          out="$(python scripts/test_validate_conformance.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::conformance suite emitted no PASS line - it did not run"; exit 1; }
@@ -507,7 +507,7 @@ jobs:
       - name: Standing obligations sweep
         run: |
           set -euo pipefail
-          out="$(python scripts/validate_conformance.py)"
+          out="$(python scripts/validate_conformance.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS: conformance v2' \
             || { echo "::error::conformance sweep emitted no PASS line - it did not run"; exit 1; }
@@ -586,7 +586,7 @@ jobs:
       - name: Eval-corpus suite
         run: |
           set -euo pipefail
-          out="$(python scripts/test_validate_eval_corpora.py)"
+          out="$(python scripts/test_validate_eval_corpora.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::eval-corpus suite emitted no PASS line - it did not run"; exit 1; }
@@ -594,7 +594,7 @@ jobs:
       - name: Eval-corpus check
         run: |
           set -euo pipefail
-          out="$(python scripts/validate_eval_corpora.py)"
+          out="$(python scripts/validate_eval_corpora.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::eval-corpus checker emitted no PASS line - it did not run"; exit 1; }
@@ -641,7 +641,7 @@ jobs:
       - name: Brand-kit suite
         run: |
           set -euo pipefail
-          out="$(python scripts/test_validate_brand_kit.py)"
+          out="$(python scripts/test_validate_brand_kit.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::brand-kit suite emitted no PASS line - it did not run"; exit 1; }
@@ -649,7 +649,7 @@ jobs:
       - name: Brand-kit check
         run: |
           set -euo pipefail
-          out="$(python scripts/validate_brand_kit.py)"
+          out="$(python scripts/validate_brand_kit.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS: brand kit' \
             || { echo "::error::brand-kit checker emitted no PASS line - it did not run"; exit 1; }
@@ -829,9 +829,8 @@ jobs:
       # The anti-vacuity grep below is well-conceived and could never fire,
       # because the failure path never reached it.
       #
-      # This shape is repeated at ~20 other steps in this file. They are left
-      # alone here on purpose: this pull request's claim is that it changes the
-      # empty-changeset verdict and nothing else. Tracked separately.
+      # This shape was repeated at ~20 other steps in this file; all carry the
+      # same fix as of #172.
       - name: Release-gate suite
         run: |
           set -euo pipefail
@@ -848,7 +847,7 @@ jobs:
       - name: Run release gate
         run: |
           set -euo pipefail
-          out="$(python scripts/release_gate.py)"
+          out="$(python scripts/release_gate.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^RELEASE GATE: PASS' \
             || { echo "::error::release gate refused this tree"; exit 1; }
@@ -1218,7 +1217,7 @@ jobs:
       - name: Allowance suite
         run: |
           set -euo pipefail
-          out="$(PYTHONUTF8=1 python scripts/test_validate_spec_conformance.py)"
+          out="$(PYTHONUTF8=1 python scripts/test_validate_spec_conformance.py)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::allowance suite emitted no PASS line - it did not run"; exit 1; }
@@ -1226,7 +1225,7 @@ jobs:
       - name: Agent Skills spec conformance, both trees
         run: |
           set -euo pipefail
-          out="$(PYTHONUTF8=1 python scripts/validate_spec_conformance.py --root .)"
+          out="$(PYTHONUTF8=1 python scripts/validate_spec_conformance.py --root .)" || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::spec gate emitted no PASS line - it did not run"; exit 1; }
