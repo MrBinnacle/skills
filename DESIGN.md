@@ -38,16 +38,26 @@ check.
 
 ---
 
-## Colour: two gaps, and what follows from them
+## Colour: two gaps closed, two remaining
 
-`tokens.json > known_gaps` records both, measured against the committed assets. What the JSON
-does not say:
+`tokens.json > known_gaps` records what remains open, measured against the committed assets.
+The two colour gaps — no light-mode neutrals, and instrument green on inventory assets —
+closed on 2026-08-24.
 
-**Treat the token set as unenforced.** `assets/tokens.json:115` (`known_gaps.not_enforced`)
-states it in the repository's own words — *"Nothing checks this file. A check asserting every hex
-in assets/\*.svg is declared here would fail today on both banners, so landing that check is
-coupled to closing the two gaps above, and that sequence is the owner's call."* **Read a green CI
-run as silence on this file, not as compliance with it.**
+**The token set is enforced.** `scripts/validate_brand_kit.py` performs three checks over
+`assets/tokens.json`: banned copy on the surfaces named in `copy.words_to_avoid_surfaces`,
+sha256 asset-pair hashes, and every hex in `assets/*.svg` declared as a token value. It runs
+inside the `validator` job in `.github/workflows/tests.yml` on both operating-system cells,
+with a poison control per assertion, and is a required status check on the protected branch.
+**A green CI run is compliance, not silence.**
+
+Two gaps remain open:
+- **Social preview raster is unreadable.** `assets/social-preview.png` is a raster with no
+  text layer; no check can read its copy or colours. Closing it is the social-preview rebuild
+  (`MrBinnacle/skills#62`).
+- **Compact mark still in the lockups.** `assets/lockup-horizontal.svg` and
+  `assets/lockup-stacked.svg` still draw the retired MB compact mark. What replaces it is a
+  design decision.
 
 **Author new marks with `currentColor`**, not a literal hex. A file with no hex cannot violate a
 token set, needs no light-mode neutral to exist, and inherits on either surface — which matters
@@ -131,8 +141,6 @@ The owner's, carried so they do not lapse.
   here — writing one in would make it the default by inertia. *Revisit if:* the owner selects.
 - **Card block count.** The live card carries five visual blocks against a stated structure of
   three. *Revisit if:* the owner rules, or the card is rebuilt from this spec.
-- **The two colour gaps**, and the token-enforcement check they gate. *Revisit if:* light-mode
-  neutrals are declared, or the instrument green leaves both banners.
 
 ---
 

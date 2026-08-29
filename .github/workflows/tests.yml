@@ -665,6 +665,19 @@ jobs:
           echo "$out" | grep -q '^PASS: brand kit' \
             || { echo "::error::brand-kit checker emitted no PASS line - it did not run"; exit 1; }
 
+      # DESIGN.md once told readers the token set was unenforced and to discount
+      # a green CI run. The brand-kit steps above are that enforcement. This
+      # suite pins the design file's claim to the live check and to the open
+      # gaps known_gaps still records — including the real lockup paths, so a
+      # renamed or invented asset cannot green the suite.
+      - name: DESIGN.md enforcement-claim suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_design_enforcement_claim.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::DESIGN.md enforcement-claim suite emitted no PASS line - it did not run"; exit 1; }
+
       # A check that cannot fail guards nothing. The copy half: a banned word in
       # a README HEADING must be refused, and the message must name the word and
       # the file. Built in RUNNER_TEMP rather than checked in -- a committed
