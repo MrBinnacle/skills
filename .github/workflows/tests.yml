@@ -44,6 +44,17 @@ jobs:
         with:
           python-version: "3.13"
 
+      # #172: under set -e a bare out="$(cmd)" aborts at the assignment and
+      # discards the diagnostic. This suite parses this file and refuses any
+      # capture that lacks the failure branch, so the sweep cannot regress.
+      - name: Captured-exit handling suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_captured_exit_handling.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::captured-exit suite emitted no PASS line - it did not run"; exit 1; }
+
       # Both suites must also show ", no-drift" in the roster: the suite reports
       # parity NOT VERIFIED (and still exits 0) when it cannot find its sibling,
       # which is correct on a single-card install and self-disabling here, where

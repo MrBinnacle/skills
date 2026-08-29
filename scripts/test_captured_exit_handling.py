@@ -4,10 +4,12 @@
 The defect: under set -e, a non-zero exit from the captured command aborts at
 the assignment. echo "$out" never runs. The anti-vacuity grep on the next line
 is unreachable on the only occasion it matters.  The fix appends
-"|| { echo "$out"; exit 1; }" to the assignment so the diagnostic survives.
+'|| { echo "$out"; exit 1; }' to the assignment so the diagnostic survives.
 
 This test parses tests.yml as text, finds run: blocks that set -e, and asserts
 that every out="$(...)" assignment in those blocks carries the failure branch.
+It also asserts that this suite itself is wired into the workflow, so a
+regression cannot re-introduce the defect by simply never running the check.
 
 Run directly:  python scripts/test_captured_exit_handling.py
 """
@@ -37,42 +39,97 @@ def note(text: str) -> None:
     NOTES.append(text)
 
 
-ASSIGN_RE = re.compile(r'^\s*out="\$\(([^)]+)\)"\s*$')
-ASSIGN_WITH_ENV_RE = re.compile(r'^\s*out="\$\(.*?PYTHONUTF8=1\s+python\b[^)]+\)"\s*$')
-FAILURE_BRANCH_RE = re.compile(r'^\s*out="\$\(.*\)"\s*\|\|\s*\{\s*echo\s+"\$out"\s*;\s*exit\s+1\s*;\s*\}\s*$')
+# Any line that begins an out="$(...)" capture. The body of the substitution is
+# matched non-greedily up to the closing )" so a trailing failure branch is not
+# swallowed into the command text.
+ASSIGN_LINE_RE = re.compile(r'^\s*out="\$\(')
+FAILURE_BRANCH_RE = re.compile(
+    r'^\s*out="\$\(.*?\)"\s*\|\|\s*\{\s*echo\s+"\$out"\s*;\s*exit\s+1\s*;\s*\}\s*$'
+)
 
 
 def parse_run_blocks(text: str) -> list[tuple[int, str]]:
-    """Extract (start_line, body) for every run: | block."""
+    """Extract (first_body_line_1indexed, body) for every run: | block."""
     lines = text.splitlines()
     blocks: list[tuple[int, str]] = []
     i = 0
     while i < len(lines):
-        if re.match(r'^\s*run:\s*\|', lines[i]):
-            start = i + 1  # 1-indexed
-            # determine indentation of block content
-            m = re.match(r'^(\s*)', lines[i])
+        if re.match(r"^\s*run:\s*\|", lines[i]):
+            # first body line is 1-indexed i+2 (lines[i] is run: | at 1-index i+1)
+            first_body = i + 2
+            m = re.match(r"^(\s*)", lines[i])
             base_indent = len(m.group(1)) if m else 0
             i += 1
             body_lines: list[str] = []
             while i < len(lines):
                 line = lines[i]
-                # blank lines belong to the block
                 if line.strip() == "":
                     body_lines.append(line)
                     i += 1
                     continue
-                # check indentation
                 line_indent = len(line) - len(line.lstrip())
                 if line_indent > base_indent:
                     body_lines.append(line)
                     i += 1
                 else:
                     break
-            blocks.append((start, "\n".join(body_lines)))
+            blocks.append((first_body, "\n".join(body_lines)))
         else:
             i += 1
     return blocks
+
+
+def case_every_assignment_carries_failure_branch(text: str) -> int:
+    """Return the number of guarded assignments found."""
+    blocks = parse_run_blocks(text)
+    note(f"parsed {len(blocks)} run: blocks from {WORKFLOW.name}")
+
+    set_e_blocks = 0
+    found = 0
+    for first_body, body in blocks:
+        if not re.search(r"set\s+-e", body):
+            continue
+        set_e_blocks += 1
+        for offset, line in enumerate(body.splitlines()):
+            if not ASSIGN_LINE_RE.match(line):
+                continue
+            line_no = first_body + offset
+            found += 1
+            check(
+                f"line {line_no}: assignment has failure branch",
+                bool(FAILURE_BRANCH_RE.match(line)),
+                'out="$(...)" without || { echo "$out"; exit 1; }',
+            )
+
+    note(f"{set_e_blocks} run: blocks with set -e; {found} out=\"$(...)\" assignment(s)")
+    # Anti-vacuity: a workflow that simply deleted every capture would otherwise
+    # pass a pure forall-over-empty check. The measured extent at the ticket
+    # was 21; require at least one so the suite cannot pass by disappearing.
+    check(
+        "at least one guarded assignment exists",
+        found >= 1,
+        f"found {found}",
+    )
+    return found
+
+
+def case_suite_is_wired_into_tests_yml(text: str) -> None:
+    """A suite that never runs cannot stop a regression (#172)."""
+    check(
+        "tests.yml invokes this suite",
+        "scripts/test_captured_exit_handling.py" in text,
+        str(WORKFLOW),
+    )
+    check(
+        "tests.yml requires this suite's PASS line",
+        bool(
+            re.search(
+                r"test_captured_exit_handling\.py.*\n(?:.*\n){0,5}.*\^PASS:",
+                text,
+            )
+        ),
+        "no anti-vacuity grep for this suite's PASS line",
+    )
 
 
 def main() -> int:
@@ -80,52 +137,14 @@ def main() -> int:
         print(f"FAIL workflow file not found: {WORKFLOW}")
         return 1
 
-    text = WORKFLOW.read_text()
-    blocks = parse_run_blocks(text)
+    text = WORKFLOW.read_text(encoding="utf-8")
+    case_every_assignment_carries_failure_branch(text)
+    case_suite_is_wired_into_tests_yml(text)
 
-    note(f"parsed {len(blocks)} run: blocks from {WORKFLOW.name}")
-
-    guarded = 0
-    flagged = 0
-    for start_line, body in blocks:
-        has_set_e = bool(re.search(r'set\s+-e', body))
-        if not has_set_e:
-            continue
-        guarded += 1
-
-        # find all out="$(...)" assignments (not the failure-branch form)
-        for i, line in enumerate(body.splitlines(), start=start_line + 1):
-            if ASSIGN_RE.match(line) and not ASSIGN_WITH_ENV_RE.match(line) and not FAILURE_BRANCH_RE.match(line):
-                flagged += 1
-                check(
-                    f"line {i}: assignment has failure branch",
-                    False,
-                    f"out=\"$(...)\" without || {{ echo \"$out\"; exit 1; }}",
-                )
-
-        # also check the env-prefixed form
-        for i, line in enumerate(body.splitlines(), start=start_line + 1):
-            if ASSIGN_WITH_ENV_RE.match(line) and not FAILURE_BRANCH_RE.match(line):
-                flagged += 1
-                check(
-                    f"line {i}: env-prefixed assignment has failure branch",
-                    False,
-                    f"out=\"$($(...) python ...)\" without || {{ echo \"$out\"; exit 1; }}",
-                )
-
-    note(f"{guarded} run: blocks with set -e; {flagged} bare assignments found")
-
-    if flagged == 0:
-        check("all guarded assignments carry failure branch", True)
-    else:
-        check("all guarded assignments carry failure branch", False,
-              f"{flagged} bare assignment(s) found")
-
-    # Summary
     if FAILURES:
         print(f"\n{len(FAILURES)} failure(s)")
         return 1
-    print(f"\n{len(NOTES)} note(s)")
+    print(f"\nPASS: captured-exit handling, all assignments carry a failure branch")
     return 0
 
 
