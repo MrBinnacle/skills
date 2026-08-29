@@ -81,3 +81,27 @@ stress-test signal.)*
   test whose negative result is the product, and it needs the same positive control any other
   negative-finding run needs. See `success-test-accepts-any-output` rule 4, which this pass
   added on the same day and then violated in its own instrument.
+
+- **2026-08-29 / the guard-caught candidates are ruled known negatives**
+  ([MrBinnacle/skills#133](https://github.com/MrBinnacle/skills/issues/133)). A 2026-08-24
+  harvest surfaced two hook-block events — 2026-08-04 and 2026-08-05, each a draft carrying
+  this card's forbidden framing that `guard-downstream-framing.py` refused to persist — as
+  candidates for the `Occasions counted` row. A two-family adversarial panel (grok-4.6,
+  deepseek-chat-v3.1; receipt in the maintainer's research repository at
+  `docs/audit/t1-133-cross-family-S353/`, linked from the ticket) reviewed the proposal to
+  count them and refuted it on the policy text as written.
+
+  **The ruling, and the line that makes it repeatable:** the row counts the failure this card
+  claims to fix — **forbidden framing present in a persisted artifact a later reader could
+  consume**. A draft the hook refused never became that. The near-miss/precursor-event
+  distinction from safety science is the governing prior art: counting the barrier's hits as
+  recurrences of the accident lets the intervention's success delete its own evidence. The
+  panel also flagged the laundering direction — a hook catch is evidence the *hook layer* is
+  doing the work, and converting it into recurrence credit for the card inverts its meaning.
+
+  The two dates above are therefore recorded as known negatives: the next harvest that finds
+  them stops here instead of re-deriving the same candidates into the same undecided state.
+  `RECURRENCE-THIN` stands at 1. The 2026-08-23 entry's open policy question (pre-origin
+  corroboration) is a separate fork and remains open; so does the parallel question on `im-up`,
+  where the candidate false claims were completed and persisted before a receiver falsified
+  them — the stronger case, per both panel seats, and not ruled here.
