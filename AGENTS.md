@@ -439,43 +439,7 @@ mechanism working. An evolving ecosystem, not a chop list.
    checked everything except the predicate deciding whether anything fires. Recognising the
    shape is the point — the apparatus that grades a thing tends to grade what is easy to
    assert, and the trigger is never the easy part.
-3. **Currency gate — run on every receipt before any disposition.** A receipt that is not
-   current disposes nothing: its row reads `CANT_TELL_YET (stale receipt: <reason>)` and
-   keeps the receipt link as history. The four checks run fail-closed with typed reasons:
-
-   - **Card content:** `no_skill_id` (receipt lacks `subject_identity.skill_id`),
-     `card_hash_mismatch` (receipt's `skill_id` differs from `sha256(SKILL.md)`).
-   - **Harness identity:** `no_harness_version` (receipt lacks
-     `subject_identity.harness_version`), `harness_mismatch` (receipt's harness version
-     differs from the declared pass harness), `oracle_stale` (receipt's
-     `instrument_identity` differs from the declared pass oracle), `model_drift` (receipt's
-     `instrument_identity.extractor_model` differs from the declared pass model).
-   - **Trigger attestation:** `no_trigger_row` (card lacks a `Re-screen trigger` row),
-     `attestation_missing` (trigger row present but no attestation clause),
-     `attestation_expired` (attestation date precedes the receipt's `source.date`),
-     `trigger_fired` (attestation names a trigger that has already shipped).
-   - **Arm coverage:** `arm_coverage` (receipt's `subject_identity.arms` does not include
-     both `null` and `full` for a two-arm receipt, or does not include `null` for a
-     Null-only receipt).
-
-   A not-current receipt is linked as history but its verdict is not applied. The row
-   retains its prior controlled value and the `Re-screen trigger` attestation is not
-   re-dated. Done when every published card whose `skill_id` matches a receipt carries
-   either the receipt's verdict or a typed not-current reason on its controlled row.
-4. **Record step — rewrite the controlled row with the receipt clause.** For each current
-   receipt (passed the currency gate), rewrite the controlled row (`Screen result` for a
-   Null-only receipt, `Paired verdict` for two-arm) to the row shape: `<VERDICT>. Receipt:
-   [<file>.json](<harness blob URL pinned to a commit, never main>), dated <source.date>,
-   harness <harness_version>. <reason and caveats>`. For `CANT_TELL_YET` the prose names
-   the typed reason. The `Re-screen trigger` attestation is re-dated. The clause is a
-   convention; the three required rows are unchanged.
-5. **Dispose step — route by verdict.** `KEEP` and `CANT_TELL_YET` stop at the row; a
-   `CANT_TELL_YET` card stays published with its typed reason. `CUT` fires Retirement
-   through its first route (see "Retirement" below), widened from "Screen null" to
-   **"Harness cut — a current receipt carries `CUT` with its `cut_sub_reason`"**; the
-   `RETIRED.md` "What made it unnecessary" cell opens with the `cut_sub_reason` word. The
-   route's evidence is the receipt.
-6. **Repair gate — run BEFORE screening, and before any admission or retirement call.**
+3. **Repair gate — run BEFORE screening, and before any admission or retirement call.**
    A card whose text is wrong is the wrong artifact to measure: a screen on a stale card
    produces a real number about a document you are replacing. Repair first, then screen the
    repaired card.
@@ -511,7 +475,7 @@ mechanism working. An evolving ecosystem, not a chop list.
    Done when every card touched by this pass is either repaired, or recorded as needing no
    repair against the four criteria above.
 
-7. **Route the worth question — and know that the measurement instrument is NOT in this
+4. **Route the worth question — and know that the measurement instrument is NOT in this
    loop.** The collection does not decide a card's worth in its own prose. It also does not
    send every card to the measurement harness, and that is a settled decision rather than an
    omission.
@@ -547,11 +511,48 @@ mechanism working. An evolving ecosystem, not a chop list.
    Done when every card the pass proposes to admit or retire either carries a screen verdict,
    or carries a dated statement of why no screen applies to it.
 
+5. **Currency gate — run on every receipt before any disposition.** A receipt that is not
+   current disposes nothing: its row reads `CANT_TELL_YET (stale receipt: <reason>)` and
+   keeps the receipt link as history. The four checks run fail-closed with typed reasons:
+
+   - **Card content:** `no_skill_id` (receipt lacks `subject_identity.skill_id`),
+     `card_hash_mismatch` (receipt's `skill_id` differs from `sha256(SKILL.md)`).
+   - **Harness identity:** `no_harness_version` (receipt lacks
+     `subject_identity.harness_version`), `harness_mismatch` (receipt's harness version
+     differs from the declared pass harness), `oracle_stale` (receipt's
+     `instrument_identity` differs from the declared pass oracle), `model_drift` (receipt's
+     `instrument_identity.extractor_model` differs from the declared pass model).
+   - **Trigger attestation:** `no_trigger_row` (card lacks a `Re-screen trigger` row),
+     `attestation_missing` (trigger row present but no attestation clause),
+     `attestation_expired` (attestation date precedes the receipt's `source.date`),
+     `trigger_fired` (attestation names a trigger that has already shipped).
+   - **Arm coverage:** `arm_coverage` (receipt's `subject_identity.arms` does not include
+     both `null` and `full` for a two-arm receipt, or does not include `null` for a
+     Null-only receipt).
+
+   A not-current receipt's verdict is not applied and the `Re-screen trigger` attestation is
+   not re-dated. Done when every receipt swept in step 4 has been currency-checked: current
+   receipts proceed to the record step; not-current receipts carry
+   `CANT_TELL_YET (stale receipt: <reason>)` on the controlled row and are not disposed.
+6. **Record step — rewrite the controlled row with the receipt clause.** For each current
+   receipt (passed the currency gate), rewrite the controlled row (`Screen result` for a
+   Null-only receipt, `Paired verdict` for two-arm) to the row shape: `<VERDICT>. Receipt:
+   [<file>.json](<harness blob URL pinned to a commit, never main>), dated <source.date>,
+   harness <harness_version>. <reason and caveats>`. For `CANT_TELL_YET` the prose names
+   the typed reason. The `Re-screen trigger` attestation is re-dated. The clause is a
+   convention; the three required rows are unchanged.
+7. **Dispose step — route by verdict.** `KEEP` and `CANT_TELL_YET` stop at the row; a
+   `CANT_TELL_YET` card stays published with its typed reason. `CUT` fires Retirement
+   through its first route (see "Retirement" above), widened from "Screen null" to
+   **"Harness cut — a current receipt carries `CUT` with its `cut_sub_reason`"**; the
+   `RETIRED.md` "What made it unnecessary" cell opens with the `cut_sub_reason` word. The
+   route's evidence is the receipt.
 8. **Reconcile, then validate.** Propagate each count or label change to every derived
    surface, walking the consequence chain before the edit — a one-integer change
    legitimately breaks several pins at once, and each break is the guard working: fix the
    surface, keep the pin. Then run the whole gate set with `PYTHONUTF8=1` — eight validators
    and their eight suites:
+
 
    | Validator | Suite | What a pass most often breaks here |
    |---|---|---|
@@ -615,7 +616,7 @@ mechanism working. An evolving ecosystem, not a chop list.
    touched — both parity suites and the poison control** pass, AND a re-run of the whole pass
    with no new evidence would produce zero diff: the pass re-derives from current records every
    time, keeps no incremental state, and is safe to run twice.
-9. **Adjudicate.** Four dispositions, not two: admit, retire, **repair** (step 6), or a dated
+9. **Adjudicate.** Four dispositions, not two: admit, retire, **repair** (step 3), or a dated
    deferral. New candidates enter through the [admission policy](ADMISSION.md), answered via
    the gate card; retirement candidates leave through "Retirement" above. `_quarantine/`
    promotion is `git mv`, so the card carries its history. Open a candidate's
