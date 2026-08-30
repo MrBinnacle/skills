@@ -340,6 +340,304 @@ def case_o5_is_never_pass_on_the_live_tree() -> None:
 
 
 # ---------------------------------------------------------------------------
+# O5 with --harness-root: receipt agreement checks
+# ---------------------------------------------------------------------------
+
+import hashlib
+
+
+def skill_id_for(folder: Path) -> str:
+    """SHA-256 hex of a card folder's SKILL.md bytes."""
+    return hashlib.sha256(
+        (folder / "SKILL.md").read_bytes()
+    ).hexdigest()
+
+
+def receipt_json(
+    skill_name: str,
+    skill_id: str,
+    verdict: str,
+    source_date: str = "2026-07-21",
+    harness_version: str = "0.2.3",
+) -> str:
+    """A minimal SERS 1.1.0 receipt as a JSON string."""
+    import json as _json
+
+    return _json.dumps(
+        {
+            "sers_version": "1.1.0",
+            "skill_name": skill_name,
+            "verdict": verdict,
+            "cut_sub_reason": None,
+            "unmeasured_sub_reason": None,
+            "value_class": "trap-discipline",
+            "wrong_instrument": False,
+            "declared_synthetic_control": False,
+            "evidence_admissibility": {"status": "admissible"},
+            "cost": {
+                "standing_tokens": {"refusal": "not_instrumented"},
+                "fired_tokens": {"refusal": "not_instrumented"},
+                "aux_tokens": {"refusal": "not_applicable"},
+            },
+            "instrument_identity": {
+                "extractor_model": "test-model",
+                "prompt_fingerprint": "test-fp",
+                "schema_fingerprint": "test-sf",
+            },
+            "source": {"prose_path": "README.md", "date": source_date},
+            "summary": f"Test receipt for {skill_name}.",
+            "subject_identity": {
+                "skill_id": skill_id,
+                "harness_version": harness_version,
+                "metric_version": "0.3.0",
+                "implementation_hash": "a" * 64,
+                "arms": ["null", "full"],
+            },
+        },
+        indent=2,
+    )
+
+
+def make_receipt_tree(
+    root: Path,
+    card_name: str,
+    verdict: str = "CANT_TELL_YET",
+    receipt_filename: str | None = None,
+    source_date: str = "2026-07-21",
+    harness_version: str = "0.2.3",
+    skill_id_override: str | None = None,
+) -> Path:
+    """Build a tree with one card carrying a Receipt clause and a harness root.
+
+    Returns the harness root path.
+    """
+    folder = root / "skills" / "engineering" / card_name
+    skill_id = skill_id_override or skill_id_for(folder)
+    fname = receipt_filename or f"receipt-{card_name}.json"
+    harness_root = root / "harness"
+    receipt_dir = harness_root / "docs" / "sers" / "receipts"
+    receipt_dir.mkdir(parents=True, exist_ok=True)
+    (receipt_dir / fname).write_text(
+        receipt_json(card_name, skill_id, verdict, source_date, harness_version),
+        encoding="utf-8",
+    )
+    # Overwrite EVIDENCE.md with a Receipt clause
+    evidence = folder / "EVIDENCE.md"
+    evidence.write_text(
+        f"# EVIDENCE - {card_name}\n\n"
+        "| Field | Value |\n|---|---|\n"
+        f'| **Screen result** | {verdict}. Receipt: `{fname}` |\n'
+        "| **Paired verdict** | UNMEASURED. |\n",
+        encoding="utf-8",
+    )
+    return harness_root
+
+
+def case_o5_without_harness_root_is_cannot_check(root: Path) -> None:
+    """Without --harness-root, O5 stays CANNOT-CHECK even if a receipt exists."""
+    make_tree(root)
+    make_receipt_tree(root, CARDS[0])
+    result = run_checker(root)
+    check(
+        "O5 is CANNOT-CHECK on alpha-card without --harness-root",
+        cell(result.stdout, CARDS[0], "O5") == "CANNOT-CHECK",
+        result.stdout,
+    )
+    check(
+        "O5 is CANNOT-CHECK on beta-card without --harness-root",
+        cell(result.stdout, CARDS[1], "O5") == "CANNOT-CHECK",
+        result.stdout,
+    )
+
+
+def case_o5_matching_receipt_is_pass(root: Path) -> None:
+    """A matching card and receipt yield PASS on O5."""
+    make_tree(root)
+    harness_root = make_receipt_tree(root, CARDS[0])
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is PASS on alpha-card with a matching receipt",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+    # beta-card has no receipt, still CANNOT-CHECK
+    check(
+        "O5 is CANNOT-CHECK on beta-card with no receipt",
+        cell(result.stdout, CARDS[1], "O5") == "CANNOT-CHECK",
+        result.stdout,
+    )
+
+
+def case_o5_matching_receipt_with_prose_is_pass(root: Path) -> None:
+    """Opening verdict word only: prose between the verdict and Receipt must
+    not be folded into the compared word. Live cards write that shape."""
+    make_tree(root)
+    harness_root = make_receipt_tree(root, CARDS[0], verdict="CANT_TELL_YET")
+    folder = root / "skills" / "engineering" / CARDS[0]
+    (folder / "EVIDENCE.md").write_text(
+        "# EVIDENCE\n\n"
+        "| Field | Value |\n|---|---|\n"
+        "| **Screen result** | CANT_TELL_YET. Screened 2026-07-21 against "
+        "this card's own registered screen; bare arm passed 3/3. "
+        "Receipt: `receipt-alpha-card.json` in the measurement repo. "
+        "Caveat bounds the number. |\n"
+        "| **Paired verdict** | UNMEASURED. |\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is PASS when prose sits between the opening verdict and Receipt",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+
+
+def case_o5_matching_receipt_markdown_link_is_pass(root: Path) -> None:
+    """Spec Receipt shape: [file.json](harness blob URL), not only backticks."""
+    make_tree(root)
+    harness_root = make_receipt_tree(root, CARDS[0], verdict="KEEP")
+    folder = root / "skills" / "engineering" / CARDS[0]
+    fname = "receipt-alpha-card.json"
+    url = (
+        "https://github.com/example/skill-harness/blob/abc123/"
+        f"docs/sers/receipts/{fname}"
+    )
+    (folder / "EVIDENCE.md").write_text(
+        "# EVIDENCE\n\n"
+        "| Field | Value |\n|---|---|\n"
+        f"| **Screen result** | KEEP. Receipt: [{fname}]({url}), "
+        "dated 2026-07-21, harness 0.2.3. |\n"
+        "| **Paired verdict** | UNMEASURED. |\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is PASS on the spec markdown-link Receipt shape",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+
+
+def case_o5_receipt_absent_is_fail(root: Path) -> None:
+    """Condition 1: the linked receipt file is absent under the harness root."""
+    make_tree(root)
+    folder = root / "skills" / "engineering" / CARDS[0]
+    # Write an EVIDENCE.md referencing a receipt that does not exist
+    (folder / "EVIDENCE.md").write_text(
+        "# EVIDENCE\n\n"
+        "| Field | Value |\n|---|---|\n"
+        '| **Screen result** | KEEP. Receipt: `nonexistent.json` |\n'
+        "| **Paired verdict** | UNMEASURED. |\n",
+        encoding="utf-8",
+    )
+    harness_root = root / "harness"
+    harness_root.mkdir(parents=True, exist_ok=True)
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is FAIL on alpha-card when the receipt file is absent",
+        cell(result.stdout, CARDS[0], "O5") == "FAIL",
+        result.stdout,
+    )
+    check(
+        "the failure message names the absent receipt",
+        "absent" in result.stdout.lower() or "not found" in result.stdout.lower()
+        or "nonexistent" in result.stdout,
+        result.stdout,
+    )
+    check(
+        "the run goes nonzero when O5 fails",
+        result.returncode != 0,
+        f"rc={result.returncode}",
+    )
+
+
+def case_o5_skill_id_mismatch_is_fail(root: Path) -> None:
+    """Condition 2: the receipt's subject_identity.skill_id differs from
+    sha256 of the card's SKILL.md bytes."""
+    make_tree(root)
+    harness_root = make_receipt_tree(
+        root,
+        CARDS[0],
+        skill_id_override="b" * 64,  # wrong skill_id
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is FAIL on alpha-card when skill_id mismatches",
+        cell(result.stdout, CARDS[0], "O5") == "FAIL",
+        result.stdout,
+    )
+    check(
+        "the failure message names skill_id",
+        "skill_id" in result.stdout.lower(),
+        result.stdout,
+    )
+
+
+def case_o5_verdict_mismatch_is_fail(root: Path) -> None:
+    """Condition 3: the row's opening verdict word differs from the receipt's
+    verdict."""
+    make_tree(root)
+    # The receipt says KEEP but the card's EVIDENCE.md says CANT_TELL_YET
+    harness_root = make_receipt_tree(
+        root,
+        CARDS[0],
+        verdict="KEEP",
+    )
+    # Overwrite EVIDENCE.md so the row opens with CANT_TELL_YET
+    folder = root / "skills" / "engineering" / CARDS[0]
+    (folder / "EVIDENCE.md").write_text(
+        "# EVIDENCE\n\n"
+        "| Field | Value |\n|---|---|\n"
+        '| **Screen result** | CANT_TELL_YET. Receipt: `receipt-alpha-card.json` |\n'
+        "| **Paired verdict** | UNMEASURED. |\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is FAIL on alpha-card when verdict mismatches",
+        cell(result.stdout, CARDS[0], "O5") == "FAIL",
+        result.stdout,
+    )
+    check(
+        "the failure message names verdict",
+        "verdict" in result.stdout.lower(),
+        result.stdout,
+    )
+
+
+def case_o5_newer_receipt_exists_is_fail(root: Path) -> None:
+    """Condition 4: a receipt with the same skill_id and a later source.date
+    exists under the harness root that the row does not link."""
+    make_tree(root)
+    # The older receipt (linked by the card)
+    harness_root = make_receipt_tree(
+        root,
+        CARDS[0],
+        source_date="2026-07-21",
+    )
+    # A newer receipt (not linked) with the same skill_id
+    folder = root / "skills" / "engineering" / CARDS[0]
+    skill_id = skill_id_for(folder)
+    receipt_dir = harness_root / "docs" / "sers" / "receipts"
+    (receipt_dir / "newer-receipt.json").write_text(
+        receipt_json(CARDS[0], skill_id, "KEEP", source_date="2026-08-15"),
+        encoding="utf-8",
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is FAIL on alpha-card when a newer receipt exists",
+        cell(result.stdout, CARDS[0], "O5") == "FAIL",
+        result.stdout,
+    )
+    check(
+        "the failure message names newer or later",
+        "newer" in result.stdout.lower() or "later" in result.stdout.lower()
+        or "stale" in result.stdout.lower(),
+        result.stdout,
+    )
+
+
+# ---------------------------------------------------------------------------
 # O7: the plugin manifest and the published tree must agree, BOTH directions.
 #
 # One direction is not enough, and this repository has the receipt: the sibling
@@ -735,6 +1033,14 @@ def main() -> None:
         case_o1_agrees_with_the_standalone_format_gate,
         case_missing_format_gate_is_cannot_check_not_pass,
         case_cannot_check_is_distinct_from_pass,
+        case_o5_without_harness_root_is_cannot_check,
+        case_o5_matching_receipt_is_pass,
+        case_o5_matching_receipt_with_prose_is_pass,
+        case_o5_matching_receipt_markdown_link_is_pass,
+        case_o5_receipt_absent_is_fail,
+        case_o5_skill_id_mismatch_is_fail,
+        case_o5_verdict_mismatch_is_fail,
+        case_o5_newer_receipt_exists_is_fail,
         case_manifest_naming_every_card_passes,
         case_manifest_naming_a_missing_card_is_red,
         case_unexposed_card_is_red,
