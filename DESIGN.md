@@ -14,6 +14,8 @@ every number on it resolves to an artifact you opened.** That is the bar for thi
 
 ## Dressing
 
+Instance of the **Dressing** row of the taste doctrine, class 6 (assets). It lives in `TASTE.md` in the owner's private research repository. The test is stated there once; this section is its application to assets.
+
 The one failure this system exists to prevent, and the word `tokens.json` already uses for it:
 **dressing the inventory as a measurement.**
 
