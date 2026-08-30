@@ -1,0 +1,24 @@
+# Line endings.
+#
+# styles/ IS HASH-PINNED, so its bytes must be identical on every platform.
+# styles/Taste/STYLE_SOURCE.json records a SHA-256 per vendored rule. Without an
+# eol rule Git checks those files out with CRLF on Windows and LF elsewhere, so
+# the digests describe bytes that exist on one runner and not the other. Measured:
+# PR #197 passed `validator (ubuntu-latest)` and failed `validator (windows-latest)`
+# with all six digests mismatched and nothing wrong with the files.
+#
+# A hash over a text file must not depend on the platform that checked it out.
+styles/** text eol=lf
+
+# The sibling measurement repository pins the same way; matching it keeps a
+# vendored file byte-equal across the boundary it is vendored over.
+*.py text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.sh text eol=lf
+*.ini text eol=lf
+
+# PowerShell is the deliberate exception: the Windows host that runs it expects CRLF.
+*.ps1 text eol=crlf

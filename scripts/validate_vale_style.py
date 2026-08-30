@@ -257,7 +257,13 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.write:
             LOCAL_DIR.mkdir(parents=True, exist_ok=True)
-            GENERATED_RULE.write_text(render_rule(banned_words()), encoding="utf-8")
+            # newline="" keeps the rendered "\n" bytes as written. Without it
+            # Python translates to CRLF on Windows, so the same word list would
+            # render different bytes on different platforms - the defect the
+            # .gitattributes eol rule exists to prevent one layer down.
+            GENERATED_RULE.write_text(
+                render_rule(banned_words()), encoding="utf-8", newline=""
+            )
             print(f"wrote {GENERATED_RULE.relative_to(REPO_ROOT)}")
             return 0
 

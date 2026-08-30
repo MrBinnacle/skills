@@ -308,6 +308,36 @@ def case_vendored_digests_match_the_named_source() -> None:
             )
 
 
+def case_styles_are_pinned_to_lf() -> None:
+    """A hash over a text file must not depend on the checkout platform.
+
+    Without an eol rule Git hands Windows CRLF and Linux LF for the same commit,
+    so every recorded digest mismatches on one runner and not the other. This
+    failed exactly that way on PR #197 before .gitattributes existed, and the
+    failure is invisible to anyone developing on Linux - which is why it is
+    asserted here rather than left to the next Windows run to rediscover.
+    """
+    attributes = REPO_ROOT / ".gitattributes"
+    if not attributes.is_file():
+        fail("case_styles_are_pinned_to_lf", ".gitattributes is missing")
+        return
+    text = attributes.read_text(encoding="utf-8")
+    if "styles/** text eol=lf" not in text:
+        fail(
+            "case_styles_are_pinned_to_lf",
+            ".gitattributes does not pin styles/ to LF, so the recorded digests "
+            "describe bytes that differ by platform",
+        )
+        return
+    for path in sorted((REPO_ROOT / "styles").rglob("*.yml")):
+        if b"\r\n" in path.read_bytes():
+            fail(
+                "case_styles_are_pinned_to_lf",
+                f"{path.name} carries CRLF in the working tree; its digest will "
+                "not reproduce on a LF checkout",
+            )
+
+
 def case_workflow_runs_the_checker() -> None:
     """A checker no workflow calls is not a gate."""
     workflows = list((REPO_ROOT / ".github" / "workflows").glob("*.yml"))
@@ -340,6 +370,7 @@ def main() -> None:
             case(Path(tmp))
 
     case_live_tree_passes()
+    case_styles_are_pinned_to_lf()
     case_generated_rule_matches_every_banned_word()
     case_vendored_digests_match_the_named_source()
     case_workflow_runs_the_checker()
