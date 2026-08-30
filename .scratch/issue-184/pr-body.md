@@ -24,7 +24,7 @@ Both link to a harness **commit** (`f75429c57c33e1191fa4b65632fce5d668a78312`), 
 
 ### Criterion 2: Pair A's cell cites the receipt by commit-pinned hyperlink and states the receipt's verdict and reason; the retired table is unchanged
 
-**What was built:** Amended the `append-only-evidence-design` row in the "Screened out at the gate" table in `RETIRED.md`. The old cell was `Ceiling — model passed 3/3 unaided`. The new cell is `CANT_TELL_YET. [Receipt](<harness commit URL>): wrong_instrument (calibration), p0 = 1.00 at 3/3`. The retired table (section "Retired from the collection") is unchanged.
+**What was built:** Amended the `append-only-evidence-design` row in the "Screened out at the gate" table in `RETIRED.md`. The old cell was `Ceiling — model passed 3/3 unaided`. The new cell is `CANT_TELL_YET. [Receipt](<harness commit URL>): wrong_instrument (calibration), p0 = 1.00 at 3/3`. The section intro no longer claims all four hit the ceiling — it keeps the 3/3 fact and names the reclassification for this one candidate. The retired table (section "Retired from the collection") is unchanged.
 
 **Test that pins it:** `scripts/validate_scoreboard.py` passes — it derives `4 solutions looking for a problem` from the screened-out table and the count is unchanged. The card-files validator passes (no published card changed).
 
@@ -67,7 +67,8 @@ The linkcheck CI runs `lychee` on all `*.md` files. The two new links are to val
 ## Files changed
 
 1. `skills/engineering/git-pull-rebase-trap/EVIDENCE.md` — Screen result row rewritten to receipt-row shape
-2. `RETIRED.md` — append-only-evidence-design cell amended with receipt citation
+2. `RETIRED.md` — append-only-evidence-design cell amended with receipt citation; screened-out intro aligned with the erratum
+3. `.changeset/receipt-row-pair-rewrite.md` — patch changeset
 
 ## Mutation campaign
 

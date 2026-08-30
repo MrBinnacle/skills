@@ -50,11 +50,14 @@ test is simple to describe: give a current model (claude-sonnet-5) a task from e
 situation the skill was written for — but **without** the skill — three separate times. If the
 model needs the skill, it should fail at least once.
 
-It never did. All four candidates hit the ceiling: three passes out of three with no skill
-present. On those tasks there was nothing left for a skill to improve, so none of the four
-entered the collection — including skills the author was personally convinced were valuable.
-The measurement plan was published *before* the runs, so the verdicts couldn't be bent
-afterward: [the pre-registration, with each screen's registered result](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md).
+It never did. All four returned three passes out of three with no skill present. Three read
+as ceiling — nothing left for a skill to improve on those tasks. One
+(`append-only-evidence-design`) was later reclassified on its own receipt to `CANT_TELL_YET` /
+`wrong_instrument`: a calibration-class skill the transformative-lift screen cannot measure, so
+the above-bar bare arm is not a ceiling reading. None of the four entered the collection —
+including skills the author was personally convinced were valuable. The measurement plan was
+published *before* the runs, so the verdicts couldn't be bent afterward:
+[the pre-registration, with each screen's registered result](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md).
 
 | Candidate | What it taught | Verdict (2026-07) |
 |---|---|---|
