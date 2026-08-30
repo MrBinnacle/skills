@@ -50,17 +50,20 @@ test is simple to describe: give a current model (claude-sonnet-5) a task from e
 situation the skill was written for — but **without** the skill — three separate times. If the
 model needs the skill, it should fail at least once.
 
-It never did. All four candidates hit the ceiling: three passes out of three with no skill
-present. On those tasks there was nothing left for a skill to improve, so none of the four
-entered the collection — including skills the author was personally convinced were valuable.
-The measurement plan was published *before* the runs, so the verdicts couldn't be bent
-afterward: [the pre-registration, with each screen's registered result](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md).
+It never did. All four returned three passes out of three with no skill present. Three read
+as ceiling — nothing left for a skill to improve on those tasks. One
+(`append-only-evidence-design`) was later reclassified on its own receipt to `CANT_TELL_YET` /
+`wrong_instrument`: a calibration-class skill the transformative-lift screen cannot measure, so
+the above-bar bare arm is not a ceiling reading. None of the four entered the collection —
+including skills the author was personally convinced were valuable. The measurement plan was
+published *before* the runs, so the verdicts couldn't be bent afterward:
+[the pre-registration, with each screen's registered result](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md).
 
 | Candidate | What it taught | Verdict (2026-07) |
 |---|---|---|
 | sqlite-tie-break-red-test-trap | How to write a regression test for a database row-ordering bug so the test can't pass by coincidence | Ceiling — model passed 3/3 unaided¹ |
 | bayesian-eval-discipline | Statistical discipline for A/B-testing AI systems: when to stop, minimum sample sizes, correcting for many simultaneous comparisons | Ceiling — model passed 3/3 unaided |
-| append-only-evidence-design | How to build a database that provably never rewrites its own history (audit logs, evidence stores) | Ceiling — model passed 3/3 unaided |
+| append-only-evidence-design | How to build a database that provably never rewrites its own history (audit logs, evidence stores) | CANT_TELL_YET. [Receipt](https://github.com/MrBinnacle/skill-harness/blob/f75429c57c33e1191fa4b65632fce5d668a78312/docs/sers/receipts/reclass-append-only-evidence-design.json): wrong_instrument (calibration), p0 = 1.00 at 3/3 |
 | llm-judge-calibration | How to use one AI to grade another AI's work without the grader's known biases distorting the scores | Ceiling — model passed 3/3 unaided |
 
 ¹ This one stays in the author's private library anyway: it has two documented saves in a
