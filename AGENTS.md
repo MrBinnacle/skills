@@ -462,7 +462,20 @@ mechanism working. An evolving ecosystem, not a chop list.
    retains its prior controlled value and the `Re-screen trigger` attestation is not
    re-dated. Done when every published card whose `skill_id` matches a receipt carries
    either the receipt's verdict or a typed not-current reason on its controlled row.
-4. **Repair gate — run BEFORE screening, and before any admission or retirement call.**
+4. **Record step — rewrite the controlled row with the receipt clause.** For each current
+   receipt (passed the currency gate), rewrite the controlled row (`Screen result` for a
+   Null-only receipt, `Paired verdict` for two-arm) to the row shape: `<VERDICT>. Receipt:
+   [<file>.json](<harness blob URL pinned to a commit, never main>), dated <source.date>,
+   harness <harness_version>. <reason and caveats>`. For `CANT_TELL_YET` the prose names
+   the typed reason. The `Re-screen trigger` attestation is re-dated. The clause is a
+   convention; the three required rows are unchanged.
+5. **Dispose step — route by verdict.** `KEEP` and `CANT_TELL_YET` stop at the row; a
+   `CANT_TELL_YET` card stays published with its typed reason. `CUT` fires Retirement
+   through its first route (see "Retirement" below), widened from "Screen null" to
+   **"Harness cut — a current receipt carries `CUT` with its `cut_sub_reason`"**; the
+   `RETIRED.md` "What made it unnecessary" cell opens with the `cut_sub_reason` word. The
+   route's evidence is the receipt.
+6. **Repair gate — run BEFORE screening, and before any admission or retirement call.**
    A card whose text is wrong is the wrong artifact to measure: a screen on a stale card
    produces a real number about a document you are replacing. Repair first, then screen the
    repaired card.
@@ -498,7 +511,7 @@ mechanism working. An evolving ecosystem, not a chop list.
    Done when every card touched by this pass is either repaired, or recorded as needing no
    repair against the four criteria above.
 
-5. **Route the worth question — and know that the measurement instrument is NOT in this
+7. **Route the worth question — and know that the measurement instrument is NOT in this
    loop.** The collection does not decide a card's worth in its own prose. It also does not
    send every card to the measurement harness, and that is a settled decision rather than an
    omission.
@@ -534,7 +547,7 @@ mechanism working. An evolving ecosystem, not a chop list.
    Done when every card the pass proposes to admit or retire either carries a screen verdict,
    or carries a dated statement of why no screen applies to it.
 
-6. **Reconcile, then validate.** Propagate each count or label change to every derived
+8. **Reconcile, then validate.** Propagate each count or label change to every derived
    surface, walking the consequence chain before the edit — a one-integer change
    legitimately breaks several pins at once, and each break is the guard working: fix the
    surface, keep the pin. Then run the whole gate set with `PYTHONUTF8=1` — eight validators
@@ -602,14 +615,14 @@ mechanism working. An evolving ecosystem, not a chop list.
    touched — both parity suites and the poison control** pass, AND a re-run of the whole pass
    with no new evidence would produce zero diff: the pass re-derives from current records every
    time, keeps no incremental state, and is safe to run twice.
-7. **Adjudicate.** Four dispositions, not two: admit, retire, **repair** (step 4), or a dated
+9. **Adjudicate.** Four dispositions, not two: admit, retire, **repair** (step 6), or a dated
    deferral. New candidates enter through the [admission policy](ADMISSION.md), answered via
    the gate card; retirement candidates leave through "Retirement" above. `_quarantine/`
    promotion is `git mv`, so the card carries its history. Open a candidate's
    `PROVENANCE.md` before diagnosing drift or duplication — one candidate is a staged patch
    to an already-promoted card, and it has been misread as version drift once already. Done
    when every surfaced candidate carries a disposition or a dated deferral.
-8. **Ship.** Branch → PR with a changeset. Merge authority is the maintainer's to hold or to
+10. **Ship.** Branch → PR with a changeset. Merge authority is the maintainer's to hold or to
    delegate, and this file does not fix which — it fixes the gates, which hold either way: CI
    green, and the PR head SHA matching the branch ref before the button is pressed. That second
    gate is not ceremony. A PR merged while later commits were still being pushed froze its head
