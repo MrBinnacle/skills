@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-label="skills: Skills that started with problems I encountered. npx skills add MrBinnacle/skills">
+  <style>
+    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
+    .body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  </style>
+  <rect width="1280" height="640" fill="#010409"/>
+  <!-- Block 1: the lockup. Receipt glyph and wordmark composed as ONE object
+       (tokens.json > wordmark.minimum_size.full_lockup), the same geometry the
+       banners ship, scaled 1.5x. The stamped rule and seal are repo.muted, a
+       declared structural neutral, following the banners' own precedent: the
+       instrument's green does not appear here and no replacement accent was
+       minted (tokens.json > closed_gaps.instrument_green_on_inventory_assets). -->
+  <g transform="translate(96,110) scale(1.5)">
+    <path d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"
+          fill="none" stroke="#e6edf3" stroke-width="3" stroke-linejoin="round"/>
+    <line x1="14" y1="24" x2="58" y2="24" stroke="#e6edf3" stroke-width="3" stroke-linecap="round"/>
+    <line x1="14" y1="40" x2="58" y2="40" stroke="#e6edf3" stroke-width="3" stroke-linecap="round"/>
+    <line x1="14" y1="56" x2="40" y2="56" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="53" cy="56" r="6.5" fill="none" stroke="#8b949e" stroke-width="2.5"/>
+    <circle cx="53" cy="56" r="2" fill="#8b949e"/>
+  </g>
+  <text x="248" y="220" class="mono" font-size="66" font-weight="700" fill="#e6edf3">skills</text>
+  <!-- Block 2: the statement. Owner-typed, byte-exact from VERBATIM.md:76.
+       One line of type; prose sits in the sans face (DESIGN.md, mono is for
+       checkable values). 48 characters at 40px ends well inside the 96px
+       safe area on the 1280 canvas. -->
+  <text x="96" y="392" class="body" font-size="40" fill="#e6edf3">Skills that started with problems I encountered.</text>
+  <!-- Block 3: the supporting state. The one documented install route
+       (README.md:94), the card's single CTA and its only rounded element. -->
+  <rect x="96" y="448" width="540" height="68" rx="4" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+  <text x="126" y="491" class="mono" font-size="24" fill="#e6edf3">npx skills add MrBinnacle/skills</text>
+</svg>
