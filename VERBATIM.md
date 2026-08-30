@@ -71,7 +71,7 @@ Said when that opening sentence was quoted back to him as the example of his own
 
 ### On the repository description — 2026-08-12
 
-Said when asked what the repository was about:
+The GitHub repository description, recorded as the source of this line:
 
 > Skills that started with problems I encountered.
 

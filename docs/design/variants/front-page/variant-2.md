@@ -2,9 +2,11 @@
 
 **These aren't the Claude Code skills you're looking for.**
 
-A small collection of Claude Code skills developed from problems encountered in actual use. The
-collection is intentionally small: these are the skills found useful enough to keep developing
-and maintaining.
+Skills that started with problems I encountered.
+
+A small collection of Claude Code skills I develop from problems encountered in actual use.
+
+The collection is intentionally small. These are the skills I have found useful enough to keep developing and maintaining.
 
 ## Admission method
 

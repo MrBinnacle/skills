@@ -1,6 +1,12 @@
 # `skills`
 
-A small collection of Claude Code skills developed from problems encountered in actual use.
+Skills that started with problems I encountered.
+
+A small collection of Claude Code skills I develop from problems encountered in actual use.
+
+Most originated in something that went wrong, or nearly did. I recorded the failure pattern and developed a reusable intervention. Their records say `OBSERVED`, with dates.
+
+Some were designed for recurring work that I wanted to handle differently. Their records say `DESIGNED`.
 
 ## Evidence
 

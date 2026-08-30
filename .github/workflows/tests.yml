@@ -424,7 +424,9 @@ jobs:
             printf 'Source: [`VERBATIM.md`](VERBATIM.md), *On method*, 2026-08-12.\n\n'
             printf '## The name\n'
           } > "$tree/BRAND.md"
-          printf '# README\n\nI love building skills.\n\n' > "$tree/README.md"
+          # Verb is deliberate: a whitelist-of-verbs detector would miss
+          # "believe" and green this control while the check is broken.
+          printf '# README\n\nI believe this fixture line was never said.\n\n' > "$tree/README.md"
           if python scripts/validate_voice_provenance.py --root "$tree" > "$log" 2>&1; then
             echo "::error::an uncited first-person sentence on README.md was ACCEPTED — the surface check does not work"
             cat "$log"

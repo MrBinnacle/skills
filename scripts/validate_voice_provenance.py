@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuse a voice specimen in BRAND.md that has no provenance.
+"""Refuse a voice specimen that has no provenance in VERBATIM.md.
 
 BRAND.md's Voice section once derived the owner's voice by reading the shipped
 front page. The front page opened with generated copy in his voice, so BRAND.md
@@ -8,7 +8,7 @@ and nothing in the loop was checkable because the only source was the page
 itself. This script is the check behind the replacement rule: a voice specimen
 is a line the owner wrote or ratified, cited to VERBATIM.md.
 
-THE FORM A SPECIMEN MUST TAKE
+THE FORM A SPECIMEN MUST TAKE (BRAND.md Voice section)
     A markdown blockquote inside the `## Voice` section, followed by a line
     beginning `Source:`.
 
@@ -20,9 +20,15 @@ THE FORM A SPECIMEN MUST TAKE
     exists to have caught. Prose in this section that needs to name a phrase
     should restructure or use single quotes.
 
-    Scope is the Voice section only. Other sections quote the shipped surfaces on
-    purpose -- what the repository CLAIMS is properly read off what it ships.
-    Only the claim about how the owner WRITES cannot be sourced that way.
+    Scope of the citation check is the Voice section only. Other BRAND.md
+    sections quote the shipped surfaces on purpose -- what the repository
+    CLAIMS is properly read off what it ships. Only the claim about how the
+    owner WRITES cannot be sourced that way.
+
+FIRST-PERSON LINES ON SCANNED SURFACES
+    README.md (and any further path in FIRST_PERSON_SURFACES) is scanned for
+    first-person lines. Every such line must equal a recorded VERBATIM.md line
+    exactly. The surface list is data: adding a surface is a data edit.
 
 THE ASSERTIONS
     1. Every specimen is followed by an explicit `Source:` line.
@@ -109,23 +115,19 @@ SHIPPED_SURFACES: Final[frozenset[str]] = frozenset(
 SECTION_HEADING: Final[str] = "## Voice"
 CITATION_PREFIX: Final[str] = "Source:"
 
-# Surfaces to scan for first-person sentences that must be recorded.  This is a
+# Surfaces to scan for first-person lines that must be recorded. This is a
 # data-driven list: adding a surface is a data edit, not a code change.
 FIRST_PERSON_SURFACES: Final[list[tuple[str, str]]] = [
     ("README.md", "first-person sentence"),
 ]
 
-# Detect a line where "I" is the grammatical subject making a first-person
-# claim.  The pattern matches "I" followed by a space and then a verb form.
-# Lines inside fenced code blocks are stripped before this runs.
-FIRST_PERSON_RE: Final[re.Pattern[str]] = re.compile(
-    r"\bI\s+(?:develop|found|record|recorded|want|wanted|am|have|use|keep|also"
-    r"|love|need|think|know|see|like|make|took|take|gave|give|told|tell"
-    r"|asked|ask|tried|try|started|start|stopped|stop|ran|run|worked|work"
-    r"|built|build|wrote|write|read|go|come|got|get|set|put|let|say"
-    r"|built|build|investigated|investigate|wanted|handle|handling)\b",
-    re.IGNORECASE,
-)
+# First-person singular pronoun as it appears in English prose: capital "I",
+# including the "I" inside I'm / I've / I'd / I'll. A verb whitelist is refused
+# here on purpose -- it lets any unlisted first-person construction ("I believe",
+# "I encountered", "I'm …") onto a public surface without a record. Fenced code
+# is stripped before this runs; the match is case-sensitive so a mid-sentence
+# roman numeral stays out only when it is not the pronoun.
+FIRST_PERSON_RE: Final[re.Pattern[str]] = re.compile(r"\bI\b")
 FENCE: Final[re.Pattern[str]] = re.compile(r"^\s*(```|~~~)")
 MD_FILE: Final[re.Pattern[str]] = re.compile(r"([A-Za-z0-9_.-]+\.md)")
 DATE: Final[re.Pattern[str]] = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
@@ -404,8 +406,8 @@ def validate(root: Path) -> None:
         for item in problems:
             print(f"  - {item}", file=sys.stderr)
         fail(
-            f"{len(problems)} voice specimen problem(s) in BRAND.md. Voice comes "
-            f"from {RECORD_NAME}; a shipped surface cannot supply provenance."
+            f"{len(problems)} voice specimen problem(s). Voice comes from "
+            f"{RECORD_NAME}; a shipped surface cannot supply provenance."
         )
 
     print(

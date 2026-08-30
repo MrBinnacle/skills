@@ -1,6 +1,8 @@
 # `skills`
 
-A small collection of Claude Code skills developed from problems encountered in actual use.
+Skills that started with problems I encountered.
+
+A small collection of Claude Code skills I develop from problems encountered in actual use.
 
 ## Card map
 

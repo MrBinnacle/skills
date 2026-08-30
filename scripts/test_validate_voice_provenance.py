@@ -432,13 +432,43 @@ def case_deleted_block_specimens_are_gone() -> None:
 
 
 def case_readme_first_person_not_recorded_is_red(root: Path) -> None:
-    """A first-person sentence on a surface not recorded in VERBATIM.md."""
+    """A first-person sentence on a surface not recorded in VERBATIM.md.
+
+    The fixture deliberately uses a verb ("believe") no whitelist would have to
+    special-case: the detector matches the pronoun, not a curated verb list.
+    """
     red(
         root,
         "an uncited first-person sentence on README.md",
         f"> {ROUGH_LINE}\n\n{CITE}\n",
         "first-person sentence on README.md is not recorded",
-        readme_body="# README\n\nI love building skills.\n\n",
+        readme_body="# README\n\nI believe this fixture line was never said.\n\n",
+    )
+
+
+def case_readme_first_person_recorded_passes(root: Path) -> None:
+    """The same first-person line, once recorded, must pass."""
+    build(
+        root,
+        f"> {ROUGH_LINE}\n\n{CITE}\n",
+        readme_body=f"# README\n\n{PLAIN_LINE}\n\n",
+    )
+    result = run_gate(root)
+    check(
+        "a recorded first-person sentence on README.md passes",
+        result.returncode == 0,
+        result.stderr.strip(),
+    )
+
+
+def case_readme_first_person_fragment_is_red(root: Path) -> None:
+    """Equality, not containment: a fragment of a recorded line is not that line."""
+    red(
+        root,
+        "a first-person fragment of a recorded line on README.md",
+        f"> {ROUGH_LINE}\n\n{CITE}\n",
+        "first-person sentence on README.md is not recorded",
+        readme_body="# README\n\nI told you\n\n",
     )
 
 
@@ -467,6 +497,8 @@ def main() -> None:
         case_empty_voice_section_refuses,
         case_record_without_the_lines_refuses,
         case_readme_first_person_not_recorded_is_red,
+        case_readme_first_person_recorded_passes,
+        case_readme_first_person_fragment_is_red,
         case_missing_record_refuses,
     ]
     for func in isolated:
