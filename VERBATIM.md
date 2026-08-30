@@ -68,3 +68,31 @@ Said when that opening sentence was quoted back to him as the example of his own
 
 > you can assume you'll be deleting all of both readmes from both repos for all I care and
 > starting over
+
+### On the repository description — 2026-08-12
+
+Said when asked what the repository was about:
+
+> Skills that started with problems I encountered.
+
+### On what the README says — 2026-08-12
+
+Said when the front page was drafted:
+
+> A small collection of Claude Code skills I develop from problems encountered in actual use.
+
+> The collection is intentionally small. These are the skills I have found useful enough to keep
+> developing and maintaining.
+
+> Most originated in something that went wrong, or nearly did. I recorded the failure pattern and
+> developed a reusable intervention. Their records say `OBSERVED`, with dates.
+
+> Some were designed for recurring work that I wanted to handle differently. Their records say
+> `DESIGNED`.
+
+> I am also building [`skill-harness`](https://github.com/MrBinnacle/skill-harness) to investigate
+> what Claude Code skills actually change.
+
+> `templates/BASE-OPERATING-RULES.md` contains the project-agnostic operating rules I use across
+> repositories: anti-anchoring, decision escalation, layer placement, verification, and context
+> hygiene.

@@ -403,6 +403,63 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::voice-provenance check emitted no PASS line — it did not run"; exit 1; }
 
+      # A first-person sentence on a surface that is not recorded in VERBATIM.md
+      # must be rejected. This control proves the surface-scanning check works:
+      # a README with an uncited first-person sentence fails, and for the right
+      # reason.
+      - name: Poison control — an uncited first-person sentence on README.md must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-readme-first-person"
+          log="$RUNNER_TEMP/control-readme-first-person.log"
+          mkdir -p "$tree"
+          {
+            printf '# The record\n\n## The lines\n\n'
+            printf '### On method -- 2026-08-12\n\n'
+            printf '> Follow the time stamps.\n'
+          } > "$tree/VERBATIM.md"
+          {
+            printf '# BRAND.md\n\n## Voice\n\n'
+            printf '> Follow the time stamps.\n\n'
+            printf 'Source: [`VERBATIM.md`](VERBATIM.md), *On method*, 2026-08-12.\n\n'
+            printf '## The name\n'
+          } > "$tree/BRAND.md"
+          printf '# README\n\nI love building skills.\n\n' > "$tree/README.md"
+          if python scripts/validate_voice_provenance.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::an uncited first-person sentence on README.md was ACCEPTED — the surface check does not work"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'first-person sentence on README.md is not recorded' "$log" \
+            || { echo "::error::uncited-first-person fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          echo "control: uncited first-person sentence on README.md rejected as expected"
+
+      # Every front-page variant must pass the voice-provenance check when
+      # placed as README.md. The variants live under
+      # docs/design/variants/front-page/ and each is tested by swapping it
+      # into the working tree, running the validator, and restoring the
+      # original.
+      - name: Front-page variants pass voice-provenance check
+        run: |
+          set -euo pipefail
+          backup="$RUNNER_TEMP/README.md.bak"
+          cp README.md "$backup"
+          for variant in docs/design/variants/front-page/variant-*.md; do
+            name="$(basename "$variant")"
+            cp "$variant" README.md
+            if ! out="$(python scripts/validate_voice_provenance.py 2>&1)"; then
+              echo "::error::$name failed voice-provenance check"
+              echo "$out"
+              cp "$backup" README.md
+              exit 1
+            fi
+            echo "$out" | grep -q '^PASS:' \
+              || { echo "::error::$name emitted no PASS line"; cp "$backup" README.md; exit 1; }
+            echo "variant $name passes"
+          done
+          cp "$backup" README.md
+          echo "all front-page variants pass voice-provenance check"
+
       # A gate that cannot fail guards nothing. This is the control the ticket
       # names: a specimen sourced from the shipped front page must be rejected,
       # and for THAT reason rather than incidentally. Fixture and log both live in

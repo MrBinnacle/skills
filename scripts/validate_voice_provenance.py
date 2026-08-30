@@ -108,6 +108,24 @@ SHIPPED_SURFACES: Final[frozenset[str]] = frozenset(
 
 SECTION_HEADING: Final[str] = "## Voice"
 CITATION_PREFIX: Final[str] = "Source:"
+
+# Surfaces to scan for first-person sentences that must be recorded.  This is a
+# data-driven list: adding a surface is a data edit, not a code change.
+FIRST_PERSON_SURFACES: Final[list[tuple[str, str]]] = [
+    ("README.md", "first-person sentence"),
+]
+
+# Detect a line where "I" is the grammatical subject making a first-person
+# claim.  The pattern matches "I" followed by a space and then a verb form.
+# Lines inside fenced code blocks are stripped before this runs.
+FIRST_PERSON_RE: Final[re.Pattern[str]] = re.compile(
+    r"\bI\s+(?:develop|found|record|recorded|want|wanted|am|have|use|keep|also"
+    r"|love|need|think|know|see|like|make|took|take|gave|give|told|tell"
+    r"|asked|ask|tried|try|started|start|stopped|stop|ran|run|worked|work"
+    r"|built|build|wrote|write|read|go|come|got|get|set|put|let|say"
+    r"|built|build|investigated|investigate|wanted|handle|handling)\b",
+    re.IGNORECASE,
+)
 FENCE: Final[re.Pattern[str]] = re.compile(r"^\s*(```|~~~)")
 MD_FILE: Final[re.Pattern[str]] = re.compile(r"([A-Za-z0-9_.-]+\.md)")
 DATE: Final[re.Pattern[str]] = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
@@ -244,6 +262,36 @@ def excerpt(text: str) -> str:
     return text if len(text) <= 60 else text[:57] + "..."
 
 
+def first_person_sentences(text: str) -> list[str]:
+    """First-person sentences in text, after stripping fenced code blocks."""
+    return [
+        line.strip()
+        for line in strip_fences(text.split("\n"))
+        if FIRST_PERSON_RE.search(line)
+    ]
+
+
+def check_surface(
+    root: Path,
+    surface_path: str,
+    corpus_by_text: dict[str, Recorded],
+    problems: list[str],
+) -> None:
+    """Check that every first-person sentence on a surface is recorded."""
+    path = root / surface_path
+    if not path.is_file():
+        return
+    text = path.read_text(encoding="utf-8")
+    for sentence in first_person_sentences(text):
+        if sentence not in corpus_by_text:
+            problems.append(
+                f'first-person sentence on {surface_path} is not recorded in '
+                f"{RECORD_NAME}: \"{excerpt(sentence)}\". Every first-person "
+                f"sentence on a public surface must be recorded in "
+                f"{RECORD_NAME} with provenance."
+            )
+
+
 def validate(root: Path) -> None:
     brand = root / "BRAND.md"
     record = root / RECORD_NAME
@@ -347,6 +395,10 @@ def validate(root: Path) -> None:
                 f"{', '.join(sorted(cited_dates))}, but the record dates it "
                 f"{', '.join(sorted(recorded_dates))}."
             )
+
+    # Check surfaces for first-person sentences that must be recorded.
+    for surface_name, _label in FIRST_PERSON_SURFACES:
+        check_surface(root, surface_name, by_text, problems)
 
     if problems:
         for item in problems:

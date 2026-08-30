@@ -90,13 +90,21 @@ def run_gate(root: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-def build(root: Path, voice_body: str, record: str = RECORD, tail: str = "## The name") -> None:
+def build(
+    root: Path,
+    voice_body: str,
+    record: str = RECORD,
+    tail: str = "## The name",
+    readme_body: str | None = None,
+) -> None:
     (root / "VERBATIM.md").write_text(record, encoding="utf-8")
     (root / "BRAND.md").write_text(
         "# BRAND.md\n\n## Polish\n\nSomething else.\n\n"
         f"## Voice\n\n{voice_body}\n\n{tail}\n\nAfter the section.\n",
         encoding="utf-8",
     )
+    if readme_body is not None:
+        (root / "README.md").write_text(readme_body, encoding="utf-8")
 
 
 def red(root: Path, name: str, body: str, reason: str, **kw: object) -> None:
@@ -423,6 +431,17 @@ def case_deleted_block_specimens_are_gone() -> None:
         check(f"{label} is gone from BRAND.md", fragment not in body, "still present")
 
 
+def case_readme_first_person_not_recorded_is_red(root: Path) -> None:
+    """A first-person sentence on a surface not recorded in VERBATIM.md."""
+    red(
+        root,
+        "an uncited first-person sentence on README.md",
+        f"> {ROUGH_LINE}\n\n{CITE}\n",
+        "first-person sentence on README.md is not recorded",
+        readme_body="# README\n\nI love building skills.\n\n",
+    )
+
+
 def main() -> None:
     isolated = [
         case_cited_specimen_passes,
@@ -447,6 +466,7 @@ def main() -> None:
         case_missing_voice_section_refuses,
         case_empty_voice_section_refuses,
         case_record_without_the_lines_refuses,
+        case_readme_first_person_not_recorded_is_red,
         case_missing_record_refuses,
     ]
     for func in isolated:
