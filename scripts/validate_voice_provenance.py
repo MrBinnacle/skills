@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuse a voice specimen in BRAND.md that has no provenance.
+"""Refuse a voice specimen that has no provenance in VERBATIM.md.
 
 BRAND.md's Voice section once derived the owner's voice by reading the shipped
 front page. The front page opened with generated copy in his voice, so BRAND.md
@@ -8,7 +8,7 @@ and nothing in the loop was checkable because the only source was the page
 itself. This script is the check behind the replacement rule: a voice specimen
 is a line the owner wrote or ratified, cited to VERBATIM.md.
 
-THE FORM A SPECIMEN MUST TAKE
+THE FORM A SPECIMEN MUST TAKE (BRAND.md Voice section)
     A markdown blockquote inside the `## Voice` section, followed by a line
     beginning `Source:`.
 
@@ -20,9 +20,15 @@ THE FORM A SPECIMEN MUST TAKE
     exists to have caught. Prose in this section that needs to name a phrase
     should restructure or use single quotes.
 
-    Scope is the Voice section only. Other sections quote the shipped surfaces on
-    purpose -- what the repository CLAIMS is properly read off what it ships.
-    Only the claim about how the owner WRITES cannot be sourced that way.
+    Scope of the citation check is the Voice section only. Other BRAND.md
+    sections quote the shipped surfaces on purpose -- what the repository
+    CLAIMS is properly read off what it ships. Only the claim about how the
+    owner WRITES cannot be sourced that way.
+
+FIRST-PERSON LINES ON SCANNED SURFACES
+    README.md (and any further path in FIRST_PERSON_SURFACES) is scanned for
+    first-person lines. Every such line must equal a recorded VERBATIM.md line
+    exactly. The surface list is data: adding a surface is a data edit.
 
 THE ASSERTIONS
     1. Every specimen is followed by an explicit `Source:` line.
@@ -108,6 +114,22 @@ SHIPPED_SURFACES: Final[frozenset[str]] = frozenset(
 
 SECTION_HEADING: Final[str] = "## Voice"
 CITATION_PREFIX: Final[str] = "Source:"
+
+# Surfaces to scan for first-person lines that must be recorded. This is a
+# data-driven list: adding a surface is a data edit, not a code change.
+FIRST_PERSON_SURFACES: Final[list[tuple[str, str]]] = [
+    ("README.md", "first-person sentence"),
+]
+
+# The subject pronoun "I" as it appears in English prose, including the "I"
+# inside I'm / I've / I'd / I'll. A verb whitelist is refused on purpose -- it
+# would let an unlisted construction ("I believe", "I encountered") onto a
+# public surface without a record. Coverage is the subject pronoun only: a line
+# carrying "my", "me" or "mine" with no "I" is not scanned (widening to those
+# forms is a separate change, because every line they match needs a record
+# first). The unit is a source line, and only fenced code is stripped; an inline
+# code span is scanned as prose. Case-sensitive.
+FIRST_PERSON_RE: Final[re.Pattern[str]] = re.compile(r"\bI\b")
 FENCE: Final[re.Pattern[str]] = re.compile(r"^\s*(```|~~~)")
 MD_FILE: Final[re.Pattern[str]] = re.compile(r"([A-Za-z0-9_.-]+\.md)")
 DATE: Final[re.Pattern[str]] = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
@@ -244,6 +266,36 @@ def excerpt(text: str) -> str:
     return text if len(text) <= 60 else text[:57] + "..."
 
 
+def first_person_sentences(text: str) -> list[str]:
+    """First-person sentences in text, after stripping fenced code blocks."""
+    return [
+        line.strip()
+        for line in strip_fences(text.split("\n"))
+        if FIRST_PERSON_RE.search(line)
+    ]
+
+
+def check_surface(
+    root: Path,
+    surface_path: str,
+    corpus_by_text: dict[str, Recorded],
+    problems: list[str],
+) -> None:
+    """Check that every first-person sentence on a surface is recorded."""
+    path = root / surface_path
+    if not path.is_file():
+        return
+    text = path.read_text(encoding="utf-8")
+    for sentence in first_person_sentences(text):
+        if sentence not in corpus_by_text:
+            problems.append(
+                f'first-person sentence on {surface_path} is not recorded in '
+                f"{RECORD_NAME}: \"{excerpt(sentence)}\". Every first-person "
+                f"sentence on a public surface must be recorded in "
+                f"{RECORD_NAME} with provenance."
+            )
+
+
 def validate(root: Path) -> None:
     brand = root / "BRAND.md"
     record = root / RECORD_NAME
@@ -348,12 +400,16 @@ def validate(root: Path) -> None:
                 f"{', '.join(sorted(recorded_dates))}."
             )
 
+    # Check surfaces for first-person sentences that must be recorded.
+    for surface_name, _label in FIRST_PERSON_SURFACES:
+        check_surface(root, surface_name, by_text, problems)
+
     if problems:
         for item in problems:
             print(f"  - {item}", file=sys.stderr)
         fail(
-            f"{len(problems)} voice specimen problem(s) in BRAND.md. Voice comes "
-            f"from {RECORD_NAME}; a shipped surface cannot supply provenance."
+            f"{len(problems)} voice specimen problem(s). Voice comes from "
+            f"{RECORD_NAME}; a shipped surface cannot supply provenance."
         )
 
     print(

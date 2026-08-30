@@ -560,7 +560,7 @@ mechanism working. An evolving ecosystem, not a chop list.
    | `scripts/validate_scoreboard.py` | `scripts/test_readme_admission_lead.py` | derived counts, the banner line, origin tiering |
    | `scripts/validate_eval_corpora.py` | `scripts/test_validate_eval_corpora.py` | a renamed card breaks its corpus's `skill_name` |
    | `scripts/validate_skill_formats.py` | `scripts/test_validate_skill_formats.py` | a card file whose extension is outside `.md`/`.txt`/`.py`/`.json`, or a `__pycache__` bytecode file with no source beside it. **No size check exists** — the size guidance under "Authoring conventions" is unenforced |
-   | `scripts/validate_voice_provenance.py` | `scripts/test_validate_voice_provenance.py` | a quotation in `BRAND.md` section `## Voice` with no `Source:` line citing `VERBATIM.md`. **Scope is that section only** — it reads no `SKILL.md` and no README, so no ordinary prose edit can red it |
+    | `scripts/validate_voice_provenance.py` | `scripts/test_validate_voice_provenance.py` | a quotation in `BRAND.md` section `## Voice` with no `Source:` line citing `VERBATIM.md`, or a first-person line on a scanned surface (README.md today) that is not a recorded `VERBATIM.md` line |
    | `scripts/validate_brand_kit.py` | `scripts/test_validate_brand_kit.py` | declared colours, banned words, asset hash pairs |
    | `scripts/validate_conformance.py --root .` | `scripts/test_validate_conformance.py` | governance surfaces (the scheduled job's own pair), and O7's manifest-vs-tree check |
    | `scripts/validate_spec_conformance.py` | `scripts/test_validate_spec_conformance.py` | the OFFICIAL spec validator over both trees. **Needs `npx`.** Its suite tests the allowance classifier only and says so; the live run is CI's |

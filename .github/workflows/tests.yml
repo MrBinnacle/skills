@@ -403,6 +403,39 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::voice-provenance check emitted no PASS line — it did not run"; exit 1; }
 
+      # A first-person sentence on a surface that is not recorded in VERBATIM.md
+      # must be rejected. This control proves the surface-scanning check works:
+      # a README with an uncited first-person sentence fails, and for the right
+      # reason.
+      - name: Poison control — an uncited first-person sentence on README.md must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-readme-first-person"
+          log="$RUNNER_TEMP/control-readme-first-person.log"
+          mkdir -p "$tree"
+          {
+            printf '# The record\n\n## The lines\n\n'
+            printf '### On method -- 2026-08-12\n\n'
+            printf '> Follow the time stamps.\n'
+          } > "$tree/VERBATIM.md"
+          {
+            printf '# BRAND.md\n\n## Voice\n\n'
+            printf '> Follow the time stamps.\n\n'
+            printf 'Source: [`VERBATIM.md`](VERBATIM.md), *On method*, 2026-08-12.\n\n'
+            printf '## The name\n'
+          } > "$tree/BRAND.md"
+          # Verb is deliberate: a whitelist-of-verbs detector would miss
+          # "believe" and green this control while the check is broken.
+          printf '# README\n\nI believe this fixture line was never said.\n\n' > "$tree/README.md"
+          if python scripts/validate_voice_provenance.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::an uncited first-person sentence on README.md was ACCEPTED — the surface check does not work"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'first-person sentence on README.md is not recorded' "$log" \
+            || { echo "::error::uncited-first-person fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          echo "control: uncited first-person sentence on README.md rejected as expected"
+
       # A gate that cannot fail guards nothing. This is the control the ticket
       # names: a specimen sourced from the shipped front page must be rejected,
       # and for THAT reason rather than incidentally. Fixture and log both live in

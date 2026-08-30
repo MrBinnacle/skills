@@ -68,3 +68,31 @@ Said when that opening sentence was quoted back to him as the example of his own
 
 > you can assume you'll be deleting all of both readmes from both repos for all I care and
 > starting over
+
+### On the repository description — 2026-08-30
+
+The GitHub repository description (the About box, the owner's own typed text). The day it was typed is not recorded; 2026-08-30 is the day the README joined the scanned surfaces and the line was recorded here from that field:
+
+> Skills that started with problems I encountered.
+
+### On what the README says — 2026-08-30
+
+The first-person lines of `README.md` as shipped at `f42d167`, ratified by the owner at the merges that shipped them. The day each was first written is not recorded; 2026-08-30 is the day they were recorded here, when the README joined the scanned surfaces:
+
+> A small collection of Claude Code skills I develop from problems encountered in actual use.
+
+> The collection is intentionally small. These are the skills I have found useful enough to keep
+> developing and maintaining.
+
+> Most originated in something that went wrong, or nearly did. I recorded the failure pattern and
+> developed a reusable intervention. Their records say `OBSERVED`, with dates.
+
+> Some were designed for recurring work that I wanted to handle differently. Their records say
+> `DESIGNED`.
+
+> I am also building [`skill-harness`](https://github.com/MrBinnacle/skill-harness) to investigate
+> what Claude Code skills actually change.
+
+> `templates/BASE-OPERATING-RULES.md` contains the project-agnostic operating rules I use across
+> repositories: anti-anchoring, decision escalation, layer placement, verification, and context
+> hygiene.
