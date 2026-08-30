@@ -1,0 +1,29 @@
+# GENERATED FILE - do not edit.
+# Rendered from assets/tokens.json > copy.words_to_avoid by
+# scripts/validate_vale_style.py --write. Edit the token file, then regenerate.
+#
+# Scope: this rule is bound in .vale.ini to the globs declared in
+# copy.words_to_avoid_surfaces. It is deliberately NOT applied to the tree - the
+# token file states that banned words appear in working documentation on purpose.
+
+extends: existence
+message: "Marketing copy: %s is banned on public asset copy (assets/tokens.json > copy.words_to_avoid)."
+level: warning
+ignorecase: true
+scope: heading
+tokens:
+  - '\bearn\b'
+  - '\bearns\b'
+  - '\bearned\b'
+  - '\bearning\b'
+  - '\bcurated\b'
+  - '\bload\-bearing\b'
+  - '\bpowerful\b'
+  - '\bseamless\b'
+  - '\brevolutionary\b'
+  - '\bgame\-changing\b'
+  - '\bproduction\-ready\b'
+  - '\bAI\-powered\b'
+  - '\bunlock\b'
+  - '\bsupercharge\b'
+  - '\brobust\b'

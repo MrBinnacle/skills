@@ -1,0 +1,63 @@
+# Prose lint, WARNING LEVEL, by ticket #194.
+#
+# This job reports Taste findings and never gates a merge. It is a separate
+# workflow from tests.yml on purpose: `validator` is a required check, so a step
+# added there becomes a gate whether or not anyone intended it. Keeping the prose
+# run outside that job is what makes "warning level" true of the graph and not
+# only of the config.
+#
+# `continue-on-error: true` carries the other half. Without it the job fails its
+# own run on any finding, which is a gate in everything but name.
+#
+# WHAT GATES INSTEAD. `scripts/validate_vale_style.py` runs inside `validator` and
+# does block: it checks that the six vendored rules still match the digests
+# recorded from MrBinnacle/skill-harness, that the generated marketing rule agrees
+# with assets/tokens.json, and that the marketing scope has not been widened past
+# the surfaces that file declares. Style drift is an objective defect. Whether a
+# given sentence is too vague is not.
+#
+# PROMOTING THIS TO A GATE is a decision about who the style rules bind, not a
+# config tweak - see MrBinnacle/skills_research#108, which also carries the
+# per-rule hit counts this job's first run recorded.
+
+name: vale
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  vale:
+    name: Vale (prose lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # Pinned to the same version recorded in styles/Taste/STYLE_SOURCE.json.
+      # Moving one without the other lets the two repositories run different
+      # engines over identical rules.
+      - name: Install Vale
+        run: |
+          set -euo pipefail
+          VALE_VERSION=3.9.1
+          curl -sL "https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz" \
+            | tar xz -C /usr/local/bin vale
+          vale --version
+
+      - name: Confirm the pinned version matches the recorded source
+        run: |
+          set -euo pipefail
+          recorded="$(python -c "import json;print(json.load(open('styles/Taste/STYLE_SOURCE.json'))['vale_version'])")"
+          installed="$(vale --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+          [ "$recorded" = "$installed" ] \
+            || { echo "::error::STYLE_SOURCE.json records Vale $recorded, workflow installed $installed"; exit 1; }
+          echo "Vale $installed matches the recorded pin"
+
+      - name: Run Vale on prose
+        run: vale --config .vale.ini README.md skills/ docs/
