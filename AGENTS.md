@@ -269,8 +269,8 @@ recurrence is never counted. When a card's problem happens again:
 Retirement is a first-class event, not an afterthought — the collection's credibility comes
 from shrinking honestly. A skill leaves two ways:
 
-- **Screen null** — a newer model passes the skill's task with-and-without at the ceiling
-  (skill-harness); nothing is left for the skill to improve.
+- **Harness cut** — a current receipt carries `CUT` with its `cut_sub_reason`; nothing is
+  left for the skill to improve.
 - **Pre-registered platform-fix** — the skill's `EVIDENCE.md` re-screen trigger names a
   specific platform change that would make the underlying failure impossible; when that change
   ships, the skill retires against its own stated criterion, no screen required.
@@ -278,9 +278,9 @@ from shrinking honestly. A skill leaves two ways:
 Execute a retirement as: remove the skill directory; drop it from its bucket README and the
 top-level README; add a row + a short narrative to
 `RETIRED.md` with the cause stated plainly; and link the evidence at the **last release tag**
-(`blob/<tag>/…`) so "record intact" survives the file's removal. If a general lesson outlives
-the skill, name it in the retirement note as ordinary hygiene rather than resurrecting the
-card.
+(`blob/<tag>/…`) and the receipt at the harness commit, so "record intact" survives the
+file's removal. If a general lesson outlives the skill, name it in the retirement note as
+ordinary hygiene rather than resurrecting the card.
 
 The banner no longer states counts (owner ruling 2026-08-23, skill-harness #216: a static
 graphic that must track repository state is a maintenance tax). Instead it carries one ruled
@@ -332,6 +332,13 @@ this repository plus two maintainer-supplied evidence locations — session reco
 telemetry. The maintainer's private trigger skill only names those locations and points here;
 if a cold session cannot run the pass from this section, the defect is in this section.
 
+**Two triggers.** The pass fires on two occasions. On arrival: the session that commits a
+receipt for a published card — a controlled row rewritten with a Receipt clause — runs the
+disposition for that card in the same working unit. At the rotation pass: the "Read existing
+verdicts read-only" step (step 4) sweeps every receipt whose `skill_id` matches a published
+card, using the receipt files under the harness's `docs/sers/receipts/` at the named harness
+commit declared in the Inputs table.
+
 **Harvest first, tidying second.** Evidence accrues across every project the maintainer
 works, faster than anyone collects it. The pass collects it, reconciles what it changes, and
 adjudicates what it licenses. "Less" is the bar, not a number: admission stays
@@ -346,6 +353,7 @@ mechanism working. An evolving ecosystem, not a chop list.
 | `README.md` per-card table; scoreboard-derived counts | Derived. Reconciled, never authored independently. |
 | Usage telemetry (maintainer-supplied) | Authoritative for invocation counts. Silent on efficacy. |
 | Session records (maintainer-supplied) | Authoritative for occasions — the cheapest evidence in the system. |
+| Harness release (declared per pass) | Authoritative — the harness version the collection judges receipts against, re-dated at each pass. |
 | External planning notes | Never canonical. Hypotheses, each checked against this repo. |
 
 ### The pass
@@ -489,10 +497,13 @@ mechanism working. An evolving ecosystem, not a chop list.
      counterfixture — because that is the only shape the harness can return a real verdict
      on. Two candidates qualify today: `mock-masked-stub-trap` and
      `walk-the-recipe-as-target-user`.
-   - **Read existing verdicts read-only** rather than running anything, when the store holds
-     them: `python -m skill_harness screen verdict --evidence-db <path>/evidence.db`.
-     Checked 2026-08-23: that store answered "No admissible screens in the store", so no
-     published card's label can currently be sourced from it.
+   - **Read existing verdicts read-only** rather than running anything, from two sources.
+     First, the harness's evidence store: `python -m skill_harness screen verdict
+     --evidence-db <path>/evidence.db`. Checked 2026-08-23: that store answered "No
+     admissible screens in the store", so no published card's label can currently be
+     sourced from it. Second, the receipt files under the harness's `docs/sers/receipts/`
+     at the named harness commit declared in the Inputs table — sweep every receipt whose
+     `skill_id` matches a published card.
    - **Never manufacture a number.** The vocabulary is closed — `KEEP`, `CUT` (`subsumed` |
      `no_lift` | `harmful`), `CANT_TELL_YET` — and a missing number is a typed refusal. **A
      passing acceptance test is not a screen result**; see Hard stops.
@@ -500,11 +511,48 @@ mechanism working. An evolving ecosystem, not a chop list.
    Done when every card the pass proposes to admit or retire either carries a screen verdict,
    or carries a dated statement of why no screen applies to it.
 
-5. **Reconcile, then validate.** Propagate each count or label change to every derived
+5. **Currency gate — run on every receipt before any disposition.** A receipt that is not
+   current disposes nothing: its row reads `CANT_TELL_YET (stale receipt: <reason>)` and
+   keeps the receipt link as history. The four checks run fail-closed with typed reasons:
+
+   - **Card content:** `no_skill_id` (receipt lacks `subject_identity.skill_id`),
+     `card_hash_mismatch` (receipt's `skill_id` differs from `sha256(SKILL.md)`).
+   - **Harness identity:** `no_harness_version` (receipt lacks
+     `subject_identity.harness_version`), `harness_mismatch` (receipt's harness version
+     differs from the declared pass harness), `oracle_stale` (receipt's
+     `instrument_identity` differs from the declared pass oracle), `model_drift` (receipt's
+     `instrument_identity.extractor_model` differs from the declared pass model).
+   - **Trigger attestation:** `no_trigger_row` (card lacks a `Re-screen trigger` row),
+     `attestation_missing` (trigger row present but no attestation clause),
+     `attestation_expired` (attestation date precedes the receipt's `source.date`),
+     `trigger_fired` (attestation names a trigger that has already shipped).
+   - **Arm coverage:** `arm_coverage` (receipt's `subject_identity.arms` does not include
+     both `null` and `full` for a two-arm receipt, or does not include `null` for a
+     Null-only receipt).
+
+   A not-current receipt's verdict is not applied and the `Re-screen trigger` attestation is
+   not re-dated. Done when every receipt swept in step 4 has been currency-checked: current
+   receipts proceed to the record step; not-current receipts carry
+   `CANT_TELL_YET (stale receipt: <reason>)` on the controlled row and are not disposed.
+6. **Record step — rewrite the controlled row with the receipt clause.** For each current
+   receipt (passed the currency gate), rewrite the controlled row (`Screen result` for a
+   Null-only receipt, `Paired verdict` for two-arm) to the row shape: `<VERDICT>. Receipt:
+   [<file>.json](<harness blob URL pinned to a commit, never main>), dated <source.date>,
+   harness <harness_version>. <reason and caveats>`. For `CANT_TELL_YET` the prose names
+   the typed reason. The `Re-screen trigger` attestation is re-dated. The clause is a
+   convention; the three required rows are unchanged.
+7. **Dispose step — route by verdict.** `KEEP` and `CANT_TELL_YET` stop at the row; a
+   `CANT_TELL_YET` card stays published with its typed reason. `CUT` fires Retirement
+   through its first route (see "Retirement" above), widened from "Screen null" to
+   **"Harness cut — a current receipt carries `CUT` with its `cut_sub_reason`"**; the
+   `RETIRED.md` "What made it unnecessary" cell opens with the `cut_sub_reason` word. The
+   route's evidence is the receipt.
+8. **Reconcile, then validate.** Propagate each count or label change to every derived
    surface, walking the consequence chain before the edit — a one-integer change
    legitimately breaks several pins at once, and each break is the guard working: fix the
    surface, keep the pin. Then run the whole gate set with `PYTHONUTF8=1` — eight validators
    and their eight suites:
+
 
    | Validator | Suite | What a pass most often breaks here |
    |---|---|---|
@@ -568,14 +616,18 @@ mechanism working. An evolving ecosystem, not a chop list.
    touched — both parity suites and the poison control** pass, AND a re-run of the whole pass
    with no new evidence would produce zero diff: the pass re-derives from current records every
    time, keeps no incremental state, and is safe to run twice.
-6. **Adjudicate.** Four dispositions, not two: admit, retire, **repair** (step 3), or a dated
+9. **Adjudicate.** Four dispositions, not two: admit, retire, **repair** (step 3), or a dated
    deferral. New candidates enter through the [admission policy](ADMISSION.md), answered via
    the gate card; retirement candidates leave through "Retirement" above. `_quarantine/`
    promotion is `git mv`, so the card carries its history. Open a candidate's
    `PROVENANCE.md` before diagnosing drift or duplication — one candidate is a staged patch
    to an already-promoted card, and it has been misread as version drift once already. Done
    when every surfaced candidate carries a disposition or a dated deferral.
-7. **Ship.** Branch → PR with a changeset. Merge authority is the maintainer's to hold or to
+10. **O5 step — run with `--harness-root`.** The pass runs O5 with `--harness-root` as a
+    named step and records its output line in the pass note. Done when every published card
+    whose `skill_id` matches a receipt carries that receipt's verdict or a typed not-current
+    reason on its controlled row.
+11. **Ship.** Branch → PR with a changeset. Merge authority is the maintainer's to hold or to
    delegate, and this file does not fix which — it fixes the gates, which hold either way: CI
    green, and the PR head SHA matching the branch ref before the button is pressed. That second
    gate is not ceremony. A PR merged while later commits were still being pushed froze its head
