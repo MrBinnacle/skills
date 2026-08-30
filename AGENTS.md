@@ -332,6 +332,13 @@ this repository plus two maintainer-supplied evidence locations — session reco
 telemetry. The maintainer's private trigger skill only names those locations and points here;
 if a cold session cannot run the pass from this section, the defect is in this section.
 
+**Two triggers.** The pass fires on two occasions. On arrival: the session that commits a
+receipt for a published card — a controlled row rewritten with a Receipt clause — runs the
+disposition for that card in the same working unit. At the rotation pass: the "Read existing
+verdicts read-only" step (step 4) sweeps every receipt whose `skill_id` matches a published
+card, using the receipt files under the harness's `docs/sers/receipts/` at the named harness
+commit declared in the Inputs table.
+
 **Harvest first, tidying second.** Evidence accrues across every project the maintainer
 works, faster than anyone collects it. The pass collects it, reconciles what it changes, and
 adjudicates what it licenses. "Less" is the bar, not a number: admission stays
@@ -489,10 +496,13 @@ mechanism working. An evolving ecosystem, not a chop list.
      counterfixture — because that is the only shape the harness can return a real verdict
      on. Two candidates qualify today: `mock-masked-stub-trap` and
      `walk-the-recipe-as-target-user`.
-   - **Read existing verdicts read-only** rather than running anything, when the store holds
-     them: `python -m skill_harness screen verdict --evidence-db <path>/evidence.db`.
-     Checked 2026-08-23: that store answered "No admissible screens in the store", so no
-     published card's label can currently be sourced from it.
+   - **Read existing verdicts read-only** rather than running anything, from two sources.
+     First, the harness's evidence store: `python -m skill_harness screen verdict
+     --evidence-db <path>/evidence.db`. Checked 2026-08-23: that store answered "No
+     admissible screens in the store", so no published card's label can currently be
+     sourced from it. Second, the receipt files under the harness's `docs/sers/receipts/`
+     at the named harness commit declared in the Inputs table — sweep every receipt whose
+     `skill_id` matches a published card.
    - **Never manufacture a number.** The vocabulary is closed — `KEEP`, `CUT` (`subsumed` |
      `no_lift` | `harmful`), `CANT_TELL_YET` — and a missing number is a typed refusal. **A
      passing acceptance test is not a screen result**; see Hard stops.
