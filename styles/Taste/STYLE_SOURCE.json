@@ -1,0 +1,15 @@
+{
+  "$note": "Pinned provenance for the vendored Taste style. The source of truth is skill-harness; this repository consumes a byte-equal copy. scripts/validate_vale_style.py recomputes every digest and refuses a mismatch, so a local edit to a vendored rule fails rather than forking the style silently. Re-vendor by copying the files and re-running the recorder, never by editing a digest.",
+  "source_repo": "MrBinnacle/skill-harness",
+  "source_path": "styles/Taste",
+  "source_commit": "f73d79aca2f7c044803e1a8be61fdd667c956bfa",
+  "vale_version": "3.9.1",
+  "files": {
+    "Brevity-and-order.yml": "cd3da8e50409513b9b5a44e90ef0e4c7f9a6d92f92641431fd2ffa3e18946708",
+    "Dressing.yml": "2f41c4d55cd56ca34e508d7591f8c62b3717cb74b929f4782b6308045318ccba",
+    "Evidence.yml": "4ec77e85fc1494e3666fe0fe8ba60205628e7f9eed78bfe7322dc5c69966f22f",
+    "Generic-ness.yml": "fa5353686aca17911b6dbdc87c79a901a4f9ddc7bca31ae6e351ddb58f0dfcfc",
+    "Register.yml": "34eca27f3b0899c1c76ec160d600186b2b47a2b428a788de35224e39d3ce3cc3",
+    "Voice.yml": "1fc6c12d5a491fa541f52bfcfdf7065d3bcc6ab8a6f618423453fe0e9e657f14"
+  }
+}

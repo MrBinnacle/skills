@@ -59,3 +59,34 @@ repos:
         language: pygrep
         entry: 'MrBinnacle/writ'
         files: '\.md$'
+
+      # -- Taste prose style (#194) ------------------------------------------
+      #
+      # THREE HOOKS, TWO JOBS. The first guards the CONFIGURATION and always runs:
+      # a vendored rule edited locally, a generated rule out of step with
+      # assets/tokens.json, or a widened marketing scope all fail here. It needs no
+      # Vale binary, so it works on every clone.
+      #
+      # The second and third run VALE ITSELF at error level. Every row currently
+      # ships at warning, so they are a deliberate no-op until the rows are
+      # promoted - the carrier is installed now so that promotion is a level change
+      # and not a new integration. They skip cleanly when Vale is absent.
+      - id: vale-style-config
+        name: "Taste style config: vendored digests, generated rule, scope binding"
+        language: system
+        entry: python scripts/validate_vale_style.py
+        pass_filenames: false
+        always_run: true
+
+      - id: vale-prose
+        name: "Taste prose (error level) on staged markdown"
+        language: system
+        entry: python scripts/vale_hook.py
+        files: '\.md$'
+
+      - id: vale-commit-msg
+        name: "Taste prose (error level) on the commit message"
+        language: system
+        entry: python scripts/vale_hook.py --commit-msg
+        stages: [commit-msg]
+        always_run: true

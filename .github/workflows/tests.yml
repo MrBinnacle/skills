@@ -55,6 +55,25 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::captured-exit suite emitted no PASS line - it did not run"; exit 1; }
 
+      # #194: the Taste style is authored in skill-harness and vendored here. These
+      # two steps check CONFIGURATION INTEGRITY - digests, generated-rule agreement,
+      # and the scope binding - and they GATE, because a vendored rule that no longer
+      # matches its source is an objective defect, not a matter of taste. The prose
+      # findings themselves are warning-level and live in the `vale` job below.
+      - name: Vale style configuration suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_vale_style.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::vale-style suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Vale style configuration check
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_vale_style.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+
       # Both suites must also show ", no-drift" in the roster: the suite reports
       # parity NOT VERIFIED (and still exits 0) when it cannot find its sibling,
       # which is correct on a single-card install and self-disabling here, where

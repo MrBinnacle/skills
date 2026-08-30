@@ -1,0 +1,34 @@
+# Line endings.
+#
+# SCOPED DELIBERATELY TO styles/. That directory is HASH-PINNED:
+# styles/Taste/STYLE_SOURCE.json records a SHA-256 per vendored rule. Without an
+# eol rule Git checks those files out with CRLF on Windows and LF elsewhere, so
+# the digests describe bytes that exist on one runner and not the other. Measured:
+# PR #197 passed `validator (ubuntu-latest)` and failed `validator (windows-latest)`
+# with all six digests mismatched and nothing wrong with the files.
+#
+# A hash over a text file must not depend on the platform that checked it out.
+styles/** text eol=lf
+
+# WHY THIS FILE DOES NOT PIN THE WHOLE REPOSITORY, THOUGH IT SHOULD EVENTUALLY.
+#
+# Ten tracked files currently hold CRLF in the index:
+#
+#   .claude-plugin/marketplace.json          scripts/validate_conformance.py
+#   SECURITY.md                              scripts/validate_eval_corpora.py
+#   dispositions/2026-08-15-S295-admission-triage.md
+#   skills/engineering/git-pull-rebase-trap/SKILL.md
+#   skills/engineering/im-down/test_validate_packet.py
+#   skills/engineering/im-up/test_validate_packet.py
+#   skills/orchestration/parallel-review-disposition-schema/SKILL.md
+#   skills/orchestration/parallel-review-disposition-schema/gotchas.md
+#
+# A repository-wide `* text=auto eol=lf` marks every one of them for
+# renormalization at once. Measured on this branch: that makes `changeset status
+# --since` report changed packages where none changed, which turned the
+# spec-conformance poison control red - the control was correct and the rule was
+# too wide for the change carrying it.
+#
+# Normalizing those ten is a real cleanup with its own diff and its own review.
+# It is not part of consuming a prose style, so it is named here rather than done
+# quietly under an unrelated ticket.
