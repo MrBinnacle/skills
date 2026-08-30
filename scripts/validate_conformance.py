@@ -45,6 +45,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -227,20 +228,148 @@ def check_evidence_fields(card: Card) -> Result:
     )
 
 
-def check_receipt_agreement(card: Card) -> Result:
+def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Result:
     """O5: controlled fields must not contradict a published harness receipt.
 
-    This repository cannot run it. The measurement sibling's evidence store is
-    private and single-copy, so there is nothing here to compare a controlled
-    field against. It is checked on the maintainer's clock and reported as
-    CANNOT-CHECK, which is why CANNOT-CHECK exists as a state: promising this
-    one as CI would be a green line for a check that never ran.
+    Without --harness-root, returns CANNOT-CHECK as before: the measurement
+    sibling's evidence store is private and single-copy, so there is nothing
+    here to compare a controlled field against.
+
+    With --harness-root, reads the receipt file the card's controlled row links
+    in its Receipt clause and fails on four conditions:
+    1. the linked receipt file is absent under the harness root;
+    2. the receipt's subject_identity.skill_id differs from sha256 of SKILL.md;
+    3. the row's opening verdict word differs from the receipt's verdict;
+    4. a receipt with the same skill_id and a later source.date exists that the
+       row does not link.
     """
-    return Result(
-        CANT,
-        "no citable published receipt to compare against from inside this "
-        "repository; maintainer-clock obligation",
-    )
+    if harness_root is None:
+        return Result(
+            CANT,
+            "no citable published receipt to compare against from inside this "
+            "repository; maintainer-clock obligation",
+        )
+
+    evidence = card.folder / "EVIDENCE.md"
+    if not evidence.exists():
+        return Result(CANT, "no EVIDENCE.md to read controlled fields from")
+
+    fields = scoreboard.evidence_fields(evidence, scoreboard.CONTROLLED_FIELDS)
+    skill_md = card.folder / "SKILL.md"
+    if not skill_md.exists():
+        return Result(CANT, "no SKILL.md to compute skill_id from")
+    expected_skill_id = hashlib.sha256(skill_md.read_bytes()).hexdigest()
+
+    linked_receipts: list[Path] = []
+    linked_skill_ids: list[str] = []
+
+    for field_name in scoreboard.CONTROLLED_FIELDS:
+        value = fields.get(field_name, "")
+        match = RECEIPT_CLAUSE_RE.search(value)
+        if not match:
+            continue
+
+        row_verdict = match.group(1).strip().upper()
+        receipt_filename = match.group(2)
+
+        receipt_path = _find_receipt(harness_root, receipt_filename)
+        if receipt_path is None:
+            return Result(
+                FAIL,
+                f"receipt file {receipt_filename!r} not found under harness root",
+            )
+
+        try:
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return Result(FAIL, f"receipt {receipt_filename!r} unreadable: {exc}")
+
+        si = receipt.get("subject_identity")
+        if not isinstance(si, dict):
+            return Result(
+                FAIL,
+                f"receipt {receipt_filename!r} has no subject_identity block",
+            )
+        receipt_skill_id = si.get("skill_id")
+        if receipt_skill_id != expected_skill_id:
+            return Result(
+                FAIL,
+                f"receipt {receipt_filename!r} skill_id {receipt_skill_id!r} "
+                f"differs from sha256(SKILL.md) = {expected_skill_id!r}",
+            )
+
+        receipt_verdict = receipt.get("verdict")
+        if receipt_verdict != row_verdict:
+            return Result(
+                FAIL,
+                f"receipt {receipt_filename!r} verdict {receipt_verdict!r} "
+                f"differs from row verdict {row_verdict!r}",
+            )
+
+        linked_receipts.append(receipt_path)
+        linked_skill_ids.append(expected_skill_id)
+
+    if not linked_receipts:
+        return Result(
+            CANT,
+            "no Receipt clause in any controlled field; rotation pass "
+            "owns this case",
+        )
+
+    # Condition 4: check for a newer receipt not linked by the row
+    all_receipts = _find_all_receipts(harness_root)
+    linked_names = {p.name for p in linked_receipts}
+    for receipt_path in all_receipts:
+        if receipt_path.name in linked_names:
+            continue
+        try:
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        si = receipt.get("subject_identity")
+        if not isinstance(si, dict):
+            continue
+        rid = si.get("skill_id")
+        if rid not in linked_skill_ids:
+            continue
+        receipt_date = (receipt.get("source") or {}).get("date", "")
+        # Compare against the date of the linked receipt with the same skill_id
+        for linked in linked_receipts:
+            lr = json.loads(linked.read_text(encoding="utf-8"))
+            lr_date = (lr.get("source") or {}).get("date", "")
+            if receipt_date > lr_date:
+                return Result(
+                    FAIL,
+                    f"newer receipt {receipt_path.name!r} (dated "
+                    f"{receipt_date}) exists but is not linked by the row "
+                    f"(linked receipt dated {lr_date})",
+                )
+
+    return Result(PASS, "controlled fields agree with the linked receipt(s)")
+
+
+def _find_receipt(harness_root: Path, filename: str) -> Path | None:
+    """Find a receipt file by filename under the harness root."""
+    matches = list(harness_root.rglob(filename))
+    return matches[0] if matches else None
+
+
+def _find_all_receipts(harness_root: Path) -> list[Path]:
+    """Find all JSON files that look like SERS receipts under the harness root."""
+    results = []
+    for p in harness_root.rglob("*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(data, dict) and "sers_version" in data:
+            results.append(p)
+    return results
+
+
+RECEIPT_CLAUSE_RE: Final[re.Pattern[str]] = re.compile(
+    r"^(.+?)\.?\s*Receipt:\s*[`(\"](.+?\.json)[`\")]", re.MULTILINE
+)
 
 
 CARD_CHECKS = {
@@ -490,12 +619,17 @@ if _UNIMPLEMENTED:
     )
 
 
-def evaluate(root: Path) -> Report:
+def evaluate(root: Path, harness_root: Path | None = None) -> Report:
     cards = find_cards(root)
-    per_card = {
-        card.name: {o.oid: CARD_CHECKS[o.oid](card) for o in CARD_OBLIGATIONS}
-        for card in cards
-    }
+    per_card = {}
+    for card in cards:
+        row = {}
+        for o in CARD_OBLIGATIONS:
+            if o.oid == "O5":
+                row[o.oid] = check_receipt_agreement(card, harness_root)
+            else:
+                row[o.oid] = CARD_CHECKS[o.oid](card)
+        per_card[card.name] = row
     repo_wide = {o.oid: REPO_CHECKS[o.oid](root) for o in REPO_OBLIGATIONS}
     return Report(cards, per_card, repo_wide)
 
@@ -541,12 +675,19 @@ def main() -> None:
         help="tree to check (default: this repository)",
     )
     parser.add_argument(
+        "--harness-root",
+        type=Path,
+        default=None,
+        help="path to a skill-harness clone; enables O5 receipt agreement checks",
+    )
+    parser.add_argument(
         "--markdown", action="store_true", help="emit the per-card table as markdown"
     )
     args = parser.parse_args()
     root = args.root.resolve()
+    harness_root = args.harness_root.resolve() if args.harness_root else None
 
-    report = evaluate(root)
+    report = evaluate(root, harness_root)
     if not report.cards:
         print(
             f"REJECTED: no published cards found under {root}/skills. A run that "
