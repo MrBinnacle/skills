@@ -60,7 +60,7 @@ afterward: [the pre-registration, with each screen's registered result](https://
 |---|---|---|
 | sqlite-tie-break-red-test-trap | How to write a regression test for a database row-ordering bug so the test can't pass by coincidence | Ceiling — model passed 3/3 unaided¹ |
 | bayesian-eval-discipline | Statistical discipline for A/B-testing AI systems: when to stop, minimum sample sizes, correcting for many simultaneous comparisons | Ceiling — model passed 3/3 unaided |
-| append-only-evidence-design | How to build a database that provably never rewrites its own history (audit logs, evidence stores) | Ceiling — model passed 3/3 unaided |
+| append-only-evidence-design | How to build a database that provably never rewrites its own history (audit logs, evidence stores) | CANT_TELL_YET. [Receipt](https://github.com/MrBinnacle/skill-harness/blob/f75429c57c33e1191fa4b65632fce5d668a78312/docs/sers/receipts/reclass-append-only-evidence-design.json): wrong_instrument (calibration), p0 = 1.00 at 3/3 |
 | llm-judge-calibration | How to use one AI to grade another AI's work without the grader's known biases distorting the scores | Ceiling — model passed 3/3 unaided |
 
 ¹ This one stays in the author's private library anyway: it has two documented saves in a
