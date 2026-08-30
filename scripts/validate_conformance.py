@@ -265,13 +265,11 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
 
     for field_name in scoreboard.CONTROLLED_FIELDS:
         value = fields.get(field_name, "")
-        match = RECEIPT_CLAUSE_RE.search(value)
-        if not match:
+        receipt_filename = _receipt_filename(value)
+        if receipt_filename is None:
             continue
 
-        row_verdict = match.group(1).strip().upper()
-        receipt_filename = match.group(2)
-
+        row_verdict = _opening_verdict(value)
         receipt_path = _find_receipt(harness_root, receipt_filename)
         if receipt_path is None:
             return Result(
@@ -298,7 +296,7 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
                 f"differs from sha256(SKILL.md) = {expected_skill_id!r}",
             )
 
-        receipt_verdict = receipt.get("verdict")
+        receipt_verdict = str(receipt.get("verdict") or "").strip().upper()
         if receipt_verdict != row_verdict:
             return Result(
                 FAIL,
@@ -348,9 +346,42 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
     return Result(PASS, "controlled fields agree with the linked receipt(s)")
 
 
+def _opening_verdict(value: str) -> str:
+    """The row's opening verdict word, same startswith rule as the scoreboard.
+
+    The verdict is the first thing the field says. Prose after it — a dated
+    screen note, a Receipt clause — is not part of the word. Capturing
+    everything up to `Receipt:` would make every real card fail condition 3
+    against a matching receipt.
+    """
+    opening = value.lstrip("* `_").upper()
+    vocabulary = scoreboard.UNMEASURED_VERDICTS + scoreboard.MEASURED_VERDICTS
+    for verdict in vocabulary:
+        if opening.startswith(verdict):
+            return verdict
+    token = opening.split()[0] if opening.strip() else ""
+    return token.rstrip(".,;:")
+
+
+def _receipt_filename(value: str) -> str | None:
+    """Filename from a Receipt clause, markdown-link or backtick/quote form.
+
+    Spec shape: `Receipt: [<file>.json](<harness blob URL>), dated ...`.
+    Live cards also use backticks around a path. Both must resolve.
+    """
+    match = RECEIPT_CLAUSE_RE.search(value)
+    if not match:
+        return None
+    return match.group(1) or match.group(2)
+
+
 def _find_receipt(harness_root: Path, filename: str) -> Path | None:
-    """Find a receipt file by filename under the harness root."""
-    matches = list(harness_root.rglob(filename))
+    """Find a receipt file by relative path or basename under the harness root."""
+    direct = harness_root / filename
+    if direct.is_file():
+        return direct
+    name = Path(filename).name
+    matches = [p for p in harness_root.rglob(name) if p.is_file()]
     return matches[0] if matches else None
 
 
@@ -367,8 +398,14 @@ def _find_all_receipts(harness_root: Path) -> list[Path]:
     return results
 
 
+# Spec form: Receipt: [file.json](url). Also `file.json` / "file.json" as used
+# on live cards today. Group 1 = markdown link text; group 2 = quoted form.
 RECEIPT_CLAUSE_RE: Final[re.Pattern[str]] = re.compile(
-    r"^(.+?)\.?\s*Receipt:\s*[`(\"](.+?\.json)[`\")]", re.MULTILINE
+    r"Receipt:\s*(?:"
+    r"\[([^\]]+?\.json)\]\([^)]*\)"
+    r"|"
+    r"[`\"']([^`\"']+?\.json)[`\"']"
+    r")"
 )
 
 

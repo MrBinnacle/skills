@@ -468,6 +468,56 @@ def case_o5_matching_receipt_is_pass(root: Path) -> None:
     )
 
 
+def case_o5_matching_receipt_with_prose_is_pass(root: Path) -> None:
+    """Opening verdict word only: prose between the verdict and Receipt must
+    not be folded into the compared word. Live cards write that shape."""
+    make_tree(root)
+    harness_root = make_receipt_tree(root, CARDS[0], verdict="CANT_TELL_YET")
+    folder = root / "skills" / "engineering" / CARDS[0]
+    (folder / "EVIDENCE.md").write_text(
+        "# EVIDENCE\n\n"
+        "| Field | Value |\n|---|---|\n"
+        "| **Screen result** | CANT_TELL_YET. Screened 2026-07-21 against "
+        "this card's own registered screen; bare arm passed 3/3. "
+        "Receipt: `receipt-alpha-card.json` in the measurement repo. "
+        "Caveat bounds the number. |\n"
+        "| **Paired verdict** | UNMEASURED. |\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is PASS when prose sits between the opening verdict and Receipt",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+
+
+def case_o5_matching_receipt_markdown_link_is_pass(root: Path) -> None:
+    """Spec Receipt shape: [file.json](harness blob URL), not only backticks."""
+    make_tree(root)
+    harness_root = make_receipt_tree(root, CARDS[0], verdict="KEEP")
+    folder = root / "skills" / "engineering" / CARDS[0]
+    fname = "receipt-alpha-card.json"
+    url = (
+        "https://github.com/example/skill-harness/blob/abc123/"
+        f"docs/sers/receipts/{fname}"
+    )
+    (folder / "EVIDENCE.md").write_text(
+        "# EVIDENCE\n\n"
+        "| Field | Value |\n|---|---|\n"
+        f"| **Screen result** | KEEP. Receipt: [{fname}]({url}), "
+        "dated 2026-07-21, harness 0.2.3. |\n"
+        "| **Paired verdict** | UNMEASURED. |\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is PASS on the spec markdown-link Receipt shape",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+
+
 def case_o5_receipt_absent_is_fail(root: Path) -> None:
     """Condition 1: the linked receipt file is absent under the harness root."""
     make_tree(root)
@@ -985,6 +1035,8 @@ def main() -> None:
         case_cannot_check_is_distinct_from_pass,
         case_o5_without_harness_root_is_cannot_check,
         case_o5_matching_receipt_is_pass,
+        case_o5_matching_receipt_with_prose_is_pass,
+        case_o5_matching_receipt_markdown_link_is_pass,
         case_o5_receipt_absent_is_fail,
         case_o5_skill_id_mismatch_is_fail,
         case_o5_verdict_mismatch_is_fail,
