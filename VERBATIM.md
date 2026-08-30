@@ -69,15 +69,15 @@ Said when that opening sentence was quoted back to him as the example of his own
 > you can assume you'll be deleting all of both readmes from both repos for all I care and
 > starting over
 
-### On the repository description — 2026-08-12
+### On the repository description — 2026-08-30
 
-The GitHub repository description, recorded as the source of this line:
+The GitHub repository description (the About box, the owner's own typed text). The day it was typed is not recorded; 2026-08-30 is the day the README joined the scanned surfaces and the line was recorded here from that field:
 
 > Skills that started with problems I encountered.
 
-### On what the README says — 2026-08-12
+### On what the README says — 2026-08-30
 
-Said when the front page was drafted:
+The first-person lines of `README.md` as shipped at `f42d167`, ratified by the owner at the merges that shipped them. The day each was first written is not recorded; 2026-08-30 is the day they were recorded here, when the README joined the scanned surfaces:
 
 > A small collection of Claude Code skills I develop from problems encountered in actual use.
 

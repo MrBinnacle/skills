@@ -121,12 +121,14 @@ FIRST_PERSON_SURFACES: Final[list[tuple[str, str]]] = [
     ("README.md", "first-person sentence"),
 ]
 
-# First-person singular pronoun as it appears in English prose: capital "I",
-# including the "I" inside I'm / I've / I'd / I'll. A verb whitelist is refused
-# here on purpose -- it lets any unlisted first-person construction ("I believe",
-# "I encountered", "I'm …") onto a public surface without a record. Fenced code
-# is stripped before this runs; the match is case-sensitive so a mid-sentence
-# roman numeral stays out only when it is not the pronoun.
+# The subject pronoun "I" as it appears in English prose, including the "I"
+# inside I'm / I've / I'd / I'll. A verb whitelist is refused on purpose -- it
+# would let an unlisted construction ("I believe", "I encountered") onto a
+# public surface without a record. Coverage is the subject pronoun only: a line
+# carrying "my", "me" or "mine" with no "I" is not scanned (widening to those
+# forms is a separate change, because every line they match needs a record
+# first). The unit is a source line, and only fenced code is stripped; an inline
+# code span is scanned as prose. Case-sensitive.
 FIRST_PERSON_RE: Final[re.Pattern[str]] = re.compile(r"\bI\b")
 FENCE: Final[re.Pattern[str]] = re.compile(r"^\s*(```|~~~)")
 MD_FILE: Final[re.Pattern[str]] = re.compile(r"([A-Za-z0-9_.-]+\.md)")

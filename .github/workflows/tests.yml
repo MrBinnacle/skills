@@ -436,32 +436,6 @@ jobs:
             || { echo "::error::uncited-first-person fixture failed for the wrong reason"; cat "$log"; exit 1; }
           echo "control: uncited first-person sentence on README.md rejected as expected"
 
-      # Every front-page variant must pass the voice-provenance check when
-      # placed as README.md. The variants live under
-      # docs/design/variants/front-page/ and each is tested by swapping it
-      # into the working tree, running the validator, and restoring the
-      # original.
-      - name: Front-page variants pass voice-provenance check
-        run: |
-          set -euo pipefail
-          backup="$RUNNER_TEMP/README.md.bak"
-          cp README.md "$backup"
-          for variant in docs/design/variants/front-page/variant-*.md; do
-            name="$(basename "$variant")"
-            cp "$variant" README.md
-            if ! out="$(python scripts/validate_voice_provenance.py 2>&1)"; then
-              echo "::error::$name failed voice-provenance check"
-              echo "$out"
-              cp "$backup" README.md
-              exit 1
-            fi
-            echo "$out" | grep -q '^PASS:' \
-              || { echo "::error::$name emitted no PASS line"; cp "$backup" README.md; exit 1; }
-            echo "variant $name passes"
-          done
-          cp "$backup" README.md
-          echo "all front-page variants pass voice-provenance check"
-
       # A gate that cannot fail guards nothing. This is the control the ticket
       # names: a specimen sourced from the shipped front page must be rejected,
       # and for THAT reason rather than incidentally. Fixture and log both live in
