@@ -269,8 +269,8 @@ recurrence is never counted. When a card's problem happens again:
 Retirement is a first-class event, not an afterthought — the collection's credibility comes
 from shrinking honestly. A skill leaves two ways:
 
-- **Screen null** — a newer model passes the skill's task with-and-without at the ceiling
-  (skill-harness); nothing is left for the skill to improve.
+- **Harness cut** — a current receipt carries `CUT` with its `cut_sub_reason`; nothing is
+  left for the skill to improve.
 - **Pre-registered platform-fix** — the skill's `EVIDENCE.md` re-screen trigger names a
   specific platform change that would make the underlying failure impossible; when that change
   ships, the skill retires against its own stated criterion, no screen required.
@@ -278,9 +278,9 @@ from shrinking honestly. A skill leaves two ways:
 Execute a retirement as: remove the skill directory; drop it from its bucket README and the
 top-level README; add a row + a short narrative to
 `RETIRED.md` with the cause stated plainly; and link the evidence at the **last release tag**
-(`blob/<tag>/…`) so "record intact" survives the file's removal. If a general lesson outlives
-the skill, name it in the retirement note as ordinary hygiene rather than resurrecting the
-card.
+(`blob/<tag>/…`) and the receipt at the harness commit, so "record intact" survives the
+file's removal. If a general lesson outlives the skill, name it in the retirement note as
+ordinary hygiene rather than resurrecting the card.
 
 The banner no longer states counts (owner ruling 2026-08-23, skill-harness #216: a static
 graphic that must track repository state is a maintenance tax). Instead it carries one ruled
