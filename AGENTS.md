@@ -353,6 +353,7 @@ mechanism working. An evolving ecosystem, not a chop list.
 | `README.md` per-card table; scoreboard-derived counts | Derived. Reconciled, never authored independently. |
 | Usage telemetry (maintainer-supplied) | Authoritative for invocation counts. Silent on efficacy. |
 | Session records (maintainer-supplied) | Authoritative for occasions — the cheapest evidence in the system. |
+| Harness release (declared per pass) | Authoritative — the harness version the collection judges receipts against, re-dated at each pass. |
 | External planning notes | Never canonical. Hypotheses, each checked against this repo. |
 
 ### The pass
