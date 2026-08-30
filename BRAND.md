@@ -57,6 +57,8 @@ a comparison working against it.** Keep the frame on the record.
 
 ## Voice
 
+Instance of the **Voice** row of the taste doctrine, class 1 (public prose in `skills`). It lives in `TASTE.md` in the owner's private research repository. The test is stated there once; this section is its application to voice specimens.
+
 **The rule: a voice specimen is a line the owner wrote or ratified, cited to
 [`VERBATIM.md`](VERBATIM.md).** Provenance is a property of the line, not of the surface it
 appears on. A specimen that cannot be cited is removed rather than left uncited — an uncited line
