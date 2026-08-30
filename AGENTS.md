@@ -622,7 +622,11 @@ mechanism working. An evolving ecosystem, not a chop list.
    `PROVENANCE.md` before diagnosing drift or duplication — one candidate is a staged patch
    to an already-promoted card, and it has been misread as version drift once already. Done
    when every surfaced candidate carries a disposition or a dated deferral.
-10. **Ship.** Branch → PR with a changeset. Merge authority is the maintainer's to hold or to
+10. **O5 step — run with `--harness-root`.** The pass runs O5 with `--harness-root` as a
+    named step and records its output line in the pass note. Done when every published card
+    whose `skill_id` matches a receipt carries that receipt's verdict or a typed not-current
+    reason on its controlled row.
+11. **Ship.** Branch → PR with a changeset. Merge authority is the maintainer's to hold or to
    delegate, and this file does not fix which — it fixes the gates, which hold either way: CI
    green, and the PR head SHA matching the branch ref before the button is pressed. That second
    gate is not ceremony. A PR merged while later commits were still being pushed froze its head
