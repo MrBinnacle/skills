@@ -82,13 +82,13 @@ nudge recovered seventeen records that a single-message nudge had already failed
 Two further rules that make the failure cheap:
 
 - **Size the contract at dispatch.** If the return is more than roughly a dozen structured records
-  or several independent sections, specify the batching in the original prompt rather than
+  or more than one independent section, specify the batching in the original prompt rather than
   discovering the ceiling on recovery.
 - **Always license a partial return, explicitly:** *"send what you have and name the sections you
   did not reach and why. A partial report that names its own gaps is useful. Silence is not."*
   Without that line an agent holding a large incomplete result has no sanctioned way to deliver it.
 
-⛔ **Do not nudge a third time.** Two failed deliveries is the signal to re-run the work yourself or
+**Do not nudge a third time.** Two failed deliveries is the signal to re-run the work yourself or
 re-dispatch with a batched contract. In the observed case the caller re-ran the sweep directly and
 the result was better than the agent's method would have produced, because a scripted check
 replaced hand-matching.

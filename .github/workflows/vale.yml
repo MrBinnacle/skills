@@ -16,9 +16,19 @@
 # the surfaces that file declares. Style drift is an objective defect. Whether a
 # given sentence is too vague is not.
 #
-# PROMOTING THIS TO A GATE is a decision about who the style rules bind, not a
-# config tweak - see MrBinnacle/skills_research#108, which also carries the
-# per-rule hit counts this job's first run recorded.
+# PROMOTED by ticket #108 (the cross-repo Taste-promotion ticket): five of the six
+# Taste rows are now ERROR (see the per-row overrides in .vale.ini). This job's
+# report step keeps `continue-on-error` (a warning-level finding still never gates),
+# but a second step below runs the same lint at `--minAlertLevel=error` with no
+# continue-on-error, so a promoted row failing on a real PR reddens this job. The
+# job-level `continue-on-error` was job-scoped before promotion; it is now
+# step-scoped so the gate step can actually gate. Generic-ness stays warning; see
+# .vale.ini for the reason.
+#
+# `scripts/validate_vale_style.py` (inside `validator`) still gates vendor
+# integrity separately from either step here: style drift is an objective defect,
+# whether a sentence is too vague (or, now, too dressed/undressed/unevidenced) is
+# what these two steps report and gate respectively.
 
 name: vale
 
@@ -35,7 +45,6 @@ jobs:
     name: Vale (prose lint)
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    continue-on-error: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -59,5 +68,9 @@ jobs:
             || { echo "::error::STYLE_SOURCE.json records Vale $recorded, workflow installed $installed"; exit 1; }
           echo "Vale $installed matches the recorded pin"
 
-      - name: Run Vale on prose
+      - name: Run Vale on prose (report, all rows)
+        continue-on-error: true
         run: vale --config .vale.ini README.md skills/ docs/
+
+      - name: Run Vale on prose (gate, error-level rows only)
+        run: vale --config .vale.ini --minAlertLevel=error README.md skills/ docs/

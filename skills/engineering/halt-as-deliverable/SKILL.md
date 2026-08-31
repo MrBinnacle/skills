@@ -70,11 +70,11 @@ attempted the experiment, refused to proceed because Z was inconsistent, and
 here is the audit trail." Same evidence, sharper story — the catching of Z is
 the demonstration of claim Y.
 
-### 4. Multiple HALTs compound
+### 4. More than one HALT compounds
 
 A series of HALTs catching different classes of inconsistency (documentation
 drift, operational state, environment configuration) is dramatically more
-credible than one HALT plus several silent fixes. The compounded trail
+credible than one HALT plus more than one silent fix. The compounded trail
 triangulates what doing this honestly looks like.
 
 ## Verification
@@ -97,7 +97,7 @@ explicitly came for the result, where meta reads as evasion.
 ## Notes
 
 - The pattern requires the discipline to be REAL — falsifiable, recoverable
-  from the audit trail, applied uniformly, catching real things including the
+  from the audit trail, applied uniformly, catching real problems including the
   author's own mistakes. Decorative pre-registrations produce HALTs that do
   not generalize.
 - Identity match amplifies it: "the framework I built refused to validate my

@@ -146,7 +146,7 @@ held at 52 and 73 with zero failures — behaviour-preserving, not merely green.
 - **Rule 4 is the one this card was missing.** The 2026-08-17 instances were
   false positives. A false *negative* reads as diligence, which is why it
   survives longer: nobody re-examines a probe that found a problem.
-- **The family this belongs to.** The same defect wears several costumes: a
+- **The family this belongs to.** The same defect wears more than one costume: a
   link checker green because throttling suppressed the requests, a CI gate
   that only fires on a trigger nobody pulls, and a test passing because the
   mock satisfied it — the last is

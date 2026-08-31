@@ -22,7 +22,7 @@
   shape a real predicate gap takes.
 
   **The mechanism is this card's, exactly.** The predicate tested the SHAPE of the output — a
-  substring's absence — and never the fact that the operation occurred. Empty output from "the
+  substring's absence — and never whether the operation occurred. Empty output from "the
   hook ran and did not match" is byte-identical to empty output from "the hook never ran."
 
   **What the card did not yet carry.** Rules 1 through 3 all defend a claim that something

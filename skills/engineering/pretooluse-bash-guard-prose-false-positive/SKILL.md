@@ -19,7 +19,7 @@ EOF
 ```
 
 which invokes no such command. Worse, a guard that blocks a forbidden *phrase* will block the
-document that quotes the phrase **in order to forbid it** — so the fix for the anti-pattern
+document that quotes the phrase **to forbid it** — so the fix for the anti-pattern
 cannot be committed.
 
 Measured instance, 2026-08-17: a newly written guard blocked the very commit installing it.

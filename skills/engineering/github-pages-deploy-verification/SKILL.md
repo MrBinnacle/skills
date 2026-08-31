@@ -41,11 +41,11 @@ Any of:
 
 The string you grep for **must be content that did not exist pre-deploy**. Concretely:
 
-- ✅ Grep for a new CSS rule, new class, new token value, new copy string, new commit hash
+- **Do:** grep for a new CSS rule, new class, new token value, new copy string, new commit hash
   echoed in a meta tag.
-- ❌ Grep for an element selector (`.case-footnote`, `<h1>`) that already shipped — the loop
+- **Avoid:** grep for an element selector (`.case-footnote`, `<h1>`) that already shipped — the loop
   exits on the cached old content.
-- ❌ Grep for a token name (`--accent-dim`) when only its *value* changed — the name was there
+- **Avoid:** grep for a token name (`--accent-dim`) when only its *value* changed — the name was there
   before too.
 
 Rule: `git diff HEAD~1 -- . | grep '^+'` produces candidate strings from every changed path.

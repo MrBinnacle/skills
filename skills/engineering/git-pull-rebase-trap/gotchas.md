@@ -4,7 +4,7 @@
 
 - **Per-branch rebase config overrides global.** `branch.<name>.rebase=true` set per-branch will silently override a global `pull.rebase=false`. Check both.
 
-- **`pull.rebase=interactive` exists.** Some configs set `pull.rebase=interactive`, which opens an editor mid-pull. If you're in a non-interactive context (Claude Code, CI), this hangs.
+- **`pull.rebase=interactive` exists.** Certain configs set `pull.rebase=interactive`, which opens an editor mid-pull. If you're in a non-interactive context (Claude Code, CI), this hangs.
 
 - **`git config --global --list | grep rebase` misses repo-local.** Check three scopes: `--system`, `--global`, `--local`.
 

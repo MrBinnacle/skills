@@ -111,7 +111,9 @@ records why.
 
 Most originated in something that went wrong, or nearly did. I recorded the failure pattern and developed a reusable intervention. Their records say `OBSERVED`, with dates.
 
+<!-- vale Taste.Generic-ness = NO -->
 Some were designed for recurring work that I wanted to handle differently. Their records say `DESIGNED`.
+<!-- vale Taste.Generic-ness = YES -->
 
 One, `skill-necessity-gate`, was distilled from research on when a skill should exist. Its record says `DISTILLED`.
 
@@ -199,7 +201,7 @@ Every other card is `UNMEASURED` in the controlled fields.
 
 ### Observed in use
 
-Some records document events from my own sessions.
+Certain records document events from my own sessions.
 
 Those observations come from private work logs mined by my own AI assistant and re-checked by a second instance of the same system. This can catch extraction errors. It does not provide independent verification or prevent self-selection.
 
@@ -213,7 +215,7 @@ Models improve. Claude Code changes. Failure modes disappear. A skill can stop p
 
 When a major model or platform change warrants it, a skill can be re-screened with [`skill-harness`](https://github.com/MrBinnacle/skill-harness): the same task is run with and without the skill, and the result is reported only to the extent the evidence supports one.
 
-Some skills also have a pre-registered retirement trigger. The trigger names a specific change that would remove the underlying failure mode. When that change occurs, the skill can retire against its own criterion.
+Certain skills also have a pre-registered retirement trigger. The trigger names a specific change that would remove the underlying failure mode. When that change occurs, the skill can retire against its own criterion.
 
 A skill has already retired this way.
 

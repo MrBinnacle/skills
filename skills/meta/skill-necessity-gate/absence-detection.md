@@ -6,7 +6,7 @@ Use when a skill library feels heavy or you suspect the description budget is ov
 1. **Measure the standing cost.** Count model-invocable skills (those WITHOUT
    `disable-model-invocation: true`). Each loads ~100 description tokens always. Compare to
    the budget (~1% of context ≈ ~2k tokens on a 200k window). If model-invocable-count × 100
-   ≫ budget, Claude Code is truncating/dropping least-used descriptions — some skills are
+   ≫ budget, Claude Code is truncating/dropping least-used descriptions — certain skills are
    silently undiscoverable. Confirm with `/doctor` / skill diagnostics.
 2. **Reclaim budget cheaply.** For every skill you always trigger by hand (procedures,
    side-effecting workflows), set `disable-model-invocation: true`. Safe, immediate win, zero
