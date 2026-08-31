@@ -19,8 +19,12 @@ recorded in [`RETIRED.md`](RETIRED.md).
 
 That bar is not self-assessed. [`skill-harness`](https://github.com/MrBinnacle/skill-harness) runs
 the same task with a skill and without it, and reports what can honestly be said about the
-difference -- which is often *"not enough to call it"*. A missing figure is a typed refusal, never
-an invented score. A card that measures no benefit is cut.
+difference -- which is often *"not enough to call it"*.
+
+Read the honest part first: **most cards here carry `UNMEASURED` in their evidence record.** The
+screen has not been run on them, and that is written down rather than papered over with a number
+nobody earned. A missing figure is a typed refusal, never an invented score. When a screen does
+run and finds no benefit, the card is cut.
 
 **Install it** with `/plugin marketplace add MrBinnacle/skills` in Claude Code, or
 `npx skills add MrBinnacle/skills` at a shell. Both routes, and what each one puts where, are in
