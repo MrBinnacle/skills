@@ -1,5 +1,0 @@
----
-"mrbinnacle-skills": patch
----
-
-`AGENTS.md`: the rotation pass gains the receipt path as steps inside the existing ritual. Two triggers (on arrival of a receipt for a published card; at the rotation pass, sweeping `docs/sers/receipts/` at a declared harness commit). One Inputs row declaring the harness release the collection judges against. A currency gate with typed fail-closed reasons (`no_skill_id`, `card_hash_mismatch`, `no_harness_version`, `harness_mismatch`, `oracle_stale`, `model_drift`, `no_trigger_row`, `attestation_missing`, `attestation_expired`, `trigger_fired`, `arm_coverage`); a not-current receipt disposes nothing and the row reads `CANT_TELL_YET (stale receipt: <reason>)`. A record step fixing the controlled-row shape with a commit-pinned `Receipt:` clause. A dispose step routing `CUT` through Retirement's first route, renamed from "Screen null" to "Harness cut". `RETIRED.md` evidence cells link the receipt at the harness commit. The O5 `--harness-root` run is a named step, and the Done-when bar requires every receipt-matched published card to carry its verdict or a typed not-current reason. No published card changed.

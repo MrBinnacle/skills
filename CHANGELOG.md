@@ -4,6 +4,156 @@ All notable changes to the collection. A release is a delivery event: changed ca
 installed users when a version is released, not on every merge to `main`. See
 [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
+## v1.4.0 — 2026-08-31
+
+### Minor Changes
+
+- [#202](https://github.com/MrBinnacle/skills/pull/202) [`ef5adf5`](https://github.com/MrBinnacle/skills/commit/ef5adf524f6fa9f3ead8a2cb4fd00886cbb759f9) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Retire `skill-necessity-gate`. The collection removed its own gate card because the gate card
+  could not pass its own gate.
+
+  `ADMISSION.md` criterion 1 requires an unaided failure that was observed, not predicted. The
+  card's own `EVIDENCE.md` answered `Occasions counted | 0 — no triggering occurrence`, and no
+  occurrence appeared across the card's whole life. The defect is not repairable by rewriting: an
+  occurrence can only be found. The S295 admission triage recorded the card `RECURRENCE-THIN` on
+  2026-08-15 and deferred the call; this change makes it.
+
+  A third retirement route is added to `AGENTS.md` before it is used. **Withdrawn on the policy**
+  covers a published card removed because it cannot satisfy the admission policy it is measured
+  against, with the card's own evidence record as the proof and no screen required, because the
+  failing criterion counts occurrences rather than measuring lift. The route is written narrowly:
+  it fires on a criterion the card's own record demonstrably fails, and the changeset must quote
+  the failing row.
+
+  Two rules outlive the card and move into `AGENTS.md` in the same commit that removes the
+  directory:
+
+  - **The topology rule** (the card's Gate 3) becomes a rule in its own right — decide
+    model-invocable against procedure by asking who does the strategic thinking, treat side
+    effects as procedure, and surface the standing-cost maths so the human makes the close calls.
+    `AGENTS.md` and `closure-mode-at-boundaries`'s evidence record both cited Gate 3 and now cite
+    a rule that exists.
+  - **No self-authority** — a card's name, its role in this repository, its prior use, and the
+    decisions it produced are not evidence for a verdict it reaches. This was unwritten anywhere
+    in the repository while the retirement's own argument depended on it.
+
+  `ADMISSION.md` keeps its four questions unchanged and loses only its reference-method pointer.
+  The naming table drops the "gate card" term.
+
+  One reduction in assurance is accepted and named rather than slipped in: the policy-to-card
+  version lockstep in `scripts/validate_scoreboard.py` is removed with the card it compared
+  against. `ADMISSION.md` must still declare exactly one canonical version, which is the stronger
+  half of that check.
+
+  Conformance machinery follows the removal. The `admission-version-drift` poison fixture is
+  deleted rather than repaired, because its entire purpose was a disagreement between the policy
+  file and the gate card's header and there is no longer a second copy of the version to drift
+  from. The other three drift fixtures keep their breach and lose their gate-card scaffolding;
+  each was re-run and confirmed to still fail on its own named assertion rather than on an exit
+  code. The CI malformed-frontmatter poison control is repointed at `router-skill-predicate-gap`
+  and gains an existence assertion, so a future removal cannot make it vacuous in silence.
+
+### Patch Changes
+
+- [#185](https://github.com/MrBinnacle/skills/pull/185) [`b0a77a1`](https://github.com/MrBinnacle/skills/commit/b0a77a19ec3315b27abc26a60fb6fcdd62b33759) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `subagent-research-reliability`: add the batched-nudge variant under the dead-letter rule. On 2026-08-26 the single-message contract-restating nudge failed twice on a large deliverable and recovered a second large one only when the nudge named an explicit batch split; small and medium deliverables returned first try. The card now says: size the output contract at dispatch, license a partial return explicitly, batch large returns, and stop after two failed nudges. One published card changed.
+
+- [#180](https://github.com/MrBinnacle/skills/pull/180) [`ee1afbc`](https://github.com/MrBinnacle/skills/commit/ee1afbc3beb6afd5b9851d786487ac04b127057e) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - CI: every `out="$(...)"` capture under `set -e` in `tests.yml` now carries a failure branch (`|| { echo "$out"; exit 1; }`), so a failing check's own diagnostic reaches the job log instead of being discarded at the assignment. Twenty sites fixed ([#172](https://github.com/MrBinnacle/skills/issues/172); [#170](https://github.com/MrBinnacle/skills/issues/170) fixed the twenty-first). A new suite, `scripts/test_captured_exit_handling.py`, parses the workflow and refuses any capture without the branch, and is itself wired into the workflow. No published card changes.
+
+- [#197](https://github.com/MrBinnacle/skills/pull/197) [`d45d59d`](https://github.com/MrBinnacle/skills/commit/d45d59d36e69df7ea58bcc7eb84cc17dc4ee82a9) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The collection consumes the Taste prose style. The six rules are vendored byte-equal from the
+  sibling measurement repository and pinned by SHA-256, so a local edit fails rather than forking
+  the style silently. A seventh rule renders from the brand kit's banned-marketing word list and
+  is bound only to the public surfaces that file declares. Contributors get pre-commit and
+  commit-msg hooks; both report at error level, which no row uses yet, so they install the carrier
+  without changing what a commit is refused for today.
+
+- [#186](https://github.com/MrBinnacle/skills/pull/186) [`bb94bf5`](https://github.com/MrBinnacle/skills/commit/bb94bf50ed2fc37e195865a5a258fc4708bcf89f) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `scripts/validate_conformance.py`: O5 gains an optional `--harness-root <path>`. Without it, O5 stays `CANNOT-CHECK`, so CI never prints a green line for a check that did not run. With it, O5 reads the receipt each card's controlled row links in its `Receipt:` clause (markdown-link or backtick form) and fails on four conditions: the receipt file is absent; its `subject_identity.skill_id` differs from sha256 of the card's `SKILL.md`; its `verdict` differs from the row's opening verdict word; a newer receipt with the same `skill_id` exists that the row does not link. Eight subprocess-driven cases cover the flag-less path, PASS, both clause shapes and one FAIL per condition. No published card changed.
+
+- [#167](https://github.com/MrBinnacle/skills/pull/167) [`756403a`](https://github.com/MrBinnacle/skills/commit/756403a8036843516bc890308c6720e336e7851e) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Promote `subagent-research-reliability` patch from `_quarantine/` to published tree.
+
+  Adds the dead-letter failure mode (Check 0 — name the return channel) drawn from two
+  independent occurrences (2026-08-18 and 2026-08-24). Widens Check 2 from citations to
+  checked negatives. Splits examples and notes into EXAMPLES.md to stay within the 7 KB
+  SKILL.md ceiling. Description rewritten to 166 chars naming the return-channel branch.
+  Occasions counted rises to 5; RECURRENCE-THIN label removed.
+
+- [#198](https://github.com/MrBinnacle/skills/pull/198) [`875ee6d`](https://github.com/MrBinnacle/skills/commit/875ee6d3d71faed0d838eacc4b229c1b1ba31f1d) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Five of the six vendored Taste rows (Brevity-and-order, Dressing, Evidence, Register, Voice) are
+  now ERROR level, enforced by a second, ungated Vale pass in CI. Generic-ness stays warning: one
+  hit remains in a canonical ADR this pass could not edit. Thirty-two pre-existing findings across
+  the collection were fixed as uncontroversial prose corrections; one README line kept its original
+  wording because it is a cited `VERBATIM.md` specimen, carved out with an inline Vale exception
+  instead.
+
+- [#173](https://github.com/MrBinnacle/skills/pull/173) [`87eadc0`](https://github.com/MrBinnacle/skills/commit/87eadc0367b922799a88d21ca57bcfe0fc3fe26e) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Remove the earn/earned/earning family from prose across the collection, and add `earns` to the banned list so the guard covers the whole family.
+
+- [#199](https://github.com/MrBinnacle/skills/pull/199) [`8b8c6d6`](https://github.com/MrBinnacle/skills/commit/8b8c6d66fe76375ca28fc360dbba463c1d462b8f) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - README `What they address` now lists every published card. The section claimed the cards fall
+  into four areas and then named nine of the fifteen on `main`; five of the six it omitted belong
+  to its own leading category, so the section understated the collection's largest subject. The
+  four areas are replaced by three groups derived from the cards' own `EVIDENCE.md` origin rows —
+  reports that do not match what happened (nine cards), reports written for the next reader (five),
+  and whether a control should exist (one). The section states no numeral, so it cannot fall behind
+  a count. `Card map`, the evidence census, and every scoreboard value are untouched. No published
+  card changed, so nothing reaches installed users. Closes [#168](https://github.com/MrBinnacle/skills/issues/168).
+
+- [#189](https://github.com/MrBinnacle/skills/pull/189) [`fa786cf`](https://github.com/MrBinnacle/skills/commit/fa786cf0236356a2b6664a64d546647ce5a8dad5) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `AGENTS.md`: the rotation pass gains the receipt path as steps inside the existing ritual. Two triggers (on arrival of a receipt for a published card; at the rotation pass, sweeping `docs/sers/receipts/` at a declared harness commit). One Inputs row declaring the harness release the collection judges against. A currency gate with typed fail-closed reasons (`no_skill_id`, `card_hash_mismatch`, `no_harness_version`, `harness_mismatch`, `oracle_stale`, `model_drift`, `no_trigger_row`, `attestation_missing`, `attestation_expired`, `trigger_fired`, `arm_coverage`); a not-current receipt disposes nothing and the row reads `CANT_TELL_YET (stale receipt: <reason>)`. A record step fixing the controlled-row shape with a commit-pinned `Receipt:` clause. A dispose step routing `CUT` through Retirement's first route, renamed from "Screen null" to "Harness cut". `RETIRED.md` evidence cells link the receipt at the harness commit. The O5 `--harness-root` run is a named step, and the Done-when bar requires every receipt-matched published card to carry its verdict or a typed not-current reason. No published card changed.
+
+- [#190](https://github.com/MrBinnacle/skills/pull/190) [`f42d167`](https://github.com/MrBinnacle/skills/commit/f42d16775cd398c1453023163a07e3ef155633ab) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `git-pull-rebase-trap` Screen result rewritten to the receipt-row shape (commit-pinned Receipt clause, dated 2026-07-20, typed reason `wrong_instrument (trap-discipline); not current: no_skill_id`). `RETIRED.md` screened-out cell for `append-only-evidence-design` amended to cite its receipt as `CANT_TELL_YET` / `wrong_instrument (calibration)` rather than ceiling. Worked examples of the row shape from [#183](https://github.com/MrBinnacle/skills/issues/183); O5 with `--harness-root` reports the expected not-current FAIL.
+
+- [#203](https://github.com/MrBinnacle/skills/pull/203) [`5eaecb6`](https://github.com/MrBinnacle/skills/commit/5eaecb68c8d58bedd7fa1888822036397e51454a) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `im-up` and `im-down`: a passing receiver check no longer buries the verdict under its own stdout.
+
+  `rerun_checks` captured 2000 characters of stdout and 2000 of stderr for every receiver check, whether it passed or failed. A caller running twenty checks received a receipt carrying up to eighty kilobytes of `ok ...` lines, and had to filter the receipt to find out whether the receipt was accepted. A receiver check signals through its exit code: on a pass its stdout is decoration, and on a fail it is the whole diagnostic.
+
+  A passing check now records `"output": "omitted: check passed, exit code is the verdict"`. A failing check keeps both streams, truncated as before.
+
+  The omission is recorded rather than silent. An absent `stdout` field would read as "this check printed nothing", which is a different claim from "this check passed and its output was dropped", and only the second is true.
+
+  Both published copies of `validate_packet.py` remain byte-identical to each other. The change was exercised end to end on 2026-08-31 across twenty configured checks, with the failing check's diagnostic preserved in full.
+
+- [#179](https://github.com/MrBinnacle/skills/pull/179) [`4b6bd99`](https://github.com/MrBinnacle/skills/commit/4b6bd9971a9d11a8ed58716508954364527fcc9b) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Record the [#133](https://github.com/MrBinnacle/skills/issues/133) ruling on `downstream-instruction-framing`: the two guard-caught 2026-08-04/05 candidates are known negatives under the operationalization a cross-family panel upheld (the count row records forbidden framing in a persisted artifact a later reader could consume). RECURRENCE-THIN stands; the im-up candidates and the pre-origin-corroboration fork remain open.
+
+- [#165](https://github.com/MrBinnacle/skills/pull/165) [`3c09013`](https://github.com/MrBinnacle/skills/commit/3c090139abaefb6b1b81e04b2d279b5e3de68af7) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - AGENTS.md gains "An issue you did not create": the routing for externally filed issues.
+  Triage and reproduce before building; a confirmed report about a published card is counted
+  as an occurrence before any fix lands; only a verified leaf ticket gets `ready-for-agent`;
+  pipeline tickets are never re-triaged. Written now, before the first outside issue arrives,
+  so the first one is routed instead of improvised.
+
+- [#166](https://github.com/MrBinnacle/skills/pull/166) [`4af6db2`](https://github.com/MrBinnacle/skills/commit/4af6db277fa3e15f4ad00aa101f16ab9ce06ff9d) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The skill-invocation phrase in AGENTS.md widens past skill-to-skill. "Call the Skill tool with
+  `skill-name`." now covers every place an agent reads an instruction to reach for a skill —
+  inside a card, in a slash command, in an AGENTS.md line, in a subagent dispatch — because none
+  of the last three sit inside a card and all three had the same inference problem. The same line
+  records that composing skills this way is endorsed: a card needing a discipline another card
+  already carries delegates to it rather than restating it, which keeps one meaning in one place
+  and keeps both cards inside the size bounds stated two lines above.
+
+  `applied-layer-answer-hides-the-governing-result` enters `_quarantine`. It was written to disk
+  in a prior session and never committed, so it sat in the working tree while absent from the
+  repository — and because the spec gate reads tracked files, the gate had never checked it. The
+  gate now covers 32 cards where it covered 31. Admitting it required meeting the size bounds:
+  `SKILL.md` was 9,183 B against a ~7 KB ceiling, so the worked example moved to a sibling file
+  reached by a pointer, leaving 6,369 B. Reading the conventions at source turned up three further
+  fixes — the description was 802 characters against a stated bound of 200 that 14 of 15 published
+  cards already meet, a trailing "See also" section violated the inline-at-moment-of-need rule, and
+  a References section explained why there were no references, which changes no reader's behaviour.
+
+- [#196](https://github.com/MrBinnacle/skills/pull/196) [`642152e`](https://github.com/MrBinnacle/skills/commit/642152e75d60e18c16f71bf5f2099afee0da3b1d) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Add an SVG source for the social preview card, built to the S371 direction brief: three blocks (lockup, owner-typed statement, install route), declared structural neutrals only, live text nodes so `validate_brand_kit.py` scans it. Correct `tokens.json`'s two stale `#2da44e` assertions to the measured `#3fb950` (3,420 exact fills counted twice, independently). The PNG export and GitHub upload remain the owner's step.
+
+- [`c3c954e`](https://github.com/MrBinnacle/skills/commit/c3c954e5719380f0a63d7a375ea9af9df23dc855) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Track four quarantine candidates that were sitting untracked and blocking the release gate at G9.
+
+  `_quarantine/` is a tracked, unshipped candidate area — sixteen candidates already sit there committed. These four were extracted and left untracked, so `git status --porcelain` reported them as a dirty tree and `release_gate.py --release` returned `BLOCKED` on G9. Tracking them is what that directory is for; it ships nothing and admits nothing.
+
+  - `agent-definition-snapshot-at-session-start`
+  - `container-green-host-red-detached-child-holds-tempdir`
+  - `private-steering-head-over-public-repos`
+  - `squash-merge-absorbs-unpushed-base-commits`
+
+  **None of the four is admitted, and none is promoted by this change.** `ADMISSION.md` criterion 2 requires that the failure recur independently, with occasions counted rather than predicted. Measured against the cards as written: three cite a single dated incident each, and the fourth cites three dated observations of _different_ failure modes rather than a recurrence of one. The default answer in `ADMISSION.md` is "not admitted", and it stands for all four.
+
+  One residue fix rides along, required by the pre-commit gate: `container-green-host-red-detached-child-holds-tempdir` named a private repository and a bare cross-repository `#N` issue reference on its evidence line. Both are replaced with a generic descriptor. The bare cross-repository reference is the exact defect that `private-steering-head-over-public-repos` — one of the other three cards in this changeset — exists to describe.
+
+  Promotion for any of these remains open and needs what promotion has always needed: a counted second occurrence, an `EVIDENCE.md` with its three contractual rows, and the gauntlet run in order.
+
+- [#192](https://github.com/MrBinnacle/skills/pull/192) [`c0b29c1`](https://github.com/MrBinnacle/skills/commit/c0b29c1490133fd0c885ff747d5b0acfdbf8703a) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Repository automation: an issue that opens with no label now receives `needs-triage` from a workflow on `issues: opened`. An unlabeled issue is invisible to every selector that keys on a triage role, and the only guard for that ran on one host. The workflow adds the one label and touches nothing else; no published card changed.
+
+- [#193](https://github.com/MrBinnacle/skills/pull/193) [`59ea32f`](https://github.com/MrBinnacle/skills/commit/59ea32f0e8319042a2da57916c08795ac22a407b) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `validate_voice_provenance`: extend the voice-provenance check to scan surfaces for first-person sentences that must be recorded in VERBATIM.md. The scanned surfaces are a data-driven list, so adding a further surface is a data edit. The GitHub description line is recorded in VERBATIM.md under its own dated section. Five front-page variants under `docs/design/variants/front-page/` pass the extended validator when placed as README.md.
+
 ## v1.3.0 — 2026-08-25
 
 ### Minor Changes
@@ -210,7 +360,7 @@ installed users when a version is released, not on every merge to `main`. See
 
   **The remaining rejections are declared divergences, named and scoped rather than ignored.** A blanket tolerance would make the gate decorative, so each allowance is a pattern, a tree, and a stated reason, and anything not on the list fails:
 
-  - On the published tree, exactly one allowance: `disable-model-invocation` is not in the specification's frontmatter vocabulary and is a real Claude Code key with load-bearing behaviour — it is what stops a procedure card auto-firing. Dropping it would change how four published cards behave in the product in order to satisfy a document.
+  - On the published tree, exactly one allowance: `disable-model-invocation` is not in the specification's frontmatter vocabulary and is a real Claude Code key with load-bearing behaviour — it is what stops a procedure card auto-firing. Dropping it would change how four published cards behave in the product to satisfy a document.
   - On the candidate tree, the allowances promotion already closes: bare `author` / `date` / `version` keys, which `AGENTS.md` step 2a strips, and a description over the specification's 1024-character limit, which step 2a rewrites to 200 — a stricter bar than the specification's.
 
   **The asymmetry is the decision.** `skills/` is what ships and is held to the specification. `_quarantine/` is a queue whose entry conditions `AGENTS.md` already states. Measured the same day, 11 of 16 candidates fail on those three classes alone, so enforcing the published bar over the queue would have reddened the build on the day it was adopted and stopped the harvest rather than improved it. A candidate failing for **any other** reason — malformed YAML, a missing `name` — still fails, which is the property that keeps a non-conforming card out of the promotion queue.
@@ -959,7 +1109,7 @@ installed users when a version is released, not on every merge to `main`. See
   verdict. The command's target is no longer a hardcoded `~/.claude/skills/<name>`, because
   `npx skills add` installs project-locally unless `--global` is passed.
 
-  ⚠ The commitment says CI **detects** violations, not that it prevents them. `main` has no required
+  The commitment says CI **detects** violations, not that it prevents them. `main` has no required
   status checks, so a nonzero exit is a signal rather than a gate. Publishing the stronger verb
   against the weaker mechanism would have reintroduced this effort's own defect inside the sentence
   written to remove it.
