@@ -342,14 +342,33 @@ def validate_repository(
 
 
 def rerun_checks(config: dict, repo_root: Path) -> list[dict]:
+    """Run each configured receiver check, keeping output only where it informs.
+
+    A receiver check signals through its exit code. On a PASS its stdout is
+    decoration, and at 2000 chars per check across a full config it buries the
+    verdict, the errors and the failing check's own diagnostic under tens of
+    kilobytes of "ok ..." lines -- the reader then has to filter the receipt to
+    find out whether the receipt was accepted. On a FAIL the output is the whole
+    diagnostic, so it is kept.
+
+    The omission is recorded rather than silent. An absent stdout field would
+    read as "this check printed nothing", which is a different claim from "this
+    check passed and its output was dropped", and the second is the true one.
+    """
     results = []
     for check in config.get("receiver_checks", []):
         result = run(check["command"], repo_root)
-        results.append({
-            "name": check["name"], "command": check["command"],
+        entry = {
+            "name": check["name"],
+            "command": check["command"],
             "exit_code": result.returncode,
-            "stdout": result.stdout[-2000:], "stderr": result.stderr[-2000:],
-        })
+        }
+        if result.returncode == 0:
+            entry["output"] = "omitted: check passed, exit code is the verdict"
+        else:
+            entry["stdout"] = result.stdout[-2000:]
+            entry["stderr"] = result.stderr[-2000:]
+        results.append(entry)
     return results
 
 
