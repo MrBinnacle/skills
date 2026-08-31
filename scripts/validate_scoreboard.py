@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assert the front page carries the ruled banner line, that every card's
-record is derivable, and that the gate card's normative-status version matches
-ADMISSION.md.
+record is derivable, and that ADMISSION.md declares exactly one canonical
+admission-policy version.
 
 A test, not a generator: banners and the README alt stay hand-edited; this
 script only refuses drift. Output is ASCII-only so the Windows CI cell does
@@ -77,10 +77,9 @@ POLICY_VERSION_RE = re.compile(r"admission-policy\s+v\d+")
 DECLARED_VERSION_RE = re.compile(
     r"\*\*Declared version:\*\*\s*`?(admission-policy\s+v\d+)`?"
 )
-GATE_HEADER_VERSION_RE = re.compile(
-    r"Normative status\..*?\((`?)(admission-policy\s+v\d+)\1\)",
-    re.DOTALL | re.IGNORECASE,
-)
+# The gate card's normative-status header used to pin a policy edition, which this
+# module cross-checked against ADMISSION.md. The card retired on 2026-08-31 (#178);
+# see check_policy_version for what that removed.
 
 
 def fail(msg: str) -> NoReturn:
@@ -381,8 +380,8 @@ def policy_version(root: Path) -> str:
     if not m:
         fail(
             "ADMISSION.md: no canonical '**Declared version:** `admission-policy vN`' "
-            "line. That line is the single authoritative declaration; without it "
-            "there is nothing for the gate card to agree with."
+            "line. That line is the single authoritative declaration, and the only "
+            "place this policy states its edition."
         )
     declared = m.group(1)
     occurrences = POLICY_VERSION_RE.findall(text)
@@ -396,33 +395,27 @@ def policy_version(root: Path) -> str:
     return declared
 
 
-def gate_card_version(root: Path) -> str:
-    path = root / "skills" / "meta" / "skill-necessity-gate" / "SKILL.md"
-    if not path.is_file():
-        fail(f"missing gate card at {path}")
-    text = path.read_text(encoding="utf-8")
-    # The normative-status header is the only place the card may pin the policy
-    # version. No fallback to "any version string on the card": that would let a
-    # passing mention in body prose stand in for the header, so deleting the
-    # header would silently keep the check green.
-    m = GATE_HEADER_VERSION_RE.search(text)
-    if not m:
-        fail(
-            "gate card SKILL.md: no admission-policy version in the normative-status "
-            "header. The header is where the card pins the policy edition it "
-            "describes; a mention elsewhere on the card is not a substitute."
-        )
-    return m.group(2)
-
-
 def check_policy_version(root: Path) -> None:
-    declared = policy_version(root)
-    on_card = gate_card_version(root)
-    if declared != on_card:
-        fail(
-            f"admission policy version drift: ADMISSION.md has {declared!r}, "
-            f"gate card header has {on_card!r}"
-        )
+    """Assert ADMISSION.md declares exactly one canonical policy version.
+
+    This check used to have a second half. It read the gate card's
+    normative-status header and required that pin to equal ADMISSION.md's
+    declaration, so a partial version bump across the two files was caught.
+    `skill-necessity-gate` was retired on 2026-08-31 (issue #178) and that half
+    went with it.
+
+    The lost guarantee is named here rather than left to be discovered: the
+    collection no longer asserts that a policy edition and its reference method
+    agree, because there is no longer a reference method to disagree. This is a
+    smaller assurance surface than before. What survives is the stronger half --
+    `policy_version` refuses any ADMISSION.md that does not carry exactly one
+    canonical declaration, so a partial bump still cannot be expressed in the
+    file that binds.
+
+    Restore the card half if a future card is ever named the policy's reference
+    method and pins an edition of its own.
+    """
+    policy_version(root)
 
 
 def validate(root: Path) -> None:
@@ -437,7 +430,8 @@ def validate(root: Path) -> None:
     print(
         f"PASS: ruled banner line pinned at 5 sites; records derive "
         f"{admitted} admitted, {measured} measured, {retired} retired, "
-        f"{turned} solutions looking for a problem; admission policy version agrees; "
+        f"{turned} solutions looking for a problem; admission policy declares one "
+        f"canonical version; "
         f"origin tiers {observed} OBSERVED, {designed} DESIGNED, {distilled} DISTILLED agree"
     )
 

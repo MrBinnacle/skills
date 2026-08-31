@@ -37,26 +37,28 @@ Default answer: not admitted.
 
 ## Reference method
 
-The four questions are answered by running
-[`skill-necessity-gate`](skills/meta/skill-necessity-gate/SKILL.md) — the
-**gate card**. That skill is the reference method for this policy, not the
-policy itself.
+There is none, and that is deliberate. This policy used to name
+`skill-necessity-gate` as the reference procedure for answering its four
+questions. That card retired on 2026-08-31 (issue #178) because it could not
+satisfy criterion 1 of this policy: its own evidence record counted zero
+observed occurrences.
 
-The four questions distill that card's **first three gates only** (layer
-triage, recurrence, and measured worth). The card's remaining gates cover
-invocation topology, statefulness, and shape: those are authoring guidance for
-a candidate that has already cleared admission. They are not admission
-criteria and do not belong in this file.
+The four questions were always the binding rule and they stand unchanged. They
+distilled the retired card's first three gates — layer triage, recurrence, and
+measured worth — and that distillation already happened, so the policy loses a
+pointer rather than any of its substance. The card's remaining gates were
+authoring guidance for a candidate that had already cleared admission; the
+topology rule among them now lives in [`AGENTS.md`](AGENTS.md) as a rule in its
+own right.
 
 ## Naming: "the gate"
 
-This repository has used the phrase "the gate" for two different instruments.
-Naming this policy makes a third. The convention:
+This repository has used the phrase "the gate" for more than one instrument.
+The convention:
 
 | Prefer | Means | Lives |
 |---|---|---|
 | **admission policy** | the binding four-question rule for what may enter | this file; see [Version](#version) for the edition |
-| **gate card** / **skill-necessity-gate** | the reference procedure for answering the four questions | `skills/meta/skill-necessity-gate/` |
 | **screen** / **admission screen** | the empirical with/without-skill measurement that produces ceiling and turned-away outcomes | recorded in [`RETIRED.md`](RETIRED.md); instrument upstream of this collection |
 
 Bare "the gate" is ambiguous. Read it from context, or replace it with one of
@@ -65,8 +67,7 @@ the three names above when editing:
 - Turned-away rows and "screened out at the gate" prose in `RETIRED.md` are
   **screen** outcomes (controlled unaided runs), not a separate policy text.
 - Front-page and contributing prose that pair "the gate" with what may enter
-  the collection are about the **admission policy**, answered via the
-  **gate card**.
+  the collection are about the **admission policy**.
 
 Downstream edits to the front page, the exit register, and the banner should
 apply this table rather than inventing a fourth reading.

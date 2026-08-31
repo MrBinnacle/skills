@@ -347,7 +347,7 @@ for the ones you have to remember on purpose.
 
 ## Companion skills in this repo
 
-Section 14 applied to this collection — nine skills, grouped by when you'd reach for one.
+Section 14 applied to this collection — eight skills, grouped by when you'd reach for one.
 
 **Ending or starting a session**
 
@@ -366,10 +366,6 @@ Section 14 applied to this collection — nine skills, grouped by when you'd rea
 - **`parallel-review-disposition-schema`** — you're sending the same question to several
   reviewers and will need to add their answers up.
 - **`subagent-research-reliability`** — before and after you hand research to a helper agent.
-
-**Adding to your own collection**
-
-- **`skill-necessity-gate`** — deciding whether something should be a skill at all.
 
 **Traps that surface themselves** — listed so you know they're installed, not to remember:
 **`git-pull-rebase-trap`** and **`github-pages-deploy-verification`**.

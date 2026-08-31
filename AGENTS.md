@@ -26,7 +26,7 @@ as "no recorded dispatch" — a figure the counter cannot see must not be publis
 A measured figure with no date cannot be judged stale, which is why the date clause is checked
 separately from any other date in the row.
 
-⚠ **A dispatch is not an occasion.** A dispatch counts one invocation of a card: demand
+**A dispatch is not an occasion.** A dispatch counts one invocation of a card: demand
 evidence, never recurrence, lift, or worth. Writing a dispatch count into the recurrence row is
 the fan-out inflation ADMISSION.md criterion 2 refuses. The two rows answer different questions
 and are checked separately.
@@ -35,9 +35,9 @@ Each bucket has a `README.md` listing every skill in that bucket with a one-line
 
 Beyond `skills/`, the repo publishes the base-operating-rules template at `templates/BASE-OPERATING-RULES.md`, which adopters copy to their own `~/.claude/CLAUDE.md`. Three files, three jobs, and they must not absorb each other: the **template** is a starting point any project can adopt and describes no repo; the root **`CLAUDE.md`** is this repo's own thin delta, which also serves as the worked example the template points at; this **`AGENTS.md`** governs how an agent works *inside this repo*.
 
-⚠ **Keep the template off any path that is loaded automatically.** A file named `CLAUDE.md` is picked up as the operating rules of the directory it sits in, so a template parked at the repo root hands every agent that opens this clone a set of rules that were never about this clone — with a prose disclaimer as the only correction. That is the layer-placement error this collection exists to catch, and the repo shipped it for several releases. If the template ever needs a different home, keep the new one equally unloadable.
+**Keep the template off any path that is loaded automatically.** A file named `CLAUDE.md` is picked up as the operating rules of the directory it sits in, so a template parked at the repo root hands every agent that opens this clone a set of rules that were never about this clone — with a prose disclaimer as the only correction. That is the layer-placement error this collection exists to catch, and the repo shipped it for several releases. If the template ever needs a different home, keep the new one equally unloadable.
 
-⚠ **The template's numbered sections name no skill, and that is deliberate — keep it that way when you edit them.** The file is copied wholesale into an adopter's `~/.claude/CLAUDE.md`, so a skill named inside a *rule* dangles for a reader who installed none of this collection — which is precisely what the template's own §14 tells them not to do ("list only what the reader can actually run"). Skill names belong below the horizontal rule, under **Companion skills in this repo**, where the heading scopes them. Neither this file nor the root delta has that constraint: both are copied nowhere, so naming a skill in either is fine.
+**The template's numbered sections name no skill, and that is deliberate — keep it that way when you edit them.** The file is copied wholesale into an adopter's `~/.claude/CLAUDE.md`, so a skill named inside a *rule* dangles for a reader who installed none of this collection — which is precisely what the template's own §14 tells them not to do ("list only what the reader can actually run"). Skill names belong below the horizontal rule, under **Companion skills in this repo**, where the heading scopes them. Neither this file nor the root delta has that constraint: both are copied nowhere, so naming a skill in either is fine.
 
 ## Per-skill layout
 
@@ -76,7 +76,7 @@ updates every installed copy and local↔repo drift is structurally impossible:
    [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) records the decision and
    the narrow surface a version promises.
 
-   ⚠ **`npm run version` fails closed without a `GITHUB_TOKEN` in the environment.** The
+   **`npm run version` fails closed without a `GITHUB_TOKEN` in the environment.** The
    changelog generator is `@changesets/changelog-github`, which resolves pull-request and author
    links through the GitHub API, so a run with no token stops partway through a release rather
    than at its start. Nothing stated this until 2026-08-24 and the next person to cut a release
@@ -92,7 +92,7 @@ updates every installed copy and local↔repo drift is structurally impossible:
 2a. **Normalize the frontmatter, because `_quarantine/` and `skills/` do not use the same
    keys.** Rewrite the `description` to the published bar in the same pass: ≤ 200 characters,
    written as a router. Measured 2026-08-24, every one of the 22 candidates was over it, from 285
-   to 1272 characters, while every published card sat between 123 and 200. ⚠ **The 200 bar is
+   to 1272 characters, while every published card sat between 123 and 200. **The 200 bar is
    now CHECKED — `validate_card_files.py` refuses a published card over it**, so a promotion that
    skips this step reds the build instead of shipping. It stopped being enforced by the edit on
    2026-08-24, after three of six promoted cards shipped over the bar at 210, 226 and 235 in a
@@ -101,7 +101,7 @@ updates every installed copy and local↔repo drift is structurally impossible:
    the topology rule above calls for it — nothing else. Candidates carry four different
    dialects: measured 2026-08-23, 12 of 22 held `author` / `version` / `date`, 6 held a
    `metadata: type:` block over an undeclared vocabulary (`pattern`, `trap`, `workaround`,
-   `discipline`), 4 held neither. Strip the extras on promotion. ⚠ **`validate_spec_conformance.py`
+   `discipline`), 4 held neither. Strip the extras on promotion. **`validate_spec_conformance.py`
    now catches a leftover `author` / `date` / `version` on a PUBLISHED card** — that allowance is
    scoped to `_quarantine/` only, so a candidate promoted without step 2a reds the build. It does
    NOT catch a leftover `metadata:` block, which is spec-legal; for that key this step is still the
@@ -114,7 +114,7 @@ updates every installed copy and local↔repo drift is structurally impossible:
 ## Authoring conventions
 
 - **Frontmatter** — `name:` + `description:` only. Description ≤ 200 chars, written as a *router* ("Use when X, Y, Z") not a summary. Topology (`disable-model-invocation`) is set per the rule below.
-- **Topology is a choice, not a default** — decide per skill: model-invocable (a *background reference* safe to auto-pull) vs **procedure** (`disable-model-invocation: true`, human-invoked, zero standing cost). A skill that *dictates strategic work* — planning, what/how, an orchestration swarm, a decision the human should own — is a procedure, not an auto-firing ability. Default to model-invocable only for background references; when unsure, run `skill-necessity-gate` Gate 3.
+- **Topology is a choice, not a default** — decide per skill: model-invocable (a *background reference* safe to auto-pull) vs **procedure** (`disable-model-invocation: true`, human-invoked, zero standing cost). The deciding question is **who does the strategic thinking?** A skill that *dictates strategic work* — planning, what/how, an orchestration swarm, a decision the human should own — is a procedure, not an auto-firing ability, and so is any skill with **side effects**: deploy, commit, send. Default to model-invocable only for background references. When the call is close it is partly a values question rather than a purely technical one, so **surface the standing-cost maths and let the human choose**: a model-invocable description costs ~100 always-on tokens and competes in the skill-list budget (~1% of context, where the least-used descriptions are truncated and then dropped at scale), while a procedure costs zero standing tokens and spends the human's attention instead. Present both sides and ask; auto-deciding this one takes a choice that is not yours.
 - **A discipline you *require* to fire cannot live only in the skill layer.** Both topologies rely on model-pull to fire — a model-invocable skill on retrieval, a procedure on the human remembering to invoke it — and model-pull is unreliable. In a proactive/`/loop` context it is not merely unreliable but *absent*: with the human turn removed, retrieval probability goes to zero, a `disable-model-invocation` procedure arrives as inert plain text, and a prompt-triggered nudge never fires — only a **PreToolUse/PostToolUse hook**, which fires on the tool call itself, still runs. So if an adopter *depends on* a discipline firing, back it with a deterministic hook (a UserPromptSubmit nudge that surfaces the skill, or a PreToolUse block) **in their own environment**; the published skill stays the model-invocable reference. Ask "does this discipline survive the loop?" — if its firing depends on retrieval or on a prompt arriving, it needs a hook, not just a skill.
 - **Naming** — `UPPERCASE-NAMED.md` for documents/templates/formats (e.g., `AGENT-BRIEF.md`, `OUT-OF-SCOPE.md`). `lowercase-named.md` for concepts/aspects/principles (e.g., `transition.md`, `mocking.md`). `SKILL.md` is always uppercase.
 - **Sizes** — `SKILL.md` 400 bytes to ~7 KB. Aux files 400 B to ~3 KB each. If `SKILL.md` is over 5 KB, split.
@@ -132,7 +132,7 @@ reference validator, `skills-ref`. CI runs it over both trees
 maintainer did not write, which is the entire reason for adopting it — every other gate can be
 wrong in the same direction as the cards it grades.
 
-⚠ **It rejected two published cards on its first run**, both for an unquoted YAML description
+**It rejected two published cards on its first run**, both for an unquoted YAML description
 scalar containing a `: ` or a `{`. Claude Code's parser tolerates them; a spec-conformant reader
 cannot load them. No gate here saw it because **no gate here reads frontmatter**. Quote any
 description containing `:`, `{`, `[`, `#` or a leading `*`.
@@ -147,7 +147,7 @@ decision, recorded so it reads as a choice rather than as ignorance of the docum
 | Flat per-skill layout | recommends `references/`, `scripts/`, `assets/` | A card here is small enough that a subdirectory adds a hop without adding structure. Revisit per skill if one genuinely needs multiple domains. |
 | `evals/` per card | not in the specification | This repository's own convention, checked by `validate_eval_corpora.py`. It is an addition, not a divergence — nothing in the spec forbids it. |
 
-⛔ **The `metadata:` blocks stripped from candidates on promotion are spec-LEGAL.** Step 2a is a
+**The `metadata:` blocks stripped from candidates on promotion are spec-LEGAL.** Step 2a is a
 house rule narrowing the vocabulary, not a correction of a non-conforming card. Say it that way
 when explaining the step.
 
@@ -190,7 +190,7 @@ enough, and this repository has the receipt — the occasions check ran forward-
 undercount stayed green until August 2026. **A promotion or a retirement edits the manifest in the
 same commit as the `git mv`,** or O7 reds the pull request.
 
-⚠ **Do not hand-type the `skills` arrays.** Derive them from `git ls-files 'skills/**/SKILL.md'`.
+**Do not hand-type the `skills` arrays.** Derive them from `git ls-files 'skills/**/SKILL.md'`.
 A hand-typed path that is one character wrong is caught by O7, but a hand-typed list that is merely
 *stale* is the failure this section exists to prevent, and it is cheaper to never author it.
 
@@ -239,7 +239,7 @@ recurrence is never counted. When a card's problem happens again:
    counted` row. So step 1 above is not optional bookkeeping you can do and forget — writing
    the dated entry now obliges the row, and CI says so.
 
-   ⚠ **Both directions scan `card.rglob("*.md")` and nothing else.** A dated occurrence recorded
+   **Both directions scan `card.rglob("*.md")` and nothing else.** A dated occurrence recorded
    in a `.py`, `.txt` or `.json` file inside the card is invisible to the check — it will neither
    satisfy a count nor oblige one. Record occurrences in markdown, or the guard cannot help you.
 
@@ -264,16 +264,39 @@ recurrence is never counted. When a card's problem happens again:
    the thin tier says so in its own file and in the changeset; the triage record
    that found it thin keeps saying what it found on the day it ran.
 
+## No self-authority
+
+A card's name, its role in this repository, its prior use, and the decisions it produced are
+not evidence for a verdict it reaches. An outcome an instrument produced cannot serve as
+independent proof that the instrument works. Cite first-hand evidence for each load-bearing
+claim, and name the result that would reverse the verdict.
+
+This binds every published card, and it binds hardest where a card sits in the repository's own
+machinery — the standing that makes a card feel authoritative is the same standing this rule
+refuses as evidence. Two records from the collection's own history state the cost of ignoring
+it: an architecture review that treated a card as an ironclad classifier "because it was called
+a gate, was referenced by repository policy, and had processed prior candidates" reached its
+conclusions before any first-hand repository evidence was read; and, stated generally,
+"rejection count cannot prove rejection quality, and a gate cannot validate itself by applying
+its own criteria."
+
 ## Retirement
 
 Retirement is a first-class event, not an afterthought — the collection's credibility comes
-from shrinking honestly. A skill leaves two ways:
+from shrinking honestly. A skill leaves three ways:
 
 - **Harness cut** — a current receipt carries `CUT` with its `cut_sub_reason`; nothing is
   left for the skill to improve.
 - **Pre-registered platform-fix** — the skill's `EVIDENCE.md` re-screen trigger names a
   specific platform change that would make the underlying failure impossible; when that change
   ships, the skill retires against its own stated criterion, no screen required.
+- **Withdrawn on the policy** — a published card is removed because it cannot satisfy the
+  admission policy it is measured against. The card's own `EVIDENCE.md` supplies the proof, and
+  no screen is required, because the failing criterion is a record of occurrences rather than a
+  measurement of lift. This route is deliberately narrow: it fires only on a criterion the
+  card's own evidence record demonstrably fails, and the changeset must quote the failing row.
+  An owner who has cooled on a card has not met this bar; a card whose `Occasions counted` row
+  reads `0` against a policy criterion requiring an observed failure has.
 
 Execute a retirement as: remove the skill directory; drop it from its bucket README and the
 top-level README; add a row + a short narrative to
@@ -312,7 +335,7 @@ on purpose) and `DISTILLED` (written from research, no triggering incident). An 
 opening with a word outside the vocabulary is refused rather than guessed at, on the same rule as
 the controlled fields: a card that has not said which tier it is cannot be counted into either.
 
-⛔ **The page states no tally of cards, of tiers, or of anything else that tracks repository
+**The page states no tally of cards, of tiers, or of anything else that tracks repository
 state. Owner ruling 2026-08-24: do not add one back.** The rule now reads in one direction only —
 any tally the page *does* state must agree with the records, and zero tallies is the expected
 case. An earlier edition required `README.md` to state the tiering in exactly two places, which
@@ -382,7 +405,7 @@ mechanism working. An evolving ecosystem, not a chop list.
       `github-pages-deploy-verification` — and both say so in their own `Dispatches recorded`
       row, which is why that row's zero must read `No recorded dispatch` and never `0`.
 
-      ⚠ **The evidence behind those two differs in kind, and this branch does not make them
+      **The evidence behind those two differs in kind, and this branch does not make them
       equal.** `git-pull-rebase-trap` has a dedicated PreToolUse guard with a test beside it, in
       the maintainer's private environment; the mechanism demonstrably exists.
       `github-pages-deploy-verification` has **no dedicated guard** — only a prompt-router
@@ -394,7 +417,7 @@ mechanism working. An evolving ecosystem, not a chop list.
       cannot distinguish an unobservable card from insurance: both return "no occasions found".
    2. **Retrieval defect.** The records show occasions where the card's trap occurred and the
       card did not fire. The description never matches how the situation gets phrased — fix
-      the description. ⚠ **Branch 1 does not close this one.** A hook-fired card has its own
+      the description. **Branch 1 does not close this one.** A hook-fired card has its own
       version of this failure — the trap occurred and the hook did not fire — and it is
       detectable from the session records without the counter. Run branch 2 on an unobservable
       card too; only branch 3 is foreclosed.
@@ -565,7 +588,7 @@ mechanism working. An evolving ecosystem, not a chop list.
    | `scripts/validate_conformance.py --root .` | `scripts/test_validate_conformance.py` | governance surfaces (the scheduled job's own pair), and O7's manifest-vs-tree check |
    | `scripts/validate_spec_conformance.py` | `scripts/test_validate_spec_conformance.py` | the OFFICIAL spec validator over both trees. **Needs `npx`.** Its suite tests the allowance classifier only and says so; the live run is CI's |
 
-   ⚠ **Run all eight, not the ones the pass thinks it touched.** The reconciliation step exists
+   **Run all eight, not the ones the pass thinks it touched.** The reconciliation step exists
    because a one-integer change propagates further than the editor expects; a gate list trimmed
    by expectation defeats the same property. This table was four validators until 2026-08-24,
    became seven the same day and eight before the day ended, and shipped stale at four — if it disagrees with CI, CI is right and this table is the bug. Re-derive
@@ -575,7 +598,7 @@ mechanism working. An evolving ecosystem, not a chop list.
    grep -rnE 'python3? +[^ ]*(validate_|test_)' .github/workflows/
    ```
 
-   ⚠ **Use that form, not a `scripts/`-scoped grep.** Three CI gates do not live in `scripts/` —
+   **Use that form, not a `scripts/`-scoped grep.** Three CI gates do not live in `scripts/` —
    both session-boundary parity suites and the stale-packet poison control, all under
    `skills/engineering/im-{down,up}/`. A `scripts/`-scoped grep returns a clean confirmation
    while those three are still unrun, which is a re-derivation that certifies its own blind spot.
@@ -617,8 +640,8 @@ mechanism working. An evolving ecosystem, not a chop list.
    with no new evidence would produce zero diff: the pass re-derives from current records every
    time, keeps no incremental state, and is safe to run twice.
 9. **Adjudicate.** Four dispositions, not two: admit, retire, **repair** (step 3), or a dated
-   deferral. New candidates enter through the [admission policy](ADMISSION.md), answered via
-   the gate card; retirement candidates leave through "Retirement" above. `_quarantine/`
+   deferral. New candidates enter through the [admission policy](ADMISSION.md), whose four
+   questions are answered directly; retirement candidates leave through "Retirement" above. `_quarantine/`
    promotion is `git mv`, so the card carries its history. Open a candidate's
    `PROVENANCE.md` before diagnosing drift or duplication — one candidate is a staged patch
    to an already-promoted card, and it has been misread as version drift once already. Done
@@ -690,11 +713,13 @@ For substantive prose:
 5. Attach uncertainty only to the proposition that is actually uncertain.
 6. End with the next action, test, or decision.
 
+<!-- vale Taste.Register = NO -->
 Syntax: short sentences, concrete nouns, direct verbs, active voice, one step per
 sentence. Never: euphemism after the underlying action is known; "perhaps",
 "possibly", or "arguably" as cushioning for a supported claim; "readers may
 conclude"; sarcasm or victory laps; passive voice that hides the responsible
 component; abstractions that erase the person affected.
+<!-- vale Taste.Register = YES -->
 
 ## License
 

@@ -10,9 +10,8 @@ issue template. The short version of the gauntlet:
 
 1. **It must pass the [admission policy](ADMISSION.md).**
    Four questions deciding whether the capability belongs in a skill, in project rules, in a
-   hook — or nowhere. Answer them with the
-   [gate card](skills/meta/skill-necessity-gate/SKILL.md), whose first three gates are the ones
-   those questions distill; its remaining gates are authoring guidance, not admission criteria.
+   hook — or nowhere. The policy is the whole test: answer the four questions against your
+   candidate and cite the evidence each one asks for.
 2. **A current frontier model, without the skill, should plausibly still fail the situation.**
    If the model already handles it unaided, the skill is a no-op — four of the author's own
    candidates died exactly here ([RETIRED.md](RETIRED.md)), so yours failing is good company.

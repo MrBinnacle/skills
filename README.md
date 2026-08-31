@@ -24,9 +24,11 @@ unaided failure exists, whether it recurs independently, whether a skill is the 
 surface, and whether the evidence supports admission and retirement. The default answer is not
 admitted.
 
-The policy's [three-instrument table](ADMISSION.md#naming-the-gate) names the parts. The
-**admission policy** states the rule. The **gate card** applies the rule. The **screen** measures
-a model with and without the candidate. These names describe different instruments.
+The policy's [naming table](ADMISSION.md#naming-the-gate) names the parts. The **admission
+policy** states the rule. The **screen** measures a model with and without the candidate. These
+names describe different instruments. A third name, the **gate card**, was retired on 2026-08-31
+along with the card it named: the policy no longer has a reference method, and the four
+questions are answered directly.
 
 The [S295 disposition record](dispositions/2026-08-15-S295-admission-triage.md) applied
 `admission-policy v1` to all nine published cards on 2026-08-15. It found two cards that stand,
@@ -35,13 +37,12 @@ card.
 
 ## Card map
 
-These cards use four forms:
+These cards use three forms:
 
 | Type | What it is | Cards |
 |---|---|---|
 | Trap | A warning and recovery path for a command or platform behavior that can report success after doing the wrong work. | `git-pull-rebase-trap`, `github-pages-deploy-verification`, `click-clirunner-env-none-deletes`, `mock-masked-stub-trap`, `pretooluse-bash-guard-prose-false-positive`, `success-test-accepts-any-output` |
 | Procedure | An ordered set of actions for a boundary, handoff, or verification task. | `im-down`, `im-up`, `closure-mode-at-boundaries`, `subagent-research-reliability`, `downstream-instruction-framing`, `router-skill-predicate-gap`, `halt-as-deliverable` |
-| Gate | A decision sequence that accepts, routes, or rejects a candidate. | `skill-necessity-gate` |
 | Schema | A fixed output shape for comparable parallel reviews. | `parallel-review-disposition-schema` |
 
 ## Card evidence
@@ -67,7 +68,6 @@ integer that opens the card's `Occasions counted` row.
 | [`parallel-review-disposition-schema`](skills/orchestration/parallel-review-disposition-schema/EVIDENCE.md) | origin-trace | 2 |
 | [`subagent-research-reliability`](skills/orchestration/subagent-research-reliability/EVIDENCE.md) | origin-trace | 5 |
 | [`router-skill-predicate-gap`](skills/meta/router-skill-predicate-gap/EVIDENCE.md) | origin-trace | 2 |
-| [`skill-necessity-gate`](skills/meta/skill-necessity-gate/EVIDENCE.md) | unmeasured | 0 |
 
 ## Install
 
@@ -115,8 +115,6 @@ Most originated in something that went wrong, or nearly did. I recorded the fail
 Some were designed for recurring work that I wanted to handle differently. Their records say `DESIGNED`.
 <!-- vale Taste.Generic-ness = YES -->
 
-One, `skill-necessity-gate`, was distilled from research on when a skill should exist. Its record says `DISTILLED`.
-
 These are **provenance categories, not quality scores**.
 
 * **OBSERVED** — originated in an observed failure or near-failure.
@@ -154,10 +152,6 @@ What one session, agent, or reviewer writes down for the next one to act on.
 * `downstream-instruction-framing` — separates what the reader may re-examine from what the handoff has settled.
 * `parallel-review-disposition-schema` — fixes the output shape so parallel reviews can be compared.
 * `halt-as-deliverable` — records a refusal by your own gate as the result, rather than routing around it.
-
-### Whether a control should exist
-
-* `skill-necessity-gate` — a skill costs context on every turn and needs maintaining. This card decides whether one should be admitted, and what would retire it.
 
 ## Evidence
 
