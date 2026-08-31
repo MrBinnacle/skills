@@ -1,5 +1,9 @@
 # Changelog
 
+All notable changes to the collection. A release is a delivery event: changed cards reach
+installed users when a version is released, not on every merge to `main`. See
+[ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
+
 ## v1.4.0 — 2026-08-31
 
 ### Minor Changes
@@ -149,10 +153,6 @@
 - [#192](https://github.com/MrBinnacle/skills/pull/192) [`c0b29c1`](https://github.com/MrBinnacle/skills/commit/c0b29c1490133fd0c885ff747d5b0acfdbf8703a) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Repository automation: an issue that opens with no label now receives `needs-triage` from a workflow on `issues: opened`. An unlabeled issue is invisible to every selector that keys on a triage role, and the only guard for that ran on one host. The workflow adds the one label and touches nothing else; no published card changed.
 
 - [#193](https://github.com/MrBinnacle/skills/pull/193) [`59ea32f`](https://github.com/MrBinnacle/skills/commit/59ea32f0e8319042a2da57916c08795ac22a407b) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `validate_voice_provenance`: extend the voice-provenance check to scan surfaces for first-person sentences that must be recorded in VERBATIM.md. The scanned surfaces are a data-driven list, so adding a further surface is a data edit. The GitHub description line is recorded in VERBATIM.md under its own dated section. Five front-page variants under `docs/design/variants/front-page/` pass the extended validator when placed as README.md.
-
-All notable changes to the collection. A release is a delivery event: changed cards reach
-installed users when a version is released, not on every merge to `main`. See
-[ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
 ## v1.3.0 — 2026-08-25
 
