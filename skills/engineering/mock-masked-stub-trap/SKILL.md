@@ -75,6 +75,6 @@ fresh-context re-review that reads the blocking tests for unpatched-ness — rat
 the suite — is what catches it. Verification beats self-reporting: the model reporting "633
 passed" is not evidence the guard works.
 
-When the return is reviewed by several isolated seats at once, give one seat this lens
+When the return is reviewed by more than one isolated seat at once, give one seat this lens
 explicitly and none of the others, so the finding is attributable. The dispatch shape for that
 fan-out is [`parallel-review-disposition-schema`](../../orchestration/parallel-review-disposition-schema/SKILL.md).

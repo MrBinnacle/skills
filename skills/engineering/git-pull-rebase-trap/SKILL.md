@@ -5,7 +5,7 @@ description: Use before `git pull` where `pull.rebase` may be `true`. `--no-ff` 
 
 # git-pull-rebase-trap
 
-This card ships three things: an explanation of the trap, prevention-by-recipe for adopter-owned enforcement, and the recovery runbook below. It deliberately ships no executable hook. Enforcement that must fire belongs in the adopter's environment; the card remains the model-invocable reference.
+This card ships three parts: an explanation of the trap, prevention-by-recipe for adopter-owned enforcement, and the recovery runbook below. It deliberately ships no executable hook. Enforcement that must fire belongs in the adopter's environment; the card remains the model-invocable reference.
 
 ## The trap
 
@@ -69,7 +69,7 @@ Install an adopter-owned guard using [the runtime recipes and required case tabl
 
 ## Anti-patterns
 
-- ❌ `git pull --no-ff` as a "safe default" — only safe if you've verified `pull.rebase` is unset or `false`.
-- ❌ Running `git pull` to "investigate divergence." Use `git fetch` + `git log HEAD..origin/<branch>` for read-only divergence inspection.
-- ❌ Trusting that `--no-ff` documentation describes the full behavior. It describes `git merge --no-ff` behavior; `git pull --no-ff` behaves differently under rebase.
+- `git pull --no-ff` as a "safe default" — only safe if you've verified `pull.rebase` is unset or `false`.
+- Running `git pull` to "investigate divergence." Use `git fetch` + `git log HEAD..origin/<branch>` for read-only divergence inspection.
+- Trusting that `--no-ff` documentation describes the full behavior. It describes `git merge --no-ff` behavior; `git pull --no-ff` behaves differently under rebase.
 

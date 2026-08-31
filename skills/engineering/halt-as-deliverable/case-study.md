@@ -38,8 +38,8 @@ story is dramatically more credible than either alone.
 
 Disposition: HALT-as-deliverable reframe adopted. Both HALTs committed to
 public history. Case study rewrite scope shifted from "report cross-vendor
-result" to "narrate the discipline catching itself across multiple
-failure classes." Three classes of accidental falsification surfaced (the
+result" to "narrate the discipline catching itself across more than one
+failure class." Three classes of accidental falsification surfaced (the
 original Anthropic-key assumption that triggered the SOP precondition-check
 gap counts as the third).
 
@@ -64,7 +64,7 @@ The pattern generalizes from experimental HALTs (multi-hour pre-flight gates) to
 documentation HALTs (sub-second state-drift catches). The trigger is the same:
 the verification step found an inconsistency the casual reader would have missed.
 The discipline of surfacing it (vs. silently working around it) is the
-demonstration of "the verification step is doing real work, even on small things."
+demonstration of "the verification step is doing real work, even on small details."
 
 Author identity matters less for the micro case — but the discipline still
 applies. A handoff doc claiming "DONE" when reality is "PENDING" gets the same

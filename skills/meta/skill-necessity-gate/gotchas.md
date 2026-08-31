@@ -10,14 +10,18 @@ treat a run that keeps everything as evidence the gate isn't being applied hones
 
 ## [ANTICIPATED] Skipping the measurement, arguing the worth
 Gates 1 and 2 say MEASURE (park-and-count frequency; with-skill-vs-without eval). The failure
-mode is asserting "this will obviously be used a lot" / "this obviously helps" and skipping the
+mode is asserting
+<!-- vale Taste.Evidence = NO -->
+"this will obviously be used a lot" / "this obviously helps"
+<!-- vale Taste.Evidence = YES -->
+and skipping the
 park-and-observe + eval. Prediction is not evidence; the whole point is that even Pocock
 mis-predicts ("too simple" prompts that became core skills).
 
 ## [ANTICIPATED] Auto-deciding invocation topology instead of asking
 Gate 3 (auto-invoke vs manual) is partly a user-values call. Don't silently set
 `disable-model-invocation` because "Pocock prefers procedures" — surface the budget math AND
-the control tradeoff and let the human choose. Some skills (e.g. situational diagnosis) are
+the control tradeoff and let the human choose. Certain skills (e.g. situational diagnosis) are
 MORE valuable auto-invoked.
 
 ## [ANTICIPATED] Confusing "narrow" with "not worth it"
