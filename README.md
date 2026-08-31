@@ -9,9 +9,18 @@
 
 **These aren't the Claude Code skills you're looking for.**
 
-A small collection of Claude Code skills I develop from problems encountered in actual use.
+Claude Code skills that had to earn their place.
 
-The collection is intentionally small. These are the skills I have found useful enough to keep developing and maintaining.
+Most skill collections grow. This one is built to shrink. A card enters only by answering four
+questions -- does a current frontier model actually fail this without the skill, does the failure
+recur, is a skill the right control surface, and is the evidence written down -- and the default
+answer is **no**. A card leaves when a newer model makes it redundant, and the reason it left is
+recorded in [`RETIRED.md`](RETIRED.md).
+
+That bar is not self-assessed. [`skill-harness`](https://github.com/MrBinnacle/skill-harness) runs
+the same task with a skill and without it, and reports what can honestly be said about the
+difference -- which is often *"not enough to call it"*. A missing figure is a typed refusal, never
+an invented score. Cards that measure no benefit get cut, including ones I wrote and liked.
 
 **Install it** with `/plugin marketplace add MrBinnacle/skills` in Claude Code, or
 `npx skills add MrBinnacle/skills` at a shell. Both routes, and what each one puts where, are in
