@@ -125,36 +125,37 @@ Each card states its own tier in its `EVIDENCE.md`, and that record is the only 
 
 ## What they address
 
-The cards currently fall into four areas.
+Every published card appears below. The groups name what a card is about. The
+[Card map](#card-map) above groups the same cards by form, so a card appears once in each place.
 
-### Success that looks successful
+### Reports that do not match what happened
 
-Operations that report success even though the intended result did not occur.
+An operation, a test, or an agent states an outcome, and the stated outcome is not the one that
+occurred. This is the largest group in the collection.
 
-* `git-pull-rebase-trap`
-* `github-pages-deploy-verification`
-* `im-up`
+* `git-pull-rebase-trap` — a pull rewrites local commits and reports an ordinary merge.
+* `github-pages-deploy-verification` — a poll matches content that was already on the page, so the check confirms a deploy that has not landed.
+* `mock-masked-stub-trap` — a test patches a helper that is a stub in production, so the suite passes over a branch that never ran.
+* `success-test-accepts-any-output` — a success test accepts an error body, because it asks only whether the output is non-empty.
+* `click-clirunner-env-none-deletes` — a test's environment override leaves a key in place, the call the test exists to prevent happens, and the assertion still passes.
+* `router-skill-predicate-gap` — a router's silence reads as "no prompt needed it" when the real cause is a predicate that cannot match.
+* `pretooluse-bash-guard-prose-false-positive` — a command guard reads prose that mentions the command it polices, and blocks the text instead of the action.
+* `subagent-research-reliability` — a subagent returns claims and citations nobody checked, from tools it may not hold.
+* `im-up` — a session start checks the previous session's stated paths, predicates, and sequence against the repository.
 
-### Delegation
+### Reports written for the next reader
 
-Failure modes introduced when work moves between agents: unsupported research claims, incompatible review outputs, and handoffs that discourage appropriate re-examination.
+What one session, agent, or reviewer writes down for the next one to act on.
 
-* `subagent-research-reliability`
-* `parallel-review-disposition-schema`
-* `downstream-instruction-framing`
+* `im-down` — writes the session's closing state as a packet the receiver can validate.
+* `closure-mode-at-boundaries` — runs the verification list at a boundary instead of handing it back as options.
+* `downstream-instruction-framing` — separates what the reader may re-examine from what the handoff has settled.
+* `parallel-review-disposition-schema` — fixes the output shape so parallel reviews can be compared.
+* `halt-as-deliverable` — records a refusal by your own gate as the result, rather than routing around it.
 
-### Boundaries
+### Whether a control should exist
 
-Checks and cleanup that get skipped when one phase or session ends and another begins.
-
-* `closure-mode-at-boundaries`
-* `im-down`
-
-### Unnecessary skills
-
-A skill has a context and maintenance cost. Models and platforms change. A skill that no longer provides enough value should be removable.
-
-* `skill-necessity-gate`
+* `skill-necessity-gate` — a skill costs context on every turn and needs maintaining. This card decides whether one should be admitted, and what would retire it.
 
 ## Evidence
 
