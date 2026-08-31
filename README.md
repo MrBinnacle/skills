@@ -23,7 +23,7 @@ difference -- which is often *"not enough to call it"*.
 
 Read the honest part first: **most cards here carry `UNMEASURED` in their evidence record.** The
 screen has not been run on them, and that is written down rather than papered over with a number
-nobody earned. A missing figure is a typed refusal, never an invented score. When a screen does
+nobody measured. A missing figure is a typed refusal, never an invented score. When a screen does
 run and finds no benefit, the card is cut.
 
 **Install it** with `/plugin marketplace add MrBinnacle/skills` in Claude Code, or
