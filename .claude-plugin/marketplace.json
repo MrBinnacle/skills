@@ -45,8 +45,7 @@
       "source": "./",
       "strict": false,
       "skills": [
-        "./skills/meta/router-skill-predicate-gap",
-        "./skills/meta/skill-necessity-gate"
+        "./skills/meta/router-skill-predicate-gap"
       ],
       "version": "1.3.0"
     }

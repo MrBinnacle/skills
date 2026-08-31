@@ -1,4 +1,4 @@
-# EVIDENCE — skill-necessity-gate (fixture)
+# EVIDENCE — meta-fixture-card (fixture)
 
 Fixture record. It exists because the scoreboard validator derives the `N measured` field from
 the cards' own controlled fields, and refuses a tree where a card cannot answer.

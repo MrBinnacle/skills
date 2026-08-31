@@ -78,7 +78,7 @@ A skill that is model-invocable upstream can be switched off per project:
 
 ```jsonc
 // <project>/.claude/settings.local.json
-{ "skillOverrides": { "azimuth": "off", "skill-necessity-gate": "off" } }
+{ "skillOverrides": { "azimuth": "off", "router-skill-predicate-gap": "off" } }
 ```
 
 This is invisible from the skill itself. A skill whose frontmatter says nothing and whose

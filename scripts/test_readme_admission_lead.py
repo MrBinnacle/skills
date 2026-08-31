@@ -120,25 +120,31 @@ def case_three_instruments_are_referenced() -> None:
     body = section(README.read_text(encoding="utf-8"), "Admission method")
     check("admission lead links ADMISSION.md", "[admission policy](ADMISSION.md)" in body)
     check(
-        "admission lead names the policy, gate card, and screen",
-        all(term in body for term in ("admission policy", "gate card", "screen")),
+        "admission lead names the policy and the screen",
+        all(term in body for term in ("admission policy", "screen")),
         body.strip(),
     )
     policy = ADMISSION.read_text(encoding="utf-8")
     table = re.search(r"(?ms)^\| Prefer \| Means \| Lives \|.*?(?=\n\n)", policy)
+    # Two instruments, not three. The gate card was the third; it retired on
+    # 2026-08-31 (#178) and its row left the table with it. The count is
+    # asserted rather than left open so a row cannot be dropped unnoticed.
     check(
-        "the three-instrument table remains intact",
+        "the naming table remains intact",
         table is not None
-        and table.group(0).count("\n|") == 4
-        and all(term in table.group(0) for term in ("admission policy", "gate card", "screen")),
+        and table.group(0).count("\n|") == 3
+        and all(term in table.group(0) for term in ("admission policy", "screen"))
+        and "gate card" not in table.group(0),
     )
 
 
 def case_card_map_names_four_types() -> None:
     body = section(README.read_text(encoding="utf-8"), "Card map")
     check(
-        "card map names trap, procedure, gate, and schema",
-        all(re.search(rf"\b{kind}\b", body, re.IGNORECASE) for kind in ("trap", "procedure", "gate", "schema")),
+        # Three forms, not four. "Gate" was the fourth, and skill-necessity-gate
+        # was the only card of that type; both retired on 2026-08-31 (#178).
+        "card map names trap, procedure, and schema",
+        all(re.search(rf"\b{kind}\b", body, re.IGNORECASE) for kind in ("trap", "procedure", "schema")),
         body.strip(),
     )
 

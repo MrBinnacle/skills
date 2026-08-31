@@ -4,7 +4,7 @@ Extracted 2026-07-04 from a mined dispatch pattern (the author's research-projec
 two live variants: Workflow refute-pattern, teammate verifier-seat). The raw transcript count (22) was
 later re-graded as fan-out inflation — true recurrence ≈ 2 occasions; the MERGE disposition stands on
 zero-standing-cost grounds, not recurrence volume (see
-[skill-necessity-gate/gotchas.md](../../meta/skill-necessity-gate/gotchas.md)). SKILL.md's
+the retired gate card's `gotchas.md` [at `v1.3.0`](https://github.com/MrBinnacle/skills/blob/v1.3.0/skills/meta/skill-necessity-gate/gotchas.md)). SKILL.md's
 disposition schema assumes findings are already verified — this template is how they
 get verified. Same joinability principle, applied one stage earlier.
 

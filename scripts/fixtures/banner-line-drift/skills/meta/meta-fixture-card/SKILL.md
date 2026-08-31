@@ -1,5 +1,5 @@
 ---
-name: skill-necessity-gate
+name: meta-fixture-card
 description: fixture
 disable-model-invocation: true
 ---
@@ -8,6 +8,6 @@ disable-model-invocation: true
 > (`admission-policy v1`). This skill is the reference method for answering it —
 > not the binding rule.
 
-# skill-necessity-gate
+# meta-fixture-card
 
 fixture

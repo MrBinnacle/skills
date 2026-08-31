@@ -26,7 +26,7 @@ metadata:
 ---
 
 <!-- S305 gate run (private research repo, quarantine gate-0 audit): added
-     disable-model-invocation per skill-necessity-gate Gate 3. This card prescribes physical
+     disable-model-invocation per the topology rule in AGENTS.md. This card prescribes physical
      deletion of SKILL.md files and atomic commits, which makes it a PROCEDURE with side
      effects, not a model-pulled ability. It was authored without the flag. Cleared Gate 0;
      standing is CANT_TELL_YET pending a screen. Not promoted. -->
@@ -156,7 +156,9 @@ You misapplied this skill when:
 
 - A child SKILL.md is still in the directory after its family CONSOLIDATED.
 - The disposition surfacing was prose-heavy ("I think this might be a family because..."). The format is non-negotiable.
+<!-- vale Taste.Evidence = NO -->
 - The falsifiability gate was satisfied with English assertions only ("the trigger is clearly distinct because..."). Without fixtures + pseudocode, the gate didn't fire.
+<!-- vale Taste.Evidence = YES -->
 - The skill is loaded by `CLAUDE.md` or a settings.json hook for every session. It must remain just-in-time only.
 
 ## Instruction-budget discipline

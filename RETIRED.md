@@ -15,6 +15,14 @@ named in advance so the call can't be rationalized after the fact. When that cha
 skill retires against its own stated criterion, no screen required: the problem is gone, not
 merely outgrown. The first retirement below is one of these.
 
+A skill can leave a third way, and it is the narrowest of the three. A card is **withdrawn on
+the policy** when it cannot satisfy the admission policy it is measured against, and its own
+evidence record is the proof. No screen is required, because the failing criterion counts
+observed occurrences rather than measuring lift, and a screen cannot supply an occurrence that
+never happened. This route fires on a criterion the card's own record demonstrably fails. An
+owner who has cooled on a card has not met that bar. The second retirement below is the first
+use of it.
+
 Turning away your own work costs something: it makes the collection look smaller. That cost is the
 point. A list that shrinks when the models improve is the one telling you the truth about which
 skills the model still needs. Model progress becomes collection history, not silent rot.
@@ -24,6 +32,7 @@ skills the model still needs. Model progress becomes collection history, not sil
 | Skill | Retired | What made it unnecessary | Evidence |
 |---|---|---|---|
 | `claude-code-stop-hook-envelope` | 2026-07 | Claude Code now delivers the assistant's final turn inline as `last_assistant_message` on `Stop`/`SubagentStop`, and the docs recommend it *instead of* reading the transcript — the exact "response text delivered inline" trigger the skill pre-registered | [receipt (at `v1.0`)](https://github.com/MrBinnacle/skills/blob/v1.0/skills/engineering/claude-code-stop-hook-envelope/EVIDENCE.md) |
+| `skill-necessity-gate` | 2026-08 | Withdrawn on the policy. It was the reference method for `ADMISSION.md`, and it could not satisfy that policy's criterion 1, which requires a failure that was observed rather than predicted. Its own record counted zero occurrences across the card's whole life | [receipt (at `v1.3.0`)](https://github.com/MrBinnacle/skills/blob/v1.3.0/skills/meta/skill-necessity-gate/EVIDENCE.md) |
 
 ### Retired — July 2026
 
@@ -40,6 +49,46 @@ had pre-registered as its retirement trigger — so it retires, platform-fixed, 
 One general lesson outlives it, as ordinary hook hygiene rather than a skill: a `Stop` hook's stdin
 is a JSON envelope, so a hook that greps it blindly can sit green and never fire. Worth a one-line
 test when you write one — no longer worth a dedicated card.
+
+### Retired — August 2026
+
+The collection removed its own gate card because the gate card could not pass its own gate.
+
+`skill-necessity-gate` was the six-gate procedure for deciding whether a capability should
+become a skill, and `ADMISSION.md` named it the reference method for the collection's four
+admission questions. That policy's criterion 1 asks for an unaided failure that was **observed,
+not predicted**. The card's own evidence record answered, verbatim:
+
+> **Occasions counted** | 0 — no triggering occurrence; intake exercises and audits validate use
+> of the rubric but do not establish recurrence of one observed problem. **RECURRENCE-THIN**
+
+The defect was not repairable by rewriting. An occurrence can only be found, and none appeared
+across the card's whole life. This was not a new reading either: the
+[S295 admission triage](dispositions/2026-08-15-S295-admission-triage.md) recorded the card as
+`RECURRENCE-THIN` on 2026-08-15 and declined to act, and an evaluation-chain pass on 2026-08-28
+found this card broke its evidence chain at the first link while four others reached at least
+the third.
+
+One further reading is worth stating, because it is the argument against the card that the card
+itself could not answer. Its stated outcome evidence was that four candidates in this file "were
+processed under this gate and none were admitted". Those candidates were processed *under* the
+gate, so the gate agreeing with an outcome it produced is not independent evidence that the gate
+works. That is this collection's own "don't grade your own homework" doctrine, applied to a card.
+
+Two things outlive it, and both moved into [`AGENTS.md`](AGENTS.md) in the same change that
+removed the directory, as ordinary hygiene rather than a resurrected card:
+
+- **The topology rule** (the card's Gate 3): decide model-invocable against procedure by asking
+  who does the strategic thinking, treat side effects as procedure, and surface the standing-cost
+  maths so the human makes the close calls rather than the model auto-deciding them.
+- **No self-authority**: a card's name, its role in this repository, its prior use, and the
+  decisions it produced are not evidence for a verdict it reaches.
+
+One reduction in assurance is accepted and recorded rather than slipped in. `ADMISSION.md` and
+the gate card each declared a policy edition, and `scripts/validate_scoreboard.py` asserted the
+two agreed. That lockstep is gone with the card. What survives is the stronger half: the policy
+file must still carry exactly one canonical version declaration, so a partial bump cannot be
+expressed in the file that binds.
 
 ## Screened out at the gate — July 2026
 

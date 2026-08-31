@@ -4,8 +4,8 @@ name: tests
 # validates the packet that carries one session's state into the next. That
 # validator had a passing test suite and no job that ran it. The same job also
 # runs the repo-level scoreboard validator (the front-page admitted / measured /
-# retired / solutions-looking-for-a-problem counts, plus the admission-policy
-# version pin on the gate card).
+# retired / solutions-looking-for-a-problem counts, plus the single canonical
+# admission-policy version declaration in ADMISSION.md).
 #
 # Validators are invoked directly, not through pytest, and that is deliberate.
 # The skill suites drive their cases from `if __name__ == "__main__"` and their
@@ -152,25 +152,14 @@ jobs:
             || { echo "::error::banner-line fixture failed for the wrong reason"; cat control-banner-line.log; exit 1; }
           echo "control: softened banner line rejected as expected"
 
-      # The version half needs its own control. The banner-line fixture above
-      # fails on the ruled line and returns before the version check runs, so it
-      # proves nothing about version drift. This fixture carries the CORRECT
-      # banner line and a gate card pinned to a different edition than
-      # ADMISSION.md declares, so the only thing it can fail on is the assertion
-      # under test.
-      - name: Poison control - a drifted policy version must be rejected
-        run: |
-          set -euo pipefail
-          if python scripts/validate_scoreboard.py \
-               --root scripts/fixtures/admission-version-drift \
-               > control-version.log 2>&1; then
-            echo "::error::version-drift fixture was ACCEPTED - the validator no longer refuses policy version drift"
-            cat control-version.log
-            exit 1
-          fi
-          grep -q 'admission policy version drift' control-version.log \
-            || { echo "::error::version-drift fixture failed for the wrong reason"; cat control-version.log; exit 1; }
-          echo "control: drifted policy version rejected as expected"
+      # The policy-version control was removed on 2026-08-31 with the gate card
+      # it depended on (#178). Its fixture planted a disagreement between
+      # ADMISSION.md's declaration and the gate card's normative-status header;
+      # with no reference method there is no second copy of the version to drift
+      # from, so the fixture tested nothing that could still happen. The half of
+      # the check that survives -- ADMISSION.md must declare exactly one
+      # canonical version -- has no fixture here because it fails on the real
+      # tree, loudly, the moment a second version string appears in that file.
 
       # The record-derivation half needs its own control. The counts no longer
       # appear on a page site (owner ruling 2026-08-23, skill-harness #216), but
@@ -1317,7 +1306,15 @@ jobs:
           log="$RUNNER_TEMP/spec-poison.log"
           rm -rf "$tree"
           git clone --quiet --no-hardlinks . "$tree"
-          card="$tree/skills/meta/skill-necessity-gate/SKILL.md"
+          card="$tree/skills/meta/router-skill-predicate-gap/SKILL.md"
+          # The target is named, so it can go missing. A retirement that removes
+          # this card would otherwise make the control vacuous in silence -- which
+          # is exactly what the previous target, skill-necessity-gate, was
+          # heading for when it retired on 2026-08-31 (#178). Fail loudly instead.
+          test -f "$card" || {
+            echo "::error::poison-control target $card does not exist - repoint this control at a published card"
+            exit 1
+          }
           python - "$card" <<'PY'
           import pathlib, sys
           p = pathlib.Path(sys.argv[1])
