@@ -109,6 +109,10 @@ npx skills add MrBinnacle/skills
 
 It tracks `main` rather than a tag, so it installs the current tip of the collection.
 
+The same route lists the collection on [skills.sh](https://www.skills.sh/MrBinnacle/skills), the
+directory behind that command, where each card appears by name with its install count. The
+directory ranks by installs only; it carries none of the evidence records.
+
 The manifest is the machine-readable statement of what ships. CI refuses any state where the
 manifest and the published tree disagree, in either direction — a path the manifest names with no
 card at it, and a published card no plugin names. That is standing obligation **O7** in
