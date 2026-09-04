@@ -114,7 +114,7 @@ updates every installed copy and local↔repo drift is structurally impossible:
 ## Authoring conventions
 
 - **Frontmatter** — `name:` + `description:` only. Description ≤ 200 chars, written as a *router* ("Use when X, Y, Z") not a summary. Topology (`disable-model-invocation`) is set per the rule below.
-- **Topology is a choice, not a default** — decide per skill: model-invocable (a *background reference* safe to auto-pull) vs **procedure** (`disable-model-invocation: true`, human-invoked, zero standing cost). The deciding question is **who does the strategic thinking?** A skill that *dictates strategic work* — planning, what/how, an orchestration swarm, a decision the human should own — is a procedure, not an auto-firing ability, and so is any skill with **side effects**: deploy, commit, send. Default to model-invocable only for background references. When the call is close it is partly a values question rather than a purely technical one, so **surface the standing-cost maths and let the human choose**: a model-invocable description costs ~100 always-on tokens and competes in the skill-list budget (~1% of context, where the least-used descriptions are truncated and then dropped at scale), while a procedure costs zero standing tokens and spends the human's attention instead. Present both sides and ask; auto-deciding this one takes a choice that is not yours.
+- **Topology is a choice, not a default** — this one presumes a card is the right artifact at all; [Choosing the control surface](#choosing-the-control-surface) below settles that first. Decide per skill: model-invocable (a *background reference* safe to auto-pull) vs **procedure** (`disable-model-invocation: true`, human-invoked, zero standing cost). The deciding question is **who does the strategic thinking?** A skill that *dictates strategic work* — planning, what/how, an orchestration swarm, a decision the human should own — is a procedure, not an auto-firing ability, and so is any skill with **side effects**: deploy, commit, send. Default to model-invocable only for background references. When the call is close it is partly a values question rather than a purely technical one, so **surface the standing-cost maths and let the human choose**: a model-invocable description costs ~100 always-on tokens and competes in the skill-list budget (~1% of context, where the least-used descriptions are truncated and then dropped at scale), while a procedure costs zero standing tokens and spends the human's attention instead. Present both sides and ask; auto-deciding this one takes a choice that is not yours.
 - **A discipline you *require* to fire cannot live only in the skill layer.** Both topologies rely on model-pull to fire — a model-invocable skill on retrieval, a procedure on the human remembering to invoke it — and model-pull is unreliable. In a proactive/`/loop` context it is not merely unreliable but *absent*: with the human turn removed, retrieval probability goes to zero, a `disable-model-invocation` procedure arrives as inert plain text, and a prompt-triggered nudge never fires — only a **PreToolUse/PostToolUse hook**, which fires on the tool call itself, still runs. So if an adopter *depends on* a discipline firing, back it with a deterministic hook (a UserPromptSubmit nudge that surfaces the skill, or a PreToolUse block) **in their own environment**; the published skill stays the model-invocable reference. Ask "does this discipline survive the loop?" — if its firing depends on retrieval or on a prompt arriving, it needs a hook, not just a skill.
 - **Naming** — `UPPERCASE-NAMED.md` for documents/templates/formats (e.g., `AGENT-BRIEF.md`, `OUT-OF-SCOPE.md`). `lowercase-named.md` for concepts/aspects/principles (e.g., `transition.md`, `mocking.md`). `SKILL.md` is always uppercase.
 - **Sizes** — `SKILL.md` 400 bytes to ~7 KB. Aux files 400 B to ~3 KB each. If `SKILL.md` is over 5 KB, split.
@@ -123,6 +123,46 @@ updates every installed copy and local↔repo drift is structurally impossible:
 - **`gotchas.md` is required** — append-only log of OBSERVED + ANTICIPATED failure modes. Seed with `[ANTICIPATED]` entries; replace or supplement with observed gotchas. Never delete entries — gotchas are stress-test signal, not failure evidence.
 - **Discipline vs implementation** — make explicit in `SKILL.md` which parts of the skill are the stable contract vs. illustrative. Adopters need to know what they can swap.
 - **Factual claims are dated and checkable — verify them before shipping AND before correcting.** A skill that asserts platform behavior (a flag, a hook payload, an API) rots when the platform changes. Verify against live docs or an empirical repro before you ship a claim, and again before you "fix" one — a wrong correction to an evidence-first repo is worse than the original error. Record the check (version, date) wherever the claim is relied on.
+
+### Choosing the control surface
+
+[`ADMISSION.md`](ADMISSION.md) criterion 3 asks whether a skill is the correct **control surface** for a failure. It lists what a skill is competing against and stops there, which is the right size for a policy and too small to decide with. This section is how that criterion gets answered. It is guidance for applying the policy, not an amendment to it — the four questions are unchanged and this text binds nothing they do not.
+
+Answer it **before** the frontmatter question above. That one presumes a card; this one decides whether there should be one.
+
+Return exactly one primary disposition:
+
+| Disposition | The capability is |
+|---|---|
+| `STANDALONE_SKILL` | a reusable method owning its own trigger and terminal outcome |
+| `PARENT_ORCHESTRATOR` | the owner of scope, sequencing, synthesis and the final write, recruiting specialists |
+| `NESTED_SPECIALIST` | bounded advice or work supplied to a parent, with no independent write authority |
+| `SHARED_PRIMITIVE` | a schema, interview or validator several skills consume, rarely invoked directly |
+| `HOOK_ENFORCEMENT` | behaviour that must fire deterministically rather than on retrieval |
+| `MCP_ACCESS` | external reach, state or tools; the method lives elsewhere |
+| `PROJECT_RULE` | a constraint on one repository, belonging in its `CLAUDE.md` or equivalent |
+| `PRP_OR_BUILD_ARTIFACT` | an execution packet for one build, discarded after it |
+| `OUTPUT_STYLE` | a standing voice or register rather than a task method |
+| `SCRIPT_OR_CHECK` | a deterministic operation needing no agent reasoning around it |
+| `COMPOSITION_EDGE` | an invocation contract between capabilities that already exist |
+| `NO_ARTIFACT` | ordinary model capability, a one-off instruction, or machinery with no case behind it |
+
+The questions that discriminate them:
+
+1. Does it own a distinct trigger **and** a terminal outcome? Missing either points away from `STANDALONE_SKILL`.
+2. Is it a specialist an existing parent recruits, rather than something a user reaches for?
+3. Must it fire deterministically, or does it merely benefit from retrieval? A discipline you depend on needs a hook; a card's firing rests on retrieval and a procedure's on the human remembering.
+4. Is the missing element method, project context, access, enforcement, or temporary execution state? Each answer names a different row.
+5. Can an existing skill consume it through a compact input and output contract? Then it is an edge, not an identity.
+6. Which component owns writes, adjudication, failure handling and receipts?
+7. What happens when it is unavailable? A capability with no graceful degradation is a dependency, and should say so.
+8. What cycle, nesting-depth, latency and standing-cost risks does it add?
+
+**A second identity for an existing trigger surface creates ambiguous routing.** When a capability shares another card's trigger, protected interfaces and repository identity, it is a version of that card or an edge into it. Two cards answering the same request is a routing defect that no evidence record fixes.
+
+**This rubric decides layer. It does not decide worth, and it cannot admit anything.** Admission is [`ADMISSION.md`](ADMISSION.md)'s four questions on recorded evidence, and criterion 1 wants an observed failure. A capability can sort cleanly into `STANDALONE_SKILL` here and still be refused there for want of an occurrence — which is what happened to the card this rubric came from. Reaching a disposition is not progress toward admission.
+
+**Do not cite this section, or any card, as evidence that its own output is right.** See [No self-authority](#no-self-authority) — the standing that makes an instrument feel authoritative is exactly what that rule refuses as proof.
 
 ## Where this repository diverges from the Agent Skills specification, on purpose
 
