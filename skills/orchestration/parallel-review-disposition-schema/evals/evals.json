@@ -5,11 +5,12 @@
     {
       "id": 1,
       "prompt": "I am firing five isolated seats to decide what to do with the eighteen verified findings from the security audit. Each prompt just says 'review these findings and give your recommendations'. Anything to add?",
-      "expected_output": "Adds the four dispatch elements before the fire: a closed decision vocabulary, a shared per-item output block, explicit per-seat item ownership with the evidence inline, and a mandatory status line. States that comparability cannot be recovered after the fact.",
+      "expected_output": "Adds the five dispatch elements before the fire: a closed decision vocabulary, a shared per-item output block, explicit per-seat item ownership with the evidence inline, a mandatory status line, and namespaced finding IDs assigned at dispatch. States that comparability cannot be recovered after the fact.",
       "assertions": [
-        "Names all four: closed enum, shared per-item block, explicit item ownership, mandatory status line.",
+        "Names all five: closed enum, shared per-item block, explicit item ownership, mandatory status line, namespaced finding IDs.",
         "States that free-form recommendations do not join and that comparability must be imposed upstream in the dispatch.",
-        "Includes the what-would-change-it field, which exposes the load-bearing assumption behind each disposition."
+        "Includes the what-would-change-it field, which exposes the load-bearing assumption behind each disposition.",
+        "States that a consolidator renumbering seat-local IDs turns a collision into a silently dropped finding, so the namespace is assigned at dispatch rather than repaired afterwards."
       ]
     },
     {

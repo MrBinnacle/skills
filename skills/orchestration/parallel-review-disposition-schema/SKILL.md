@@ -33,7 +33,7 @@ comparability after the fact.
 
 ## Solution
 
-Put all four of these in EVERY seat's dispatch prompt:
+Put all five of these in EVERY seat's dispatch prompt:
 
 1. **A fixed DECISION VOCABULARY (enum).** Every seat picks its disposition for each owned item
    from the same closed list. For a security audit, e.g.:
@@ -55,6 +55,18 @@ Put all four of these in EVERY seat's dispatch prompt:
    (or a confidence tag). A seat that couldn't do its job must say so structurally, so the
    synthesizer treats its divergence as a tooling artifact, not a real disagreement — and so a
    degraded seat's lone finding lands in "unaddressed," not silently dropped.
+
+5. **NAMESPACED finding IDs, assigned at dispatch.** Each seat prefixes its findings with its
+   own seat of origin (`E1-M1`, `E2-M1`, ...) and the consolidator pastes them through
+   unchanged. Seats number locally by default, so their IDs collide, and a consolidator that
+   renumbers turns a collision into a silently dropped finding — observed, with the count
+   check that catches it, in gotchas.md. Namespacing makes the collision impossible; a rollup
+   table or per-seat subsections make it visible instead. Choose one before consolidating.
+
+When the panel is not flat — mixed provider kinds, one stage feeding the next, a seat
+recruiting its own specialist, or a provider that can fail or abstain — wrap each return in
+[PROVIDER-ENVELOPE.md](PROVIDER-ENVELOPE.md), whose `run_id` + `stage_id` + `provider_id`
+supplies the namespace element 5 needs.
 
 Two discipline notes that pair with the schema:
 - **Don't let the schema substitute for verification.** Tell seats to spot-verify the specific
