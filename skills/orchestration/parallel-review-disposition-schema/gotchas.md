@@ -112,3 +112,17 @@ reclassifications (EQUIVALENT / DEFER / discharged). Any further reduction is a 
 drop. If per-seat raw outputs were not preserved, the consolidation lacks audit-trail
 integrity — that itself is a finding. When a drop is detected post-hoc, disclose it in the
 next brief; never silently fix it.
+
+## [ANTICIPATED] The envelope is filled in and the namespace still is not
+
+A panel adopts PROVIDER-ENVELOPE.md, every return carries `run_id`, `stage_id` and
+`provider_id`, and the finding IDs inside `findings` are still seat-local `M1`-`M5`.
+The envelope then identifies the provider while the findings it carries stay collidable,
+which is the 2026-08-17 drop with more metadata around it.
+
+**Mitigation:** the namespace is a property of the finding ID, not of the wrapper. State the
+prefix each seat must use in its own dispatch prompt, and run the falsifying count check
+above over the consolidated brief regardless of how the returns were wrapped.
+
+**Trigger to replace with [OBSERVED]:** a consolidation where every envelope validated and
+two findings still shared an ID.
