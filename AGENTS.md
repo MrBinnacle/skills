@@ -587,8 +587,27 @@ mechanism working. An evolving ecosystem, not a chop list.
      `instrument_identity.extractor_model` differs from the declared pass model).
    - **Trigger attestation:** `no_trigger_row` (card lacks a `Re-screen trigger` row),
      `attestation_missing` (trigger row present but no attestation clause),
-     `attestation_expired` (attestation date precedes the receipt's `source.date`),
+     `attestation_expired` (attestation date precedes the receipt's `source.date`, or
+     precedes the newest `skills` release tag),
      `trigger_fired` (attestation names a trigger that has already shipped).
+
+     **This step writes the attestation.** The attestation is a clause on the card's
+     `Re-screen trigger` row, in this shape, fixed by the current-receipt rule of 2026-08-29
+     in the maintainer's decision record:
+
+     `Attested <YYYY-MM-DD>: no named trigger has fired since <receipt source.date>; checked
+     <what was read, named>.`
+
+     Write it in the same working unit as the check, the first time a receipt is gated for a
+     card, after reading the sources the triggers name (a release list, a tag list, a model
+     roster) and finding no event since the receipt's `source.date`. Re-date it at every later
+     pass that gates a receipt for that card. A card with no receipt to gate carries no
+     attestation, and that is not a defect. The clause is prose a pass writes after looking, not
+     a validator output, and it expires at every `skills` release tag: a receipt cannot stay
+     current by nobody looking. Between 2026-08-30 and 2026-09-04 this step required the clause
+     while only step 6 named a writer, so `attestation_missing` failed for every published card
+     and no receipt could reach step 6. The gate's first run (`skills#219`) found that, and the
+     writer was restored here from the decision record.
    - **Arm coverage:** `arm_coverage` (receipt's `subject_identity.arms` does not include
      both `null` and `full` for a two-arm receipt, or does not include `null` for a
      Null-only receipt).
@@ -602,8 +621,9 @@ mechanism working. An evolving ecosystem, not a chop list.
    Null-only receipt, `Paired verdict` for two-arm) to the row shape: `<VERDICT>. Receipt:
    [<file>.json](<harness blob URL pinned to a commit, never main>), dated <source.date>,
    harness <harness_version>. <reason and caveats>`. For `CANT_TELL_YET` the prose names
-   the typed reason. The `Re-screen trigger` attestation is re-dated. The clause is a
-   convention; the three required rows are unchanged.
+   the typed reason. The `Re-screen trigger` attestation was written or re-dated at step 5;
+   this step does not touch it. The clause is a convention; the three required rows are
+   unchanged.
 7. **Dispose step — route by verdict.** `KEEP` and `CANT_TELL_YET` stop at the row; a
    `CANT_TELL_YET` card stays published with its typed reason. `CUT` fires Retirement
    through its first route (see "Retirement" above), widened from "Screen null" to
