@@ -637,6 +637,135 @@ def case_o5_newer_receipt_exists_is_fail(root: Path) -> None:
     )
 
 
+def receipt_json_1_0_0(skill_name: str, verdict: str) -> str:
+    """A SERS 1.0.0 receipt: no subject_identity block, because 1.0.0 predates it.
+
+    This is the shape the rotation pass keeps as a history link, and the shape
+    condition 2 cannot parse.
+    """
+    import json as _json
+
+    return _json.dumps(
+        {
+            "sers_version": "1.0.0",
+            "skill_name": skill_name,
+            "verdict": verdict,
+            "value_class": "trap-discipline",
+            "source": {"prose_path": "README.md", "date": "2026-07-20"},
+            "summary": f"Pre-subject_identity receipt for {skill_name}.",
+        },
+        indent=2,
+    )
+
+
+def make_1_0_0_receipt_tree(root: Path, card_name: str, declare: bool) -> Path:
+    """One card whose only Receipt clause links a 1.0.0 receipt.
+
+    `declare` decides whether the row types that link `not current:`. That one
+    difference is the whole subject of these two cases.
+    """
+    harness_root = root / "harness"
+    receipt_dir = harness_root / "docs" / "sers" / "receipts"
+    receipt_dir.mkdir(parents=True, exist_ok=True)
+    fname = f"legacy-{card_name}.json"
+    (receipt_dir / fname).write_text(
+        receipt_json_1_0_0(card_name, "CANT_TELL_YET"), encoding="utf-8"
+    )
+    clause = f"Receipt: `{fname}`, dated 2026-07-20, harness 1.0.0."
+    if declare:
+        clause += " wrong_instrument (trap-discipline); not current: no_skill_id."
+    folder = root / "skills" / "engineering" / card_name
+    (folder / "EVIDENCE.md").write_text(
+        f"# EVIDENCE - {card_name}\n\n"
+        "| Field | Value |\n|---|---|\n"
+        f"| **Screen result** | CANT_TELL_YET. {clause} |\n"
+        "| **Paired verdict** | UNMEASURED. |\n",
+        encoding="utf-8",
+    )
+    return harness_root
+
+
+def case_o5_history_receipt_is_pass(root: Path) -> None:
+    """A row that declares its own receipt `not current:` links history.
+
+    The rotation pass (AGENTS.md step 5) instructs a card to keep that link. The
+    card cannot satisfy both the ritual and a validator that parses the link as a
+    current claim, so the history declaration retires conditions 1 to 3.
+    """
+    make_tree(root)
+    harness_root = make_1_0_0_receipt_tree(root, CARDS[0], declare=True)
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is PASS when the row declares its 1.0.0 receipt not current",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+    check(
+        "the PASS reason names the history link",
+        "history" in result.stdout.lower(),
+        result.stdout,
+    )
+
+
+def case_o5_undeclared_1_0_0_receipt_is_fail(root: Path) -> None:
+    """The negative control, and the reason the check exists.
+
+    Same receipt, same card, same harness root. The row simply does not declare
+    it not current. A fix that skips condition 2 for every unparsable receipt
+    passes this case only by accident; a fix that keys on the declaration fails
+    it, which is what the row is owed.
+    """
+    make_tree(root)
+    harness_root = make_1_0_0_receipt_tree(root, CARDS[0], declare=False)
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is FAIL on an undeclared receipt with no subject_identity",
+        cell(result.stdout, CARDS[0], "O5") == "FAIL",
+        result.stdout,
+    )
+    check(
+        "the failure message names subject_identity",
+        "subject_identity" in result.stdout,
+        result.stdout,
+    )
+
+
+def case_o5_history_link_does_not_mask_a_newer_receipt(root: Path) -> None:
+    """Condition 4 still fires alongside a history link.
+
+    Skipping conditions 1 to 3 must not turn condition 4 off: a row carrying a
+    history link plus a current link is still owed the newer-receipt check on the
+    current one.
+    """
+    make_tree(root)
+    harness_root = make_receipt_tree(root, CARDS[0], source_date="2026-07-21")
+    folder = root / "skills" / "engineering" / CARDS[0]
+    skill_id = skill_id_for(folder)
+    receipt_dir = harness_root / "docs" / "sers" / "receipts"
+    (receipt_dir / "legacy-alpha.json").write_text(
+        receipt_json_1_0_0(CARDS[0], "CANT_TELL_YET"), encoding="utf-8"
+    )
+    (receipt_dir / "newer-receipt.json").write_text(
+        receipt_json(CARDS[0], skill_id, "KEEP", source_date="2026-08-15"),
+        encoding="utf-8",
+    )
+    (folder / "EVIDENCE.md").write_text(
+        f"# EVIDENCE - {CARDS[0]}\n\n"
+        "| Field | Value |\n|---|---|\n"
+        "| **Screen result** | CANT_TELL_YET. Receipt: `legacy-alpha.json`, "
+        "dated 2026-07-20, harness 1.0.0. not current: no_skill_id. |\n"
+        "| **Paired verdict** | CANT_TELL_YET. Receipt: "
+        f"`receipt-{CARDS[0]}.json` |\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 still FAILs on a newer unlinked receipt beside a history link",
+        cell(result.stdout, CARDS[0], "O5") == "FAIL",
+        result.stdout,
+    )
+
+
 # ---------------------------------------------------------------------------
 # O7: the plugin manifest and the published tree must agree, BOTH directions.
 #
@@ -1041,6 +1170,9 @@ def main() -> None:
         case_o5_skill_id_mismatch_is_fail,
         case_o5_verdict_mismatch_is_fail,
         case_o5_newer_receipt_exists_is_fail,
+        case_o5_history_receipt_is_pass,
+        case_o5_undeclared_1_0_0_receipt_is_fail,
+        case_o5_history_link_does_not_mask_a_newer_receipt,
         case_manifest_naming_every_card_passes,
         case_manifest_naming_a_missing_card_is_red,
         case_unexposed_card_is_red,
