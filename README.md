@@ -261,6 +261,8 @@ The two repositories were developed concurrently. The relationship between the s
 
 Whether the harness provides valid evidence about skill efficacy is itself an open question.
 
+Why the instrument was built, and the two commands that re-derive how much machinery the question cost, are in its [why this exists](https://github.com/MrBinnacle/skill-harness/blob/main/docs/why-this-exists.md) page.
+
 ## Why a skill score is not necessarily a skill effect
 
 A successful task does not establish that a skill caused the success.
