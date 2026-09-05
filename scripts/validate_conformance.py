@@ -242,6 +242,14 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
     3. the row's opening verdict word differs from the receipt's verdict;
     4. a receipt with the same skill_id and a later source.date exists that the
        row does not link.
+
+    A field that declares its own receipt `not current:` is a history link, which
+    is what the rotation pass (AGENTS.md step 5) instructs a card to keep.
+    Conditions 1 to 3 do not apply to it: a missing file, an absent
+    subject_identity or a superseded verdict is what the row already says, not a
+    contradiction of it. It still counts as linked for condition 4. A receipt
+    that fails those conditions in a field making no such declaration stays a
+    FAIL, which is the case the check exists for.
     """
     if harness_root is None:
         return Result(
@@ -262,11 +270,16 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
 
     linked_receipts: list[Path] = []
     linked_skill_ids: list[str] = []
+    history_names: list[str] = []
 
     for field_name in scoreboard.CONTROLLED_FIELDS:
         value = fields.get(field_name, "")
         receipt_filename = _receipt_filename(value)
         if receipt_filename is None:
+            continue
+
+        if _declares_not_current(value):
+            history_names.append(Path(receipt_filename).name)
             continue
 
         row_verdict = _opening_verdict(value)
@@ -308,15 +321,24 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
         linked_skill_ids.append(expected_skill_id)
 
     if not linked_receipts:
+        if history_names:
+            return Result(
+                PASS,
+                "the only receipt link is history: "
+                + ", ".join(sorted(history_names))
+                + ", which its own row declares not current",
+            )
         return Result(
             CANT,
             "no Receipt clause in any controlled field; rotation pass "
             "owns this case",
         )
 
-    # Condition 4: check for a newer receipt not linked by the row
+    # Condition 4: check for a newer receipt not linked by the row. A history
+    # link counts as linked here, so a row that has already moved on to a newer
+    # receipt is not reported as failing to link it.
     all_receipts = _find_all_receipts(harness_root)
-    linked_names = {p.name for p in linked_receipts}
+    linked_names = {p.name for p in linked_receipts} | set(history_names)
     for receipt_path in all_receipts:
         if receipt_path.name in linked_names:
             continue
@@ -361,6 +383,16 @@ def _opening_verdict(value: str) -> str:
             return verdict
     token = opening.split()[0] if opening.strip() else ""
     return token.rstrip(".,;:")
+
+
+def _declares_not_current(value: str) -> bool:
+    """Whether a controlled field types its own receipt link as history.
+
+    The rotation pass keeps a superseded receipt link and states why, in the
+    shape `not current: <reason>`. A card that follows that instruction must not
+    then be scored as contradicting a receipt its own row has already retired.
+    """
+    return "not current:" in value.lower()
 
 
 def _receipt_filename(value: str) -> str | None:
