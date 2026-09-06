@@ -9,9 +9,39 @@
  * Parser-backed (htmlparser2 + domhandler). Emits structured JSON receipt to stdout.
  * Exit code 0 = valid, 1 = violations found, 2 = usage error.
  */
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { Parser } from "htmlparser2";
 import { DomHandler } from "domhandler";
+
+const JS_SCRIPT_TYPES = new Set([
+  "",
+  "text/javascript",
+  "application/javascript",
+  "text/ecmascript",
+  "application/ecmascript",
+  "module",
+]);
+
+function isJavaScriptScript(el) {
+  const type = (getAttr(el, "type") || "").toLowerCase().trim();
+  if (JS_SCRIPT_TYPES.has(type)) return true;
+  return type.includes("javascript");
+}
+
+function scriptSha256(content) {
+  const digest = createHash("sha256").update(content, "utf8").digest("base64");
+  return `'sha256-${digest}'`;
+}
+
+function isExternalUrl(str) {
+  return /^(https?:)?\/\//i.test(str);
+}
+
+function parseExternalUrl(val) {
+  const normalized = val.startsWith("//") ? `https:${val}` : val;
+  return new URL(normalized);
+}
 
 const VALID_MODES = ["emit", "validate"];
 const VALID_DEPLOY = ["netlify", "artifact"];
@@ -134,6 +164,7 @@ function discoverSources(doc) {
   const connectSrc = new Set();
   const fontSrc = new Set();
   const frameSrc = new Set();
+  const inlineScriptHashes = [];
   let hasInlineScript = false;
   let hasInlineStyle = false;
   let hasUnsafeEval = false;
@@ -142,13 +173,16 @@ function discoverSources(doc) {
   for (const s of scripts) {
     const src = getAttr(s, "src");
     if (src) {
+      if (!isExternalUrl(src)) continue;
       try {
-        const url = new URL(src);
-        if (url.protocol === "https:" || url.protocol === "http:") scriptSrc.add(url.hostname);
-      } catch { /* relative */ }
-    } else if (textContent(s).trim()) {
+        const url = parseExternalUrl(src);
+        scriptSrc.add(url.hostname);
+      } catch { /* not a URL */ }
+    } else if (isJavaScriptScript(s) && textContent(s).trim()) {
+      const body = textContent(s);
       hasInlineScript = true;
-      if (/\beval\s*\(/.test(textContent(s))) hasUnsafeEval = true;
+      inlineScriptHashes.push(scriptSha256(body));
+      if (/\beval\s*\(/.test(body)) hasUnsafeEval = true;
     }
   }
 
@@ -156,15 +190,15 @@ function discoverSources(doc) {
   for (const s of styleEls) {
     const text = textContent(s);
     if (text.trim()) hasInlineStyle = true;
-    const importRe = /@import\s+["']?(https?:\/\/[^"'\s;]+)/gi;
+    const importRe = /@import\s+["']?((?:https?:)?\/\/[^"'\s;]+)/gi;
     let m;
     while ((m = importRe.exec(text))) {
-      try { fontSrc.add(new URL(m[1]).hostname); } catch { /* not a URL */ }
+      try { fontSrc.add(parseExternalUrl(m[1]).hostname); } catch { /* not a URL */ }
     }
-    const urlRe = /url\(\s*["']?(https?:\/\/[^)"'\s]+)/gi;
+    const urlRe = /url\(\s*["']?((?:https?:)?\/\/[^)"'\s]+)/gi;
     while ((m = urlRe.exec(text))) {
       try {
-        const url = new URL(m[1]);
+        const url = parseExternalUrl(m[1]);
         if (/\.(woff2?|ttf|otf|eot)/i.test(url.pathname)) fontSrc.add(url.hostname);
         else if (/\.(png|jpe?g|gif|svg|webp|ico)/i.test(url.pathname)) imgSrc.add(url.hostname);
         else connectSrc.add(url.hostname);
@@ -178,41 +212,37 @@ function discoverSources(doc) {
   const imgs = findAll(doc, "img");
   for (const img of imgs) {
     const src = getAttr(img, "src");
-    if (!src) continue;
+    if (!src || !isExternalUrl(src)) continue;
     try {
-      const url = new URL(src);
-      if (url.protocol === "https:" || url.protocol === "http:") imgSrc.add(url.hostname);
-    } catch { /* relative */ }
+      imgSrc.add(parseExternalUrl(src).hostname);
+    } catch { /* not a URL */ }
   }
 
   const links = findAll(doc, "link");
   for (const link of links) {
     const href = getAttr(link, "href");
-    if (!href) continue;
+    if (!href || !isExternalUrl(href)) continue;
     const rel = (getAttr(link, "rel") || "").toLowerCase();
     try {
-      const url = new URL(href);
-      if (url.protocol === "https:" || url.protocol === "http:") {
-        if (rel === "stylesheet") styleSrc.add(url.hostname);
-        else if (rel === "icon" || rel === "shortcut icon") imgSrc.add(url.hostname);
-        else if (rel === "preload" || rel === "prefetch") {
-          const type = getAttr(link, "as") || "";
-          if (type === "font") fontSrc.add(url.hostname);
-          else if (type === "image") imgSrc.add(url.hostname);
-          else connectSrc.add(url.hostname);
-        } else connectSrc.add(url.hostname);
-      }
-    } catch { /* relative */ }
+      const url = parseExternalUrl(href);
+      if (rel === "stylesheet") styleSrc.add(url.hostname);
+      else if (rel === "icon" || rel === "shortcut icon") imgSrc.add(url.hostname);
+      else if (rel === "preload" || rel === "prefetch") {
+        const type = getAttr(link, "as") || "";
+        if (type === "font") fontSrc.add(url.hostname);
+        else if (type === "image") imgSrc.add(url.hostname);
+        else connectSrc.add(url.hostname);
+      } else connectSrc.add(url.hostname);
+    } catch { /* not a URL */ }
   }
 
   const iframes = findAll(doc, "iframe");
   for (const f of iframes) {
     const src = getAttr(f, "src");
-    if (!src) continue;
+    if (!src || !isExternalUrl(src)) continue;
     try {
-      const url = new URL(src);
-      if (url.protocol === "https:" || url.protocol === "http:") frameSrc.add(url.hostname);
-    } catch { /* relative */ }
+      frameSrc.add(parseExternalUrl(src).hostname);
+    } catch { /* not a URL */ }
   }
 
   return {
@@ -223,6 +253,7 @@ function discoverSources(doc) {
     fontSrc: [...fontSrc],
     frameSrc: [...frameSrc],
     hasInlineScript,
+    inlineScriptHashes,
     hasInlineStyle,
     hasUnsafeEval,
   };
@@ -235,10 +266,16 @@ function buildCsp(sources, deploy, allowlist) {
   directives.push("default-src 'none'");
 
   const scriptParts = [];
-  if (sources.hasInlineScript) { scriptParts.push("'unsafe-hashes'"); scriptParts.push("'sha256-...'"); }
+  if (sources.hasInlineScript) {
+    scriptParts.push("'unsafe-hashes'");
+    for (const hash of sources.inlineScriptHashes || []) {
+      if (!scriptParts.includes(hash)) scriptParts.push(hash);
+    }
+  }
   if (sources.hasUnsafeEval) scriptParts.push("'unsafe-eval'");
   for (const h of [...sources.scriptSrc, ...allowlist]) {
-    if (!scriptParts.includes(h)) scriptParts.push(`https://${h}`);
+    const host = `https://${h}`;
+    if (!scriptParts.includes(host)) scriptParts.push(host);
   }
   directives.push(`script-src ${scriptParts.length ? scriptParts.join(" ") : "'none'"}`);
 

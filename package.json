@@ -12,6 +12,10 @@
     "changeset": "changeset",
     "version": "changeset version"
   },
+  "dependencies": {
+    "domhandler": "^5.0.3",
+    "htmlparser2": "^10.1.0"
+  },
   "devDependencies": {
     "@changesets/changelog-github": "^0.7.0",
     "@changesets/cli": "^2.30.0"

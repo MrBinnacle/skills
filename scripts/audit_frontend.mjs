@@ -14,6 +14,7 @@
  * Exit code 0 = all gates passed, 1 = at least one gate failed, 2 = usage error.
  */
 import { readFileSync } from "node:fs";
+import { extname } from "node:path";
 import { Parser } from "htmlparser2";
 import { DomHandler } from "domhandler";
 
@@ -26,6 +27,21 @@ const BLOCKED_SINKS = [
 
 const DEFAULT_MODE = "artifact";
 const VALID_MODES = ["artifact", "netlify", "local_only"];
+
+const HTML_EXTENSIONS = new Set([".html", ".htm", ".xhtml"]);
+const NON_HTML_EXTENSIONS = new Set([
+  ".py", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".md",
+  ".css", ".txt", ".rb", ".go", ".rs", ".java", ".sh", ".ps1", ".yml", ".yaml",
+]);
+
+const JS_SCRIPT_TYPES = new Set([
+  "",
+  "text/javascript",
+  "application/javascript",
+  "text/ecmascript",
+  "application/ecmascript",
+  "module",
+]);
 
 const SECRET_PATTERNS = [
   { re: /(?:^|[\s;:=])["']?(?:sk|pk|ak|rk)[_-]?[a-zA-Z0-9_-]{20,}/i, name: "api_key_prefix" },
@@ -133,6 +149,21 @@ function parseArgs(argv) {
   return result;
 }
 
+// ─── Scope gate: HTML artifacts only ────────────────────────────────────
+
+function isHtmlArtifact(filePath, rawContent) {
+  const ext = extname(filePath).toLowerCase();
+  if (HTML_EXTENSIONS.has(ext)) return true;
+  if (NON_HTML_EXTENSIONS.has(ext)) return false;
+  return /<!DOCTYPE\s+html/i.test(rawContent) || /<html[\s>]/i.test(rawContent);
+}
+
+function isJavaScriptScript(el) {
+  const type = (getAttr(el, "type") || "").toLowerCase().trim();
+  if (JS_SCRIPT_TYPES.has(type)) return true;
+  return type.includes("javascript");
+}
+
 // ─── Gate A: single-file structure ──────────────────────────────────────
 
 function gateA_structure(doc, rawContent) {
@@ -163,12 +194,20 @@ function gateB_external_hosts(doc, allowlist) {
   const issues = [];
   const found = new Set();
 
-  function isAbsoluteHttpUrl(str) { return /^https?:\/\//i.test(str); }
+  // Absolute http(s) and protocol-relative //host URLs. Relative paths stay local.
+  function isExternalUrl(str) {
+    return /^(https?:)?\/\//i.test(str);
+  }
+
+  function parseExternalUrl(val) {
+    const normalized = val.startsWith("//") ? `https:${val}` : val;
+    return new URL(normalized);
+  }
 
   function checkUrl(val, tagName, attr) {
-    if (!val || !isAbsoluteHttpUrl(val)) return;
+    if (!val || !isExternalUrl(val)) return;
     try {
-      const url = new URL(val);
+      const url = parseExternalUrl(val);
       const host = url.hostname.toLowerCase();
       if (!allowlist.includes(host)) {
         found.add(host);
@@ -187,11 +226,11 @@ function gateB_external_hosts(doc, allowlist) {
   // Check CSS url() in <style> elements
   for (const styleEl of findAll(doc, "style")) {
     const text = textContent(styleEl);
-    const urlRe = /url\(\s*["']?(https?:\/\/[^)"'\s]+)/gi;
+    const urlRe = /url\(\s*["']?((?:https?:)?\/\/[^)"'\s]+)/gi;
     let m;
     while ((m = urlRe.exec(text))) {
       try {
-        const url = new URL(m[1]);
+        const url = parseExternalUrl(m[1]);
         const host = url.hostname.toLowerCase();
         if (!allowlist.includes(host)) {
           found.add(host);
@@ -201,14 +240,15 @@ function gateB_external_hosts(doc, allowlist) {
     }
   }
 
-  // Check fetch/XHR in <script> elements
+  // Check fetch/XHR in JavaScript <script> elements
   for (const scriptEl of findAll(doc, "script")) {
+    if (!isJavaScriptScript(scriptEl)) continue;
     const text = textContent(scriptEl);
-    const fetchRe = /fetch\s*\(\s*["']?(https?:\/\/[^)"'\s]+)/gi;
+    const fetchRe = /fetch\s*\(\s*["']?((?:https?:)?\/\/[^)"'\s]+)/gi;
     let m;
     while ((m = fetchRe.exec(text))) {
       try {
-        const url = new URL(m[1]);
+        const url = parseExternalUrl(m[1]);
         const host = url.hostname.toLowerCase();
         if (!allowlist.includes(host)) {
           found.add(host);
@@ -216,10 +256,10 @@ function gateB_external_hosts(doc, allowlist) {
         }
       } catch { /* not a valid URL */ }
     }
-    const xhrRe = /\.open\s*\(\s*["'][^"']*["']\s*,\s*["']?(https?:\/\/[^)"'\s]+)/gi;
+    const xhrRe = /\.open\s*\(\s*["'][^"']*["']\s*,\s*["']?((?:https?:)?\/\/[^)"'\s]+)/gi;
     while ((m = xhrRe.exec(text))) {
       try {
-        const url = new URL(m[1]);
+        const url = parseExternalUrl(m[1]);
         const host = url.hostname.toLowerCase();
         if (!allowlist.includes(host)) {
           found.add(host);
@@ -241,6 +281,7 @@ function escapeRegex(str) {
 function gateC_dom_sinks(doc) {
   const issues = [];
   for (const script of findAll(doc, "script")) {
+    if (!isJavaScriptScript(script)) continue;
     const text = textContent(script);
     for (const sink of BLOCKED_SINKS) {
       const re = new RegExp(`(?<![a-zA-Z0-9_$])${escapeRegex(sink)}(?![a-zA-Z0-9_$])`, "g");
@@ -382,6 +423,23 @@ async function main() {
     process.exit(2);
   }
 
+  if (!isHtmlArtifact(config.file, rawContent)) {
+    const receipt = {
+      tool: "audit_frontend.mjs",
+      input: config.file,
+      mode: config.mode,
+      allowlist: config.allowlist,
+      timestamp: new Date().toISOString(),
+      refused: true,
+      reason: "out_of_scope",
+      detail: "input is not an HTML artifact",
+      gates: [],
+      all_pass: false,
+    };
+    process.stdout.write(JSON.stringify(receipt, null, 2) + "\n");
+    process.exit(1);
+  }
+
   const doc = await parseHtml(rawContent);
 
   const gates = [
@@ -399,6 +457,7 @@ async function main() {
     mode: config.mode,
     allowlist: config.allowlist,
     timestamp: new Date().toISOString(),
+    refused: false,
     gates,
     all_pass: gates.every((g) => g.pass),
   };

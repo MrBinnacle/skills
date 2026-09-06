@@ -109,21 +109,25 @@ check(
   gateByName(failB.receipt, "external_host_allowlist")?.blocked_hosts.includes("evil.com")
 );
 check(
+  "fail-gate-b: reports protocol-relative cdn.evil.com",
+  gateByName(failB.receipt, "external_host_allowlist")?.blocked_hosts.includes("cdn.evil.com")
+);
+check(
   "fail-gate-b: reports tracking.net",
   gateByName(failB.receipt, "external_host_allowlist")?.blocked_hosts.includes("tracking.net")
 );
 
-// Test allowlist: evil.com is allowed, tracking.net is not
+// Test allowlist: evil.com is allowed; other hosts remain blocked
 const failBPartial = runAudit("fail-gate-b.html", ["--allowlist", "evil.com"]);
+const partialBlocked = failBPartial.receipt.gates
+  .find((g) => g.name === "external_host_allowlist")
+  .blocked_hosts;
 check(
-  "fail-gate-b (partial allowlist): only tracking.net blocked",
+  "fail-gate-b (partial allowlist): evil.com allowed, others blocked",
   failBPartial.exitCode === 1 &&
-    !failBPartial.receipt.gates
-      .find((g) => g.name === "external_host_allowlist")
-      .blocked_hosts.includes("evil.com") &&
-    failBPartial.receipt.gates
-      .find((g) => g.name === "external_host_allowlist")
-      .blocked_hosts.includes("tracking.net")
+    !partialBlocked.includes("evil.com") &&
+    partialBlocked.includes("tracking.net") &&
+    partialBlocked.includes("cdn.evil.com")
 );
 
 // ─── Gate C: DOM sink blocklist ─────────────────────────────────────────
@@ -223,9 +227,13 @@ check(
   "csp-emit: connect-src is 'none' for netlify",
   cspEmit.receipt.directives["connect-src"] === "'none'"
 );
-check(
+  check(
   "csp-emit: default-src is 'none'",
   cspEmit.receipt.directives["default-src"] === "'none'"
+);
+check(
+  "csp-emit: no placeholder sha256",
+  !String(cspEmit.receipt.policy).includes("sha256-...")
 );
 
 // Validate: correct policy
@@ -248,20 +256,32 @@ check("csp-validate (bad policy): violations found", cspInvalid.receipt.violatio
 console.log("\n=== Ablation arms ===");
 
 // Arm 1: with taste provider — passes all gates
-const ablationTaste = runAudit("ablation-without-taste.html");
+const ablationTaste = runAudit("ablation-with-taste.html");
 check("ablation-with-taste: passes (no provider gate needed)", ablationTaste.exitCode === 0);
+check(
+  "ablation-with-taste: exercises with-taste fixture",
+  ablationTaste.receipt?.input?.endsWith("ablation-with-taste.html") === true
+);
 
 // Arm 2: without taste provider — passes all gates
 const ablationNoTaste = runAudit("ablation-without-taste.html");
 check("ablation-without-taste: passes", ablationNoTaste.exitCode === 0);
+check(
+  "ablation-without-taste: exercises without-taste fixture",
+  ablationNoTaste.receipt?.input?.endsWith("ablation-without-taste.html") === true
+);
 
-// Arm 3: out-of-scope (Python file) — must be refused
-try {
-  const ablationOos = runAudit("ablation-out-of-scope.py");
-  check("ablation-out-of-scope: refuses non-HTML (exit 1)", ablationOos.exitCode === 1);
-} catch {
-  check("ablation-out-of-scope: refuses non-HTML (throws)", true);
-}
+// Arm 3: out-of-scope (Python file) — must be refused as out of scope, not as gate-A fail
+const ablationOos = runAudit("ablation-out-of-scope.py");
+check("ablation-out-of-scope: refuses non-HTML (exit 1)", ablationOos.exitCode === 1);
+check(
+  "ablation-out-of-scope: refused reason is out_of_scope",
+  ablationOos.receipt?.refused === true && ablationOos.receipt?.reason === "out_of_scope"
+);
+check(
+  "ablation-out-of-scope: does not run structure gates",
+  Array.isArray(ablationOos.receipt?.gates) && ablationOos.receipt.gates.length === 0
+);
 
 // Arm 4: provider failure — must degrade, not block (the HTML is valid)
 const ablationProvFail = runAudit("ablation-provider-failure.html");

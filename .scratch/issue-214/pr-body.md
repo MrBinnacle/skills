@@ -18,7 +18,7 @@ The card stays in `_quarantine/` — no promotion.
 | Gate | What it checks | Test that pins it |
 |---|---|---|
 | A | Valid single-file HTML structure (DOCTYPE, html, head, body, title) | `fail-gate-a.html` — missing DOCTYPE → gate A fails, exit 1 |
-| B | No external host connections outside declared allowlist | `fail-gate-b.html` — evil.com and tracking.net → gate B fails; partial allowlist test confirms allowlist works |
+| B | No external host connections outside declared allowlist | `fail-gate-b.html` — evil.com, protocol-relative cdn.evil.com, tracking.net → gate B fails; partial allowlist test confirms allowlist works |
 | C | No blocked DOM sinks (innerHTML, eval, insertAdjacentHTML, document.write) | `fail-gate-c.html` — all four sinks detected at specific script lines |
 | D | Iconography: outlined SVG only, no emoji in attributes | `fail-gate-d.html` — emoji in aria-label, filled SVG path, emoji in img alt |
 | E | CSP headers for NETLIFY mode (inline handlers, inline styles) | `fail-gate-e.html` with `--mode netlify` — onclick handler detected; artifact mode confirms gate E is skipped |
@@ -118,9 +118,9 @@ the optional taste provider is advisory, scoped, and never overrides a security 
 
 | Arm | Fixture | Expected | Observed |
 |---|---|---|---|
-| With taste provider | `ablation-with-taste.html` | Pass (clean HTML with design system) | Pass, exit 0 |
-| Without taste provider | `ablation-without-taste.html` | Pass (minimal HTML) | Pass, exit 0 |
-| Out-of-scope routing | `ablation-out-of-scope.py` | Refused (not HTML) | Refused, exit 1 (file cannot be parsed as HTML) |
+| With taste provider | `ablation-with-taste.html` | Pass (clean HTML with design system) | Pass, exit 0; receipt input ends with this fixture |
+| Without taste provider | `ablation-without-taste.html` | Pass (minimal HTML) | Pass, exit 0; receipt input ends with this fixture |
+| Out-of-scope routing | `ablation-out-of-scope.py` | Refused (not HTML) | `refused: true`, `reason: out_of_scope`, empty gates, exit 1 |
 | Provider failure | `ablation-provider-failure.html` | Degrades, not blocks (valid HTML without provider) | Pass, exit 0 |
 | Unsafe aesthetic override | `ablation-unsafe-aesthetic.html` | Security gate catches secret regardless of provider | Exit 1, gate F catches secret |
 

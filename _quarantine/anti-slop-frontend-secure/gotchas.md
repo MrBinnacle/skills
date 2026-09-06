@@ -20,3 +20,12 @@
   blocks everything, which is the safe default but may surprise a user who expects `fonts.googleapis.com`
   to be allowed. The error message names the blocked host, which is the shortest path to
   adding the flag.
+
+- [OBSERVED 2026-09-06] Review of the issue #214 implementer diff found the suite greener than
+  the code: arm 1 of the ablation suite ran `ablation-without-taste.html` under the label
+  `ablation-with-taste`, so the with-taste fixture was never exercised; the out-of-scope arm
+  accepted any Gate A structure failure as a "refusal" while a Python file was still parsed as
+  HTML; protocol-relative `//host` URLs bypassed Gate B because only `https?://` was matched;
+  and `htmlparser2`/`domhandler` were imported without being declared in `package.json`.
+  Fixed in the review pass: correct fixture path, explicit `refused`/`out_of_scope` receipt,
+  protocol-relative URL detection, and declared dependencies.
