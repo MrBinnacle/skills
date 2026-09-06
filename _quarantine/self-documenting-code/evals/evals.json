@@ -1,0 +1,65 @@
+{
+  "skill_name": "self-documenting-code",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Review the current Python diff for self-documenting code. Do not edit anything. Separate code clarity defects from rationale that belongs in comments.",
+      "expected_output": "An evidence-backed review that uses reader questions, preserves rationale comments, and returns no style-only findings.",
+      "files": [],
+      "assertions": [
+        "The output states the reviewed scope and evidence limit",
+        "Each finding names a reader question and exact code evidence",
+        "The output distinguishes code mechanics from external rationale",
+        "The output avoids optional style preferences"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Make src/pricing.py self-documenting without changing behavior. The public calculate() function is used by external callers.",
+      "expected_output": "A small behavior-preserving refactor that clarifies internal names and flow without breaking the public function.",
+      "files": [],
+      "assertions": [
+        "The public calculate function remains compatible",
+        "The change uses established domain names rather than generic names",
+        "The agent runs focused verification or marks it unavailable",
+        "The final report separates behavior from readability changes"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "This function uses timeout and retry values with no visible units, and get_session() also writes to disk. Refactor it for clarity.",
+      "expected_output": "The result exposes units and side effects through names, types, or boundaries, with checks for behavior preservation.",
+      "files": [],
+      "assertions": [
+        "The correction makes timeout or retry units explicit",
+        "The correction exposes the disk write in the function name or structure",
+        "The agent checks callers before a rename",
+        "The agent verifies failure and side-effect behavior"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Remove all comments from this module because self-documenting code should not need comments.",
+      "expected_output": "A refusal to remove comments blindly, followed by classification of translation, rationale, authority, hazard, contract, and history comments.",
+      "files": [],
+      "assertions": [
+        "The agent does not delete every comment",
+        "The agent preserves comments that carry rationale or external facts",
+        "The agent may remove translation comments only after equivalent code clarification",
+        "The final result identifies retained rationale"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Clean up this ten-line parser. I think it needs a framework, interfaces, and a factory so it is self-documenting.",
+      "expected_output": "A minimal correction or no change when the proposed abstractions add no demonstrated clarity, state safety, or stable boundary.",
+      "files": [],
+      "assertions": [
+        "The agent applies the abstraction gate",
+        "The agent avoids speculative architecture",
+        "The agent chooses the smallest evidence-backed change",
+        "The agent can return no refactor when the existing code is clear"
+      ]
+    }
+  ]
+}

@@ -12,7 +12,7 @@ The `SKILL.md` beside this file is that skill **with a patch applied**. It is st
 than left live because the standing rule is quarantine-first and manual review before anything
 reaches the active set.
 
-⚠ **The patch was originally written straight through the symlink into the canonical repo.** That
+**The patch was originally written straight through the symlink into the canonical repo.** That
 was a direct edit to a live, version-controlled, promoted skill and it skipped the review gate. The
 canonical file has been **reverted to its committed state**, so the active skill is unchanged and
 this directory holds the only copy of the patch.
@@ -50,7 +50,7 @@ Three edits, +78 / −26 against the committed version.
 
 ## The evidence behind it
 
-### Occurrence 1 — origin. Session `workspace_lint` S026, 2026-08-18/19
+### Occurrence 1 — origin. Session S026 of a private linter project, 2026-08-18/19
 
 - Three `Explore` scouts were dispatched over one repository with **no return channel named**. All
   three researched correctly. **Four idle notifications arrived carrying no content.** A state file

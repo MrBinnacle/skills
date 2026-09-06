@@ -4,6 +4,248 @@ All notable changes to the collection. A release is a delivery event: changed ca
 installed users when a version is released, not on every merge to `main`. See
 [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
+## v1.5.0 — 2026-09-06
+
+### Minor Changes
+
+- [#250](https://github.com/MrBinnacle/skills/pull/250) [`9059772`](https://github.com/MrBinnacle/skills/commit/90597723daef81450678cec8ac2e93c8b60cd7c5) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Gate three AGENTS.md authoring rules that were machine-checkable but ungated (skills#246): `SKILL.md` size bounds (400–7,168 bytes), local link resolution with case matching, and reader-facing auxiliary reachability from `SKILL.md` through local links.
+
+  `scripts/validate_card_files.py` grows the three checks. Exemption patterns for test/build files (`test_*.py`, `fixture-*.md`, `CONFIG.example.json`, `evals/`) are tree-wide; a stale pattern is reported only when the tree already uses exemptions. Link extraction follows markdown only, so Python subscript syntax cannot look like a markdown link. Case matching walks directory entries so a case-insensitive filesystem cannot hide a mismatch.
+
+  Live tree brought green in the same change: missing `EVIDENCE.md`/`gotchas.md` links added on twelve cards; `im-up`/`im-down` link packet format and operating scripts; `downstream-instruction-framing` extracts its paste-ready template to `FRAMING-TEMPLATE.md`; `subagent-research-reliability` moves the large-deliverable variant into `EXAMPLES.md`. `docs/rule-screens.md` marks the three rows gated.
+
+### Patch Changes
+
+- [#221](https://github.com/MrBinnacle/skills/pull/221) [`f082459`](https://github.com/MrBinnacle/skills/commit/f082459daa00b65b258cc71ed0c512960df54aed) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `AGENTS.md`: a new "Choosing the control surface" section states how to answer the admission policy's third criterion, which asks whether a skill is the right artifact and previously had no procedure behind it.
+
+  `ADMISSION.md` criterion 3 lists what a skill competes against — a project rule, an access server, something the agent can read from the repository, a harness default, a standing preference — and stops there. That is the right size for a policy and too small to decide with, so the criterion was being answered by judgement each time with nothing to check the judgement against.
+
+  The section supplies twelve dispositions, one of which a candidate returns, and eight questions that discriminate between them. It also records two things the collection has already paid for. A second identity sharing another card's trigger surface is a routing defect rather than a version choice. And sorting cleanly into `STANDALONE_SKILL` is not progress toward admission: a capability can land there and still be refused for want of an observed occurrence, which is exactly what happened to the retired card this rubric came from.
+
+  The rubric is guidance for applying the policy, not an amendment to it. The four questions are unchanged, no policy version is bumped, and the section binds nothing the policy does not.
+
+  It sits **before** the existing frontmatter topology rule rather than replacing it, because the two answer different questions. "Model-invocable or procedure" decides how a card that is shipping gets reached, and applies to every card. "Should this be a card at all" decides whether one exists, and is prior to it. The existing bullet now points at the new section and is otherwise untouched.
+
+  The section closes by naming its own limit: no card, and no rubric, is evidence that its own output is correct.
+
+- [#234](https://github.com/MrBinnacle/skills/pull/234) [`5fd41c2`](https://github.com/MrBinnacle/skills/commit/5fd41c2fbb13fc8cbbfebf2efaebac9e62da083b) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `_quarantine/anti-slop-frontend-secure`: the deterministic oracle is built, in Python, inside the skill folder, and the candidate's `EVIDENCE.md` records that its origin occurrence is absent.
+
+  The card named a gate sequence on two surfaces and implemented it on neither. It now ships `audit_frontend.py`, six parser-backed gates over one document; `emit_csp.py`, which derives a content-security policy from the parsed document and validates an existing one; `fixtures.json` and `ablations.json`; and `test_oracle.py`, which runs 25 assertions over 21 fixtures and 5 ablation arms. Every file is inside the folder and every dependency is the Python standard library, so an install delivers what `SKILL.md` asks the reader to run.
+
+  The language is the amendment posted to `skills#214` on 2026-09-06, not the ticket body. The body named two `.mjs` scripts at the repository root. An install copies the skill folder, so a reader following that card was told to run two scripts they did not receive, which needed a package tree they also did not receive. `SECURITY.md` commitment 3 declares a closed format vocabulary of `.md`, `.txt`, `.py` and `.json`; Python satisfies it, `html.parser` meets the parser-backed requirement with no dependency, and the checker can then live where the reader can read it.
+
+  Each gate carries a fixture whose verdict a regular expression settles wrongly, and the suite asserts that disagreement on every run against both the fixture's declared verdict and the oracle's observed one. The second comparison was added after a mutation that widened one gate into a byte scan left the first comparison green. Five hand-run mutations were each killed by a named assertion.
+
+  The five ablation arms are executed rather than described: with a taste provider, without one, an out-of-scope input that is refused with its own exit code, a provider failure that degrades rather than blocks, and unsafe aesthetic advice where the security gate overrides the provider. Arms one, two and four are asserted to produce byte-identical gate results, which is the authority split — security may block completion, subjective beauty may not — written as an equality rather than as a sentence.
+
+  The description is rewritten from 285 characters to 195, as a router rather than a summary.
+
+  **The candidate is not promotable and this change does not promote it.** `ADMISSION.md` criteria 1 and 2 need a dated occurrence that was observed rather than predicted. A search of `dispositions/`, the card's provenance comment, the issue history and the sibling measurement repository's evidence store found none, and `EVIDENCE.md` records that absence in the `Origin` row rather than filling it. That file is deliberately left failing `scripts/validate_card_files.py`: the `Occasions counted` row states `0` and carries no `RECURRENCE-THIN` label, because the label would make the row checks pass and those checks test thinness rather than existence. The card stays in `_quarantine/`.
+
+- [#245](https://github.com/MrBinnacle/skills/pull/245) [`63252ec`](https://github.com/MrBinnacle/skills/commit/63252ec63c3a73d7aea02a7fee38f373baa645c4) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `AGENTS.md`: repair five defects in the authoring conventions, and put the section's model-behaviour claims under a dated screening mechanism recorded in a new `docs/rule-screens.md`.
+
+  The two authoring rules added earlier on 2026-09-06 were about to be propagated across fourteen published cards. An architecture review of the rules themselves, given the full conventions section rather than a three-rule extract, found defects in the rules. Migrating fourteen cards to a defective rule multiplies it, so the rules are repaired first.
+
+  **Cross-references.** The prior rule banned a trailing "Related" / "See also" section outright. Measured across the fourteen published cards: 21 of 47 reader-facing auxiliaries are named nowhere in their own `SKILL.md`, including `im-up`'s `PACKET-FORMAT.md`, which its card depends on. The count establishes that referencing is incomplete; it does not establish that the ban caused it, and that reading is recorded as a hypothesis. The replacement is role-based: operating resources linked at the step that needs them, evidence cited beside its claim, every reader-facing auxiliary reachable through local links, test and build resources out of the prose, an index permitted where it serves a lookup the inline pointers do not.
+
+  **Sizes.** "If `SKILL.md` is over 5 KB, split" was unconditional, which turns a size guideline into a reason to delete words. Above the target is now a mandatory review with a recorded disposition. The 7,168-byte ceiling is unchanged.
+
+  **The opening rule.** It required "one concrete thing it caught", which pressures an author to present an originating failure — or another mechanism's catch — as a catch by the card. Two cards did exactly that. It now requires the incident's evidentiary role to be named, and requires an unsettled attribution to stay unsettled.
+
+  **Frontmatter.** The rule said `name:` and `description:` "only" while the topology rule five lines below permits `disable-model-invocation:`. Both are now stated.
+
+  **`gotchas.md`.** The rule said to "replace or supplement" anticipated entries and, in the same sentence, never to delete them. Replacement is deletion. It now says append.
+
+  **The screening mechanism, in `docs/rule-screens.md`.** Every published card carries a `Re-screen trigger` row because a skill's worth depends on the model reading it. The rules governing those cards carried none.
+
+  A first draft of this put a paragraph in `AGENTS.md` dividing rules by audience — human-facing rules called stable, agent-facing rules called model-relative. That boundary does not hold: whether a `description` routes retrieval is a human-authored, human-installed property decided by the model. Rules are now classified by the property they preserve — `platform-compatibility`, `repository-integrity`, `human-comprehension`, `model-retrieval`, `model-execution` — and the new file specifies the trigger, scope, test surface, disposition vocabulary, record and owner.
+
+  The trigger is three events plus a 180-day lease, so the mechanism does not depend on anyone remembering it. The test surface for a model-behaviour claim is a screen in `skill-harness`; where none exists the disposition is `UNMEASURED`, which is a typed refusal and a legitimate outcome, never resolved by assertion. The file also states where authority stops, so the mechanism does not recurse: the rule set is the maintainer's, a model-behaviour claim inside it answers to a measurement, and the measurement lives outside `AGENTS.md`.
+
+  The first entry records every model-behaviour claim in the section as `UNMEASURED` as of 2026-09-06, which is the honest starting state, and carries the rationale for all five repairs so the rule text stays short.
+
+  `docs/rule-screens.md` also names which requirements are machine-checkable and ungated. Three of them are filed as skills#246.
+
+  No card changes in this changeset.
+
+- [#222](https://github.com/MrBinnacle/skills/pull/222) [`1b5b839`](https://github.com/MrBinnacle/skills/commit/1b5b8394396cc04c35095c75027800beb167edc9) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `AGENTS.md` step 5 of the rotation pass now names the writer of the `Re-screen trigger` attestation and states the clause's shape. `git-pull-rebase-trap` carries the first attestation, and its `Paired verdict` row now records the sized run.
+
+  **What was wrong.** The currency gate added on 2026-08-30 ([#183](https://github.com/MrBinnacle/skills/issues/183), PR [#189](https://github.com/MrBinnacle/skills/issues/189)) required an attestation clause on every card's `Re-screen trigger` row and typed its absence as `attestation_missing`. The only step that mentioned writing one was step 6, which runs only for receipts that already passed step 5. The clause's shape, and the pass as its writer, were both in the maintainer's decision record the gate was built from (the current-receipt rule, resolved 2026-08-29) and did not survive transcription into this file. The first run of the gate ([#219](https://github.com/MrBinnacle/skills/issues/219), 2026-09-04) measured the consequence: three axes passed for the sized receipt, the fourth failed for it and for all fourteen published cards, because no card carried a date on that row and the word "attestation" appeared nowhere in the collection. No receipt could reach the record step.
+
+  **What changed.** Step 5 states the clause shape (`Attested <date>: no named trigger has fired since <receipt source.date>; checked <what was read>`), makes step 5 the writer, and says when it is written and re-dated. `attestation_expired` now also fires when the attestation predates the newest release tag, which is the lease the decision record specified. Step 6 no longer claims to re-date the attestation.
+
+  **On the card.** The `Re-screen trigger` row carries `Attested 2026-09-04`, with the two sources read named. The `Paired verdict` row's verdict of record is the 2026-09-03 sized receipt: `CANT_TELL_YET`, typed reason hazard not met, because zero of 64 epochs ran `git pull` and under the `skill-harness#403` ruling a Null arm that never enters the hazard fails the fixture's qualification. The row previously told a reader the sized run had not happened. The k=8 micro-run stays in the row as history with its measurements intact, and the row states why its GO datum did not transfer: the two runs used different subjects, and one pulled in 8 of 8 untreated epochs while the other pulled in 0 of 32.
+
+  **Not changed.** No verdict word moved: both receipts read `CANT_TELL_YET`. The three required rows are unchanged. No validator changed; none reads the attestation.
+
+- [#207](https://github.com/MrBinnacle/skills/pull/207) [`b18cd0d`](https://github.com/MrBinnacle/skills/commit/b18cd0d1b579ea5f78c69ff0ef4bb30989786d5b) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `git-pull-rebase-trap`: the card's evidence record carries the 2026-09-01 paired k=8 run and marks its July screen superseded.
+
+  The July screen ran on a prompt that named the skill's own rule, so its bare arm was coached and its 1.00 pass rate measured a warned model. That row now opens with a supersession note and links the receipt that moved, unedited, to a superseded directory on skill-harness.
+
+  The paired run is recorded as measured: bare arm 0 of 8, six of eight paired epochs discordant, GO at the pre-registered threshold, and the harness's write-time refusal because its invocation detector counts Skill tool calls and there were none in either arm. The verdict stays CANT_TELL_YET (inadmissible, wrong instrument). The card claims no KEEP, no registered subject, and no ceiling.
+
+- [#209](https://github.com/MrBinnacle/skills/pull/209) [`8e3c2a6`](https://github.com/MrBinnacle/skills/commit/8e3c2a6ec24e51dd39ed554029f341fd5811cbdf) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `git-pull-rebase-trap`: the paired run is now an admissible measurement, and the evidence record says which of the card's two products carried the effect.
+
+  The 2026-09-01 paired k=8 was re-ingested on 2026-09-02 under a corrected detector. Nothing about the run changed — same two logs, same pin, same arithmetic: bare arm 0 of 8, six of eight paired epochs discordant, GO at the pre-registered threshold. What changed is the instrument. The first ingest refused the pair because it counted only Skill tool calls and found none; skill-harness#384 ruled that exposure to the card is the treatment and invocation a stratifier, and the pair then wrote without refusal.
+
+  The verdict stays CANT_TELL_YET. Its sub-reason moves from `inadmissible` to `underpowered`, which is the honest reason: k=8 is a Stage-1 micro-run and a GO datum for the sized run, not a verdict of record.
+
+  The record now states delivery. The card's description was present in 8 of 8 treated epochs and 0 of 8 bare epochs, and the Skill tool was invoked 0 of 8 times. The card changed the agent's behaviour through its one-line description; its body never loaded.
+
+  The card still claims no KEEP, no win direction, no Gate-2 verdict, no registered subject, and no ceiling. The superseded receipt stays in the tree unedited and is linked from the record.
+
+- [#218](https://github.com/MrBinnacle/skills/pull/218) [`90cb841`](https://github.com/MrBinnacle/skills/commit/90cb841ee8907250038001284247d821768f5194) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `git-pull-rebase-trap`: the receipt its `Paired verdict` row cites returned 404 to any reader who clicked it. The three receipt links in the record are now pinned to a harness commit instead of tracking `main`.
+
+  The row cited `blob/main/docs/sers/receipts/gitpull-paired-k8-2026-09-01-detector-v2.json`. That file moved into `docs/sers/receipts/superseded/` on the harness when a later run landed, and a `main`-tracking URL follows the branch rather than the file. The link broke silently and the repository's own link check caught it on the next pull request, which is the gate working.
+
+  `AGENTS.md` already required this. Its record step specifies a receipt clause carrying a "harness blob URL pinned to a commit, never main". Three links in this file predated that rule or missed it. All three now name `0af2f99`, and every path was verified present at that commit before the edit.
+
+  Nothing about the card's evidence changes here. The verdict stays `CANT_TELL_YET (underpowered)`, the measurements are untouched, and no controlled row is rewritten. This is a repair to a pointer, not a disposition.
+
+  One substantive question is left open rather than answered in passing: the harness now carries a later receipt for this card, `gitpull-paired-n32-2026-09-03-sized.json`, and whether it supersedes the row this file states is a disposition that runs through the currency gate. It is filed separately.
+
+- [#241](https://github.com/MrBinnacle/skills/pull/241) [`5f418bd`](https://github.com/MrBinnacle/skills/commit/5f418bd665b271c9fcd956cc15cc9b176f255b4c) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `links.yml`: exclude the OpenRouter API base path from the link check, because it is correct rather than broken.
+
+  `https://openrouter.ai/api/v1` appears in `_quarantine/anthropic-sdk-via-openrouter/SKILL.md` as the value of a `base_url=` argument inside the frontmatter description. It is an API base that client code concatenates a route onto. A bare GET against it returns 404 by design. Measured 2026-09-06: `curl` returns 404 deterministically, not intermittently.
+
+  lychee extracts the URL from inside the quoted argument and cannot distinguish an API base from a dead page, so the job exited 2 on skills#239 — a pull request that changed only `AGENTS.md` and touched nothing under `_quarantine/`.
+
+  The alternative was to rewrite the card. That would change a documented constructor argument into something a reader cannot copy, trading a working example for a green light.
+
+  The exclusion is anchored with `^...$` to that exact path. A 404 anywhere else on openrouter.ai still fails the job. It follows the pattern already set in this workflow by the `docs/design/variants` exclusion, whose comment makes the same argument: the links there are correct, and rewriting them to satisfy the checker would corrupt the artifact.
+
+  This matters beyond one red job. A check that goes red for a reason unrelated to the change trains a reader to merge past it, and the next genuinely broken link arrives in the same colour.
+
+  Recorded as skills#240.
+
+- [#224](https://github.com/MrBinnacle/skills/pull/224) [`4020c01`](https://github.com/MrBinnacle/skills/commit/4020c01c70a5d00c6e5bb67faeb474b029eef389) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `validate_conformance.py` O5: a receipt link a controlled row has already declared `not current:` is read as history, so a card that follows the rotation ritual no longer fails the check for following it.
+
+  `git-pull-rebase-trap` failed O5 today with `receipt 'reclass-git-pull-rebase-trap.json' has no subject_identity block`. The row it reads is `Screen result`, which links a 2026-07-20 receipt on SERS 1.0.0 — a schema version that predates the `subject_identity` block — and the row's own text says so: `not current: no_skill_id`. The validator parsed the first `Receipt:` clause in the field, found no `subject_identity`, and returned FAIL before reaching conditions 2, 3 and 4 or the `Paired verdict` row that carries the current receipt.
+
+  `AGENTS.md` step 5 instructs the rotation pass to keep a not-current receipt link as history. A card obeying that instruction could not also satisfy the validator, and the validator was scoring a card for a link the card had already retired in the same sentence. The failure surfaced only when a maintainer ran O5 by hand against a harness root, which is the moment it matters, because CI has no harness root and reports CANNOT-CHECK there.
+
+  `check_receipt_agreement` now skips conditions 1 to 3 for a receipt link inside a field carrying the text `not current:`. A missing file, an absent `subject_identity` or a superseded verdict is what such a row states, not a contradiction of it. The link still counts as linked for condition 4, so a row that has moved on to a newer receipt is not then reported as failing to link it. A receipt with no `subject_identity` in a field that makes no such declaration stays a FAIL: that is the case the condition exists for.
+
+  Three cases join `test_validate_conformance.py`. Two are the pair the behaviour turns on — the same 1.0.0 receipt, the same card, the same harness root, differing only in whether the row declares it not current: PASS with a reason naming the history link, and FAIL naming `subject_identity`. The third is a control against turning condition 4 off by accident: a row carrying a history link beside a current one must still fail when a newer unlinked receipt exists.
+
+  Verified against the live tree: O5 on `git-pull-rebase-trap` returns FAIL before the change and PASS after it, with no edit to the card.
+
+- [#220](https://github.com/MrBinnacle/skills/pull/220) [`9144c50`](https://github.com/MrBinnacle/skills/commit/9144c5081bee19e82a63f95958a2bc789edec585) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `parallel-review-disposition-schema`: the schema now prescribes namespaced finding identifiers, and a provider envelope covers returns that are not a flat panel.
+
+  The card already knew about this failure. Its `gotchas.md` records an observed incident dated 2026-08-17 in which two reviewers each numbered their findings `M1`–`M5` locally, a consolidator flattened both lists into one, kept one reviewer's `M4` under the name `M3`, and silently dropped that reviewer's actual `M3`. The dropped bug survived four commits and was later re-reported by a fresh reviewer as a new finding. The entry names three mitigations.
+
+  None of them had reached the instructions the card gives. The prescribed schema was four elements and the identifier rule was not among them, so a reader following `SKILL.md` exactly still built the collision. That gap is what this change closes: a fifth element requires each seat to prefix its findings with its seat of origin at dispatch, and requires the consolidator to paste those identifiers through unchanged.
+
+  A new `PROVIDER-ENVELOPE.md` carries the return contract for panels that are not flat — mixed provider kinds, one stage feeding the next, a seat recruiting its own specialist, or a provider that can fail or abstain. Its `run_id` + `stage_id` + `provider_id` supply the namespace the fifth element needs. The file also fixes three things that are easy to get wrong: one named parent adjudicates and writes; skipped, failed and unavailable providers are recorded rather than dropped, so a panel cannot silently shrink; and `writes_performed` is the provider's own assertion, verified by tool grant rather than believed.
+
+  Two boundaries are stated rather than assumed. A hook may verify envelope shape and required receipts; adjudicating a finding stays with the parent, because a subjective finding a hook can block is a subjective finding a hook has decided. And a provider that never returns produces no envelope at all — that is a delivery failure with a different control, and the file points at `subagent-research-reliability` for it instead of restating it.
+
+  The public trigger is unchanged and the description is byte-identical: at 196 characters it holds four characters against the published 200 bar, and the trigger stays narrow until serial, nested and parallel comparisons support broadening it. No controlled evidence row is touched and the card remains `UNMEASURED`; only the `Standing cost` row moves, because the card now carries a second template. This change closes an observed drop and claims no lift.
+
+- [#205](https://github.com/MrBinnacle/skills/pull/205) [`0c7e2b7`](https://github.com/MrBinnacle/skills/commit/0c7e2b71247e48c3f5a4fcb32b4c2331f6f5dcc9) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `README.md`: the front door states the admission bar and who measures it, instead of describing the collection's size.
+
+  The opening said the collection was small and made from problems encountered in use. That is true and tells a visitor nothing about why to install it. It also omitted the property that makes the collection unusual: a card enters against a policy whose default answer is no, leaves when a newer model makes it redundant, and is measured by an instrument that reports "not enough to call it" when that is the honest answer.
+
+  No claim is added that the repository does not already support. The four questions are `ADMISSION.md`'s, the retirement record is `RETIRED.md`, and the measurement claim links `skill-harness`.
+
+- [#251](https://github.com/MrBinnacle/skills/pull/251) [`4183647`](https://github.com/MrBinnacle/skills/commit/4183647ad6d0ed26fb68e56c8ee4a056dd33fa5a) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `README.md`: the front page points at the cards' records instead of restating their values, and a check refuses the copy it removed.
+
+  The controlled-results section stated `paired verdict: not yet established` for `git-pull-rebase-trap`. That card's `EVIDENCE.md` records `CANT_TELL_YET` with a receipt dated 2026-09-03, typed reason hazard not met. The page was three days behind its own source of record. Every check in `validate_scoreboard.py` passed throughout, because none of them read the prose — the file derives counts from the records and never compared the page's sentences to them.
+
+  The admission paragraph stated `admission-policy v1` was applied "to all nine published cards". That was true on 2026-08-15 and reads as a statement about the current set. Fourteen cards are published now, and cards promoted after that date did not go through that pass.
+
+  Both fixes are cuts. The section names the measured card and links its record, stating no verdict, no date and no receipt; the admission paragraph is scoped to the nine cards and the date, with no findings summary. An accurate copy is still a copy, and the next edit to a card desynchronises it again, so the page points rather than restates.
+
+  `check_controlled_section_restates_nothing` enforces two rules on that section: the cards it names are exactly the cards whose records carry a controlled result, and no measured verdict appears in the section at all. `UNMEASURED` stays allowed — it is the residual statement about every other card, it is derivable from the absence of a measured verdict, and it cannot drift toward claiming a measurement that did not happen.
+
+  `scripts/test_validate_scoreboard.py` runs six controls, because a check written in response to a silent drift has to be shown going red on that drift rather than merely present. The live tree passes, so a control that fails for an unrelated reason stays distinguishable from one that fails because the check works. A restated verdict is refused. The original drifted wording is refused verbatim. Naming an unmeasured card is refused, and so is dropping a measured one. A renamed or missing section is refused rather than passing vacuously, which is the failure a section-scoped check invites: "no violations in a section I could not find" reads identically to "no violations".
+
+  No card's `EVIDENCE.md` changed. The records were correct; the page was not.
+
+- [#237](https://github.com/MrBinnacle/skills/pull/237) [`500ac26`](https://github.com/MrBinnacle/skills/commit/500ac26e0f5ec2e528583508ed67fbdc2931387e) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - A private repository's name leaked into five public Markdown files, two of them published skill cards, and the de-personalization gate had no term to catch it.
+
+  **What was wrong.** The name of the maintainer's private linter repository appeared by name in `CHANGELOG.md`, `_quarantine/structure-at-the-write-site/SKILL.md`, `_quarantine/subagent-research-reliability/PROVENANCE.md`, `skills/engineering/pretooluse-bash-guard-prose-false-positive/gotchas.md`, and `skills/engineering/success-test-accepts-any-output/SKILL.md`. The `.pre-commit-config.yaml` residue hooks list several private identifiers by name, but this one was not among them, so the gate never caught it.
+
+  **What changed.** All five occurrences are replaced with the generic descriptor "a private linter project," used identically everywhere so the passages that count it as a distinct evidence occurrence (separate from "a different repository" and "a third project" elsewhere in the same files) stay distinguishable. No date, count, or other technical detail changed. A new residue hook now bans the private repository's name in `.md` files, matching the shape of the existing residue hooks, so this cannot recur silently.
+
+- [#239](https://github.com/MrBinnacle/skills/pull/239) [`172f657`](https://github.com/MrBinnacle/skills/commit/172f6574f4bed410f4cb375895205b49268b0474) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `AGENTS.md`: the plain-writing rule and the append-only `gotchas.md` rule gave opposite orders on an entry that is already written. Append-only wins.
+
+  The plain-writing rule added on 2026-09-06 states that it governs "every prose surface a person reads" and names `gotchas.md` in that list. Five bullets below it, the `gotchas.md` rule states that the log is append-only and that entries are never deleted.
+
+  On a new entry the two rules agree. On an entry already in the log they do not: one says split the sentence, the other says leave it alone. The file carried no precedence, so a pass reworking the published cards would have had to invent one.
+
+  The mechanism behind the ruling: a rewritten log entry is no longer the record of what was observed. That property is the only reason the log is kept. A prose rule cannot buy readability with it.
+
+  The clarification also closes a reporting gap. A rework can add a readable summary beside dense historical entries and then be described as having made the card's prose compliant. It has not. The added text requires the report to say which surfaces were rewritten and which were left as history.
+
+  This is entailed by the append-only rule already in the file rather than a new constraint, and the text says so. No card changes and no rule is weakened.
+
+- [#210](https://github.com/MrBinnacle/skills/pull/210) [`ac4b296`](https://github.com/MrBinnacle/skills/commit/ac4b29634c5eb85169f9c6f4680bd004f14cd47c) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `dispositions/`: a disposition record for the 2026-09-04 review of twelve proposed card updates and additions held in the maintainer's private skills registry.
+
+  The registry supplied candidate architecture. This repository supplied executable truth, and where the two disagreed the repository decided. Four findings shaped the outcome.
+
+  The registry asserted a published card this repository had deleted. Its `skill-necessity-gate` row read `Lifecycle: Published` with a source link into `blob/main/skills/meta/skill-necessity-gate/SKILL.md`, a path removed on 2026-08-31. The proposal to extend that card had no artifact to extend, and re-admitting it would need an observed occurrence its record has never held. The useful half of the proposal is relocated to `AGENTS.md` as a convention.
+
+  The registry also recorded a per-card version number that published cards do not carry: two rows read `Version: 1.4.0`, which is the collection version in `package.json`, not a property of either card. Published card frontmatter holds `name` and `description` and nothing else.
+
+  One changeset against a published card is authorised, and its justification was already in the tree rather than in any annotation. `parallel-review-disposition-schema` carries an `[OBSERVED]` gotcha dated 2026-08-17 in which a reviewer-local identifier collision silently dropped a real finding for four commits. The entry names three mitigations and the card's prescribed schema carries none of them.
+
+  The compatibility question on `subagent-research-reliability` resolved against consuming a shared return envelope, on a structural ground: a dead letter produces no envelope, so a return contract cannot reduce the lost-return failure that card exists to catch.
+
+  The record authorises no rename, no overwrite of a published artifact, no evidence change, no trigger broadening, and no publication. Five candidates are deferred with their blocking measurements stated, and six exclusions are confirmed against repository rules rather than accepted on the filing.
+
+- [#236](https://github.com/MrBinnacle/skills/pull/236) [`6e81b5d`](https://github.com/MrBinnacle/skills/commit/6e81b5d167b03a9b3f470fd0608fd3f398989343) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `self-documenting-code`: a 0.2.0 candidate that says what it does, and two authoring rules so every later card has to.
+
+  The 0.1.0 card opened with a philosophy and never told a reader what running it would do for them. The candidate opens with the job in one sentence, shows one concrete thing the card caught on a real repository, and states in the same breath that this is one session rather than a measured verdict.
+
+  `EVIDENCE.md` marks six of its eight rows ABSENT and names the observation that would fill each. It separates two things the admission policy treats differently: the field report records the card working, which is efficacy, not the unaided failure that criterion 1 requires. Nothing is invented to fill a row.
+
+  `AGENTS.md` gains two rules under the authoring conventions, because the defect was never specific to this card. Open by saying what the card does, then show why it is worth having. Write it plainly, for a tired reader.
+
+  `PROVENANCE.md` gains a dated correction. The canonical-copy check it left open has now been run, and two of its statements were wrong: the maintainer's copy is not unknown, and `validate_package.py` exists. Both wrong statements stay in place so the correction can be audited.
+
+- [#242](https://github.com/MrBinnacle/skills/pull/242) [`a90f59d`](https://github.com/MrBinnacle/skills/commit/a90f59d270d9c1d3b02b3b353264c244e9be642e) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `_quarantine/self-documenting-code`: the thirteen files that never landed are here, and the copy this repository called the frozen 0.1.0 baseline turns out to be a different document.
+
+  `[#216](https://github.com/MrBinnacle/skills/issues/216)` landed this card from the public `theswerd/aicode` repository because the build ran in a container that could not reach the maintainer's machine. `PROVENANCE.md` said so and left the comparison open. `[#233](https://github.com/MrBinnacle/skills/issues/233)` ran the digest half of it and found the two `SKILL.md` files differ. This change runs the rest on the host.
+
+  **Thirteen files landed, not eleven.** `[#233](https://github.com/MrBinnacle/skills/issues/233)` says eleven and lists thirteen in the same body. Its arithmetic subtracted three repository files from fourteen local ones, which assumed the repository files also sat in the local install. Only `SKILL.md` did. The corrected count is posted as a comment on `[#233](https://github.com/MrBinnacle/skills/issues/233)` rather than edited into the body, so the record stays auditable.
+
+  **The two copies are not two versions of one document, and that is the finding.** The public file is an essay: 6,018 bytes, five headed sections, no version in its frontmatter, no links to anything. The local file is a procedure: 6,191 bytes, seven numbered steps, a disclosure map, `metadata.version: "0.1.0"` declared in its own frontmatter, and nine links that all resolve to files beside it. Every file in the local package carries one install timestamp, 2026-08-11 23:25; only the field report is later, because the maintainer wrote it. Nothing was edited after install. So the local install is the canonical 0.1.0 package and the public file is an earlier draft. The ticket's `Revisit if:` asked whether the local copy was modified. It is not. The repository held a fragment of something else.
+
+  This change does not repair that. `SKILL.md` here now holds the 0.2.0 candidate from `6e81b5d`, so the frozen baseline `[#216](https://github.com/MrBinnacle/skills/issues/216)` criterion 5 asked for is absent in both forms: the essay was replaced and the canonical file never arrived. Choosing among the three documents belongs to whoever owns the 0.2.0 candidate.
+
+  **`validate_package.py` exists.** `PROVENANCE.md` recorded that no such script existed in any tree. It sat on the maintainer's host at 3,464 bytes. `[#216](https://github.com/MrBinnacle/skills/issues/216)` task 4 is now done: `gotchas.md` is in its `ALLOWED_TOP_LEVEL` and nothing else in the script changed. It still exits non-zero here, because it validates the upstream nested layout and this repository's card layout is flat. Those errors describe the layout, not the card.
+
+  **The evals, read first-hand.** `evals.json` holds five cases and every one carries `"files": []`, so the registry's no-fixtures claim is correct about code. `trigger-evals.json` holds twenty labelled queries, ten positive and ten negative, naming near neighbours the card should decline. That is a contrasting fixture set that needs no code. `[#216](https://github.com/MrBinnacle/skills/issues/216)`'s evidence ceiling is right about efficacy and wrong about triggering; they are two claims.
+
+  **Nine files were flattened and one was renamed.** `AGENTS.md:44` sets a flat layout and house practice is unanimous: no `_quarantine/` card has a subdirectory, and `evals/` is the only one in use across published cards. The five reference documents, two templates and two scripts moved up a level keeping their names; `evals/` stayed. Twelve of the thirteen files are byte-identical to the source, verified with `cmp`. The field report is the exception: it named the maintainer's private repository on line 3, so that line got the same generic phrase `500ac26` used across five files, and the file was renamed from `FIELD-REPORT-2026-08-17-workspace-lint.md` because the old name carried the same repository in the path where a content-only residue grep cannot see it.
+
+  `EVIDENCE.md` is unchanged. All eight of its rows were checked against the field report now that the report is in the tree, and all eight hold, including its catch that the report's own finding totals disagree with each other.
+
+  **The card is not promoted and this change does not argue for it.** It stays in `_quarantine/`. Whether the field report satisfies `ADMISSION.md` criterion 1 belongs to the admission gate; criterion 1 asks for an observed unaided failure, and the report mainly records the card working.
+
+- [#227](https://github.com/MrBinnacle/skills/pull/227) [`26e1b2b`](https://github.com/MrBinnacle/skills/commit/26e1b2bd60aa723198817788fa130d7565d4378d) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Land `self-documenting-code` 0.1.0 into `_quarantine/` as a frozen baseline with provenance and gotchas (issue [#216](https://github.com/MrBinnacle/skills/issues/216)). Not published; no admission claim.
+
+- [#231](https://github.com/MrBinnacle/skills/pull/231) [`c89b44e`](https://github.com/MrBinnacle/skills/commit/c89b44e27ed7a4e1edf855008c2c008c36043a25) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `im-down` and `im-up`: one public entrypoint each, so the close and open sequences cannot be reordered by the caller.
+
+  The close previously took two commands the agent had to sequence: write durable state, then snapshot the packet. Reversed, the packet records a pre-commit `HEAD` and the next open rejects it as stale. `close_session.py` now performs all three stages in one process — write state, commit with the `close_commit` marker, snapshot at the post-commit `HEAD` — and fails if `HEAD` moves between the commit and the snapshot. `open_session.py` is the matching receive action: validate the packet, load the declared `state_file`, and emit one receipt carrying `state_read` evidence. A packet whose state file is missing is rejected rather than accepted without doctrine.
+
+  `snapshot_state.py` remains published and is now named in `im-down/SKILL.md`. It writes the packet scaffold alone, for a project whose close commits a caller-authored message or decides by judgement what enters the commit. That caller owns the ordering assertion `close_session.py` makes internally.
+
+  Band rotation is stated as out of scope on the close card. No surface in this repository enforces it.
+
+- [#228](https://github.com/MrBinnacle/skills/pull/228) [`4c3bee9`](https://github.com/MrBinnacle/skills/commit/4c3bee90af088f7f0358b94da8be1eaff8babbab) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `subagent-research-reliability`: re-verify four platform claims against live Claude Code docs (issue [#213](https://github.com/MrBinnacle/skills/issues/213)). Claims 1–2 repaired — platform delivers a final text result (intermediate outputs invisible); Check 0 rests on observed empty handback, not "all plain text is invisible." Claim 3 holds (tool grants frontmatter-only). Claim 4 remains empirical. Registered kill criterion not fired on the docs half.
+
+- [#229](https://github.com/MrBinnacle/skills/pull/229) [`be6b347`](https://github.com/MrBinnacle/skills/commit/be6b34792324c84f7829051c49e99f52042bf0a9) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `mock-masked-stub-trap`'s evidence record said something two readers took to mean a screening fixture exists. It does not. The sentence now states the absence directly, and a byte count in the same record that had gone stale is re-measured.
+
+  The clause read that the card "carries a shape the screen can measure — a frozen fixture and counterfixture". On a close reading that describes the shape an admissible screen would need, and the next sentence says the evidence store held no admissible screens. But two independent reviewers read it as a claim that the fixture pair exists, searched the harness for it, and found nothing. A public evidence record that two careful readers misread the same way is defective at the sentence level whatever it meant, because its whole function is to say precisely what is and is not established.
+
+  The clause now says the trap has a shape a screen could measure, that no such fixture pair exists yet for this card, and that the refusal is therefore availability rather than applicability — there is nothing to run, not a result the collection declined to source. The `UNMEASURED` verdict and the 2026-08-23 store check are unchanged; neither was at issue and both are accurate. No fixture was built and no screen was run.
+
+  The same record's standing-cost row asserted `Body 4,156 B (measured 2026-08-24)`. The live card is 4,161 B, and nothing in this change touches it, so the figure had been wrong for twelve days while nothing could detect it: it is dated and checkable, and no test compares it to the file it describes. Re-measured to 4,161 B, with the prior figure and the size of the drift stated rather than overwritten. Five bytes changes no argument the row makes; it is recorded because a dated measurement that silently stops being true is the failure this collection exists to refuse, and the size of this one is what makes it cheap to fix rather than a reason to leave it.
+
+  Separately, five unselected front-page drafts from 2026-08-30 are recovered from a branch that sat 23 commits behind `main` and whose own commits had already landed by another route. They are preserved under `docs/design/variants/front-page/`, each carrying a header recording that it is raw material, selects nothing, and settles nothing. They are not a design decision and the front page is not changed. `docs/design/variants` is excluded from the link check, because the drafts are drafts of the root `README.md` and their relative links are correct for that location rather than for the archive; rewriting them would make the check pass by corrupting the artifacts the archive exists to hold.
+
 ## v1.4.0 — 2026-08-31
 
 ### Minor Changes
@@ -1016,7 +1258,7 @@ installed users when a version is released, not on every merge to `main`. See
 
   **What happened.** On 2026-08-24 the pass dispatched four `reader` subagents to extract origin text from 25 skill cards. The dispatch named no return channel; each prompt ended `Your final message IS the data`. A subagent's plain text is a dead letter — the main session never receives it. Four idle notifications arrived carrying no content, and no extract reached the session. The extraction was abandoned and redone by a mechanical script over the same 25 cards.
 
-  **Why it counts.** The staged patch documents its origin as `workspace_lint` S026, 2026-08-18/19: three `Explore` scouts dispatched with no return channel named, four idle notifications carrying no content. The 2026-08-24 occurrence is a different repository, a different agent type, and a different task, six days later. The four agents in one dispatch are one occasion, not four — `ADMISSION.md` criterion 2 refuses fan-out from a single run.
+  **Why it counts.** The staged patch documents its origin as S026 of a private linter project, 2026-08-18/19: three `Explore` scouts dispatched with no return channel named, four idle notifications carrying no content. The 2026-08-24 occurrence is a different repository, a different agent type, and a different task, six days later. The four agents in one dispatch are one occasion, not four — `ADMISSION.md` criterion 2 refuses fan-out from a single run.
 
   **The discipline that would have caught it was staged, not live.** `grep -c "dead letter"` returns `0` against the promoted card and `3` against the candidate's `SKILL.md`. `Check 0` is the patch. The promoted skill was installed and active throughout and carries no such check, so the failure recurred in exactly the gap the patch closes.
 
@@ -1325,10 +1567,6 @@ for package @mrbinnacle/skills which is not in the workspace`. No release could 
   before it became a gate. Per the cross-family adjudication of 2026-08-24, a prose bound
   earns a gate on observed recurrence, not on shape; this pass is occurrence one after that
   ruling.
-
-All notable changes to the collection. A release is a delivery event: changed cards reach
-installed users when a version is released, not on every merge to `main`. See
-[ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
 ## v1.2.0 — 2026-08-10
 

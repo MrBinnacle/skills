@@ -66,7 +66,17 @@ CONFORMING_DESCRIPTION = "A fixture card. Use when testing the card contract."
 
 
 def skill_md(name: str, description: str = CONFORMING_DESCRIPTION) -> str:
-    return f"---\nname: {name}\ndescription: {description}\n---\n\n# {name}\n"
+    # AGENTS.md: SKILL.md must be at least 400 bytes, and must link every
+    # reader-facing auxiliary (EVIDENCE.md, gotchas.md).  Pad the body so
+    # every fixture meets the size floor, and include the required links so
+    # the reachability check passes on a conforming card.
+    body = (
+        f"---\nname: {name}\ndescription: {description}\n---\n\n"
+        f"# {name}\n\n"
+        f"See [EVIDENCE.md](EVIDENCE.md) and [gotchas.md](gotchas.md).\n"
+    )
+    padding = "\n\n" + "x" * max(0, 400 - len(body.encode("utf-8")))
+    return body + padding
 
 
 def write_card(
@@ -95,7 +105,8 @@ def case_committed_poison_is_red() -> None:
     )
     check(
         "the missing-file fixture is red for exactly one reason",
-        "1 card contract breach(es)" in result.stderr,
+        "1 card contract breach(es)" in result.stderr
+        and "missing gotchas.md" in result.stderr,
         result.stderr.strip(),
     )
 
@@ -669,10 +680,13 @@ def case_quotes_do_not_count_against_the_budget(root: Path) -> None:
     requirement, so it must not cost a card two characters of its budget."""
     exactly = "z" * 198 + ": "
     card = write_card(root, "quoted-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
-    (card / "SKILL.md").write_text(
-        '---\nname: quoted-card\ndescription: "' + exactly + '"\n---\n\n# quoted-card\n',
-        encoding="utf-8",
+    quoted = (
+        '---\nname: quoted-card\ndescription: "' + exactly + '"\n---\n\n'
+        "# quoted-card\n\nSee [EVIDENCE.md](EVIDENCE.md) and [gotchas.md](gotchas.md).\n"
     )
+    # Pad to meet the 400-byte minimum while keeping frontmatter intact.
+    quoted += "\n\n" + "x" * max(0, 400 - len(quoted.encode("utf-8")))
+    (card / "SKILL.md").write_text(quoted, encoding="utf-8")
     result = run_checker(root)
     check(
         "surrounding quotes are not counted against the 200 bar",
@@ -690,6 +704,313 @@ def case_missing_description_is_rejected(root: Path) -> None:
     check(
         "a SKILL.md stating no description is rejected",
         result.returncode != 0 and "states no frontmatter description" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+# --- Size bounds (AGENTS.md: 400-7,168 bytes) ---
+
+
+def case_skill_too_small_is_rejected(root: Path) -> None:
+    write_card(root, "tiny-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (root / "skills" / "engineering" / "tiny-card" / "SKILL.md").write_text(
+        "x\n", encoding="utf-8"
+    )
+    result = run_checker(root)
+    check(
+        "a SKILL.md below 400 bytes is rejected",
+        result.returncode != 0 and "below the minimum" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_skill_too_large_is_rejected(root: Path) -> None:
+    write_card(root, "huge-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (root / "skills" / "engineering" / "huge-card" / "SKILL.md").write_text(
+        "x" * 7169, encoding="utf-8"
+    )
+    result = run_checker(root)
+    check(
+        "a SKILL.md above 7,168 bytes is rejected",
+        result.returncode != 0 and "above the maximum" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_skill_at_size_bounds_passes(root: Path) -> None:
+    card = write_card(root, "floor-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    # The skill_md helper already pads to the 400-byte floor.
+    result = run_checker(root)
+    check(
+        "a SKILL.md at the size floor passes",
+        result.returncode == 0,
+        result.stderr.strip(),
+    )
+
+    card2 = write_card(root, "ceiling-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    # Pad to exactly the 7,168-byte ceiling.
+    #
+    # write_bytes, not write_text: on Windows write_text expands every \n to \r\n,
+    # so a body padded to 7,168 CHARACTERS lands as 7,178 BYTES and the fixture
+    # trips the ceiling it exists to sit under. The gate measures bytes, so the
+    # fixture has to control bytes. Measured: this case failed on Windows and
+    # passed on Linux CI, which is the signature of a fixture that is really a
+    # line-ending bug.
+    body = skill_md("ceiling-card").encode("utf-8").replace(b"\r\n", b"\n")
+    (card2 / "SKILL.md").write_bytes(body + b"y" * (7168 - len(body)))
+    result2 = run_checker(root)
+    check(
+        "a SKILL.md at the size ceiling passes",
+        result2.returncode == 0,
+        result2.stderr.strip(),
+    )
+
+
+# --- Local links resolve with case matching ---
+
+
+def case_broken_link_is_rejected(root: Path) -> None:
+    card = write_card(root, "broken-link-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (card / "SKILL.md").write_text(
+        skill_md("broken-link-card") + "\n[missing](nonexistent.md)\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "a link to a nonexistent file is rejected",
+        result.returncode != 0 and "link target does not exist" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_case_mismatch_is_rejected(root: Path) -> None:
+    card = write_card(root, "case-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (card / "bar.md").write_text("# bar\n", encoding="utf-8")
+    (card / "SKILL.md").write_text(
+        skill_md("case-card") + "\n[bar](Bar.md)\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "a link differing only by case is rejected",
+        result.returncode != 0 and "link target does not exist" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_valid_links_pass(root: Path) -> None:
+    card = write_card(root, "good-link-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (card / "helper.md").write_text("# helper\n", encoding="utf-8")
+    (card / "SKILL.md").write_text(
+        skill_md("good-link-card") + "\n[helper](helper.md)\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "a card with all links resolving passes",
+        result.returncode == 0,
+        result.stderr.strip(),
+    )
+
+
+# --- Reader-facing auxiliary reachability from SKILL.md ---
+
+
+def case_unreachable_file_is_rejected(root: Path) -> None:
+    card = write_card(root, "unreach-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (card / "orphan.md").write_text("# orphan\n", encoding="utf-8")
+    result = run_checker(root)
+    check(
+        "a file not reachable from SKILL.md is rejected",
+        result.returncode != 0 and "not reachable from SKILL.md" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_transitive_reachability_passes(root: Path) -> None:
+    card = write_card(root, "trans-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (card / "intermediate.md").write_text(
+        "# intermediate\n\n[leaf](leaf.md)\n", encoding="utf-8"
+    )
+    (card / "leaf.md").write_text("# leaf\n", encoding="utf-8")
+    (card / "SKILL.md").write_text(
+        skill_md("trans-card") + "\n[intermediate](intermediate.md)\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "a transitively reachable file passes",
+        result.returncode == 0,
+        result.stderr.strip(),
+    )
+
+
+def case_exemptions_pass(root: Path) -> None:
+    card = write_card(root, "exempt-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (card / "test_validate.py").write_text("# test\n", encoding="utf-8")
+    (card / "fixture-clean.md").write_text("# fixture\n", encoding="utf-8")
+    (card / "CONFIG.example.json").write_text("{}\n", encoding="utf-8")
+    (card / "evals").mkdir()
+    (card / "evals" / "corpus.jsonl").write_text("[]\n", encoding="utf-8")
+    result = run_checker(root)
+    check(
+        "exempt test/build files not linked from SKILL.md pass",
+        result.returncode == 0,
+        result.stderr.strip(),
+    )
+
+
+def case_stale_exemption_is_rejected(root: Path) -> None:
+    """An exemption pattern matching nothing in the published tree fails the gate.
+
+    Patterns are global. A per-card check would false-positive every card that
+    simply has no fixtures of its own — measured on the first implement pass.
+    The tree must already use at least one exemption; otherwise the stale check
+    correctly stays quiet on fixture trees that never needed exemptions.
+    """
+    import validate_card_files as vcf
+
+    card = write_card(root, "stale-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    # One real exemption hit so the tree is "in the exemption system".
+    (card / "test_validate.py").write_text("# test\n", encoding="utf-8")
+    (card / "fixture-clean.md").write_text("# fixture\n", encoding="utf-8")
+    (card / "CONFIG.example.json").write_text("{}\n", encoding="utf-8")
+    (card / "evals").mkdir()
+    (card / "evals" / "corpus.jsonl").write_text("[]\n", encoding="utf-8")
+    cards = vcf.find_cards(root)
+    old = vcf._EXEMPTION_PATTERNS
+    vcf._EXEMPTION_PATTERNS = old + ("test_foo.py",)
+    try:
+        breaches = vcf.stale_exemption_breaches(cards)
+        stale_detected = any(
+            "test_foo.py" in b and "exemption list names files that no longer exist" in b
+            for b in breaches
+        )
+        check(
+            "a stale exemption is detected",
+            stale_detected,
+            f"breaches={breaches}",
+        )
+    finally:
+        vcf._EXEMPTION_PATTERNS = old
+
+
+def _validate_exits(root: Path) -> bool:
+    """Run validate() in-process. True when it raised SystemExit (rejected).
+
+    In-process, not via run_checker: these cases monkeypatch a module constant,
+    and a subprocess would not see it.
+    """
+    import validate_card_files as vcf
+
+    try:
+        vcf.validate(root)
+    except SystemExit:
+        return True
+    return False
+
+
+def case_allowlisted_breach_does_not_block(root: Path) -> None:
+    """A breach named on the allowlist is reported but does not fail the gate."""
+    import validate_card_files as vcf
+
+    card = write_card(root, "waived-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    # write_card produces a reachability-clean card, so give it a real breach to
+    # waive: an auxiliary linked from nowhere.
+    (card / "orphan.md").write_text("# orphan\n", encoding="utf-8")
+    rel = card.relative_to(root).as_posix()
+    check(
+        "the fixture actually breaches before it is waived",
+        _validate_exits(root),
+    )
+    old = vcf._ALLOWLIST
+    vcf._ALLOWLIST = frozenset({(rel, "reachability")})
+    try:
+        check(
+            "an allowlisted breach does not fail the gate",
+            not _validate_exits(root),
+        )
+    finally:
+        vcf._ALLOWLIST = old
+
+
+def case_stale_allowlist_entry_is_rejected(root: Path) -> None:
+    """The allowlist can only shrink.
+
+    THE load-bearing control. An allowlist whose entries never expire is a
+    permanent waiver nobody rereads; the only thing that keeps it honest is that
+    a fixed card FAILS the gate until its entry is deleted. Without this case a
+    green run cannot tell a shrinking allowlist from a frozen one.
+    """
+    import validate_card_files as vcf
+
+    card = write_card(root, "clean-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    # Link both auxiliaries so the card breaches nothing at all.
+    (card / "SKILL.md").write_bytes(
+        skill_md("clean-card").encode("utf-8").replace(b"\r\n", b"\n")
+        + b"\nSee [gotchas.md](gotchas.md) and [EVIDENCE.md](EVIDENCE.md).\n"
+    )
+    rel = card.relative_to(root).as_posix()
+    check(
+        "the card is clean before the stale entry is added",
+        not _validate_exits(root),
+    )
+
+    old = vcf._ALLOWLIST
+    vcf._ALLOWLIST = frozenset({(rel, "reachability")})
+    try:
+        check(
+            "a stale allowlist entry FAILS the gate",
+            _validate_exits(root),
+        )
+    finally:
+        vcf._ALLOWLIST = old
+
+
+def case_allowlist_entry_for_an_absent_card_is_not_stale(root: Path) -> None:
+    """An entry naming a card outside THIS tree is not applicable, not stale.
+
+    Without this the fixture trees every other case builds would report all
+    fourteen real entries as stale, and the shrink check would fire on trees it
+    says nothing about.
+    """
+    import validate_card_files as vcf
+
+    write_card(root, "unrelated-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    old = vcf._ALLOWLIST
+    vcf._ALLOWLIST = frozenset({("skills/engineering/not-in-this-tree", "size")})
+    try:
+        # The card present here breaches reachability, so the gate rejects -- but
+        # it must not additionally claim the absent card's entry is stale.
+        import io
+        import contextlib
+
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            _validate_exits(root)
+        check(
+            "an entry for an absent card is not reported stale",
+            "no longer applies" not in err.getvalue(),
+            err.getvalue()[:300],
+        )
+    finally:
+        vcf._ALLOWLIST = old
+
+
+def case_index_only_name_is_not_a_link(root: Path) -> None:
+    card = write_card(root, "index-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (card / "standalone.md").write_text("# standalone\n", encoding="utf-8")
+    (card / "SKILL.md").write_text(
+        skill_md("index-card")
+        + "\n| File | Purpose |\n|---|---|\n| standalone.md | does stuff |\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "a file named only in an index block is reported as unreachable",
+        result.returncode != 0
+        and "not reachable from SKILL.md" in result.stderr
+        and "standalone.md" in result.stderr,
         result.stderr.strip(),
     )
 
@@ -719,6 +1040,20 @@ def main() -> None:
         case_missing_description_is_rejected,
         case_zero_cards_is_red,
         case_unpublished_buckets_owe_nothing,
+        case_skill_too_small_is_rejected,
+        case_skill_too_large_is_rejected,
+        case_skill_at_size_bounds_passes,
+        case_broken_link_is_rejected,
+        case_case_mismatch_is_rejected,
+        case_valid_links_pass,
+        case_unreachable_file_is_rejected,
+        case_transitive_reachability_passes,
+        case_exemptions_pass,
+        case_stale_exemption_is_rejected,
+        case_allowlisted_breach_does_not_block,
+        case_stale_allowlist_entry_is_rejected,
+        case_allowlist_entry_for_an_absent_card_is_not_stale,
+        case_index_only_name_is_not_a_link,
     ]
     for func in isolated:
         with tempfile.TemporaryDirectory() as tmp:
