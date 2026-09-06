@@ -1,0 +1,13 @@
+---
+"mrbinnacle-skills": patch
+---
+
+`mock-masked-stub-trap`'s evidence record said something two readers took to mean a screening fixture exists. It does not. The sentence now states the absence directly, and a byte count in the same record that had gone stale is re-measured.
+
+The clause read that the card "carries a shape the screen can measure — a frozen fixture and counterfixture". On a close reading that describes the shape an admissible screen would need, and the next sentence says the evidence store held no admissible screens. But two independent reviewers read it as a claim that the fixture pair exists, searched the harness for it, and found nothing. A public evidence record that two careful readers misread the same way is defective at the sentence level whatever it meant, because its whole function is to say precisely what is and is not established.
+
+The clause now says the trap has a shape a screen could measure, that no such fixture pair exists yet for this card, and that the refusal is therefore availability rather than applicability — there is nothing to run, not a result the collection declined to source. The `UNMEASURED` verdict and the 2026-08-23 store check are unchanged; neither was at issue and both are accurate. No fixture was built and no screen was run.
+
+The same record's standing-cost row asserted `Body 4,156 B (measured 2026-08-24)`. The live card is 4,161 B, and nothing in this change touches it, so the figure had been wrong for twelve days while nothing could detect it: it is dated and checkable, and no test compares it to the file it describes. Re-measured to 4,161 B, with the prior figure and the size of the drift stated rather than overwritten. Five bytes changes no argument the row makes; it is recorded because a dated measurement that silently stops being true is the failure this collection exists to refuse, and the size of this one is what makes it cheap to fix rather than a reason to leave it.
+
+Separately, five unselected front-page drafts from 2026-08-30 are recovered from a branch that sat 23 commits behind `main` and whose own commits had already landed by another route. They are preserved under `docs/design/variants/front-page/`, each carrying a header recording that it is raw material, selects nothing, and settles nothing. They are not a design decision and the front page is not changed. `docs/design/variants` is excluded from the link check, because the drafts are drafts of the root `README.md` and their relative links are correct for that location rather than for the archive; rewriting them would make the check pass by corrupting the artifacts the archive exists to hold.

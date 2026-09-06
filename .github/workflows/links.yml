@@ -37,6 +37,19 @@ jobs:
           echo "$out"
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::card-file checker emitted no PASS line - it did not run"; exit 1; }
+      # docs/design/variants/ is excluded, and the reason is that its links are
+      # correct rather than broken. The files there are archived drafts of the
+      # root README.md, preserved unselected at skills#201. Their relative links
+      # (ADMISSION.md, skills/*/EVIDENCE.md, .claude-plugin/marketplace.json)
+      # resolve from the repository root, which is where the file they draft
+      # lives. Four directories down they resolve to nothing, and lychee reports
+      # 42 errors that are all the same fact.
+      #
+      # Rewriting the links would make the check pass by corrupting the artifact
+      # the archive exists to hold: a draft whose paths have been rewritten is no
+      # longer the draft that was written. Excluding the directory states what is
+      # true - these are not live documentation and their targets belong to a
+      # location they no longer sit in.
       - name: Check links
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2
         with:
@@ -44,6 +57,7 @@ jobs:
             --no-progress
             --max-retries 3
             --retry-wait-time 5
+            --exclude-path docs/design/variants
             --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
             './**/*.md'
           fail: true
