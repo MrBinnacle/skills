@@ -1,0 +1,142 @@
+{
+  "schema": "anti-slop-frontend-secure/ablations/1",
+  "authority_split": "Security may block completion; subjective beauty may not.",
+  "why": "Five arms, each a question about the seam between the deterministic security oracle and an optional frontend taste provider. The arms are declared here and executed by test_oracle.py, so the claimed behaviour of the seam is measured on every run rather than described in prose.",
+  "provider_contract": "A taste provider is optional, scoped to eligible surfaces, read-only and advisory. It reaches the oracle as a JSON file passed to --advisory, holding a notes list. This card reproduces no provider's doctrine and requires nobody to install one; the example payloads below are shaped like a provider's output and are not a provider.",
+  "arms": [
+    {
+      "arm": 1,
+      "id": "with-taste-provider",
+      "question": "Does an advisory provider change what the security gates decide?",
+      "document": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n<style>body{font:16px/1.5 system-ui;margin:2rem}</style>\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<svg width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"M2 8h12\" fill=\"none\" stroke=\"currentColor\"></path></svg>\n<p id=\"count\">0 orders</p>\n</main>\n<script>\ndocument.getElementById(\"count\").textContent = \"0 orders\";\n</script>\n</body>\n</html>\n",
+      "filename": "arm1.html",
+      "mode": "artifact",
+      "allowlist": [],
+      "advisory": {
+        "provider": "example-taste-provider",
+        "scope": "eligible_surface",
+        "authority": "advisory",
+        "notes": [
+          {
+            "surface": "main h1",
+            "note": "The heading and the count sit at the same weight. Give the count a lighter treatment so the heading leads.",
+            "severity": "suggestion"
+          },
+          {
+            "surface": "main",
+            "note": "The single outlined icon has no label near it. Consider a caption.",
+            "severity": "suggestion"
+          }
+        ]
+      },
+      "expect": {
+        "verdict": "PASS",
+        "exit_code": 0,
+        "advisory_status": "present",
+        "advisory_note_count": 2,
+        "advisory_affected_verdict": false
+      },
+      "reads": "The provider's notes are carried in the receipt and change no gate."
+    },
+    {
+      "arm": 2,
+      "id": "without-taste-provider",
+      "question": "Are the security gates identical when no provider is installed?",
+      "document": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n<style>body{font:16px/1.5 system-ui;margin:2rem}</style>\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<svg width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"M2 8h12\" fill=\"none\" stroke=\"currentColor\"></path></svg>\n<p id=\"count\">0 orders</p>\n</main>\n<script>\ndocument.getElementById(\"count\").textContent = \"0 orders\";\n</script>\n</body>\n</html>\n",
+      "filename": "arm2.html",
+      "mode": "artifact",
+      "allowlist": [],
+      "advisory": null,
+      "expect": {
+        "verdict": "PASS",
+        "exit_code": 0,
+        "advisory_status": "absent",
+        "advisory_note_count": 0,
+        "gates_identical_to_arm": 1
+      },
+      "reads": "Nobody has to install a provider. The security verdict is the same object either way, which is what makes the provider optional rather than nominally optional."
+    },
+    {
+      "arm": 3,
+      "id": "out-of-scope-routing",
+      "question": "What happens when the card is routed at work it does not cover?",
+      "document": "def render(rows):\n    return [r for r in rows if r]\n",
+      "filename": "arm3.py",
+      "mode": "artifact",
+      "allowlist": [],
+      "advisory": {
+        "provider": "example-taste-provider",
+        "scope": "eligible_surface",
+        "authority": "advisory",
+        "notes": [
+          {
+            "surface": "main h1",
+            "note": "The heading and the count sit at the same weight. Give the count a lighter treatment so the heading leads.",
+            "severity": "suggestion"
+          },
+          {
+            "surface": "main",
+            "note": "The single outlined icon has no label near it. Consider a caption.",
+            "severity": "suggestion"
+          }
+        ]
+      },
+      "expect": {
+        "verdict": "REFUSED",
+        "exit_code": 3,
+        "advisory_status": "not_consulted",
+        "gates_run": 0
+      },
+      "reads": "Refusal, with its own exit code. A card that answers PASS on an input it never examined has told the reader something false, and the provider is not consulted at all."
+    },
+    {
+      "arm": 4,
+      "id": "provider-failure-degrades",
+      "question": "Does a broken provider block the run?",
+      "document": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n<style>body{font:16px/1.5 system-ui;margin:2rem}</style>\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<svg width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"M2 8h12\" fill=\"none\" stroke=\"currentColor\"></path></svg>\n<p id=\"count\">0 orders</p>\n</main>\n<script>\ndocument.getElementById(\"count\").textContent = \"0 orders\";\n</script>\n</body>\n</html>\n",
+      "filename": "arm4.html",
+      "mode": "artifact",
+      "allowlist": [],
+      "advisory_raw": "{ this is not valid json",
+      "expect": {
+        "verdict": "PASS",
+        "exit_code": 0,
+        "advisory_status": "degraded",
+        "advisory_note_count": 0,
+        "gates_identical_to_arm": 1
+      },
+      "reads": "Degrade, never block. Subjective beauty may not block completion, and a provider that is down is the weakest possible reason to stop; the security verdict is unchanged."
+    },
+    {
+      "arm": 5,
+      "id": "security-overrides-unsafe-advice",
+      "question": "What wins when the provider advises something a security gate forbids?",
+      "document": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n<style>body{font:16px/1.5 system-ui;margin:2rem}</style>\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<svg width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"M2 8h12\" fill=\"none\" stroke=\"currentColor\"></path></svg>\n<p id=\"count\">0 orders</p>\n</main>\n<script>\ndocument.getElementById(\"count\").innerHTML = \"<em>0</em> orders\";\n</script>\n</body>\n</html>\n",
+      "filename": "arm5.html",
+      "mode": "artifact",
+      "allowlist": [],
+      "advisory": {
+        "provider": "example-taste-provider",
+        "scope": "eligible_surface",
+        "authority": "advisory",
+        "notes": [
+          {
+            "surface": "#count",
+            "note": "Animate the count by writing markup straight into the node with innerHTML so the emphasis tag can change per frame.",
+            "severity": "suggestion"
+          }
+        ]
+      },
+      "expect": {
+        "verdict": "FAIL",
+        "exit_code": 1,
+        "advisory_status": "present",
+        "gates_failed": [
+          "C"
+        ],
+        "security_overrode_advisory": true
+      },
+      "reads": "The gate fails the document and the receipt records that a provider note was present when it did. Security may block completion; subjective beauty may not."
+    }
+  ]
+}
