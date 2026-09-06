@@ -75,7 +75,7 @@ body {
 
 h1 {
   font-weight: 700;
-  font-size: clamp(1.5rem, 1rem + 2.5vw, 2.25rem);
+  font-size: clamp(1.125rem, 0.5rem + 2.75vw, 2.25rem);
   line-height: 1.2;
   letter-spacing: -0.01em;
   margin: var(--s5) 0 var(--s3);
