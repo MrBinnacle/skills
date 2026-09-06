@@ -5,104 +5,62 @@ description: When a pre-registration, pre-flight or sanity gate refuses to produ
 
 # HALT as Deliverable
 
-## Problem
+Decide what to publish after one of your own gates has refused to produce a result. You get a ruling — publish the refusal, or fix and re-run — plus the order the audit trail has to be committed in for the published version to hold up.
 
-A quality discipline (pre-registration, pre-flight check, sanity gate) refuses
-to produce the intended result because it detected an inconsistency in the
-surrounding state. The engineer reflex is to fix the inconsistency and re-run,
-treating the HALT as a setback — which discards the most valuable artifact the
-work produced. A discipline-gate catching its own author's accidental
-falsification, before any contaminated result ships, is an uncopyable
-credibility signal: it proves the discipline works on real, unrehearsed
-material. Where the framework's credibility matters more than the specific
-result, the HALT is the higher-value deliverable.
+A recorded case, 2026-06-08. A pre-flight check refused a pre-registered cross-vendor run: the scorer registry had grown between the baseline and the tag the case study cited, so the study's own headline figure was not reproducible at the tag it named. A second check then refused the re-baseline over three environment mismatches. Zero subject calls, zero spend. The catching was done by the harness's pre-flight gates, not by this card — this card decides what happens next. The run in full is in [`case-study.md`](case-study.md); its provenance and the other recorded occurrences are in [`EVIDENCE.md`](EVIDENCE.md).
 
 ## Use when
 
-- A pre-registered prediction is falsified by a known class of error before
-  the experiment executes: registry drift, version mismatch, schema change,
-  baseline/tag documentation inconsistency.
-- A pre-flight verification refuses the run because operational state is
-  inconsistent with the experiment's preconditions.
-- A self-audit, linter or regression check catches a defect in the author's
-  own shipped work — the defect the audit existed to demonstrate the absence
-  of.
-- Any "the discipline refused to produce X, and here is why" outcome where the
-  why is structurally informative rather than transient infrastructure noise.
+- A pre-registered prediction is falsified before the experiment runs: registry drift, version mismatch, schema change, baseline or tag inconsistency.
+- A pre-flight check refuses a run because operational state does not match the experiment's preconditions.
+- A self-audit, linter or regression check finds a defect in the author's own shipped work — the defect the audit existed to show was absent.
+- Any "the discipline refused to produce X, and here is why" outcome where the why is structural rather than transient noise.
 
-Deciding between the two paths:
+## Choose the path
 
-| Apply HALT-as-deliverable | Apply fix-and-re-run |
+| Publish the HALT | Fix and re-run |
 |---|---|
-| The HALT reveals a structural inconsistency the audience would care about | The HALT reveals transient infrastructure (rate limit, flaky network) |
-| The discipline's credibility is itself a load-bearing claim | The experiment's specific result is the load-bearing claim |
-| The catching is uncopyable / hard to fake | The catching is generic / commodity |
-| The audience is field-skeptical (impressed by the discipline) | The audience is result-focused (would not engage with meta) |
-| The author's own work was caught | Someone else's work was caught |
+| The HALT shows a structural problem the audience would care about | The HALT shows transient infrastructure: a rate limit, a flaky network |
+| The discipline's credibility is itself a claim you are making | The experiment's specific result is the claim you are making |
+| The catch is hard to fake | The catch is generic |
+| The audience is skeptical of the field | The audience came for the result and will read meta as evasion |
+| Your own work was caught | Someone else's work was caught |
 
-## Solution
+Identity match is what makes it strong. "The gate I built refused my own shipped work" is hard to copy. "The gate caught someone else's work" is much weaker.
 
-The worked record behind every step is in [`case-study.md`](case-study.md).
+## Procedure
 
-### 1. Commit the audit trail publicly before deciding the path forward
+Do these in order. The order is the part that fails audit if you get it wrong.
 
-The HALT findings, the failed pre-registration, the pre-flight log — commit
-them to public history immediately, before deciding whether to re-run. This
-locks the catching in place; it cannot be retroactively papered over.
+### 1. Commit the audit trail publicly, before you decide the path
 
-### 2. Make the catching the headline, not a quiet fix
+Commit the HALT findings, the failed pre-registration and the pre-flight log to public history first. Decide afterward. This locks the catch in place so it cannot be papered over later.
 
-The reflex — fix, re-run, ship the corrected number, mention the re-baseline
-in passing — is correct for routine engineering and WRONG when the
-discipline-catching IS the demonstration. Name the HALT in the title, document
-the audit trail explicitly, narrate the discipline-catching-itself moment as
-the lead. The corrected result is a number; the HALT is a story, and a story
-is a character claim about the work. In fields where the dominant pattern is
-"produce a confident number even when you shouldn't," publicly halting before
-fabricating is itself the artifact — loudness is substance here, not
-marketing.
+### 2. Make the catch the headline
 
-### 3. Reframe the deliverable around the catching
+The reflex is to fix, re-run, ship the corrected number and mention the re-baseline in passing. That is right for routine work and wrong when the gate catching you IS the demonstration. Name the HALT in the title. Lead with it.
 
-If the original deliverable was "experiment produces result X showing claim
-Y," the reframed deliverable is: "the discipline pre-registered claim Y,
-attempted the experiment, refused to proceed because Z was inconsistent, and
-here is the audit trail." Same evidence, sharper story — the catching of Z is
-the demonstration of claim Y.
+### 3. Reframe the deliverable around the catch
 
-### 4. More than one HALT compounds
+If the original was "the experiment produces X, which shows Y", the reframe is: "we pre-registered Y, ran the experiment, refused to proceed because Z was inconsistent, and here is the trail." Same evidence. The catching of Z is the demonstration of Y.
 
-A series of HALTs catching different classes of inconsistency (documentation
-drift, operational state, environment configuration) is dramatically more
-credible than one HALT plus more than one silent fix. The compounded trail
-triangulates what doing this honestly looks like.
+### 4. Report every HALT, not the flattering ones
+
+A series of HALTs across different classes — documentation drift, operational state, environment configuration — is far more credible than one published HALT beside a run of quiet fixes. Selective reporting is what turns this into spin.
 
 ## Verification
 
-The reframe is correctly applied when:
+All four must hold:
 
-1. The audit trail was committed to public history BEFORE the reframe. Order
-   matters; backdating breaks audit integrity.
-2. The headline names the HALT explicitly — "we caught X" is the lead.
-3. A reader who came for the original deliverable would accept the substitute
-   on its merits, not because they were told to.
-4. The discipline is recoverable from the trail: someone implementing it would
-   have caught the same class of error.
+1. The audit trail reached public history BEFORE the reframe. Backdating breaks it.
+2. The headline names the HALT.
+3. A reader who came for the original deliverable accepts the substitute on its merits, not because you told them to.
+4. Someone implementing the discipline from your trail would catch the same class of error.
 
-The reframe FAILS when the HALT reads as marketing spin; when the original
-claim was specific (a number, a comparison) and the substitute is vague — the
-reframe does not work for narrow factual claims; or when the audience
-explicitly came for the result, where meta reads as evasion.
+It has failed when the reframe reads as spin, when the original claim was a specific number or comparison and the substitute is vague, or when the audience came for the result. [`gotchas.md`](gotchas.md) logs the failure modes seen so far.
 
-## Notes
+## The precondition
 
-- The pattern requires the discipline to be REAL — falsifiable, recoverable
-  from the audit trail, applied uniformly, catching real problems including the
-  author's own mistakes. Decorative pre-registrations produce HALTs that do
-  not generalize.
-- Identity match amplifies it: "the framework I built refused to validate my
-  own shipped work" is uncopyable; "the framework caught someone else's work"
-  is much weaker.
-- The whole pattern collapses if the framing is perceived as motivated
-  reasoning. Mitigations: commit the trail first, make every input to the
-  catching publicly verifiable, and report HALTs unselectively.
+The discipline has to be real: falsifiable, recoverable from the trail, applied uniformly, and catching your own mistakes as readily as anyone's. A decorative pre-registration produces a HALT that generalizes to nothing.
+
+The whole thing collapses if a reader reads the framing as motivated. Commit the trail first, make every input to the catch publicly checkable, and report HALTs unselectively.
