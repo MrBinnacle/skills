@@ -199,6 +199,86 @@ def count_measured(root: Path) -> int:
     return n
 
 
+def measured_card_names(root: Path) -> set[str]:
+    """The cards whose own records carry a controlled result.
+
+    Same derivation as `count_measured`, returning identities instead of a
+    count, so the page can be checked against WHICH cards rather than how many.
+    """
+    names = set()
+    for skill in iter_skill_dirs(root):
+        values = evidence_fields(skill / "EVIDENCE.md", CONTROLLED_FIELDS)
+        for field in CONTROLLED_FIELDS:
+            if values.get(field, "").lstrip("* `_").upper().startswith(MEASURED_VERDICTS):
+                names.add(skill.name)
+                break
+    return names
+
+
+CONTROLLED_SECTION_RE = re.compile(
+    r"^### Controlled results$(.*?)(?=^#{2,3} )", re.MULTILINE | re.DOTALL
+)
+
+
+def check_controlled_section_restates_nothing(root: Path) -> None:
+    """The page may name which cards are measured. It may not restate their values.
+
+    Two rules, and the second is the one drift needs.
+
+    1. The cards named in the section are exactly the cards whose records carry
+       a controlled result. Naming a card that is not measured, or omitting one
+       that is, is the count-drift this file already refuses, at card identity.
+
+    2. No measured verdict appears in the section at all. A verdict, a date or a
+       receipt restated in prose is a SECOND COPY of a value the card's own
+       EVIDENCE.md owns, and a second copy drifts from the first with nothing
+       going red. That is not hypothetical: the section carried
+       `paired verdict: not yet established` for three days after the card
+       recorded `CANT_TELL_YET` with a dated receipt, and every check in this
+       file passed throughout, because none of them read the prose.
+
+    The rule is therefore "point at the record", not "keep the copy accurate".
+    An accurate copy is still a copy, and the next edit to the card desynchronises
+    it again.
+
+    UNMEASURED is deliberately allowed: it is the section's residual statement
+    about every OTHER card ("every other card is UNMEASURED"), it is derivable
+    from the absence of a measured verdict, and it cannot drift toward claiming
+    a measurement that did not happen -- which is the direction this whole file
+    guards.
+    """
+    readme = root / "README.md"
+    text = readme.read_text(encoding="utf-8")
+    match = CONTROLLED_SECTION_RE.search(text)
+    if match is None:
+        fail(
+            "README.md has no '### Controlled results' section. The section is where "
+            "the page states which cards carry a controlled result; if it moved or "
+            "was renamed, this check stopped guarding it and must be repointed rather "
+            "than left to pass vacuously."
+        )
+    section = match.group(1)
+
+    measured = measured_card_names(root)
+    named = {skill.name for skill in iter_skill_dirs(root) if skill.name in section}
+    if named != measured:
+        fail(
+            f"README.md 'Controlled results' names {sorted(named)} but the cards' own "
+            f"records carry a controlled result for {sorted(measured)}. The page and "
+            f"the records disagree about which cards are measured."
+        )
+
+    restated = [v for v in MEASURED_VERDICTS if v in section]
+    if restated:
+        fail(
+            f"README.md 'Controlled results' restates the verdict(s) {restated}. "
+            f"A verdict belongs in the card's EVIDENCE.md, and the page points at it. "
+            f"A copy on the page drifts from the record with nothing going red - which "
+            f"is exactly how 'paired verdict: not yet established' outlived the "
+            f"CANT_TELL_YET it contradicted. Link the record instead of quoting it."
+        )
+
+
 def derive_origin_tiers(root: Path) -> tuple[int, int, int]:
     """Count the cards in each origin tier, read from their own records.
 
@@ -426,6 +506,7 @@ def validate(root: Path) -> None:
     check_banner_line_sites(root)
     check_policy_version(root)
     check_origin_tiers(root)
+    check_controlled_section_restates_nothing(root)
     observed, designed, distilled = derive_origin_tiers(root)
     print(
         f"PASS: ruled banner line pinned at 5 sites; records derive "

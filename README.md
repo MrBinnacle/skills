@@ -44,9 +44,7 @@ along with the card it named: the policy no longer has a reference method, and t
 questions are answered directly.
 
 The [S295 disposition record](dispositions/2026-08-15-S295-admission-triage.md) applied
-`admission-policy v1` to all nine published cards on 2026-08-15. It found two cards that stand,
-six with thin recurrence records, and one with a ceiling-likely screen result. It retired no
-card.
+`admission-policy v1` to the nine cards published on 2026-08-15, and retired none of them.
 
 ## Card map
 
@@ -200,14 +198,10 @@ These states make different claims.
 
 Controlled results come from with-versus-without evaluations under the evaluation protocol.
 
-One skill has been screened:
-
-* `git-pull-rebase-trap`
-* screened 2026-07-21
-* screen result: `CANT_TELL_YET`
-* paired verdict: not yet established
-
-Every other card is `UNMEASURED` in the controlled fields.
+One card carries controlled results:
+[`git-pull-rebase-trap`](skills/engineering/git-pull-rebase-trap/EVIDENCE.md). Its verdicts,
+dates and receipts live in that record. Every other card is `UNMEASURED` in the controlled
+fields.
 
 `scripts/validate_scoreboard.py` checks that the summary agrees with the individual records.
 

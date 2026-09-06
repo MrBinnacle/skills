@@ -133,6 +133,18 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::banner-line validator emitted no PASS line — it did not run"; exit 1; }
 
+      # The restatement check added with this step was written after the page
+      # carried a paired verdict the card contradicted for three days while every
+      # other check here passed. Its controls run beside it so the check is
+      # demonstrated going red on that drift, not merely present.
+      - name: Controlled-section restatement controls
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_scoreboard.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q 'every control fired' \
+            || { echo "::error::restatement controls emitted no fired line — they did not run"; exit 1; }
+
       # A gate that cannot fail guards nothing. A site that softens the ruled
       # banner line must be rejected, so this asserts the shipped validator
       # still refuses one. The fixture's dark banner renders "are not" where
