@@ -27,42 +27,6 @@ still delivered — full content fell back through `SendMessage`. Check 0's redu
 the routes fail for unrelated causes, and naming a payload channel at all is what separates
 delivery from silence.
 
-## Large deliverable, 2026-08-26
-
-Recovery from a dead letter is normally one `SendMessage` restating the output contract, and that
-had held every prior time. **On 2026-08-26 it stopped working, and the exception has a shape.**
-
-Two agents in one session finished their work and never delivered, one of them **twice, including
-after a full contract-restating nudge.** Two other agents in the same session delivered first time.
-The variable was not the agent type, the model, or the prompt quality:
-
-| agent | output contract | delivered |
-| --- | --- | --- |
-| single verbatim result + short field list | small | first try |
-| five labelled harvests | medium | first try |
-| **three full inventories, one row per closed child across three boards** | **large** | **never** |
-| **seventeen structured records** | **large** | **only when batched** |
-
-**Ask for the report in explicit batches when the deliverable is large.** Naming the split in the
-nudge recovered seventeen records that a single-message nudge had already failed to extract:
-
-> Send them in THREE separate messages, not one. Message 1: items 1-6. Message 2: items 7-12.
-> Message 3: items 13-17.
-
-Two further rules that make the failure cheap:
-
-- **Size the contract at dispatch.** If the return is more than roughly a dozen structured records
-  or more than one independent section, specify the batching in the original prompt rather than
-  discovering the ceiling on recovery.
-- **Always license a partial return, explicitly:** *"send what you have and name the sections you
-  did not reach and why. A partial report that names its own gaps is useful. Silence is not."*
-  Without that line an agent holding a large incomplete result has no sanctioned way to deliver it.
-
-**Do not nudge a third time.** Two failed deliveries is the signal to re-run the work yourself or
-re-dispatch with a batched contract. In the observed case the caller re-ran the sweep directly and
-the result was better than the agent's method would have produced, because a scripted check
-replaced hand-matching.
-
 ## Notes
 
 - Claude Code discipline (custom agents, `subagent_type`, WebSearch/WebFetch tools, agent

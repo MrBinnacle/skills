@@ -5,8 +5,6 @@ description: Use when dispatching parallel agents to verify/adjudicate findings 
 
 # Parallel Review / Disposition Schema
 
-Evidence and failure modes: [EVIDENCE.md](EVIDENCE.md), [gotchas.md](gotchas.md).
-
 ## Problem
 
 Five reviewers send back five good analyses that don't add up to one decision. That is the

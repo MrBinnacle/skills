@@ -5,8 +5,6 @@ description: Verify a GitHub Pages (or any CDN-fronted) deploy actually serves n
 
 # GitHub Pages deploy verification
 
-Evidence and failure modes: [EVIDENCE.md](EVIDENCE.md), [gotchas.md](gotchas.md).
-
 ## Problem
 
 Three failure modes when verifying that a deploy is live via `curl`:

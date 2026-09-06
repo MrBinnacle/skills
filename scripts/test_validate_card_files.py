@@ -748,11 +748,16 @@ def case_skill_at_size_bounds_passes(root: Path) -> None:
     )
 
     card2 = write_card(root, "ceiling-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
-    # Pad to just under the 7,168-byte ceiling.
-    base = len(skill_md("ceiling-card").encode("utf-8"))
-    (card2 / "SKILL.md").write_text(
-        skill_md("ceiling-card") + "y" * (7168 - base), encoding="utf-8"
-    )
+    # Pad to exactly the 7,168-byte ceiling.
+    #
+    # write_bytes, not write_text: on Windows write_text expands every \n to \r\n,
+    # so a body padded to 7,168 CHARACTERS lands as 7,178 BYTES and the fixture
+    # trips the ceiling it exists to sit under. The gate measures bytes, so the
+    # fixture has to control bytes. Measured: this case failed on Windows and
+    # passed on Linux CI, which is the signature of a fixture that is really a
+    # line-ending bug.
+    body = skill_md("ceiling-card").encode("utf-8").replace(b"\r\n", b"\n")
+    (card2 / "SKILL.md").write_bytes(body + b"y" * (7168 - len(body)))
     result2 = run_checker(root)
     check(
         "a SKILL.md at the size ceiling passes",
@@ -890,6 +895,108 @@ def case_stale_exemption_is_rejected(root: Path) -> None:
         vcf._EXEMPTION_PATTERNS = old
 
 
+def _validate_exits(root: Path) -> bool:
+    """Run validate() in-process. True when it raised SystemExit (rejected).
+
+    In-process, not via run_checker: these cases monkeypatch a module constant,
+    and a subprocess would not see it.
+    """
+    import validate_card_files as vcf
+
+    try:
+        vcf.validate(root)
+    except SystemExit:
+        return True
+    return False
+
+
+def case_allowlisted_breach_does_not_block(root: Path) -> None:
+    """A breach named on the allowlist is reported but does not fail the gate."""
+    import validate_card_files as vcf
+
+    card = write_card(root, "waived-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    # write_card produces a reachability-clean card, so give it a real breach to
+    # waive: an auxiliary linked from nowhere.
+    (card / "orphan.md").write_text("# orphan\n", encoding="utf-8")
+    rel = card.relative_to(root).as_posix()
+    check(
+        "the fixture actually breaches before it is waived",
+        _validate_exits(root),
+    )
+    old = vcf._ALLOWLIST
+    vcf._ALLOWLIST = frozenset({(rel, "reachability")})
+    try:
+        check(
+            "an allowlisted breach does not fail the gate",
+            not _validate_exits(root),
+        )
+    finally:
+        vcf._ALLOWLIST = old
+
+
+def case_stale_allowlist_entry_is_rejected(root: Path) -> None:
+    """The allowlist can only shrink.
+
+    THE load-bearing control. An allowlist whose entries never expire is a
+    permanent waiver nobody rereads; the only thing that keeps it honest is that
+    a fixed card FAILS the gate until its entry is deleted. Without this case a
+    green run cannot tell a shrinking allowlist from a frozen one.
+    """
+    import validate_card_files as vcf
+
+    card = write_card(root, "clean-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    # Link both auxiliaries so the card breaches nothing at all.
+    (card / "SKILL.md").write_bytes(
+        skill_md("clean-card").encode("utf-8").replace(b"\r\n", b"\n")
+        + b"\nSee [gotchas.md](gotchas.md) and [EVIDENCE.md](EVIDENCE.md).\n"
+    )
+    rel = card.relative_to(root).as_posix()
+    check(
+        "the card is clean before the stale entry is added",
+        not _validate_exits(root),
+    )
+
+    old = vcf._ALLOWLIST
+    vcf._ALLOWLIST = frozenset({(rel, "reachability")})
+    try:
+        check(
+            "a stale allowlist entry FAILS the gate",
+            _validate_exits(root),
+        )
+    finally:
+        vcf._ALLOWLIST = old
+
+
+def case_allowlist_entry_for_an_absent_card_is_not_stale(root: Path) -> None:
+    """An entry naming a card outside THIS tree is not applicable, not stale.
+
+    Without this the fixture trees every other case builds would report all
+    fourteen real entries as stale, and the shrink check would fire on trees it
+    says nothing about.
+    """
+    import validate_card_files as vcf
+
+    write_card(root, "unrelated-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    old = vcf._ALLOWLIST
+    vcf._ALLOWLIST = frozenset({("skills/engineering/not-in-this-tree", "size")})
+    try:
+        # The card present here breaches reachability, so the gate rejects -- but
+        # it must not additionally claim the absent card's entry is stale.
+        import io
+        import contextlib
+
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            _validate_exits(root)
+        check(
+            "an entry for an absent card is not reported stale",
+            "no longer applies" not in err.getvalue(),
+            err.getvalue()[:300],
+        )
+    finally:
+        vcf._ALLOWLIST = old
+
+
 def case_index_only_name_is_not_a_link(root: Path) -> None:
     card = write_card(root, "index-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
     (card / "standalone.md").write_text("# standalone\n", encoding="utf-8")
@@ -943,6 +1050,9 @@ def main() -> None:
         case_transitive_reachability_passes,
         case_exemptions_pass,
         case_stale_exemption_is_rejected,
+        case_allowlisted_breach_does_not_block,
+        case_stale_allowlist_entry_is_rejected,
+        case_allowlist_entry_for_an_absent_card_is_not_stale,
         case_index_only_name_is_not_a_link,
     ]
     for func in isolated:

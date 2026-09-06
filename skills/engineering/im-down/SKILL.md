@@ -8,13 +8,11 @@ disable-model-invocation: true
 
 You are signing off. This skill is the producer side of the session-boundary contract. Its receiver is `im-up`.
 
-Evidence and failure modes: [EVIDENCE.md](EVIDENCE.md), [gotchas.md](gotchas.md). Packet schema: [PACKET-FORMAT.md](PACKET-FORMAT.md).
-
 ## Stable contract
 
 The next session must take the correct first action without trust in conversational memory.
 
-The receiver contract in [PACKET-FORMAT.md](PACKET-FORMAT.md) defines the producer output.
+The receiver contract in `PACKET-FORMAT.md` defines the producer output.
 
 ## Preflight
 
@@ -41,7 +39,7 @@ A project that declares no `close_commit` is unaffected by the marker check; the
 
 ## Procedure
 
-1. Run [`close_session.py`](close_session.py) with the objective, next action, and `$ARGUMENTS` purpose. This is the only close command: it writes durable state, commits with the `close_commit` marker, and writes the packet scaffold at the post-commit `HEAD`.
+1. Run `close_session.py` with the objective, next action, and `$ARGUMENTS` purpose. This is the only close command: it writes durable state, commits with the `close_commit` marker, and writes the packet scaffold at the post-commit `HEAD`.
 2. Open the generated packet path from the script's JSON output.
 3. Replace every `__REQUIRED__` marker.
 4. Record failed approaches and null results in time order.
@@ -52,7 +50,7 @@ A project that declares no `close_commit` is unaffected by the marker check; the
 8. Label `skills_dispatched` as `telemetry` only when an event source exists.
 9. Otherwise use `model-reported` and preserve that evidence limit.
 10. Reference source artifacts. Do not copy their contents.
-11. Run [`validate_packet.py`](validate_packet.py) in produce mode.
+11. Run `validate_packet.py` in produce mode.
 12. Claim handoff readiness only after an `ACCEPTED` receipt.
 13. Return the packet path, packet ID, HEAD, and exact receiver command.
 
@@ -78,7 +76,7 @@ python <skill-dir>/validate_packet.py <packet.md> \
 
 ## When the project owns its own close sequence
 
-`close_session.py` writes its own state file and generates its own commit message. A project whose close commits a caller-authored message, or decides by judgement what belongs in the commit, drives the packet stage directly with [`snapshot_state.py`](snapshot_state.py):
+`close_session.py` writes its own state file and generates its own commit message. A project whose close commits a caller-authored message, or decides by judgement what belongs in the commit, drives the packet stage directly with `snapshot_state.py`:
 
 ```bash
 python <skill-dir>/snapshot_state.py \

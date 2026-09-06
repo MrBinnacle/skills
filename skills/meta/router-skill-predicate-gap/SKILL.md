@@ -5,8 +5,6 @@ description: "A router rule can be live, healthy and match nothing anyone types:
 
 # Router skill predicate gap
 
-Evidence and failure modes: [EVIDENCE.md](EVIDENCE.md), [gotchas.md](gotchas.md).
-
 ## Problem
 
 A skill is documented as MANDATORY and wired into a `UserPromptSubmit` router hook, so the
