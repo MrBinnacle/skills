@@ -74,6 +74,25 @@ python <skill-dir>/validate_packet.py <packet.md> \
   --config .claude/session-boundary.json
 ```
 
+## When the project owns its own close sequence
+
+`close_session.py` writes its own state file and generates its own commit message. A project whose close commits a caller-authored message, or decides by judgement what belongs in the commit, drives the packet stage directly with `snapshot_state.py`:
+
+```bash
+python <skill-dir>/snapshot_state.py \
+  --config .claude/session-boundary.json \
+  --objective "<bounded outcome>" \
+  --next-action "<exact action>" \
+  --purpose "$ARGUMENTS" \
+  --repo-root .
+```
+
+`snapshot_state.py` writes the packet scaffold and prints its path. It does nothing else.
+
+That caller now owns the ordering guarantee `close_session.py` holds inside one process: commit first, snapshot second, then assert that the packet's recorded head equals `HEAD` measured after the commit. A caller that skips the assertion ships packets the receiver rejects as stale.
+
+Use `close_session.py` unless the project's close needs that control.
+
 ## Boundary limits
 
 Do not run `/clear`. The operator controls session creation.
