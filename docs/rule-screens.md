@@ -63,9 +63,9 @@ A screen is not due merely because a model was released. A release that changes 
 
 | Requirement | Status |
 |---|---|
-| `SKILL.md` within 400–7,168 bytes | Machine-checkable. Not yet gated. |
-| Every reader-facing auxiliary reachable from `SKILL.md` | Machine-checkable, with a reviewed exemption list for test and build files. Not yet gated. Filed as skills#246. |
-| Local links resolve, including case | Machine-checkable. Not yet gated. |
+| `SKILL.md` within 400–7,168 bytes | **Gated** by `scripts/validate_card_files.py` (skills#246). |
+| Every reader-facing auxiliary reachable from `SKILL.md` | **Gated** by `scripts/validate_card_files.py`, with a reviewed exemption list for test and build files (skills#246). |
+| Local links resolve, including case | **Gated** by `scripts/validate_card_files.py` (skills#246). |
 | Required files present, required evidence rows present | **Gated** by `scripts/validate_card_files.py`. |
 | `description` at or under 200 characters | **Gated.** |
 | The opening names the incident's evidentiary role | Partly syntax-checkable; the honesty of the classification is not. Judgement. |
