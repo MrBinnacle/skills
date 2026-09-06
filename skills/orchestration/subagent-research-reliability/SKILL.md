@@ -1,6 +1,6 @@
 ---
 name: subagent-research-reliability
-description: Pre-dispatch, name the return channel — a subagent's plain text is a dead letter. Verify tool grants match the task. Post-return, verify every claim, negatives first.
+description: Pre-dispatch, name the return channel — a subagent handback can be empty. Verify tool grants match the task. Post-return, verify every claim, negatives first.
 ---
 
 # Subagent Research Reliability
@@ -10,12 +10,13 @@ description: Pre-dispatch, name the return channel — a subagent's plain text i
 Dispatching subagents for research has three silent failure modes. Each produces a confident
 result that is worth nothing, and they fail in dispatch order:
 
-1. **The findings are a dead letter.** The agent researches correctly and answers in plain text.
-   **Intermediate outputs from a subagent are not visible to the main session — only the final
-   text result is delivered.** For foreground subagents, the result arrives inline; for background
-   subagents, it arrives as a completion notification in a later turn. Without an explicit return
-   channel named in the dispatch, the agent's default is to print findings that never reach the
-   main session — the work exists in a transcript nobody reads.
+1. **The findings are a dead letter.** The agent researches correctly, then finishes with nothing
+   the caller can use. Platform docs (verified 2026-09-06, code.claude.com/docs/en/tools-reference.md,
+   sub-agents.md): intermediate tool calls and outputs stay in the subagent context; only the final
+   text result is the return path — inline for foreground, as a completion notification for
+   background. That path is real, and it is not enough: observed 2026-08-04 and 2026-08-24,
+   background agents complete with an empty handback, and work that lived only in the subagent
+   transcript is gone. Name an explicit payload channel in the dispatch, every time.
 2. **The agent can't actually search.** Its `tools:` grant lacks WebSearch/WebFetch even though
    its description says "performs web research." It returns a no-op or fabricates citations from
    training data.
@@ -40,10 +41,11 @@ session (2026-05-28 — see [EVIDENCE.md](EVIDENCE.md)); modes 1 and 3 in anothe
 
 ### Check 0 — Pre-dispatch: name the return channel in the dispatch itself
 
-**State how findings come back, in the prompt, every time.** A subagent that is not told will
-print findings that never reach the main session — intermediate outputs are not visible, and
-only the final text result is delivered (inline for foreground, as a completion notification for
-background). Without an explicit return channel, the agent has no way to deliver.
+**State how findings come back, in the prompt, every time.** The platform delivers one final text
+result (inline for foreground; as a completion notification for background). Intermediate tool
+output never reaches the parent. Relying on that final-result path alone has failed in the field:
+agents complete with an empty handback, and findings that lived only in the subagent transcript
+are a dead letter. Name a payload channel the caller can read without trusting the handback.
 
 Give two routes, so one failing is survivable:
 
@@ -57,10 +59,11 @@ intact. Name the exact path, and state what stays read-only:
 > nowhere else. The repository stays read-only — create nothing under `<repo>`, and post nothing to
 > the tracker.
 
-**A completion notification means the agent stopped. It does not mean the agent reported.** For
-background subagents, results arrive as a completion notification in a later turn — but a
-notification that carries no findings is evidence the agent stopped, not that it delivered. Treat
-the two as different events, and never characterise findings from a notification alone.
+**A completion notification means the agent stopped. It does not mean the agent reported.** Docs
+name the background return a completion notification and say it carries the text result — an empty
+one is still a stop signal with no findings. (Older field notes called the same stop signal an
+"idle notification"; that is not the cross-session `notify_when_idle` feature.) Treat stop and
+delivery as different events, and never characterise findings from a notification alone.
 
 #### Variant — the nudge fails, and the size of the report is why
 

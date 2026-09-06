@@ -53,14 +53,14 @@ stress-test signal.)*
   still delivered — full content fell back through `SendMessage`. This occurrence confirms Check 0's
   redundancy framing: the routes fail for unrelated causes, so one failing is survivable, and the
   load-bearing instruction is to name a payload channel at all.
-- **2026-09-06 / rotation and harvest pass (issue #213):** live documentation verification found
-  that the card's Problem statement and Check 0 used imprecise language about the subagent return
-  path. The docs (code.claude.com/docs/en/sub-agents.md, tools-reference.md) state: "The parent
-  doesn't see the subagent's intermediate tool calls or outputs, only that final result." The card
-  conflated intermediate outputs (invisible) with the final text result (delivered). Similarly, the
-  card used "idle notification" to describe what arrives when a subagent finishes, but the docs
-  define idle notification as a cross-session messaging feature (carries content); subagent
-  completions use a "completion notification" that carries the full text result. Claims 1–2 were
-  repaired in SKILL.md to match the documented mechanics. Claim 3 (tool grants only in frontmatter,
-  not surfaced at dispatch) confirmed holding. Claim 4 (large-return delivery ceiling) re-dated as
-  empirical observation — docs do not describe this as platform behavior.
+- **2026-09-06 / rotation and harvest pass (issue #213):** live documentation verification against
+  code.claude.com/docs/en/tools-reference.md (Agent tool behavior), sub-agents.md (foreground /
+  background return), and cross-session-messaging.md (`notify_when_idle`). Claim 1 was imprecise:
+  docs deliver a final text result to the parent; only intermediate tool outputs stay invisible.
+  The dead-letter failure still holds as observed empty handback (2026-08-04, 2026-08-24), not as
+  "all plain text is platform-invisible." Claim 2's "idle notification" was field language for the
+  subagent stop signal; docs name that return a completion notification (carries the text result,
+  which may be empty). Cross-session `notify_when_idle` is a different feature. Claim 3 holds —
+  tool grants remain frontmatter-only, not surfaced at dispatch; registered kill criterion not
+  fired on the docs half. Claim 4 remains empirical — docs state no large-return ceiling.
+  SKILL.md Check 0 repaired to separate platform path from observed empty-handback failure.
