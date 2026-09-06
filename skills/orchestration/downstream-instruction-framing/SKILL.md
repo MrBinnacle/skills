@@ -5,6 +5,8 @@ description: Framing discipline for artifacts instructing a downstream reader �
 
 # Downstream-Instruction Framing Discipline
 
+Evidence and failure modes: [EVIDENCE.md](EVIDENCE.md), [gotchas.md](gotchas.md).
+
 ## Problem
 
 LLMs default to authoritative downstream instructions: "Approved Decisions — Do Not
@@ -32,57 +34,15 @@ without "Revisit if:"; no per-decision evidence test; or proposed work written a
 
 ### 1. Default framing: informed proposals from a less-informed reviewer
 
-Open with a framing block adapted to the actual evidence asymmetry. Template:
-
-```
-## How to Treat This Document
-
-You are not being given orders. You are being given the prior session's best research
-output, written by a session that [name the evidence asymmetry — e.g., could not read
-the target codebase directly / worked from summaries only / had no test-run authority].
-
-Each decision below is labeled revisable or non-negotiable. A `Revisit if:` clause names
-the evidence that can reopen a revisable decision and who can access it.
-
-Therefore: treat the prior decisions and recommendations as *informed proposals from a
-less-informed reviewer*. They reflect what looked right from outside [the relevant
-context]. You are inside [the relevant context] now. This default applies only where you
-have better evidence access for that decision.
-
-You are explicitly licensed and encouraged to:
-- Disagree with the recommendations if [evidence access] reveals the framing was wrong.
-  Surface the disagreement to the user with reasoning; don't silently follow a bad plan.
-- Restructure sequencing if the real dependency graph differs.
-- Reject items that turn out to be solved already, duplicative, or premature.
-- Redesign approaches if the proposed design conflicts with what the actual code shows.
-
-What you should NOT do:
-- Reopen instructions labeled non-negotiable. Values decisions and explicit constraints
-  remain imperative unless their decision authority changes them.
-- Silently deviate. The user is the decision authority on scope changes; surface
-  disagreement with reasoning, then let them decide.
-- Infer that better facts grant decision rights. New evidence licenses the requested
-  revisit named below; it does not license unilateral scope changes.
-```
+Open with a framing block adapted to the actual evidence asymmetry. Full paste-ready template:
+[FRAMING-TEMPLATE.md](FRAMING-TEMPLATE.md).
 
 ### 2. Classify each decision; add "Revisit if:" only when evidence can change it
 
 For every decision ask: **what evidence could change this outcome, and who can access it?** Label
 it `Revisable with new evidence` and add a specific `Revisit if:` only when such evidence exists.
 Label values decisions and explicit user constraints `Non-negotiable`; keep them imperative.
-
-```
-## Decision Status
-
-- **Revisable with new evidence:** Phase X expands to include items A, B, C. *Revisit if:*
-  repository inspection shows any item is already done,
-  duplicative, or has a wrong cost estimate by >2x.
-- **Revisable with new evidence:** Design Y was approved. *Revisit if:* the actual architecture
-  makes it incompatible,
-  or there's a simpler/better way you can see from inside the tree.
-- **Non-negotiable:** Do not send customer data to third parties. This is an explicit user
-  constraint; surface any conflict, but do not override it.
-```
+Decision-status block examples live in [FRAMING-TEMPLATE.md](FRAMING-TEMPLATE.md).
 
 ### 3. Acceptable narrow use of "do not re-litigate"
 

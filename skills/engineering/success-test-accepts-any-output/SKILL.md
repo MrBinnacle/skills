@@ -5,6 +5,8 @@ description: A success check accepting any non-empty output passes on failure, b
 
 # A Success Test That Accepts Any Output Is Not a Test
 
+Evidence and failure modes: [EVIDENCE.md](EVIDENCE.md), [gotchas.md](gotchas.md).
+
 ## Problem
 
 A check reports success and the operation did not happen. The check is not

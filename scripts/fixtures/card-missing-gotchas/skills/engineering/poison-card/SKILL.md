@@ -5,7 +5,7 @@ description: Fixture card missing one required file.
 
 # poison-card
 
-See [EVIDENCE.md](EVIDENCE.md) and [gotchas.md](gotchas.md).
+See [EVIDENCE.md](EVIDENCE.md).
 
 Fixture for the card-file conformance poison control.
 

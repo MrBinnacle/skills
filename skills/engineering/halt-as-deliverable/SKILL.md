@@ -5,6 +5,8 @@ description: When a pre-registration, pre-flight or sanity gate refuses to produ
 
 # HALT as Deliverable
 
+Evidence and failure modes: [EVIDENCE.md](EVIDENCE.md), [gotchas.md](gotchas.md).
+
 ## Problem
 
 A quality discipline (pre-registration, pre-flight check, sanity gate) refuses

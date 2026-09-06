@@ -104,9 +104,9 @@ def case_committed_poison_is_red() -> None:
         result.stderr.strip(),
     )
     check(
-        "the missing-file fixture is red for the missing file and the broken link",
-        "missing gotchas.md" in result.stderr
-        and "link target does not exist" in result.stderr,
+        "the missing-file fixture is red for exactly one reason",
+        "1 card contract breach(es)" in result.stderr
+        and "missing gotchas.md" in result.stderr,
         result.stderr.strip(),
     )
 
@@ -536,19 +536,20 @@ def case_unpublished_buckets_owe_nothing(root: Path) -> None:
 
 def case_live_nine_cards_pass() -> None:
     result = run_checker(REPO_ROOT)
-    check("the live tree is checked", result.returncode != 0, result.stderr.strip())
+    check("the live tree passes", result.returncode == 0, result.stderr.strip())
+    # The reported count is checked against the tree, never against a number
+    # written here. An earlier edition pinned the literal "9 published
+    # card(s)", which turned this suite red on every admission and every
+    # retirement until someone edited a digit in a test that holds no opinion
+    # about how many cards there should be. Owner ruling 2026-08-24 retired
+    # that class of pin, on the same reasoning that retired the banner's
+    # counts on 2026-08-23. What is worth asserting is that the checker
+    # counted the cards it actually walked.
     expected = len(validate_card_files.find_cards(REPO_ROOT))
     check(
         "the live run reports every card it walked",
-        f"{expected} published card(s)" in result.stderr,
-        result.stderr.strip(),
-    )
-    # The new checks surface real violations on the live tree: size bounds
-    # and reachability.  The gate reports them; fixing them is separate work.
-    check(
-        "the live run reports size or reachability violations",
-        "above the maximum" in result.stderr or "not reachable from SKILL.md" in result.stderr,
-        result.stderr.strip(),
+        f"PASS: {expected} published card(s)" in result.stdout,
+        result.stdout.strip(),
     )
 
 
@@ -855,23 +856,30 @@ def case_exemptions_pass(root: Path) -> None:
 
 
 def case_stale_exemption_is_rejected(root: Path) -> None:
-    """An exemption entry naming a deleted file must fail the gate.
+    """An exemption pattern matching nothing in the published tree fails the gate.
 
-    The stale exemption check only runs when there are unreachables, so we
-    include one real unreachable file (orphan.md) alongside the stale
-    exemption entry.
+    Patterns are global. A per-card check would false-positive every card that
+    simply has no fixtures of its own — measured on the first implement pass.
+    The tree must already use at least one exemption; otherwise the stale check
+    correctly stays quiet on fixture trees that never needed exemptions.
     """
     import validate_card_files as vcf
 
     card = write_card(root, "stale-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
-    (card / "orphan.md").write_text("# orphan\n", encoding="utf-8")
-    # Inject a stale pattern: test_foo.py matches nothing in the card.
+    # One real exemption hit so the tree is "in the exemption system".
+    (card / "test_validate.py").write_text("# test\n", encoding="utf-8")
+    (card / "fixture-clean.md").write_text("# fixture\n", encoding="utf-8")
+    (card / "CONFIG.example.json").write_text("{}\n", encoding="utf-8")
+    (card / "evals").mkdir()
+    (card / "evals" / "corpus.jsonl").write_text("[]\n", encoding="utf-8")
+    cards = vcf.find_cards(root)
     old = vcf._EXEMPTION_PATTERNS
     vcf._EXEMPTION_PATTERNS = old + ("test_foo.py",)
     try:
-        breaches = vcf.reachability_breach(card)
+        breaches = vcf.stale_exemption_breaches(cards)
         stale_detected = any(
-            "exemption list names files that no longer exist" in b for b in breaches
+            "test_foo.py" in b and "exemption list names files that no longer exist" in b
+            for b in breaches
         )
         check(
             "a stale exemption is detected",

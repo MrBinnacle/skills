@@ -5,6 +5,8 @@ description: "Click's CliRunner.invoke `env=` only overrides keys the dict names
 
 # Click CliRunner: `env=None` deletes; absence does NOT
 
+Evidence and failure modes: [EVIDENCE.md](EVIDENCE.md), [gotchas.md](gotchas.md).
+
 ## Problem
 
 You wrote a CLI test where the SUT (system under test) branches on whether an env var is set. The test invokes the CLI via `CliRunner.invoke(cli, args, env=clean_env_dict)`, where `clean_env_dict` omits the env var you want absent. The test passes locally. You ship it. Later it turns out the test was never exercising the "var absent" branch — it was running with the var present (inherited from your shell), and your assertion happened to also pass for the "var present" code path. In a live-API-call test, this can mean the test SILENTLY makes the network call you thought you were preventing.

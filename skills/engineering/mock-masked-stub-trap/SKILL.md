@@ -5,6 +5,8 @@ description: A test that patches a helper which is itself a production stub repo
 
 # Mock-Masked Stub Trap
 
+Evidence and failure modes: [EVIDENCE.md](EVIDENCE.md), [gotchas.md](gotchas.md).
+
 ## The trap
 
 An implementer returns a track/PR with **all gates green** (pytest passing, mypy/lint

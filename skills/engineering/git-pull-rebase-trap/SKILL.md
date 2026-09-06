@@ -5,6 +5,8 @@ description: Use before `git pull` where `pull.rebase` may be `true`. `--no-ff` 
 
 # git-pull-rebase-trap
 
+Evidence and failure modes: [EVIDENCE.md](EVIDENCE.md), [gotchas.md](gotchas.md).
+
 This card ships three parts: an explanation of the trap, prevention-by-recipe for adopter-owned enforcement, and the recovery runbook below. It deliberately ships no executable hook. Enforcement that must fire belongs in the adopter's environment; the card remains the model-invocable reference.
 
 ## The trap

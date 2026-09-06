@@ -5,6 +5,8 @@ description: A PreToolUse Bash guard reads the whole command string, so it block
 
 # PreToolUse Bash Guards Match Prose, Not Just Commands
 
+Evidence and failure modes: [EVIDENCE.md](EVIDENCE.md), [gotchas.md](gotchas.md).
+
 ## Problem
 
 A `PreToolUse` hook on the `Bash` matcher receives the **entire command string**. That string
