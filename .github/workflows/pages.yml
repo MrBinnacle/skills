@@ -1,0 +1,65 @@
+name: pages
+
+# Publishes the landing page in site/ to GitHub Pages, and nothing else.
+#
+# The Pages source is this workflow, not a branch directory: a branch-rooted
+# source can only publish / or /docs, and docs/ holds ADRs, agent documents
+# and archived README drafts that are working documents, not site pages.
+# The artifact is assembled from site/ plus the two banner SVGs the page
+# embeds by reference (assets/banner-dark.svg, assets/banner-light.svg),
+# copied under assets/ so the page's relative paths resolve. No other file
+# reaches the artifact.
+#
+# This workflow deploys only once the repository's Pages source is set to
+# "GitHub Actions" in the repository settings. Enabling Pages and setting the
+# repository homepage are publication steps and belong to the owner; until
+# then the deploy job fails at actions/deploy-pages with a message naming
+# the missing configuration, which is the intended state.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "assets/banner-dark.svg"
+      - "assets/banner-light.svg"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Assemble the artifact from site/ and the two banners
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site/assets
+          cp -r site/. _site/
+          cp assets/banner-dark.svg assets/banner-light.svg _site/assets/
+          find _site -type f | sort
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

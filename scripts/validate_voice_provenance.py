@@ -119,6 +119,7 @@ CITATION_PREFIX: Final[str] = "Source:"
 # data-driven list: adding a surface is a data edit, not a code change.
 FIRST_PERSON_SURFACES: Final[list[tuple[str, str]]] = [
     ("README.md", "first-person sentence"),
+    ("site/index.html", "first-person sentence"),
 ]
 
 # The subject pronoun "I" as it appears in English prose, including the "I"
