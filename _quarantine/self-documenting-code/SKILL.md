@@ -1,6 +1,6 @@
 ---
 name: self-documenting-code
-description: "Guide for writing self-documenting code through semantic functions, pragmatic wrappers, and precise models."
+description: A guide for writing self-documenting code
 ---
 
 Code should be self documenting
