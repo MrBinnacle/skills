@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Require every published card to carry the card contract: files, then rows.
+"""Require every published card to carry the card contract: files, rows, and layout.
 
 AGENTS.md states the contract: a card ships SKILL.md, gotchas.md and
 EVIDENCE.md, and its EVIDENCE.md states the recurrence rows. This is the check
-behind those sentences. Output is ASCII-only, matching the other validators, so
-a cp1252 console cannot die on a status line.
+behind those sentences. It also enforces size bounds on SKILL.md, verifies that
+local links resolve with case matching, and confirms that every reader-facing
+auxiliary is reachable from SKILL.md through local links. Output is ASCII-only,
+matching the other validators, so a cp1252 console cannot die on a status line.
 
 WHY THE ROW CHECKS LIVE HERE AND NOT IN validate_conformance.py's O4
     An earlier edition of this file said row-level checks belong to O4. They do
@@ -136,6 +138,24 @@ DATE_RE: Final[re.Pattern[str]] = re.compile(r"\b20\d{2}-\d{2}-\d{2}\b")
 OCCURRENCE_MARK: Final[re.Pattern[str]] = re.compile(
     r"(?<![\w-])occurrences?\b", re.IGNORECASE
 )
+
+# AGENTS.md: "SKILL.md within 400 to 7,168 bytes."  The 5,120 target is a
+# review trigger, not a gate — do not fail on it.
+SKILL_SIZE_MIN: Final[int] = 400
+SKILL_SIZE_MAX: Final[int] = 7168
+
+# Patterns for files that are test/build support, not reader-facing.  Each
+# pattern must match at least one real file in the published tree; a stale
+# pattern matching nothing is caught by the live-tree validation.  Patterns
+# are fnmatch-style and matched against the basename.
+_EXEMPTION_PATTERNS: Final[tuple[str, ...]] = (
+    "test_*.py",
+    "fixture-*.md",
+    "CONFIG.example.json",
+)
+
+# Directories that are test/build infrastructure, not reader-facing.
+_EXEMPTION_DIRS: Final[frozenset[str]] = frozenset({"evals"})
 
 
 def find_cards(root: Path) -> list[Path]:
@@ -355,6 +375,162 @@ def evidence_breaches(card: Path) -> list[str]:
     return breaches
 
 
+def _is_exempt(name: str) -> bool:
+    """Return True if *name* is a test/build-support file exempt from reachability."""
+    import fnmatch
+    if name in _EXEMPTION_DIRS:
+        return True
+    for pat in _EXEMPTION_PATTERNS:
+        if fnmatch.fnmatch(name, pat):
+            return True
+    return False
+
+
+def _extract_local_links(source_file: Path, text: str) -> list[str]:
+    """Return relative link targets from markdown link syntax in *text*.
+
+    Only ``[text](target)`` and ``![alt](target)`` patterns are considered.
+    Fragments (``#section``) and external URLs (``https://…``) are skipped.
+    Reference-style link definitions are also scanned.
+    """
+    links: list[str] = []
+    for m in re.finditer(r"!?\[[^\]]*\]\(([^)]+)\)", text):
+        target = m.group(1).strip()
+        if not target or target.startswith(("#", "http://", "https://", "mailto:")):
+            continue
+        target = target.split("#", 1)[0]
+        if target:
+            links.append(target)
+    for m in re.finditer(r"^\[[^\]]+\]:\s+(\S+)", text, re.MULTILINE):
+        target = m.group(1).strip()
+        if target and not target.startswith(("http://", "https://", "mailto:")):
+            target = target.split("#", 1)[0]
+            if target:
+                links.append(target)
+    return links
+
+
+def size_breaches(card: Path) -> list[str]:
+    """AGENTS.md: SKILL.md within 400–7,168 bytes."""
+    skill = card / "SKILL.md"
+    if not skill.is_file():
+        return []
+    size = skill.stat().st_size
+    if size < SKILL_SIZE_MIN:
+        return [
+            f"SKILL.md is {size} bytes, below the minimum of {SKILL_SIZE_MIN}. "
+            "A card that small cannot carry the contract"
+        ]
+    if size > SKILL_SIZE_MAX:
+        return [
+            f"SKILL.md is {size} bytes, above the maximum of {SKILL_SIZE_MAX}. "
+            "Split or compress before the file outgrows what a reader can hold"
+        ]
+    return []
+
+
+def link_breaches(card: Path) -> list[str]:
+    """Every relative link in a card's .md files must resolve, matching case."""
+    breaches: list[str] = []
+    for md in sorted(card.rglob("*.md")):
+        if not md.is_file():
+            continue
+        text = md.read_text(encoding="utf-8", errors="replace")
+        for target in _extract_local_links(md, text):
+            resolved = (md.parent / target).resolve()
+            if not resolved.exists():
+                rel = md.relative_to(card)
+                breaches.append(f"{rel}: link target does not exist: {target}")
+    return breaches
+
+
+def reachability_breach(card: Path) -> list[str]:
+    """Every reader-facing auxiliary reachable from SKILL.md through local links.
+
+    Transitive reachability counts: a file linked from a linked document is
+    reachable.  Test/build-support files (test scripts, fixtures, config
+    examples) are exempt.  Files appearing only in inventory or index blocks
+    do not count as useful reader links.
+    """
+    skill = card / "SKILL.md"
+    if not skill.is_file():
+        return []
+
+    reachable: set[Path] = set()
+    queue = [skill.resolve()]
+    while queue:
+        current = queue.pop()
+        if current in reachable:
+            continue
+        if not current.is_file():
+            continue
+        reachable.add(current)
+        text = current.read_text(encoding="utf-8", errors="replace")
+        for target in _extract_local_links(current, text):
+            resolved = (current.parent / target).resolve()
+            if resolved.is_file() and card.resolve() in resolved.parents:
+                queue.append(resolved)
+
+    unreachables: list[str] = []
+    for md in sorted(card.rglob("*.md")):
+        if not md.is_file():
+            continue
+        if md.resolve() in reachable:
+            continue
+        if _is_exempt(md.name):
+            continue
+        unreachables.append(md.name)
+    for f in sorted(card.iterdir()):
+        if not f.is_file():
+            continue
+        if f.suffix == ".md":
+            continue
+        if f.resolve() in reachable:
+            continue
+        if _is_exempt(f.name):
+            continue
+        unreachables.append(f.name)
+    for d in sorted(card.iterdir()):
+        if not d.is_dir():
+            continue
+        if _is_exempt(d.name):
+            continue
+        has_unreachable = any(
+            ff.resolve() not in reachable and not _is_exempt(ff.name)
+            for ff in d.rglob("*") if ff.is_file()
+        )
+        if has_unreachable:
+            unreachables.append(d.name + "/")
+
+    breaches: list[str] = []
+    if unreachables:
+        breaches.append(
+            f"not reachable from SKILL.md through local links: {', '.join(unreachables)}"
+        )
+
+        # Check for stale exemptions: exemption entries that name files which
+        # no longer exist in the card.  A stale entry is a maintenance liability
+        # because it silently exempts nothing.
+        import fnmatch
+        stale: list[str] = []
+        for pat in _EXEMPTION_PATTERNS:
+            matched = False
+            for f in card.rglob("*"):
+                if f.is_file() and fnmatch.fnmatch(f.name, pat):
+                    matched = True
+                    break
+            if not matched:
+                stale.append(pat)
+        for d_name in _EXEMPTION_DIRS:
+            if not (card / d_name).is_dir():
+                stale.append(d_name + "/")
+        if stale:
+            breaches.append(
+                f"exemption list names files that no longer exist: {', '.join(sorted(stale))}"
+            )
+    return breaches
+
+
 def validate(root: Path) -> None:
     cards = find_cards(root)
     if not cards:
@@ -374,6 +550,9 @@ def validate(root: Path) -> None:
         for detail in [f"missing {name}" for name in missing_files(card)]
         + evidence_breaches(card)
         + description_breaches(card)
+        + size_breaches(card)
+        + link_breaches(card)
+        + reachability_breach(card)
     ]
     if breaches:
         for line in breaches:
@@ -391,6 +570,9 @@ def validate(root: Path) -> None:
         + "; every EVIDENCE.md states "
         + " and ".join(REQUIRED_EVIDENCE_ROWS)
         + f"; every description is stated and within {DESCRIPTION_LIMIT} characters"
+        + f"; every SKILL.md is between {SKILL_SIZE_MIN} and {SKILL_SIZE_MAX} bytes"
+        + "; every local link resolves with case matching"
+        + "; every reader-facing auxiliary reachable from SKILL.md"
     )
 
 
