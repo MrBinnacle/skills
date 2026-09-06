@@ -29,7 +29,7 @@
       "assertions": [
         "States that a full tool grant does not guarantee live retrieval and that deferred tool schemas can leave a scout answering from memory.",
         "Requires an explicit first-step tool fetch plus a stop-if-unavailable clause in the dispatch prompt.",
-        "Requires reading the agent's output file and re-checking its length, because an idle notification can carry no summary and a file can still be growing."
+        "Requires reading the agent's output file and re-checking its length, because a completion notification can carry no summary and a file can still be growing."
       ]
     }
   ]
