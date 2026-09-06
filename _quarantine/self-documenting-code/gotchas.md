@@ -132,3 +132,89 @@ running in an isolated container reported files absent when they were merely out
 that report entered the record as a property of the artifact rather than of the container. A
 claim of absence must name the search that established it.
 
+
+## [OBSERVED] 2026-09-06 — The missing-file count was wrong: thirteen, not eleven
+
+The entry above says eleven files never landed. `skills#233` says eleven too, and then lists
+thirteen in the same body. Thirteen is right.
+
+The wrong number came from one subtraction: fourteen files in the local install, minus three files
+in this repository. That assumed the three repository files also sat in the local install. Only
+`SKILL.md` did. `PROVENANCE.md`, `gotchas.md` and `EVIDENCE.md` exist only here, so nothing was
+subtracted for them.
+
+The shape worth carrying: a count taken by subtracting two sets is only as good as the assumption
+that one set contains the other. Check the overlap before you subtract, or count the difference
+directly.
+
+## [OBSERVED] 2026-09-06 — The landed baseline was never a version of the maintainer's card
+
+The entry above records that the two `SKILL.md` files differ. It did not say how. We read both on
+2026-09-06.
+
+The public file is an essay: 6,018 bytes, five headed sections, no version in its frontmatter, no
+links to any other file. The local file is a procedure: 6,191 bytes, seven numbered steps, a
+disclosure map, `metadata.version: "0.1.0"` in its frontmatter, and nine links that all resolve to
+files sitting beside it.
+
+They share a name and almost no text. This was never drift between two releases of one document.
+
+The local install is the canonical 0.1.0 package. It says so itself, its links resolve, and every
+file in it carries one install timestamp with nothing edited afterwards. `#216` landed the public
+essay and recorded it as the frozen 0.1.0 baseline. It was a different document that shared a name.
+
+The shape worth carrying: two files with the same name and different digests look like two versions
+of one thing, and the digest alone cannot tell you otherwise. Open both before you call it drift.
+
+## [OBSERVED] 2026-09-06 — The evals hold no code fixtures, and twenty labelled trigger rows
+
+The `[ANTICIPATED]` entry above repeats the registry's claim that the evals contain no fixture
+files, and concludes the card cannot be screened. Both eval files were read first-hand on
+2026-09-06, from this repository, for the first time.
+
+The claim is half right. `evals/evals.json` holds five cases and every one carries `"files": []`.
+There is no code for a run to act on, so nothing can measure what the card does to code.
+
+`evals/trigger-evals.json` holds twenty labelled queries: ten `should_trigger: true` and ten
+`false`. The negative rows name near neighbours the card should decline. That is a contrasting
+fixture set, it needs no code, and it can run today.
+
+So the ceiling covers efficacy and not triggering. Those are two claims and the entry above merged
+them.
+
+The shape worth carrying: a second-hand claim about a file is a claim about whoever read it. Open
+the file before you build a conclusion on top.
+
+## [OBSERVED] 2026-09-06 — `validate_package.py` exists, and it cannot pass in a flat layout
+
+The `[ANTICIPATED]` entry above asks for the registry validator's allow-list to be extended when
+the script becomes reachable. The script was never unreachable in the way that entry assumed. It
+sat on the maintainer's host at `scripts/validate_package.py`, 3,464 bytes. It is now in this
+directory and `gotchas.md` is in its `ALLOWED_TOP_LEVEL`. That closes `#216` task 4.
+
+It still exits non-zero here, and the reason is not the allow-list. The script validates the
+upstream nested layout: it expects `references/`, `assets/` and `scripts/`, and it checks that
+`scripts/snapshot.py` exists. This repository's card layout is flat, so the script reports twelve
+flattened files as unexpected and reports `scripts/snapshot.py` missing. Both errors describe the
+layout, not the card.
+
+The shape worth carrying: a validator shipped inside a package encodes that package's layout. Move
+the package and the validator becomes a test of the move.
+
+## [OBSERVED] 2026-09-06 — A filename carried residue the gate could not see
+
+The field report arrived as `FIELD-REPORT-2026-08-17-workspace-lint.md`. The last part of that name
+is the maintainer's private repository.
+
+The de-personalization gate did not catch it, and would not have. Its hooks are content greps over
+`.md` files: they read what is inside a file and never read the name of it. This name also used a
+hyphen where the banned term uses an underscore, so even a filename-aware grep with that pattern
+would have passed it.
+
+The file landed as `FIELD-REPORT-2026-08-17.md`. Its line 3 named the same repository inside the
+content, and that occurrence the gate would have caught; it was replaced with the same generic
+phrase `500ac26` used across five files.
+
+The shape worth carrying: a residue check that reads only file contents cannot see a path. Scan the
+names as well as the bytes, and remember that a name often spells a term differently from the way
+the code inside spells it.

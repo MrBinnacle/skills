@@ -1,0 +1,22 @@
+[
+  {"query":"Make this Python module self-documenting without changing behavior.","should_trigger":true},
+  {"query":"Can you refactor these vague names and nested branches so a new contributor can understand them?","should_trigger":true},
+  {"query":"Review my diff for hidden side effects, unclear units, and comments that only restate code.","should_trigger":true},
+  {"query":"The code works, but get_account writes to the cache and nobody can tell. Fix the clarity problem.","should_trigger":true},
+  {"query":"Reduce the explanatory comments by making the implementation express the same intent.","should_trigger":true},
+  {"query":"Do a readability-only refactor. Preserve the CLI and serialized output.","should_trigger":true},
+  {"query":"Which parts of this implementation can become self-explanatory, and which reasons still need documentation?","should_trigger":true},
+  {"query":"Clarify this state machine. The booleans and transition order are impossible to follow.","should_trigger":true},
+  {"query":"Rename and restructure the current diff for maintainability, but do not add features.","should_trigger":true},
+  {"query":"Check whether the public API communicates inputs, units, failures, and side effects.","should_trigger":true},
+  {"query":"Write an ADR that explains why we chose PostgreSQL over DynamoDB.","should_trigger":false},
+  {"query":"Generate API reference documentation from our OpenAPI schema.","should_trigger":false},
+  {"query":"Review this pull request for SQL injection and authentication defects.","should_trigger":false},
+  {"query":"Add docstrings to every public function without changing any implementation.","should_trigger":false},
+  {"query":"Explain what this recursive function does to a beginner.","should_trigger":false},
+  {"query":"Fix the failing checkout test and ship the feature.","should_trigger":false},
+  {"query":"Run Ruff and apply every formatting change.","should_trigger":false},
+  {"query":"Create a README for this package with installation examples.","should_trigger":false},
+  {"query":"Optimize this numerical loop for lower latency and benchmark it.","should_trigger":false},
+  {"query":"Translate these source-code comments from German to English.","should_trigger":false}
+]
