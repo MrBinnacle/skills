@@ -108,7 +108,7 @@ is an addition — the record carries structure *alongside* the sentence.
 
 ## Example
 
-Session of 2026-08-17, `workspace_lint` (a coverage linter). A five-stage
+Session of 2026-08-17, a private linter project (a coverage linter). A five-stage
 traversal recorded each drop-out as a cause string. Two downstream readers
 recovered structure from it, and **both were wrong**:
 

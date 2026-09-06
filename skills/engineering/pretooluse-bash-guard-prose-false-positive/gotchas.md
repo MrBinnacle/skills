@@ -74,7 +74,7 @@
 
 - [OBSERVED on or about 2026-08-18, harvested 2026-08-24] Independent occurrence in a third
   project and on a third guard, found by a corpus sweep and verified by reading the source.
-  `workspace_lint`'s session state records: "CC Safety Net failed closed once on a long
+  A private linter project's session state records: "CC Safety Net failed closed once on a long
   `gh issue create` heredoc — write the body to the scratchpad and pass `--body-file`."
   Different project, different guard family (a rulebook plugin, not a hand-authored hook),
   same failure class — a PreToolUse Bash guard refusing a legitimate heredoc-carrying
