@@ -53,3 +53,14 @@ stress-test signal.)*
   still delivered — full content fell back through `SendMessage`. This occurrence confirms Check 0's
   redundancy framing: the routes fail for unrelated causes, so one failing is survivable, and the
   load-bearing instruction is to name a payload channel at all.
+- **2026-09-06 / rotation and harvest pass (issue #213):** live documentation verification found
+  that the card's Problem statement and Check 0 used imprecise language about the subagent return
+  path. The docs (code.claude.com/docs/en/sub-agents.md, tools-reference.md) state: "The parent
+  doesn't see the subagent's intermediate tool calls or outputs, only that final result." The card
+  conflated intermediate outputs (invisible) with the final text result (delivered). Similarly, the
+  card used "idle notification" to describe what arrives when a subagent finishes, but the docs
+  define idle notification as a cross-session messaging feature (carries content); subagent
+  completions use a "completion notification" that carries the full text result. Claims 1–2 were
+  repaired in SKILL.md to match the documented mechanics. Claim 3 (tool grants only in frontmatter,
+  not surfaced at dispatch) confirmed holding. Claim 4 (large-return delivery ceiling) re-dated as
+  empirical observation — docs do not describe this as platform behavior.

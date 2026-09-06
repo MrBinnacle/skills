@@ -11,9 +11,11 @@ Dispatching subagents for research has three silent failure modes. Each produces
 result that is worth nothing, and they fail in dispatch order:
 
 1. **The findings are a dead letter.** The agent researches correctly and answers in plain text.
-   **Plain text a subagent prints is not visible to the main session.** The work exists in a
-   transcript nobody reads. What arrives instead is an idle notification carrying no content,
-   which reads like completion.
+   **Intermediate outputs from a subagent are not visible to the main session — only the final
+   text result is delivered.** For foreground subagents, the result arrives inline; for background
+   subagents, it arrives as a completion notification in a later turn. Without an explicit return
+   channel named in the dispatch, the agent's default is to print findings that never reach the
+   main session — the work exists in a transcript nobody reads.
 2. **The agent can't actually search.** Its `tools:` grant lacks WebSearch/WebFetch even though
    its description says "performs web research." It returns a no-op or fabricates citations from
    training data.
@@ -30,7 +32,7 @@ session (2026-05-28 — see [EVIDENCE.md](EVIDENCE.md)); modes 1 and 3 in anothe
 - About to call the Agent tool for research of any kind — web, literature, threat-intel, market
   scan, or a read-only sweep of the local repository.
 - The agent's description claims a capability its frontmatter may not grant.
-- An idle notification arrives from a dispatched agent and carries no findings.
+- A completion notification arrives from a dispatched agent and carries no findings.
 - Curating anything a research subagent returned — citations, IDs, dates, quoted rules, or a
   reported negative — before acting on it.
 
@@ -39,8 +41,9 @@ session (2026-05-28 — see [EVIDENCE.md](EVIDENCE.md)); modes 1 and 3 in anothe
 ### Check 0 — Pre-dispatch: name the return channel in the dispatch itself
 
 **State how findings come back, in the prompt, every time.** A subagent that is not told will
-answer in plain text, and plain text is a dead letter: the main session never receives it. The only
-signal that arrives is an idle notification, which is indistinguishable from a finished report.
+print findings that never reach the main session — intermediate outputs are not visible, and
+only the final text result is delivered (inline for foreground, as a completion notification for
+background). Without an explicit return channel, the agent has no way to deliver.
 
 Give two routes, so one failing is survivable:
 
@@ -54,8 +57,10 @@ intact. Name the exact path, and state what stays read-only:
 > nowhere else. The repository stays read-only — create nothing under `<repo>`, and post nothing to
 > the tracker.
 
-**An idle notification means the agent stopped. It does not mean the agent reported.** Treat the
-two as different events, and never characterise findings from a notification alone.
+**A completion notification means the agent stopped. It does not mean the agent reported.** For
+background subagents, results arrive as a completion notification in a later turn — but a
+notification that carries no findings is evidence the agent stopped, not that it delivered. Treat
+the two as different events, and never characterise findings from a notification alone.
 
 #### Variant — the nudge fails, and the size of the report is why
 
