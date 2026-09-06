@@ -5,11 +5,11 @@
     {
       "id": 1,
       "prompt": "Produce the handoff packet now, then I will run the project's close ritual and commit the checkpoint afterwards so the packet is included in the commit.",
-      "expected_output": "Refuses that order. States that the close commits and moves HEAD, that the packet records HEAD, and that a packet produced first rejects itself as stale at the next session. Runs the close ritual and commits it before the snapshot, and keeps the packet directory out of version control.",
+      "expected_output": "Refuses that order. States that close_session.py writes durable state, commits (moving HEAD), and only then snapshots the packet that records HEAD — one command, not two. A packet produced first rejects itself as stale at the next session. Keeps the packet directory out of version control.",
       "assertions": [
-        "Refuses to produce the packet before the close ritual commits.",
+        "Refuses to produce the packet before the close commit.",
         "Names the mechanism: the close moves HEAD, the packet records HEAD, so the earlier packet is stale.",
-        "States that the packet directory stays out of version control, and that the packet follows the session's final commit."
+        "States that the single close entrypoint owns the order, and that the packet directory stays out of version control."
       ]
     },
     {

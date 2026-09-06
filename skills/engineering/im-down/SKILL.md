@@ -24,46 +24,40 @@ The receiver contract in `PACKET-FORMAT.md` defines the producer output.
 
 ## The close and the packet are one action
 
-A **close ritual** writes durable session state and commits it before the packet is produced. This skill runs the full close: it writes the state file, commits it, then produces the packet that records the post-commit `HEAD`.
-
-The order is fixed by a constraint, not a preference. The close commits, which moves `HEAD`. The packet then records `HEAD`. Reversed, the close moves `HEAD` out from under a packet that already recorded it, and the receiver rejects that packet as stale in the next session.
-
-Documenting the order does not hold it. Whoever types the second command cannot see the effect of the first. So the tool enforces it structurally: `write_state.py` commits first, and only then does `snapshot_state.py` record `HEAD` into the packet.
+A **close ritual** writes durable session state and commits it before the packet is produced. One public entrypoint owns the full sequence: write the state file, commit it (moving `HEAD`), then produce the packet that records the post-commit `HEAD`. Callers cannot reorder those stages.
 
 ```json
-"close_commit": { "contains": "RITUAL:" }
+"close_commit": { "contains": "RITUAL:" },
+"state_file": ".claude/session-state.json"
 ```
 
-**Stable contract:** the `close_commit.contains` key, and that produce mode refuses a packet whose `HEAD` commit message does not contain that value. **Illustrative:** `RITUAL:` itself — that is one project's marker, and yours is whatever string your close reliably writes into its commit message.
+**Stable contract:** the `close_commit.contains` key, the `state_file` key, and that produce mode refuses a packet whose `HEAD` commit message does not contain the close marker. **Illustrative:** `RITUAL:` itself — that is one project's marker, and yours is whatever string the close writes into its commit message.
 
 `contains` is a literal substring test, not a regex. `"^RITUAL:"` matches nothing and would refuse every packet.
 
-A project that declares no `close_commit` is unaffected.
-
-This establishes that `HEAD` is *a* close commit, not that it is *this* session's. A session that committed nothing still sits on the previous close and passes.
+A project that declares no `close_commit` is unaffected by the marker check; the merged close still requires `state_file`.
 
 ## Procedure
 
-1. Run `write_state.py` with the objective, next action, and `$ARGUMENTS` purpose. This writes the durable state file and commits it with the `close_commit` marker.
-2. Run `snapshot_state.py` with the objective, next action, and `$ARGUMENTS` purpose. This produces the packet scaffold recording the post-commit `HEAD`.
-3. Open the generated packet.
-4. Replace every `__REQUIRED__` marker.
-5. Record failed approaches and null results in time order.
-6. Record decisions with their reasons.
-7. Add each load-bearing claim with `verified` or `unverified` status.
-8. Use typed `path`, `commit`, or `command` probes for verified claims.
-8a. Use a `command` probe only when the config authorises that exact command. An unlisted command probe rejects the packet.
-9. Label `skills_dispatched` as `telemetry` only when an event source exists.
-10. Otherwise use `model-reported` and preserve that evidence limit.
-11. Reference source artifacts. Do not copy their contents.
-12. Run `validate_packet.py` in produce mode.
-13. Claim handoff readiness only after an `ACCEPTED` receipt.
-14. Return the packet path, packet ID, HEAD, and exact receiver command.
+1. Run `close_session.py` with the objective, next action, and `$ARGUMENTS` purpose. This is the only close command: it writes durable state, commits with the `close_commit` marker, and writes the packet scaffold at the post-commit `HEAD`.
+2. Open the generated packet path from the script's JSON output.
+3. Replace every `__REQUIRED__` marker.
+4. Record failed approaches and null results in time order.
+5. Record decisions with their reasons.
+6. Add each load-bearing claim with `verified` or `unverified` status.
+7. Use typed `path`, `commit`, or `command` probes for verified claims.
+7a. Use a `command` probe only when the config authorises that exact command. An unlisted command probe rejects the packet.
+8. Label `skills_dispatched` as `telemetry` only when an event source exists.
+9. Otherwise use `model-reported` and preserve that evidence limit.
+10. Reference source artifacts. Do not copy their contents.
+11. Run `validate_packet.py` in produce mode.
+12. Claim handoff readiness only after an `ACCEPTED` receipt.
+13. Return the packet path, packet ID, HEAD, and exact receiver command.
 
-Example state write:
+Example close (one command):
 
 ```bash
-python <skill-dir>/write_state.py \
+python <skill-dir>/close_session.py \
   --config .claude/session-boundary.json \
   --objective "<bounded outcome>" \
   --next-action "<exact action>" \
@@ -71,18 +65,7 @@ python <skill-dir>/write_state.py \
   --repo-root .
 ```
 
-Example packet scaffold:
-
-```bash
-python <skill-dir>/snapshot_state.py \
-  --config .claude/session-boundary.json \
-  --objective "<bounded outcome>" \
-  --next-action "<exact action>" \
-  --purpose "$ARGUMENTS" \
-  --repo-root .
-```
-
-Example validation:
+Example validation after the packet body is filled:
 
 ```bash
 python <skill-dir>/validate_packet.py <packet.md> \

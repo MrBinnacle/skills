@@ -307,9 +307,10 @@ def cli_cases():
 # Every file measured byte-identical across the pair (sha256, 2026-08-24) is
 # in the contract. If a file stops being shared, REMOVE it from this tuple and
 # record why in the removing change -- a contract that silently narrows is the
-# defect the contract exists to catch. snapshot_state.py is absent on purpose:
-# it exists only in im-down and was never shared. write_state.py was added to
-# both directories for the session-boundary merge (issue #84).
+# defect the contract exists to catch. Card-private scripts are absent on
+# purpose: snapshot_state.py and close_session.py exist only in im-down;
+# open_session.py exists only in im-up. They are not shared and must not be
+# added here to force a false symmetry.
 SHARED_PARITY_CONTRACT = (
     "CONFIG.example.json",
     "PACKET-FORMAT.md",
@@ -319,7 +320,6 @@ SHARED_PARITY_CONTRACT = (
     "fixture-stale.md",
     "test_validate_packet.py",
     "validate_packet.py",
-    "write_state.py",
 )
 
 
@@ -368,40 +368,73 @@ def duplication_case() -> tuple[bool, str]:
             f"against {sibling_name}: {compared}")
 
 
-def write_state_cases():
-    """write_state.py writes a durable state file and commits it before the
-    packet is produced. This is the doctrine half that im-down was missing:
-    a close step the operator could skip left sessions with no state at all.
+def _pair_script(name: str) -> Path:
+    """Resolve a card-private script from this card or its sibling."""
+    local = HERE / name
+    if local.is_file():
+        return local
+    sibling_name = {"im-down": "im-up", "im-up": "im-down"}.get(HERE.name)
+    if sibling_name:
+        sibling = HERE.parent / sibling_name / name
+        if sibling.is_file():
+            return sibling
+    raise FileNotFoundError(f"{name} not found on {HERE.name} or its sibling")
 
-    The state file carries the session objective, next action, repository
-    facts, and timestamp. The commit uses the close_commit marker so that
-    validate_packet.py can confirm the close happened before the packet
-    recorded HEAD.
+
+def _init_repo(repo: Path) -> None:
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True,
+                    capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"],
+                    cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"],
+                    cwd=repo, check=True)
+    (repo / "README.md").write_text("fixture", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "initial"],
+                    cwd=repo, check=True, capture_output=True)
+
+
+def _fill_packet(scaffold: Path, head: str, branch: str = "main") -> Path:
+    """Replace scaffold markers with a produce/receive-valid body at HEAD."""
+    clean, _ = validator.extract(HERE / "fixture-clean.md")
+    clean["repository"]["head"] = head
+    clean["repository"]["branch"] = branch
+    body = (
+        f"<!-- SESSION-PACKET-V1\n{json.dumps(clean, indent=2)}\n"
+        "SESSION-PACKET-V1 -->\n"
+        "## Narrative\nTest.\n## Decisions\nNone.\n"
+        "## What We Tried\nNone.\n## Resume Bootstrap\nNext.\n"
+    )
+    scaffold.write_text(body, encoding="utf-8")
+    return scaffold
+
+
+def close_session_cases():
+    """close_session.py is the one public close: state, commit, then packet.
+
+    Ordering lives inside one process. A config without state_file fails
+    rather than writing a packet with no doctrine. The filled packet's HEAD
+    equals the close commit and passes both produce and receive mode.
     """
+    close_py = _pair_script("close_session.py")
     with tempfile.TemporaryDirectory() as tmp:
         repo = Path(tmp)
-        subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True,
-                        capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@example.com"],
-                        cwd=repo, check=True)
-        subprocess.run(["git", "config", "user.name", "Test"],
-                        cwd=repo, check=True)
-        (repo / "README.md").write_text("fixture", encoding="utf-8")
-        subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
-        subprocess.run(["git", "commit", "-m", "initial"],
-                        cwd=repo, check=True, capture_output=True)
+        _init_repo(repo)
         head_before = validator.git(repo, "rev-parse", "HEAD")
 
-        # write_state.py creates the state file and commits it.
         config = repo / "boundary.json"
         config.write_text(json.dumps({
             "state_file": ".claude/session-state.json",
             "close_commit": {"contains": "RITUAL:"},
             "packet_dir": "packets",
+            "receiver_checks": [{
+                "name": "clean-tree",
+                "command": "git diff --quiet && git diff --cached --quiet",
+            }],
         }), encoding="utf-8")
 
         result = subprocess.run(
-            ["python", str(HERE / "write_state.py"),
+            ["python", str(close_py),
              "--config", str(config),
              "--repo-root", str(repo),
              "--objective", "Finish the feature",
@@ -410,10 +443,10 @@ def write_state_cases():
             text=True, capture_output=True,
         )
         assert result.returncode == 0, result.stdout + result.stderr
+        out = json.loads(result.stdout)
 
-        # The state file exists and contains the session data.
-        state_path = repo / ".claude" / "session-state.json"
-        assert state_path.exists(), "state file was not created"
+        state_path = Path(out["state_path"])
+        assert state_path.is_file(), "state file was not created"
         state = json.loads(state_path.read_text(encoding="utf-8"))
         assert state["objective"] == "Finish the feature"
         assert state["next_action"]["task"] == "Run tests"
@@ -421,23 +454,29 @@ def write_state_cases():
         assert state["repository"]["head"] == head_before
         assert "created_at" in state
 
-        # The commit moved HEAD and contains the marker.
-        head_after = validator.git(repo, "rev-parse", "HEAD")
-        assert head_after != head_before, "HEAD was not moved by state commit"
+        head_after = out["head"]
+        assert head_after != head_before, "HEAD was not moved by close commit"
+        assert head_after == validator.git(repo, "rev-parse", "HEAD")
         message = validator.git(repo, "log", "-1", "--pretty=%B")
         assert "RITUAL:" in message, f"commit missing marker: {message}"
-
-        # The state file is tracked in the commit.
         tracked = validator.git(repo, "ls-files", ".claude/session-state.json")
         assert tracked, "state file not tracked after commit"
 
-        # A config without state_file fails rather than writing nothing.
+        packet_path = Path(out["packet_path"])
+        assert packet_path.is_file(), "packet scaffold was not created"
+        data, _ = validator.extract(packet_path)
+        assert data["repository"]["head"] == head_after, (
+            "packet HEAD must equal the close commit, not the pre-close HEAD"
+        )
+
+        # Doctrine skip: no state_file key → close refuses before any packet.
         bad_config = repo / "bad.json"
         bad_config.write_text(json.dumps({
             "close_commit": {"contains": "RITUAL:"},
+            "packet_dir": "packets",
         }), encoding="utf-8")
         result = subprocess.run(
-            ["python", str(HERE / "write_state.py"),
+            ["python", str(close_py),
              "--config", str(bad_config),
              "--repo-root", str(repo),
              "--objective", "x", "--next-action", "y", "--purpose", "z"],
@@ -446,30 +485,98 @@ def write_state_cases():
         assert result.returncode != 0, "should fail without state_file"
         assert "state_file" in result.stdout, result.stdout
 
-        # Produce mode accepts the packet after the state commit, confirming
-        # the ordering: state commits first, packet records the new HEAD.
-        packet_dir = repo / "packets"
-        packet_dir.mkdir()
-        # The fixture HEAD needs to match the post-commit HEAD.
-        clean, _ = validator.extract(HERE / "fixture-clean.md")
-        clean["repository"]["head"] = head_after
-        clean["repository"]["branch"] = "main"
-        # Write a fixture at the correct HEAD.
-        fixture_path = packet_dir / "test-packet.md"
-        manifest = json.dumps(clean)
-        fixture_path.write_text(
-            f"<!-- SESSION-PACKET-V1\n{manifest}\nSESSION-PACKET-V1 -->\n"
-            "## Narrative\nTest.\n## Decisions\nNone.\n"
-            "## What We Tried\nNone.\n## Resume Bootstrap\nNext.\n",
-            encoding="utf-8",
-        )
+        # Filled packet at the close HEAD passes produce and receive.
+        filled = _fill_packet(packet_path, head_after)
         result = subprocess.run(
-            ["python", str(HERE / "validate_packet.py"), str(fixture_path),
+            ["python", str(HERE / "validate_packet.py"), str(filled),
              "--mode", "produce", "--repo-root", str(repo),
              "--config", str(config)],
             text=True, capture_output=True,
         )
         assert result.returncode == 0, result.stdout
+        result = subprocess.run(
+            ["python", str(HERE / "validate_packet.py"), str(filled),
+             "--mode", "receive", "--repo-root", str(repo),
+             "--config", str(config)],
+            text=True, capture_output=True,
+        )
+        assert result.returncode == 0, result.stdout
+        receipt = json.loads(result.stdout)
+        assert receipt["verdict"] == "ACCEPTED", receipt
+
+
+def open_session_cases():
+    """open_session.py validates the packet then loads durable state into one
+    receipt. Missing state after a valid packet rejects rather than admitting
+    a session with no doctrine.
+    """
+    close_py = _pair_script("close_session.py")
+    open_py = _pair_script("open_session.py")
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        _init_repo(repo)
+        config = repo / "boundary.json"
+        config.write_text(json.dumps({
+            "state_file": ".claude/session-state.json",
+            "close_commit": {"contains": "RITUAL:"},
+            "packet_dir": "packets",
+            "receiver_checks": [{
+                "name": "clean-tree",
+                "command": "git diff --quiet && git diff --cached --quiet",
+            }],
+        }), encoding="utf-8")
+
+        closed = subprocess.run(
+            ["python", str(close_py),
+             "--config", str(config),
+             "--repo-root", str(repo),
+             "--objective", "Finish the feature",
+             "--next-action", "Run tests",
+             "--purpose", "Continue work"],
+            text=True, capture_output=True,
+        )
+        assert closed.returncode == 0, closed.stdout + closed.stderr
+        closed_out = json.loads(closed.stdout)
+        filled = _fill_packet(
+            Path(closed_out["packet_path"]), closed_out["head"],
+        )
+
+        result = subprocess.run(
+            ["python", str(open_py), str(filled),
+             "--config", str(config),
+             "--repo-root", str(repo)],
+            text=True, capture_output=True,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        receipt = json.loads(result.stdout)
+        assert receipt["verdict"] == "ACCEPTED", receipt
+        assert receipt["state_read"]["status"] == "loaded", receipt
+        assert receipt["state_read"]["objective"] == "Finish the feature"
+        assert receipt["state_read"]["next_action"]["task"] == "Run tests"
+
+        # State write skipped: config names a path that was never written.
+        # Keep the tree clean so the failure is the missing doctrine, not a
+        # dirty-tree receiver check.
+        skip_config = repo / "skip-state.json"
+        skip_config.write_text(json.dumps({
+            "state_file": ".claude/never-written-state.json",
+            "close_commit": {"contains": "RITUAL:"},
+            "packet_dir": "packets",
+            "receiver_checks": [{
+                "name": "clean-tree",
+                "command": "git diff --quiet && git diff --cached --quiet",
+            }],
+        }), encoding="utf-8")
+        result = subprocess.run(
+            ["python", str(open_py), str(filled),
+             "--config", str(skip_config),
+             "--repo-root", str(repo)],
+            text=True, capture_output=True,
+        )
+        assert result.returncode != 0, "open must fail when state file is missing"
+        receipt = json.loads(result.stdout)
+        assert receipt["verdict"] == "REJECTED", receipt
+        assert receipt.get("state_read", {}).get("status") == "missing", receipt
 
 
 if __name__ == "__main__":
@@ -483,13 +590,14 @@ if __name__ == "__main__":
     close_commit_cases()
     claimed_head_cases()
     cli_cases()
-    write_state_cases()
+    close_session_cases()
+    open_session_cases()
     parity_verified, parity_message = duplication_case()
     print(parity_message)
     roster = ("PASS: clean, stale, incomplete, failed-probe, placeholder, "
               "unfailable-check, command-probe, close-commit, close-commit-cli, "
               "claimed-head, claimed-head-cli, receive-mode-config, "
-              "write-state")
+              "close-session, open-session")
     # no-drift appears in the pass roster only when parity was actually
     # compared; a single-card install reports NOT VERIFIED above instead.
     print(roster + ", no-drift" if parity_verified else roster)
