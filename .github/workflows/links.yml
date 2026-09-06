@@ -50,6 +50,23 @@ jobs:
       # longer the draft that was written. Excluding the directory states what is
       # true - these are not live documentation and their targets belong to a
       # location they no longer sit in.
+      # `https://openrouter.ai/api/v1` is excluded for the same reason as the
+      # directory above: it is correct, not broken. It appears in
+      # _quarantine/anthropic-sdk-via-openrouter/SKILL.md as the value of a
+      # `base_url=` argument inside the frontmatter description. It is an API
+      # base path that client code concatenates a route onto, not a page a
+      # reader is meant to open, and a bare GET against it returns 404 by
+      # design. Measured 2026-09-06: `curl -o /dev/null -w '%{http_code}'`
+      # returns 404 deterministically, and lychee reported it on skills#239, a
+      # pull request that changed only AGENTS.md.
+      #
+      # lychee extracts the URL from inside the quoted argument and cannot tell
+      # an API base from a dead page. Rewriting the card to satisfy the checker
+      # would change a documented constructor argument into something a reader
+      # cannot copy, which trades a working example for a green light.
+      #
+      # The exclusion is anchored to the exact base path. A 404 anywhere else on
+      # openrouter.ai still fails this job. Recorded as skills#240.
       - name: Check links
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2
         with:
@@ -58,6 +75,7 @@ jobs:
             --max-retries 3
             --retry-wait-time 5
             --exclude-path docs/design/variants
+            --exclude '^https://openrouter\.ai/api/v1$'
             --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
             './**/*.md'
           fail: true
