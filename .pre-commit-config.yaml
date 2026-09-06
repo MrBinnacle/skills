@@ -59,6 +59,11 @@ repos:
         language: pygrep
         entry: 'MrBinnacle/writ'
         files: '\.md$'
+      - id: residue-private-linter-repo
+        name: "residue 'workspace_lint' (PRIVATE repo name) -> a generic descriptor"
+        language: pygrep
+        entry: 'workspace_lint'
+        files: '\.md$'
 
       # -- Taste prose style (#194) ------------------------------------------
       #

@@ -124,7 +124,7 @@ looseness; a new failure is a genuine find, not a regression.
 
 ## Example
 
-Session of 2026-08-17, `workspace_lint`. GitHub's GraphQL endpoint returned
+Session of 2026-08-17, a private linter project. GitHub's GraphQL endpoint returned
 HTTP 503 for roughly fifteen minutes while REST reads kept working — `gh issue
 create` and `gh issue comment` both route through GraphQL. A retry loop
 testing `[ -n "$url" ]`, with `2>/dev/null` hiding the diagnostic, printed
