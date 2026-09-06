@@ -1,0 +1,325 @@
+{
+  "schema": "anti-slop-frontend-secure/fixtures/1",
+  "why_json": "SECURITY.md commitment 3 declares a closed format vocabulary of .md, .txt, .py and .json for everything inside a skill folder, so an .html fixture cannot ship here. The bodies are held as strings and test_oracle.py writes each one to a temporary path before the oracle reads it. The oracle still parses a real file from disk; only the delivery changed.",
+  "why_regex_probe": "The ticket's bar is that a fixture a regular expression could settle is not exercising the oracle. A fixture carrying a regex_probe states the naive byte-level pattern a reasonable person would reach for and the verdict that pattern returns. test_oracle.py runs the probe and asserts it disagrees with the oracle, so the claim is measured on every run rather than asserted once.",
+  "fixtures": [
+    {
+      "id": "A-pass-plain",
+      "gate": "A",
+      "expect": "pass",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "a-pass-plain.html",
+      "why": "A complete single-file document: doctype, html, head, non-empty title, body, and no subresource pulled from a separate file.",
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main><h1>Order status</h1><p>Everything is in one file.</p></main>\n</body>\n</html>\n"
+    },
+    {
+      "id": "A-pass-path-in-prose",
+      "gate": "A",
+      "expect": "pass",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "a-pass-path-in-prose.html",
+      "why": "The string that looks like a separate-file reference is prose inside a <code> element, not an attribute. The document is still one file.",
+      "regex_probe": {
+        "pattern": "src=[\"'][^\"':]+\\.(?:js|css)[\"']",
+        "hit_means": "fail",
+        "naive_verdict": "fail",
+        "note": "A byte scan for a relative subresource attribute matches the sample shown in the documentation block and calls a single-file document multi-file."
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<p>Do not do this, because it breaks the single-file promise:</p>\n<pre><code>src=\"vendor/app.js\"</code></pre>\n</main>\n</body>\n</html>\n"
+    },
+    {
+      "id": "A-fail-shell-only-in-comment",
+      "gate": "A",
+      "expect": "fail",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "a-fail-shell-only-in-comment.html",
+      "why": "Every structural element appears only inside an HTML comment. The document that actually renders is a bare fragment with no html, head, title or body.",
+      "expect_issue_contains": [
+        "no <html> element",
+        "no <title> element"
+      ],
+      "regex_probe": {
+        "pattern": "<html[\\s>]",
+        "hit_means": "pass",
+        "naive_verdict": "pass",
+        "note": "A byte scan finds <html> and reports a well-formed shell. The parser finds it inside a comment, where it renders nothing."
+      },
+      "body": "<!--\n<!DOCTYPE html>\n<html lang=\"en\">\n<head><title>Order status</title></head>\n<body><main>the shell we meant to write</main></body>\n</html>\n-->\n<div><p>Order status</p></div>\n"
+    },
+    {
+      "id": "A-fail-separate-file",
+      "gate": "A",
+      "expect": "fail",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "a-fail-separate-file.html",
+      "why": "A relative script source and a relative stylesheet mean the artifact needs two more files to run.",
+      "expect_issue_contains": [
+        "not single-file"
+      ],
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n<link rel=\"stylesheet\" href=\"theme.css\">\n</head>\n<body>\n<main><h1>Order status</h1></main>\n<script src=\"app.js\"></script>\n</body>\n</html>\n"
+    },
+    {
+      "id": "B-pass-allowlisted",
+      "gate": "B",
+      "expect": "pass",
+      "mode": "artifact",
+      "allowlist": [
+        "cdn.example.org"
+      ],
+      "filename": "b-pass-allowlisted.html",
+      "why": "The only host the document reaches was declared on the allowlist.",
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main><img src=\"https://cdn.example.org/logo.png\" alt=\"logo\"></main>\n</body>\n</html>\n"
+    },
+    {
+      "id": "B-pass-host-in-prose",
+      "gate": "B",
+      "expect": "pass",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "b-pass-host-in-prose.html",
+      "why": "The undeclared host is named in a paragraph explaining what the page refuses to load. Naming a host is not connecting to one.",
+      "regex_probe": {
+        "pattern": "https?://[a-z0-9.-]+",
+        "hit_means": "fail",
+        "naive_verdict": "fail",
+        "note": "A byte scan for a URL matches the host discussed in the prose and reports an undeclared connection the document never makes."
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<p>This page does not load analytics from <code>https://metrics.tracker.example</code> or from any other host.</p>\n</main>\n</body>\n</html>\n"
+    },
+    {
+      "id": "B-fail-entity-encoded-host",
+      "gate": "B",
+      "expect": "fail",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "b-fail-entity-encoded-host.html",
+      "why": "The script source is written with character references for the scheme separator. The browser decodes it and loads the host; so does the parser.",
+      "expect_issue_contains": [
+        "metrics.tracker.example"
+      ],
+      "regex_probe": {
+        "pattern": "https?://[a-z0-9.-]+",
+        "hit_means": "fail",
+        "naive_verdict": "pass",
+        "note": "The literal bytes read https:&#x2F;&#x2F;metrics.tracker.example, so a byte scan for a URL finds nothing and passes a document that phones home."
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main><h1>Order status</h1></main>\n<script src=\"https:&#x2F;&#x2F;metrics.tracker.example&#x2F;t.js\"></script>\n</body>\n</html>\n"
+    },
+    {
+      "id": "B-fail-fetch-in-script",
+      "gate": "B",
+      "expect": "fail",
+      "mode": "artifact",
+      "allowlist": [
+        "cdn.example.org"
+      ],
+      "filename": "b-fail-fetch-in-script.html",
+      "why": "An executed script calls fetch() against a host that is not on the allowlist.",
+      "expect_issue_contains": [
+        "api.other.example"
+      ],
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main><h1>Order status</h1></main>\n<script>\nfetch(\"https://api.other.example/v1/orders\").then(function (r) {\n  return r.json();\n});\n</script>\n</body>\n</html>\n"
+    },
+    {
+      "id": "C-pass-sink-named-not-used",
+      "gate": "C",
+      "expect": "pass",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "c-pass-sink-named-not-used.html",
+      "why": "Every occurrence of a blocked sink is either documentation text, an inert template body, or an identifier the sink name is a prefix of. The executed script uses textContent, and document.writeln is a different call that the card does not block.",
+      "regex_probe": {
+        "pattern": "(?<![\\w$])innerHTML(?![\\w$])",
+        "hit_means": "fail",
+        "naive_verdict": "fail",
+        "note": "A byte scan matches the sink inside the documentation block and inside the inert template, and rejects a document that never executes it."
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<p>The house rule is to avoid this pattern:</p>\n<pre><code>node.innerHTML = untrusted;</code></pre>\n</main>\n<script type=\"text/template\" id=\"row\">\n  <!-- an inert template, shown to the reader, never executed -->\n  node.innerHTML = value;\n</script>\n<script>\nvar innerHTMLHelper = \"safe\";\nvar node = document.getElementById(\"row\");\nnode.textContent = innerHTMLHelper;\ndocument.writeln(String(node.tagName));\n</script>\n</body>\n</html>\n"
+    },
+    {
+      "id": "C-fail-entity-encoded-sink",
+      "gate": "C",
+      "expect": "fail",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "c-fail-entity-encoded-sink.html",
+      "why": "The inline handler spells the sink with a character reference. The browser decodes the attribute before running it, and so does the parser.",
+      "expect_issue_contains": [
+        "innerHTML"
+      ],
+      "regex_probe": {
+        "pattern": "(?<![\\w$])innerHTML(?![\\w$])",
+        "hit_means": "fail",
+        "naive_verdict": "pass",
+        "note": "The literal bytes read inner&#72;TML, so a byte scan finds no sink and passes a document that writes untrusted markup into the page."
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<button onclick=\"document.querySelector('#out').inner&#72;TML = location.hash\">Show</button>\n<div id=\"out\"></div>\n</main>\n</body>\n</html>\n"
+    },
+    {
+      "id": "C-fail-sink-in-script",
+      "gate": "C",
+      "expect": "fail",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "c-fail-sink-in-script.html",
+      "why": "An executed script assigns untrusted input through innerHTML and calls document.write.",
+      "expect_issue_contains": [
+        "innerHTML",
+        "document.write"
+      ],
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main><div id=\"out\"></div></main>\n<script>\ndocument.getElementById(\"out\").innerHTML = location.search;\ndocument.write(\"<p>rendered</p>\");\n</script>\n</body>\n</html>\n"
+    },
+    {
+      "id": "D-pass-pictograph-not-rendered",
+      "gate": "D",
+      "expect": "pass",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "d-pass-pictograph-not-rendered.html",
+      "why": "The pictographs sit in a comment and in a string constant inside a script. Neither is rendered, and the icon that is rendered is an outlined path.",
+      "regex_probe": {
+        "pattern": "[🌀-🫿]",
+        "hit_means": "fail",
+        "naive_verdict": "fail",
+        "note": "A byte scan finds the pictographs in the comment and the script string and rejects a document whose rendered surface carries none."
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<!-- icon audit 🚀 pending, tracked separately -->\n<main>\n<h1>Order status</h1>\n<svg width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"M2 8h12\" fill=\"none\" stroke=\"currentColor\"></path></svg>\n</main>\n<script>\nvar LEGACY_ICON = \"🧪\";\nvoid LEGACY_ICON;\n</script>\n</body>\n</html>\n"
+    },
+    {
+      "id": "D-fail-numeric-reference-emoji",
+      "gate": "D",
+      "expect": "fail",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "d-fail-numeric-reference-emoji.html",
+      "why": "The rendered icon is a pictograph delivered as a numeric character reference, and the accessible name carries another one.",
+      "expect_issue_contains": [
+        "rendered text",
+        "aria-label"
+      ],
+      "regex_probe": {
+        "pattern": "[🌀-🫿]",
+        "hit_means": "fail",
+        "naive_verdict": "pass",
+        "note": "The literal bytes read &#128640;, so a byte scan for a pictograph finds nothing and passes a page that renders emoji as its icon set."
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<span class=\"icon\" aria-label=\"shipped &#129514;\">&#128640;</span>\n</main>\n</body>\n</html>\n"
+    },
+    {
+      "id": "D-fail-filled-icon",
+      "gate": "D",
+      "expect": "fail",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "d-fail-filled-icon.html",
+      "why": "The inline SVG shape carries a literal fill colour, which is a filled icon rather than an outlined one.",
+      "expect_issue_contains": [
+        "filled icon"
+      ],
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<svg width=\"16\" height=\"16\" aria-hidden=\"true\"><circle cx=\"8\" cy=\"8\" r=\"6\" fill=\"#e11d48\"></circle></svg>\n</main>\n</body>\n</html>\n"
+    },
+    {
+      "id": "E-pass-handler-name-in-prose",
+      "gate": "E",
+      "expect": "pass",
+      "mode": "netlify",
+      "allowlist": [],
+      "filename": "e-pass-handler-name-in-prose.html",
+      "why": "The handler attribute name appears only inside a documentation block. The document itself binds its listener from a script and carries no style attribute, so a strict policy needs no inline grant.",
+      "regex_probe": {
+        "pattern": "\\son[a-z]+=",
+        "hit_means": "fail",
+        "naive_verdict": "fail",
+        "note": "A byte scan for an inline handler attribute matches the example inside the documentation block and rejects a document that has none."
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<p>A strict policy refuses this shape:</p>\n<pre><code>&lt;button onclick=\"run()\"&gt;</code></pre>\n<button id=\"go\" type=\"button\">Refresh</button>\n</main>\n<script>\ndocument.getElementById(\"go\").addEventListener(\"click\", function () {\n  document.title = \"Refreshed\";\n});\n</script>\n</body>\n</html>\n"
+    },
+    {
+      "id": "E-fail-inline-handler-netlify",
+      "gate": "E",
+      "expect": "fail",
+      "mode": "netlify",
+      "allowlist": [],
+      "filename": "e-fail-inline-handler-netlify.html",
+      "why": "A deployed page carries a hard policy. This document has an inline handler and a style attribute, and both force 'unsafe-inline' into it.",
+      "expect_issue_contains": [
+        "inline handler",
+        "style attribute"
+      ],
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main>\n<h1 style=\"margin-top:0\">Order status</h1>\n<button type=\"button\" onclick=\"document.title='Refreshed'\">Refresh</button>\n</main>\n</body>\n</html>\n"
+    },
+    {
+      "id": "E-pass-same-document-artifact-mode",
+      "gate": "E",
+      "expect": "pass",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "e-pass-same-document-artifact-mode.html",
+      "why": "The same findings as the netlify failure, in artifact mode where the policy is advisory. The gate reports them under advisory_findings and does not block, which is the mode split stated in SKILL.md Step 1.",
+      "expect_advisory_findings": true,
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main>\n<h1 style=\"margin-top:0\">Order status</h1>\n<button type=\"button\" onclick=\"document.title='Refreshed'\">Refresh</button>\n</main>\n</body>\n</html>\n"
+    },
+    {
+      "id": "F-pass-shape-described-not-present",
+      "gate": "F",
+      "expect": "pass",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "f-pass-shape-described-not-present.html",
+      "why": "The document carries a long opaque string that is a stylesheet integrity digest, and prose describing the shape of a key without carrying one.",
+      "regex_probe": {
+        "pattern": "[A-Za-z0-9+/]{32,}={0,2}",
+        "hit_means": "fail",
+        "naive_verdict": "fail",
+        "note": "A byte scan for a long base64 run matches the integrity digest and reports a credential in a document that carries none. The oracle decodes the run, finds no credential-shaped content, and passes."
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<p>A publishable key begins with a prefix and continues for at least sixteen characters. This page holds none.</p>\n<p data-integrity=\"47DEQpj8HBSaTImW1JHwUcBNSuIcHT1Cyz7cWyCk3aY\">checksum</p>\n</main>\n</body>\n</html>\n"
+    },
+    {
+      "id": "F-fail-entity-encoded-key",
+      "gate": "F",
+      "expect": "fail",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "f-fail-entity-encoded-key.html",
+      "why": "A publishable-key-shaped credential is written into a data attribute with a character reference in the middle. The browser hands the decoded value to any script that reads the attribute.",
+      "expect_issue_contains": [
+        "stripe_style_api_key"
+      ],
+      "regex_probe": {
+        "pattern": "[sprk]k_(?:live|test)_[A-Za-z0-9]{16,}",
+        "hit_means": "fail",
+        "naive_verdict": "pass",
+        "note": "The literal bytes read sk_live_&#48;0000FAKE..., so a byte scan finds no key and passes a document that ships one."
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<main>\n<h1>Order status</h1>\n<div id=\"cfg\" data-publishable=\"sk_live_&#48;0000FAKEFAKEFAKEFAKE01\"></div>\n</main>\n</body>\n</html>\n"
+    },
+    {
+      "id": "F-fail-base64-in-comment",
+      "gate": "F",
+      "expect": "fail",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "f-fail-base64-in-comment.html",
+      "why": "A credential is base64-encoded inside an HTML comment. A comment ships in the artifact and any reader of the deployed page can open it.",
+      "expect_issue_contains": [
+        "base64-encoded"
+      ],
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Order status</title>\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\">\n</head>\n<body>\n<!-- staging config: c2tfbGl2ZV8wMDAwRkFLRUZBS0VGQUtFRkFLRTAx -->\n<main><h1>Order status</h1></main>\n</body>\n</html>\n"
+    },
+    {
+      "id": "SCOPE-refuse-python-input",
+      "gate": "scope",
+      "expect": "refused",
+      "mode": "artifact",
+      "allowlist": [],
+      "filename": "scope-refuse-python-input.py",
+      "why": "The input is not an HTML artifact. The oracle refuses rather than reporting six passing gates it never ran.",
+      "body": "print(\"this is not a frontend artifact\")\n"
+    }
+  ]
+}
