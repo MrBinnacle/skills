@@ -12,6 +12,8 @@ That asymmetry has a limit worth stating plainly, because the obvious fix recurs
 
 The recursion stops here, at one level, in two moves. **Authority over the rule set is the maintainer's** — a rule is in force because the maintainer put it in force, not because a document says rules should be evidence-backed. **Authority for a model-behaviour claim inside a rule is the measurement**, and the measurement is recorded in this file, which is not `AGENTS.md`. A rule can therefore be in force and `UNMEASURED` at the same time; that combination is legal, it is visible, and it is the honest state for most rules today.
 
+Evidence travels one way. A measurement can oblige a rule to be reconsidered and can supply the finding that a screen records. It cannot amend the rule by itself, and a pending measurement does not suspend a rule that is already in force.
+
 ## Classify by the property preserved, not by who reads it
 
 The first draft of this mechanism divided rules by audience: rules serving a human deciding whether to install were called stable across model generations, rules serving an agent executing were called model-relative.
@@ -43,7 +45,7 @@ A screen is not due merely because a model was released. A release that changes 
 
 **Scope.** Rules classified `model-retrieval` or `model-execution` are screened on triggers 1, 2, 3 and 4. Rules classified `platform-compatibility` or `repository-integrity` are screened on triggers 2, 3 and 4. Rules classified `human-comprehension` only are screened on triggers 3 and 4. A rule's classes are recorded here on its first screen and carried forward.
 
-**Test surface.** A `model-retrieval` or `model-execution` claim is tested by a screen in `skill-harness`, which is the instrument that exists for exactly this question. Its verdict vocabulary governs and its receipt is the evidence. Where no screen exists for the claim, the disposition is `UNMEASURED`. Do not substitute a judgement for a measurement, and do not manufacture a number in place of a missing one. A `repository-integrity` or `platform-compatibility` claim is tested by running the validator or reading the external contract, and the command and its output are the evidence. A `human-comprehension` claim is tested by a reader who has not seen the card before, and their report is the evidence.
+**Test surface.** A `model-retrieval` or `model-execution` claim is tested by a screen in `skill-harness`, which is the instrument that exists for exactly this question. Its receipt is the evidence, and its verdict vocabulary is the vocabulary that evidence is reported in. **It is a measurement surface, not a source of authority over this contract.** A screen produces evidence that may require a rule to be reconsidered; it does not rewrite the rule, and an experiment running against the instrument does not redefine what the instrument means here. The disposition is recorded against the rule, and the rule remains the maintainer's. Where no screen exists for the claim, the disposition is `UNMEASURED`. Do not substitute a judgement for a measurement, and do not manufacture a number in place of a missing one. A `repository-integrity` or `platform-compatibility` claim is tested by running the validator or reading the external contract, and the command and its output are the evidence. A `human-comprehension` claim is tested by a reader who has not seen the card before, and their report is the evidence.
 
 **Disposition.** One of three, per rule, per screen.
 
