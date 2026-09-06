@@ -1,32 +1,85 @@
 ---
 name: self-documenting-code
-description: A guide for writing self-documenting code
+description: Use when reviewing code for clarity, refactoring names or flow without behavior changes, exposing units or side effects, or deciding which comments to keep.
 ---
 
-Code should be self documenting
+# Self-documenting code - 0.2.0 candidate
 
-How you split logic into functions and shape the data they pass around determines how well a codebase holds up over time.
+Find where production and test code mislead a reader. Return evidence-backed findings, or small clarity edits with check results.
 
-Semantic Functions
+One 0.1.0 session on a private TypeScript repository reported eight findings. A loose test helper let a list match a string. A section test accepted an item from a later section. The reader-question rule also stopped two needless edits. Other skills ran alongside it. This is one session, not a measured verdict.
 
-Semantic functions are the building blocks of any codebase, a good semantic function should be as minimal as possible in order to prioritize correctness in it. A semantic function should take in all required inputs to complete its goal and return all necessary outputs directly. Semantic functions can wrap other semantic functions to describe desired flows and usage; as the building blocks of the codebase, if there are complex flows used everywhere that are well defined, use a semantic function to codify them.
+## 1. Set scope and mode
 
-Side effects are generally undesirable in semantic functions unless they are the explicit goal because semantic functions should be safe to re-use without understanding their internals for what they say they do. If logic is complicated and it's not clear what it does in a large flow, a good pattern is to break that flow up into a series of self describing semantic functions that take in what they need, return the data necessary for the next step, and don't do anything else. Examples of good semantic functions range from quadratic_formula() to retry_with_exponential_backoff_and_run_y_in_between<Y: func, X: Func>(x: X, y: Y). Even if these functions are never used again, future humans and agents going over the code will appreciate the indexing of information.
+Use review mode for findings; do not edit. Use refactor mode when changes are requested. Skip documentation-only work and reviews with no clarity goal.
 
-Semantic functions should not need any comments around them, the code itself should be a self describing definition of what it does. Semantic functions should ideally be extremely unit testable because a good semantic function is a well defined one.
+Honor explicit scope. Otherwise use the current diff. If empty, inspect the last commit with `git show --stat HEAD`. State the chosen scope. If no clear target exists, ask. Do not widen scope yourself.
 
-Pragmatic Functions
+Read repo rules, nearby tests, schemas and docs. Mark public names and frozen files.
 
-Pragmatic functions should be used as wrappers around a series of semantic functions and unique logic. They are the complex processes of your codebase. When making production systems it's natural for the logic to get messy, pragmatic functions are the organization for these. These should generally not be used in more than a few places, if they are, consider breaking down the explicit logic and moving it into semantic functions. For example provision_new_workspace_for_github_repo(repo, user) or handle_user_signup_webhook(). Testing pragmatic functions falls into the realm of integration testing, and is often done within the context of testing whole app functionality. Pragmatic functions are expected to change completely over time, from their insides to what they do. To help with that, it's good to have doc comments above them. Avoid restating the function name or obvious traits about it, instead note unexpected things like "fails early on balance less than 10", or combatting other misconceptions coming from the function name. As a reader of doc comments take them with a grain of salt, coders working inside the function may have forgotten to update them, and it's good to fact check them when you think they might be incorrect.
+## 2. Save a baseline
 
-Models
+Record the revision, `git status --short` and diff. Run focused checks before edits. Record assertion counts for harness changes. Separate existing failures. Mark missing checks and their limits.
 
-The shape of your data should make wrong states impossible. If a model allows a combination of fields that should never exist together in practice, the model isn't doing its job. Every optional field is a question the rest of the codebase has to answer every time it touches that data, and every loosely typed field is an invitation for callers to pass something that looks right but isn't. When models enforce correctness, bugs surface at the point of construction rather than deep inside some unrelated flow where the assumptions finally collapse. A model's name should be precise enough that you can look at any field and know whether it belongs — if the name doesn't tell you, the model is trying to be too many things. When two concepts are often needed together but are independent, compose them rather than merging them — e.g. UserAndWorkspace { user: User, workspace: Workspace } keeps both models intact instead of flattening workspace fields into the user. Good names like UnverifiedEmail, PendingInvite, and BillingAddress tell you exactly what fields belong. If you see a phone_number field on BillingAddress, you know something went wrong.
+## 3. Apply the assessment model
 
-Values with identical shapes can represent completely different domain concepts: { id: "123" } might be a DocumentReference in one place and a MessagePointer in another, and if your functions just accept { id: String }, the code will accept either one without complaint. Brand types solve this by wrapping a primitive in a distinct type so the compiler treats them as separate: DocumentId(UUID) instead of a bare UUID. With branding in place, accidentally swapping two IDs becomes a syntax error instead of a silent bug that surfaces three layers deep.
+Use all seven dimensions. Tests and test helpers are not exempt.
 
-Where Things Break
+| Dimension | Reader question |
+|---|---|
+| Vocabulary | Which domain concept is this? |
+| Contract | What enters, exits and stays true? |
+| Control flow | What sequence and decisions apply? |
+| State and units | What state or measurement is this? |
+| Side effects | What does this operation change? |
+| Failure behavior | How can it fail, and who handles it? |
+| Executable examples | Which behavior does this test promise? |
 
-Breaks commonly happen when a semantic function morphs into a pragmatic function for ease, and then other places in the codebase that rely on it end up doing things they didn't intend. To solve this, be explicit when creating a function by naming it instead of by what it does, but by where it's used. The nature of their names should make it clear to other programmers in their names that their behavior is not tightly defined and should not be relied on for the internals to do an exact task, and make debugging regressions from them easier.
+Use one domain term per concept. Ground answers in names, types, branches, I/O, error paths and tests.
 
-Models break the same way but slower. They start focused, then someone adds "just one more" optional field because it's easier than creating a new model, and then someone else does the same, and eventually the model is a loose bag of half-related data where every consumer has to guess which fields are actually set and why. The name stops describing what the data is, the fields stop cohering around a single concept, and every new feature that touches the model has to navigate states it was never designed to represent. When a model's fields no longer cohere around its name, that's the signal to split it into the distinct things it's been coupling together.
+## 4. Apply the finding test
+
+**write the question before the correction**
+
+For each finding, write:
+- The reader's unanswered question.
+- Exact code evidence.
+- How the gap can cause harm.
+- The smallest correction.
+- A check that can show behavior stayed stable.
+
+All five are required. Without harm, mark Optional. Without a check, mark Unverified. Do not edit either by default.
+
+Use Required for misleading behavior or safety risks. Use Recommended for clear maintenance cost. Optional changes need a broad-cleanup request.
+
+Use Recorded as a disposition when a real fix needs outside authority. Keep its priority. Name who must decide and where the finding is recorded. If either is unknown, say so in the report. Do not bury it as Optional.
+
+Do not flag consistent framework idioms, obvious short local names, domain math, clear linear algorithms, useful repetition or generated code. Protect comments carrying authority, rationale, units, hazards or compatibility.
+
+## 5. Change one slice
+
+Choose the smallest established refactor.
+
+Apply the **abstraction gate**. A new abstraction must name a stable concept, prevent an invalid state, expose an effect or lifecycle, unite repeated policy, or create a testable boundary around volatile infrastructure.
+
+Classify comments: translation, rationale, authority, hazard, contract, history. Only translation may be removed, and only after code states the same fact. Keep external reasons and obligations in comments or docs, not longer names.
+
+Do not edit generated or vendored code, active migrations or frozen sources without authority. Preserve APIs, serialized keys, CLI flags and data formats. Public renames need approval and a migration plan. Check callers; use language-aware rename tools when available.
+
+Separate bug fixes. Get approval before changing behavior. Review each slice's diff.
+
+For module-shape choices, use `mattpocock-skills:codebase-design` if installed.
+
+## 6. Re-enter when facts change
+
+When a review, CI result or concurrent edit arrives, stop at a safe slice boundary. Address correctness first, within your authority. Re-read changed code. Record a fresh baseline without discarding the first. Fix shared causes once, then resume. Report bug fixes separately from clarity edits.
+
+## 7. Verify and report
+
+Run focused tests, configured format/lint/type checks and broader relevant tests. Use repo tools; install nothing. Compare with the baseline. For harness edits, compare cases and counts; check that bad inputs fail. Inspect the final diff for behavior drift and accidental public or generated changes.
+
+Use built-in `code-review` for correctness if available. This pass does not replace it.
+
+Report scope, revision, mode and limits. For each finding, use step 4 plus priority, disposition and risk. State edits, preserved behavior and interfaces, retained or missing rationale, and check results. Never claim checks that did not run.
+
+Return no findings when none survive. Stop when the remaining gaps need external facts. Record those facts instead of forcing them into names.

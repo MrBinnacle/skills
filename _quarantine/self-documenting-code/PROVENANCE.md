@@ -57,3 +57,44 @@ path can satisfy that half of criterion 4; the gap is recorded in `gotchas.md`. 
 - Does not publish. The candidate fails ADMISSION.md criteria 1, 2, and 4.
 - Does not build 0.2.0-rc.1. That is separate work.
 - Does not add a second skill identity.
+
+---
+
+## Correction, 2026-09-06 — we ran the check this file left open. Two things above are wrong.
+
+When this card was landed, the build could not reach the maintainer's machine. So it could not
+compare the copy it was landing against the copy actually in use. It said so, and left the
+question open.
+
+We ran that comparison on 2026-09-06. Here is the result.
+
+| Copy | `SKILL.md` fingerprint | Number of files |
+|---|---|---|
+| The one landed here, taken from the public source | `132dc292…` | 3 |
+| The one on the maintainer's machine | `34c408a9…` | 14 |
+
+Both fingerprints are of the same file, `SKILL.md`. They do not match. So the two copies are
+genuinely different — this is not an apples-to-oranges comparison.
+
+**The card in this repository is not the card the maintainer runs.**
+
+Two statements earlier in this file are wrong. We are leaving them in place, rather than editing
+them, so you can see what changed and why.
+
+1. The table above says the maintainer's copy is `unknown`. It is not unknown any more. See above.
+2. The section on `validate_package.py` says that script does not exist anywhere. It does exist.
+   It is on the maintainer's machine, at `scripts/validate_package.py`, 3,464 bytes. The build
+   could not see it. That is not the same as it being missing.
+
+Eleven files never made it into this repository: the field report, `README.md`, two template
+files, two eval files, five reference documents, and two scripts. That is tracked in `skills#233`.
+
+**Why this matters for the 0.2.0 candidate landing next to this file.** The 0.1.0 copy here came
+from the public source. The 0.2.0 candidate was built from the maintainer's full package. So the
+two do not share a starting point, and you cannot cleanly measure one against the other until
+`skills#233` is done.
+
+**The lesson worth keeping.** A build agent running in a sealed container could not see some
+files. It reported them as missing. "I could not find it" became "it does not exist" — and that
+went into the record as a fact about the card. If you say something is absent, say what you
+searched.
