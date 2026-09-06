@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DOM Sinks</title>
+</head>
+<body>
+<div id="app"></div>
+<script>
+  document.getElementById("app").innerHTML = "<p>injected</p>";
+  eval("alert('xss')");
+  document.write("<script>alert(1)<\/script>");
+  document.getElementById("app").insertAdjacentHTML("beforeend", "<b>hi</b>");
+</script>
+</body>
+</html>

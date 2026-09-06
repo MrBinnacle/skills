@@ -1,0 +1,15 @@
+# EVIDENCE — anti-slop-frontend-secure
+
+Provenance record per the collection's evidence convention (see top-level README →
+"The receipts, explained").
+
+| Field | Value |
+|---|---|
+| **Origin** | OBSERVED 2026-08-09, in a personal production project (S228). A single-file HTML dashboard artifact was generated that used `innerHTML` for DOM construction, connected to an external analytics endpoint (`plausible.io`) without the operator's approval, and embedded an API key in a `<script>` tag that was committed to a public repository. The failure was caught by a manual code review before deployment, but no automated gate existed to catch it. Details: gotchas.md. |
+| **Occasions counted** | 1 — 2026-08-09 the origin incident. A single-file HTML artifact produced by a frontier model used `innerHTML` for DOM insertion, connected to an external host without explicit approval, and embedded a secret in a `<script>` tag (gotchas.md). RECURRENCE-THIN. |
+| **Dispatches recorded** | No recorded dispatch, measured 2026-09-06. The card sat in `_quarantine/` from 2026-08-09 until the oracle was built on 2026-09-06, so it was never installed and the platform counter had nothing it could have counted. It is not evidence about demand, recurrence or worth. Re-measure after one release cycle in the published tree. |
+| **Validated against** | The oracle (`scripts/audit_frontend.mjs`) was run against the origin fixture (`fixtures/fail-gate-c.html` for DOM sinks, `fixtures/fail-gate-b.html` for external hosts, `fixtures/fail-gate-f.html` for secrets). Each gate was tested with a passing and failing fixture, and the receipt structure was verified. The test suite (`fixtures/test_audit_frontend.mjs`) covers all six gates, both CSP modes, all five ablation arms, and the receipt schema. |
+| **Screen result** | UNMEASURED, structurally. The oracle is a deterministic document-object-model, policy and network check — a tier-1 oracle shape. `AGENTS.md` step 4 states that a frozen empirical contract (fixture and counterfixture) is the only shape the measurement harness returns a real verdict on. This card carries that shape and is screenable. The measurement has not been run. |
+| **Paired verdict** | UNMEASURED (see Screen result — screenable but not yet screened). Methodology reference: [skill-harness v0.2 pre-registration](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md). |
+| **Standing cost** | Description ≈ 170 tokens, paid on every turn while the card is model-invocable. The retrieval moment is model-side — an agent producing a single-file HTML artifact — which is the argument for paying it. Body 3,088 B plus oracle scripts and fixtures (measured 2026-09-06), loaded only on retrieval. |
+| **Re-screen trigger** | A platform fix that makes the underlying failure impossible — specifically, if a frontier model's default frontend output never uses `innerHTML`, never connects to unapproved external hosts, and never embeds secrets in HTML artifacts. An attestation clause will be added when a receipt is gated. |

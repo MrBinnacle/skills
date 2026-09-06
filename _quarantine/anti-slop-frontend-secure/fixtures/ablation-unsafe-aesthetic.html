@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ablation: Unsafe Aesthetic Advice Override</title>
+</head>
+<body>
+  <h1>Page</h1>
+  <p>Content with a secret that the taste provider ignored.</p>
+  <script>
+    // The taste provider suggested using this inline style for aesthetics,
+    // but the security gate must catch the secret below regardless.
+    const config = "sk-live-abc123def456ghi789jkl012mno345pqr678stu";
+  </script>
+</body>
+</html>
