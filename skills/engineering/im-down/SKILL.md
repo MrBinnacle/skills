@@ -21,15 +21,14 @@ The receiver contract in `PACKET-FORMAT.md` defines the producer output.
 3. Treat `$ARGUMENTS` as the next-session purpose.
 4. Stop if `$ARGUMENTS` is empty.
 5. Confirm the exact objective and next action from current repository state.
-6. Run the project's close ritual now and commit it, when the config declares `close_commit`. Before the snapshot, not after.
 
 ## The close and the packet are one action
 
-A **close ritual** is whatever the project runs to write its own durable state before signing off — a checkpoint file, a state document, a session log. This skill does not supply one and does not care what it writes. It cares only that the ritual **commits**, and that it commits **first**.
+A **close ritual** writes durable session state and commits it before the packet is produced. This skill runs the full close: it writes the state file, commits it, then produces the packet that records the post-commit `HEAD`.
 
 The order is fixed by a constraint, not a preference. The close commits, which moves `HEAD`. The packet then records `HEAD`. Reversed, the close moves `HEAD` out from under a packet that already recorded it, and the receiver rejects that packet as stale in the next session.
 
-Documenting the order does not hold it. Whoever types the second command cannot see the effect of the first. So declare the requirement and let the tool enforce it:
+Documenting the order does not hold it. Whoever types the second command cannot see the effect of the first. So the tool enforces it structurally: `write_state.py` commits first, and only then does `snapshot_state.py` record `HEAD` into the packet.
 
 ```json
 "close_commit": { "contains": "RITUAL:" }
@@ -45,22 +44,34 @@ This establishes that `HEAD` is *a* close commit, not that it is *this* session'
 
 ## Procedure
 
-1. Run `snapshot_state.py` with the objective, next action, and `$ARGUMENTS` purpose.
-2. Open the generated packet.
-3. Replace every `__REQUIRED__` marker.
-4. Record failed approaches and null results in time order.
-5. Record decisions with their reasons.
-6. Add each load-bearing claim with `verified` or `unverified` status.
-7. Use typed `path`, `commit`, or `command` probes for verified claims.
-7a. Use a `command` probe only when the config authorises that exact command. An unlisted command probe rejects the packet.
-8. Label `skills_dispatched` as `telemetry` only when an event source exists.
-9. Otherwise use `model-reported` and preserve that evidence limit.
-10. Reference source artifacts. Do not copy their contents.
-11. Run `validate_packet.py` in produce mode.
-12. Claim handoff readiness only after an `ACCEPTED` receipt.
-13. Return the packet path, packet ID, HEAD, and exact receiver command.
+1. Run `write_state.py` with the objective, next action, and `$ARGUMENTS` purpose. This writes the durable state file and commits it with the `close_commit` marker.
+2. Run `snapshot_state.py` with the objective, next action, and `$ARGUMENTS` purpose. This produces the packet scaffold recording the post-commit `HEAD`.
+3. Open the generated packet.
+4. Replace every `__REQUIRED__` marker.
+5. Record failed approaches and null results in time order.
+6. Record decisions with their reasons.
+7. Add each load-bearing claim with `verified` or `unverified` status.
+8. Use typed `path`, `commit`, or `command` probes for verified claims.
+8a. Use a `command` probe only when the config authorises that exact command. An unlisted command probe rejects the packet.
+9. Label `skills_dispatched` as `telemetry` only when an event source exists.
+10. Otherwise use `model-reported` and preserve that evidence limit.
+11. Reference source artifacts. Do not copy their contents.
+12. Run `validate_packet.py` in produce mode.
+13. Claim handoff readiness only after an `ACCEPTED` receipt.
+14. Return the packet path, packet ID, HEAD, and exact receiver command.
 
-Example scaffold:
+Example state write:
+
+```bash
+python <skill-dir>/write_state.py \
+  --config .claude/session-boundary.json \
+  --objective "<bounded outcome>" \
+  --next-action "<exact action>" \
+  --purpose "$ARGUMENTS" \
+  --repo-root .
+```
+
+Example packet scaffold:
 
 ```bash
 python <skill-dir>/snapshot_state.py \
@@ -91,3 +102,5 @@ Produce the packet after the session's final commit. A later commit moves HEAD a
 Do not install a Stop hook in this version. A Stop hook fires after ordinary responses and misses interrupts.
 
 Native Claude Code transcripts remain the abnormal-exit recovery path. This packet is an audited execution bootstrap.
+
+Band rotation (removing stale session-band index stubs from the state file) is out of scope. The convention is carried as prose in the project's state file, not enforced by this skill. No enforcing surface exists; the operator manages it manually.

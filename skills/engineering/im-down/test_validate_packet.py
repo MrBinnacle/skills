@@ -308,7 +308,8 @@ def cli_cases():
 # in the contract. If a file stops being shared, REMOVE it from this tuple and
 # record why in the removing change -- a contract that silently narrows is the
 # defect the contract exists to catch. snapshot_state.py is absent on purpose:
-# it exists only in im-down and was never shared.
+# it exists only in im-down and was never shared. write_state.py was added to
+# both directories for the session-boundary merge (issue #84).
 SHARED_PARITY_CONTRACT = (
     "CONFIG.example.json",
     "PACKET-FORMAT.md",
@@ -318,6 +319,7 @@ SHARED_PARITY_CONTRACT = (
     "fixture-stale.md",
     "test_validate_packet.py",
     "validate_packet.py",
+    "write_state.py",
 )
 
 
@@ -366,6 +368,110 @@ def duplication_case() -> tuple[bool, str]:
             f"against {sibling_name}: {compared}")
 
 
+def write_state_cases():
+    """write_state.py writes a durable state file and commits it before the
+    packet is produced. This is the doctrine half that im-down was missing:
+    a close step the operator could skip left sessions with no state at all.
+
+    The state file carries the session objective, next action, repository
+    facts, and timestamp. The commit uses the close_commit marker so that
+    validate_packet.py can confirm the close happened before the packet
+    recorded HEAD.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True,
+                        capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"],
+                        cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"],
+                        cwd=repo, check=True)
+        (repo / "README.md").write_text("fixture", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "initial"],
+                        cwd=repo, check=True, capture_output=True)
+        head_before = validator.git(repo, "rev-parse", "HEAD")
+
+        # write_state.py creates the state file and commits it.
+        config = repo / "boundary.json"
+        config.write_text(json.dumps({
+            "state_file": ".claude/session-state.json",
+            "close_commit": {"contains": "RITUAL:"},
+            "packet_dir": "packets",
+        }), encoding="utf-8")
+
+        result = subprocess.run(
+            ["python", str(HERE / "write_state.py"),
+             "--config", str(config),
+             "--repo-root", str(repo),
+             "--objective", "Finish the feature",
+             "--next-action", "Run tests",
+             "--purpose", "Continue work"],
+            text=True, capture_output=True,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+
+        # The state file exists and contains the session data.
+        state_path = repo / ".claude" / "session-state.json"
+        assert state_path.exists(), "state file was not created"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        assert state["objective"] == "Finish the feature"
+        assert state["next_action"]["task"] == "Run tests"
+        assert state["next_action"]["purpose"] == "Continue work"
+        assert state["repository"]["head"] == head_before
+        assert "created_at" in state
+
+        # The commit moved HEAD and contains the marker.
+        head_after = validator.git(repo, "rev-parse", "HEAD")
+        assert head_after != head_before, "HEAD was not moved by state commit"
+        message = validator.git(repo, "log", "-1", "--pretty=%B")
+        assert "RITUAL:" in message, f"commit missing marker: {message}"
+
+        # The state file is tracked in the commit.
+        tracked = validator.git(repo, "ls-files", ".claude/session-state.json")
+        assert tracked, "state file not tracked after commit"
+
+        # A config without state_file fails rather than writing nothing.
+        bad_config = repo / "bad.json"
+        bad_config.write_text(json.dumps({
+            "close_commit": {"contains": "RITUAL:"},
+        }), encoding="utf-8")
+        result = subprocess.run(
+            ["python", str(HERE / "write_state.py"),
+             "--config", str(bad_config),
+             "--repo-root", str(repo),
+             "--objective", "x", "--next-action", "y", "--purpose", "z"],
+            text=True, capture_output=True,
+        )
+        assert result.returncode != 0, "should fail without state_file"
+        assert "state_file" in result.stdout, result.stdout
+
+        # Produce mode accepts the packet after the state commit, confirming
+        # the ordering: state commits first, packet records the new HEAD.
+        packet_dir = repo / "packets"
+        packet_dir.mkdir()
+        # The fixture HEAD needs to match the post-commit HEAD.
+        clean, _ = validator.extract(HERE / "fixture-clean.md")
+        clean["repository"]["head"] = head_after
+        clean["repository"]["branch"] = "main"
+        # Write a fixture at the correct HEAD.
+        fixture_path = packet_dir / "test-packet.md"
+        manifest = json.dumps(clean)
+        fixture_path.write_text(
+            f"<!-- SESSION-PACKET-V1\n{manifest}\nSESSION-PACKET-V1 -->\n"
+            "## Narrative\nTest.\n## Decisions\nNone.\n"
+            "## What We Tried\nNone.\n## Resume Bootstrap\nNext.\n",
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            ["python", str(HERE / "validate_packet.py"), str(fixture_path),
+             "--mode", "produce", "--repo-root", str(repo),
+             "--config", str(config)],
+            text=True, capture_output=True,
+        )
+        assert result.returncode == 0, result.stdout
+
+
 if __name__ == "__main__":
     expect_structure("fixture-clean.md", True)
     expect_structure("fixture-missing-field.md", False)
@@ -377,11 +483,13 @@ if __name__ == "__main__":
     close_commit_cases()
     claimed_head_cases()
     cli_cases()
+    write_state_cases()
     parity_verified, parity_message = duplication_case()
     print(parity_message)
     roster = ("PASS: clean, stale, incomplete, failed-probe, placeholder, "
               "unfailable-check, command-probe, close-commit, close-commit-cli, "
-              "claimed-head, claimed-head-cli, receive-mode-config")
+              "claimed-head, claimed-head-cli, receive-mode-config, "
+              "write-state")
     # no-drift appears in the pass roster only when parity was actually
     # compared; a single-card install reports NOT VERIFIED above instead.
     print(roster + ", no-drift" if parity_verified else roster)

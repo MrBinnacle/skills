@@ -1,5 +1,6 @@
 {
   "packet_dir": ".claude/session-packets",
+  "state_file": ".claude/session-state.json",
   "receiver_checks": [
     {
       "name": "clean-tree",
