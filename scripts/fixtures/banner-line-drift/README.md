@@ -1,3 +1,3 @@
 # fixture
 
-<img alt="skills — These aren't the Claude Code skills you're looking for." src="assets/banner-light.svg" width="620">
+<img alt="skills. 2 skill cards. Each states the condition that would retire it." src="assets/banner-light.svg" width="620">
