@@ -122,6 +122,7 @@ import fnmatch
 import hashlib
 import json
 import re
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -155,6 +156,79 @@ KNOWN_KINDS: Final[frozenset[str]] = frozenset(
 
 class Refusal(Exception):
     """An input problem that makes the run itself untrustworthy."""
+
+
+# --------------------------------------------------------------------------
+# File selection (#267).
+#
+# Every surface declares a glob in the token file, and until #267 the glob was
+# resolved against the FILESYSTEM. So the scanned set was whatever a working
+# clone happened to hold: a scratch note, a draft, an agent hand-off file, a
+# local CLAUDE.md, a vendored `node_modules/`, a sandbox worktree. Measured on
+# the live tree the day this landed: 54 breaches, none of them in a tracked
+# file - 48 under `.sandcastle/worktrees/`, 6 under `node_modules/`. The same
+# run was green in CI, which clones only tracked content, so the local signal
+# and the CI signal disagreed and the local one is the one a contributor sees.
+#
+# The glob still decides the PATTERN, because `validate_vale_style.py` refuses
+# a Vale binding to any glob the token file does not declare, and moving
+# selection out of the token file would break that binding. What changed is the
+# denominator: the pattern is now intersected with the tracked set. The
+# repository publishes what it tracks, and an untracked file publishes nothing.
+#
+# The sibling instrument made the same change for its DC-16 contract
+# (MrBinnacle/skill-harness#473) after the same probe found the same defect.
+GIT_LS_FILES: Final[tuple[str, ...]] = ("git", "ls-files", "-z", "--cached")
+
+
+class TrackedSetUnreadable(Refusal):
+    """``git ls-files`` could not name the tracked set.
+
+    The check REFUSES here rather than falling back to a filesystem walk. A
+    walk over a tree git cannot describe scans a different set of files under
+    the same check name, and reports PASS for it. Reporting an empty scan is
+    the same defect wearing a clean face.
+    """
+
+
+def tracked_paths(root: Path) -> frozenset[str]:
+    """Repo-relative posix paths of every file in the index.
+
+    ``git ls-files --cached`` reads the index. It makes no network call, needs
+    no commit, and answers exactly the question the check is asking: what can a
+    commit in this repository change?
+    """
+    try:
+        result = subprocess.run(  # noqa: S603 - fixed argv, no shell, no user input
+            [*GIT_LS_FILES],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as error:
+        raise TrackedSetUnreadable(
+            f"could not run {' '.join(GIT_LS_FILES)} under {root} to read the "
+            f"tracked set: {error}. This check scans what this repository "
+            "tracks, so it refuses rather than scanning something else."
+        ) from error
+    if result.returncode != 0:
+        raise TrackedSetUnreadable(
+            f"{' '.join(GIT_LS_FILES)} exited {result.returncode} under {root}, "
+            f"so the tracked set is unknown: {result.stderr.strip()!r}. This "
+            "check scans what this repository tracks, so it refuses rather "
+            "than falling back to a filesystem walk."
+        )
+    return frozenset(entry for entry in result.stdout.split("\0") if entry)
+
+
+def tracked_matches(root: Path, glob: str, tracked: frozenset[str]) -> list[Path]:
+    """The files a glob resolves to, restricted to the tracked set."""
+    return [
+        path
+        for path in sorted(root.glob(glob))
+        if path.is_file() and path.relative_to(root).as_posix() in tracked
+    ]
 
 
 def load_tokens(root: Path) -> dict[str, Any]:
@@ -280,8 +354,10 @@ def normalise_hex(value: str) -> str:
 # --------------------------------------------------------------------------
 # Surfaces.
 # --------------------------------------------------------------------------
-def surface_copy(root: Path, spec: dict[str, Any]) -> list[tuple[str, str]]:
-    """(label, copy) for every file a surface spec resolves to."""
+def surface_copy(
+    root: Path, spec: dict[str, Any], tracked: frozenset[str]
+) -> list[tuple[str, str]]:
+    """(label, copy) for every TRACKED file a surface spec resolves to."""
     kind = spec.get("kind")
     glob = spec.get("glob")
     if kind not in KNOWN_KINDS:
@@ -302,11 +378,13 @@ def surface_copy(root: Path, spec: dict[str, Any]) -> list[tuple[str, str]]:
             "non-empty strings."
         )
 
-    paths = sorted(root.glob(glob))
+    paths = tracked_matches(root, glob, tracked)
     if not paths:
         raise Refusal(
-            f"surface glob {ascii(glob)} matched no file under {root}. A "
-            "surface that resolves to nothing is a check that runs on nothing."
+            f"surface glob {ascii(glob)} matched no tracked file under {root}. A "
+            "surface that resolves to nothing is a check that runs on nothing. "
+            "Selection is the tracked set (#267), so a file that exists in the "
+            "working tree and is not in the index does not count."
         )
 
     # fnmatch's `*` crosses `/`, which is what lets `_quarantine/**` reach a
@@ -478,7 +556,10 @@ def hex_surface_specs(tokens: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def undeclared_hex_violations(
-    root: Path, declared: set[str], specs: list[dict[str, Any]]
+    root: Path,
+    declared: set[str],
+    specs: list[dict[str, Any]],
+    tracked: frozenset[str],
 ) -> tuple[list[str], int, int]:
     violations: list[str] = []
     seen: set[str] = set()
@@ -494,11 +575,13 @@ def undeclared_hex_violations(
                 "implements. Kinds are svg_hex and css_hex. A surface kind nothing "
                 "reads is a declared check that never runs."
             )
-        paths = sorted(root.glob(glob))
+        paths = tracked_matches(root, glob, tracked)
         if not paths:
             raise Refusal(
-                f"declared_hex_surfaces glob {ascii(glob)} matched no file under "
-                f"{root}. A surface that matches nothing is a check over nothing."
+                f"declared_hex_surfaces glob {ascii(glob)} matched no tracked file "
+                f"under {root}. A surface that matches nothing is a check over "
+                "nothing. Selection is the tracked set (#267), the same denominator "
+                "the copy surfaces use."
             )
         files += len(paths)
         for path in paths:
@@ -522,6 +605,13 @@ def undeclared_hex_violations(
 # --------------------------------------------------------------------------
 def validate(root: Path) -> None:
     tokens = load_tokens(root)
+    # Read once, after the declaration is validated and before any surface
+    # resolves. A per-surface read would run git a dozen times over an index
+    # that cannot change mid-run, and would let two surfaces disagree about
+    # what this repository tracks. It runs AFTER load_tokens so a tree with
+    # neither a token file nor an index still refuses on the token file, which
+    # is the problem its reader can act on.
+    tracked = tracked_paths(root)
 
     copy_block = tokens.get("copy")
     if not isinstance(copy_block, dict):
@@ -568,7 +658,7 @@ def validate(root: Path) -> None:
     for spec in specs:
         if not isinstance(spec, dict):
             raise Refusal("a surface entry is not an object")
-        resolved = surface_copy(root, spec)
+        resolved = surface_copy(root, spec, tracked)
         if spec.get("kind") == "svg_copy":
             svg_copy_seen += sum(len(text.strip()) for _, text in resolved)
         if spec.get("kind") == "markdown_prose":
@@ -611,7 +701,7 @@ def validate(root: Path) -> None:
         raise Refusal("assets/tokens.json declares no colour at all")
     hex_specs = hex_surface_specs(tokens)
     hex_violations, distinct_hexes, hex_files = undeclared_hex_violations(
-        root, declared, hex_specs
+        root, declared, hex_specs, tracked
     )
     if hex_files == 0:
         raise Refusal(f"no declared-hex surface matched any file under {root}")

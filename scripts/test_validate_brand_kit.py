@@ -187,6 +187,38 @@ def run_checker(root: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+def git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(root), *args],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+
+def stage(root: Path) -> None:
+    """Put everything currently in the tree into the index.
+
+    #267: the checker selects the tracked set, so a fixture file that is never
+    staged is a file the checker does not read. A case that writes a surface
+    AFTER `baseline_tree` must call this, or its fixture is silently vacuous.
+    """
+    git(root, "add", "-A")
+
+
+def init_repo(root: Path) -> None:
+    """A real repository, because the checker refuses a tree git cannot describe.
+
+    `user.*` and `commit.gpgsign` are set locally so the fixture does not read
+    the developer's global configuration. Nothing is committed: `git ls-files`
+    reads the INDEX, so staging is enough and a commit would only be slower.
+    """
+    git(root, "init", "--quiet", "--initial-branch=main")
+    git(root, "config", "user.email", "fixture@example.invalid")
+    git(root, "config", "user.name", "fixture")
+    git(root, "config", "commit.gpgsign", "false")
+
+
 def baseline_tree(
     root: Path,
     *,
@@ -197,7 +229,13 @@ def baseline_tree(
     package: dict[str, Any] | None = None,
     extra_assets: dict[str, bytes] | None = None,
 ) -> Path:
-    """A conforming tree: one token file, one SVG asset, a README, a package."""
+    """A conforming tree: one token file, one SVG asset, a README, a package.
+
+    The tree is a git repository with every surface staged. Before #267 it was
+    a bare directory, which was adequate while the checker chose files by
+    walking the filesystem and is not adequate now: a tree with no index is a
+    tree the checker REFUSES to scan, not one it finds clean.
+    """
     assets = root / "assets"
     assets.mkdir(parents=True)
     (assets / "tokens.json").write_text(
@@ -213,6 +251,8 @@ def baseline_tree(
     )
     for name, blob in (extra_assets or {}).items():
         (assets / name).write_bytes(blob)
+    init_repo(root)
+    stage(root)
     return root
 
 
@@ -266,6 +306,82 @@ def expect_refusal(name: str, root: Path, *substrings: str) -> None:
         name,
         result.returncode == 1 and "REJECTED: " in result.stderr and not missing,
         f"rc={result.returncode} missing={missing!r} err={result.stderr.strip()!r}",
+    )
+
+
+# --------------------------------------------------------------------------
+# File selection (#267). The checker reads what this repository tracks.
+#
+# These four are one control in four directions. The defect they pin was not
+# that a banned word went unreported; it was that a file NOBODY PUBLISHES was
+# reported, over and over, on every developer machine and never in CI. So the
+# positive case matters as much as the negative ones: a fix that simply stopped
+# scanning would pass three of these four and fail the third.
+# --------------------------------------------------------------------------
+def case_untracked_markdown_is_not_scanned(tmp: Path) -> None:
+    """The probe from the ticket, run as a fixture."""
+    root = baseline_tree(tmp)
+    (root / "UNTRACKED-PROBE.md").write_text(
+        "This parser is robust.\n", encoding="utf-8"
+    )
+    expect_pass("an untracked markdown file is not scanned", root)
+
+
+def case_gitignored_markdown_is_not_scanned(tmp: Path) -> None:
+    """Ignored is a second class of untracked, and it is the larger one.
+
+    Measured on the live tree at the time of the fix: 54 breaches, 48 of them
+    under `.sandcastle/worktrees/` and 6 under `node_modules/`. Both are
+    ignored, neither is tracked, and no commit here can change either.
+    """
+    root = baseline_tree(tmp)
+    (root / ".gitignore").write_text("scratch/\n", encoding="utf-8")
+    scratch = root / "scratch"
+    scratch.mkdir()
+    (scratch / "note.md").write_text("A robust note.\n", encoding="utf-8")
+    stage(root)
+    expect_pass("a gitignored markdown file is not scanned", root)
+
+
+def case_tracked_markdown_is_still_scanned(tmp: Path) -> None:
+    """Non-vacuity, and the direction the other three cannot prove.
+
+    Same word, same surface, same tree shape as the two cases above. The only
+    difference is that git knows about the file. A selection change that
+    narrowed too far - or a scanner that had gone blind - passes those two and
+    fails this one.
+    """
+    root = baseline_tree(tmp)
+    (root / "TRACKED-PROBE.md").write_text(
+        "This parser is robust.\n", encoding="utf-8"
+    )
+    stage(root)
+    expect_one_breach(
+        "a tracked markdown file carrying the same word is still reported",
+        root,
+        "TRACKED-PROBE.md:prose",
+        "robust",
+    )
+
+
+def case_selection_refuses_when_the_tracked_set_cannot_be_read(tmp: Path) -> None:
+    """No index, no scan - and say so rather than reporting a clean run.
+
+    A tree git cannot describe is the one case where falling back to a walk is
+    tempting. It is also the one case where a fallback is worst: the checker
+    would run a DIFFERENT check under the same name, and print PASS for it.
+    """
+    root = baseline_tree(tmp)
+    (root / ".git").rename(root / "git-moved-aside")
+    # The substring is the one the REFUSAL LANE prints and no other message
+    # does. "tracked set" alone would also match the "matched no tracked file"
+    # refusal, so a mutant that returned an empty set instead of raising would
+    # still turn this case green - killed by the wrong mechanism, which is the
+    # failure this assertion is written to avoid.
+    expect_refusal(
+        "the checker refuses a tree whose tracked set it cannot read",
+        root,
+        "falling back to a filesystem walk",
     )
 
 
@@ -672,6 +788,7 @@ def _tree_with_stylesheet(tmp: Path, css: str) -> Path:
     site = root / "site"
     site.mkdir(parents=True, exist_ok=True)
     (site / "style.css").write_text(css, encoding="utf-8")
+    stage(root)
     return root
 
 
@@ -733,7 +850,7 @@ def case_hex_surface_matching_nothing_refused(tmp: Path) -> None:
     expect_refusal(
         "a declared-hex surface matching no file refused",
         baseline_tree(tmp, tokens=tokens),
-        "matched no file",
+        "matched no tracked file",
     )
 
 
@@ -872,7 +989,7 @@ def case_surface_matching_nothing_refused(tmp: Path) -> None:
     expect_refusal(
         "a surface glob matching no file is refused",
         baseline_tree(tmp, tokens=tokens),
-        "matched no file",
+        "matched no tracked file",
     )
 
 
@@ -983,7 +1100,7 @@ def case_live_prose_surface_reads_the_whole_tree() -> None:
         for surface in tokens["copy"]["words_to_avoid_surfaces"]["surfaces"]
         if surface["kind"] == "markdown_prose"
     )
-    resolved = kit.surface_copy(REPO_ROOT, spec)
+    resolved = kit.surface_copy(REPO_ROOT, spec, kit.tracked_paths(REPO_ROOT))
     tracked = subprocess.run(
         ["git", "ls-files", "*.md"],
         cwd=REPO_ROOT,
@@ -1084,6 +1201,10 @@ def case_workflow_runs_the_checker() -> None:
 
 def main() -> None:
     in_tempdir = (
+        case_untracked_markdown_is_not_scanned,
+        case_gitignored_markdown_is_not_scanned,
+        case_tracked_markdown_is_still_scanned,
+        case_selection_refuses_when_the_tracked_set_cannot_be_read,
         case_markdown_prose_with_a_banned_word_rejected,
         case_readme_heading_rejected,
         case_body_prose_is_reported_as_prose_not_as_a_heading,
