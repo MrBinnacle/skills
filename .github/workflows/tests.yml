@@ -793,8 +793,9 @@ jobs:
           # unmutated fixture and reported the checker as working.
           fresh="$(sha256sum < "$tree/assets/banner-light.svg" | cut -d" " -f1)"
           stale="0000000000000000000000000000000000000000000000000000000000000000"
-          pair="\"pairs\": [{\"source\": \"assets/banner-dark.svg\", \"export\": \"assets/banner-light.svg\", \"source_sha256\": \"$stale\", \"export_sha256\": \"$fresh\"}],"
-          sed -i "s|\"pairs\": \[\],|$pair|" "$tree/assets/tokens.json"
+          # The live token file records a real pair since the v2 assets landed, so the
+          # fixture REPLACES the pairs list rather than filling an empty one.
+          python -c "import json,sys; p=sys.argv[1]; d=json.load(open(p, encoding='utf-8')); d['asset_pairs']['pairs']=[{'source': 'assets/banner-dark.svg', 'export': 'assets/banner-light.svg', 'source_sha256': sys.argv[3], 'export_sha256': sys.argv[2]}]; json.dump(d, open(p, 'w', encoding='utf-8'), indent=2)" "$tree/assets/tokens.json" "$fresh" "$stale"
           grep -q "$fresh" "$tree/assets/tokens.json"             || { echo "::error::the control fixture was not mutated - no pair was recorded"; exit 1; }
           python -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$tree/assets/tokens.json"             || { echo "::error::the control fixture is not valid JSON"; exit 1; }
           if python scripts/validate_brand_kit.py --root "$tree" > "$log" 2>&1; then
