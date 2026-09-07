@@ -746,7 +746,9 @@ jobs:
           log="$RUNNER_TEMP/control-brand-copy.log"
           rm -rf "$tree"
           mkdir -p "$tree/assets"
-          cp assets/*.svg assets/tokens.json "$tree/assets/"
+          # The PNG is one half of an asset_pairs entry; a tree without it reports a
+          # second breach and the "exactly one reason" assertion below goes red.
+          cp assets/*.svg assets/*.png assets/tokens.json "$tree/assets/"
           cp package.json "$tree/"
           sed 's|^## Admission method$|## Skills that earn their keep|' README.md > "$tree/README.md"
           grep -q '^## Skills that earn their keep$' "$tree/README.md" \
