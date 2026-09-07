@@ -12,14 +12,14 @@
 Claude Code skills that had to earn their place.
 
 Most skill collections grow. This one is built to shrink. A card enters only by answering four
-questions -- does a current frontier model actually fail this without the skill, does the failure
-recur, is a skill the right control surface, and is the evidence written down -- and the default
+questions — does a current frontier model actually fail this without the skill, does the failure
+recur, is a skill the right control surface, and is the evidence written down — and the default
 answer is **no**. A card leaves when a newer model makes it redundant, and the reason it left is
 recorded in [`RETIRED.md`](RETIRED.md).
 
 That bar is not self-assessed. [`skill-harness`](https://github.com/MrBinnacle/skill-harness) runs
 the same task with a skill and without it, and reports what can honestly be said about the
-difference -- which is often *"not enough to call it"*.
+difference — which is often *"not enough to call it"*.
 
 Read the honest part first: **most cards here carry `UNMEASURED` in their evidence record.** The
 screen has not been run on them, and that is written down rather than papered over with a number
@@ -43,7 +43,7 @@ names describe different instruments. A third name, the **gate card**, was retir
 along with the card it named: the policy no longer has a reference method, and the four
 questions are answered directly.
 
-The [S295 disposition record](dispositions/2026-08-15-S295-admission-triage.md) applied
+The [nine-card admission triage record](dispositions/2026-08-15-S295-admission-triage.md) applied
 `admission-policy v1` to the nine cards published on 2026-08-15, and retired none of them.
 
 ## Card map
