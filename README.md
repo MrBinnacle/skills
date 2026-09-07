@@ -9,7 +9,7 @@
 
 **These aren't the Claude Code skills you're looking for.**
 
-Claude Code skills that had to earn their place.
+Claude Code skills that passed an admission gate.
 
 Most skill collections grow. This one is built to shrink. A card enters only by answering four
 questions — does a current frontier model actually fail this without the skill, does the failure
