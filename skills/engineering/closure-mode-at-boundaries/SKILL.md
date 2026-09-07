@@ -40,7 +40,7 @@ Two halves: a parallel SME swarm (the closure run), then a transition step that 
 Before the first invocation, confirm your runtime and project surfaces — see [prerequisites.md](prerequisites.md).
 
 1. **Dispatch the swarm.** See [swarm-composition.md](swarm-composition.md) for the standard roster and role-to-runtime mapping table. Concrete copy-pasteable per-role prompts are in [prompt-templates.md](prompt-templates.md).
-2. **Execute the transition.** See [transition.md](transition.md). The swarm produces an action list — verifications, scope corrections, pre-flights, additions, subtractions — not a multi-voice menu. The transition is the load-bearing step.
+2. **Execute the transition.** See [transition.md](transition.md). The swarm produces an action list — verifications, scope corrections, pre-flights, additions, subtractions — not a multi-voice menu. The transition is the step the rest of closure mode depends on.
 3. **Present the revised frame** — only after the action list is executed. Name a single defensible pick if revisions converge; otherwise name the values axis separating survivors.
 
 For a worked example showing both the failure case and the correct execution, see [case-study.md](case-study.md).

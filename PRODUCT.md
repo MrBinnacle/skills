@@ -206,17 +206,20 @@ person, shortest true version. ADMISSION, AGENTS and skill cards: technical and 
 `EVIDENCE.md`: flat and factual, adjectives off results. `RETIRED.md`: matter-of-fact, without
 apology or triumph.
 
-**Banned words in public asset copy**, enforced by `validate_brand_kit.py` against
-`assets/tokens.json`: earn / earned / earning, curated, load-bearing, powerful, seamless,
-revolutionary, game-changing, production-ready, AI-powered, unlock, supercharge, robust.
+**Banned words**, enforced by `validate_brand_kit.py` against `assets/tokens.json`. Fifteen
+words, listed at `copy.words_to_avoid`, binding every line of prose this repository publishes
+and not public asset copy alone: the operator ruled on 2026-09-06 that one list governs every
+line in every repository. `copy.words_to_avoid_digest` publishes the sha256 of the list
+itself, so a vendored copy can prove it is current without diffing this file.
 
 **The one absolute visual rule.** DESIGN.md § Dressing: *"dressing the inventory as a measurement.
 A skill being kept is an inventory fact. A skill having been measured is an evidence fact. Any
 move that makes the first look like the second is dressing, and it breaks the only claim the
 repository makes."* The sibling instrument's palette is banned here for exactly this reason.
 
-⚠ **A live cautionary precedent.** The retired tagline *"skills that have to earn their keep"* was
-cleared from three text surfaces and survived on `assets/social-preview.png`. A word ban that
+⚠ **A live cautionary precedent.** The retired tagline, quoted in full at `tokens.json >
+copy.words_to_avoid_notes`, was cleared from three text surfaces and survived on
+`assets/social-preview.png`. A word ban that
 holds in text can still fail in a raster asset.
 
 ## Evidence on Hand

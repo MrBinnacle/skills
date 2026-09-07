@@ -311,8 +311,8 @@ recurrence is never counted. When a card's problem happens again:
 
 A card's name, its role in this repository, its prior use, and the decisions it produced are
 not evidence for a verdict it reaches. An outcome an instrument produced cannot serve as
-independent proof that the instrument works. Cite first-hand evidence for each load-bearing
-claim, and name the result that would reverse the verdict.
+independent proof that the instrument works. Cite first-hand evidence for each claim the
+verdict rests on, and name the result that would reverse the verdict.
 
 This binds every published card, and it binds hardest where a card sits in the repository's own
 machinery — the standing that makes a card feel authoritative is the same standing this rule

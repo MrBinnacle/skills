@@ -47,7 +47,7 @@ Ordered by how soon the failure is likely to bite you.
   ([the receipt](success-test-accepts-any-output/EVIDENCE.md)).
 
 - [**mock-masked-stub-trap**](mock-masked-stub-trap/SKILL.md) — an implementation returns all
-  gates green while a load-bearing branch is stubbed in production, because the test patches
+  gates green while a branch the shipped behaviour depends on is stubbed, because the test patches
   the very helper that is the stub. Green is evidence the test passed, never evidence the
   production path ran ([the receipt](mock-masked-stub-trap/EVIDENCE.md)).
 

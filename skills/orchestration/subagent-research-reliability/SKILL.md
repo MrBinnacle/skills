@@ -114,7 +114,7 @@ Before dispatching `subagent_type=X` for web research, confirm X actually has th
   protocol embedded in the prompt; OR add WebSearch/WebFetch to the agent's `tools:`.
   **The description is not the capability — the frontmatter is.**
 
-### Check 2 — Post-return: verify every load-bearing claim, not just the citations
+### Check 2 — Post-return: verify every claim you will act on, not just the citations
 
 Treat a subagent's return as a set of leads. **Verify each claim you intend to act on**, against the
 source it names, before it reaches an artifact.

@@ -162,11 +162,13 @@ the opposite.
 
 ## Words
 
-Lists and scope: `tokens.json > copy`. Three notes there carry conditions worth knowing before
-you draft — `earn`, `robust`, `production-ready`.
+Lists and scope: `tokens.json > copy`. Three of the words carry notes with conditions worth
+knowing before you draft; `copy.words_to_avoid_notes` names those three and states each
+condition.
 
-The origin is worth carrying here because it is why the list exists: the retired tagline *"skills
-that have to earn their keep"* was cleared from three text surfaces and survived on
+The origin is worth carrying here because it is why the list exists: the retired tagline, quoted in
+full at `tokens.json > copy.words_to_avoid_notes`, was cleared from three text surfaces and
+survived on
 `assets/social-preview.png` — the one surface a stranger sees before clicking.
 
 **What the list reaches:** recurrence of an exact retired phrase.

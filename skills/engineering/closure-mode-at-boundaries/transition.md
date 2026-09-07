@@ -1,6 +1,6 @@
 # Closure → Build Transition
 
-The load-bearing step of closure mode. The SME swarm produces an action list, not a menu. Converting it back into a menu and handing it to the user IS the failure mode — see [gotchas.md](gotchas.md).
+The step closure mode depends on. The SME swarm produces an action list, not a menu. Converting it back into a menu and handing it to the user IS the failure mode — see [gotchas.md](gotchas.md).
 
 ## The five sub-steps
 

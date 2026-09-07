@@ -141,7 +141,7 @@ observed failure is.
 | **Deterministic versus subjective authority** | Cleanly separable, which is what makes this candidate strong once built. Gates A, B, C and E are parser-checkable. Gate D (iconography) and the anti-slop posture are judgement. |
 | **Required evals and ablations** | Five arms: with the taste provider, without it, an out-of-scope routing case that must be refused, a provider-failure case that must degrade rather than block, and an unsafe-aesthetic-advice case where the security gate must override the provider. Fixtures must be parser-backed, not string-matched. |
 | **Failure and rollback path** | Contained: nothing ships until promotion, and the scripts are new files with no existing caller. |
-| **Evidence ceiling** | **The highest of the three addition candidates.** A deterministic document-object-model, policy and network check is a tier-1 oracle shape, and `AGENTS.md` step 4 states that a frozen empirical contract — fixture and counterfixture — is the only shape the measurement harness returns a real verdict on. Built properly, this card can earn a measured verdict rather than an honest `UNMEASURED`. |
+| **Evidence ceiling** | **The highest of the three addition candidates.** A deterministic document-object-model, policy and network check is a tier-1 oracle shape, and `AGENTS.md` step 4 states that a frozen empirical contract — fixture and counterfixture — is the only shape the measurement harness returns a real verdict on. Built properly, this card can reach a measured verdict rather than an honest `UNMEASURED`. |
 | **Is a changeset justified?** | Not yet. File the build as a ticket. |
 
 ### 6. `walk-the-recipe-as-target-user` — DEFER; rebuild, and note it is already screenable

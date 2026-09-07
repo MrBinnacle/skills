@@ -45,7 +45,7 @@ A project that declares no `close_commit` is unaffected by the marker check; the
 3. Replace every `__REQUIRED__` marker.
 4. Record failed approaches and null results in time order.
 5. Record decisions with their reasons.
-6. Add each load-bearing claim with `verified` or `unverified` status.
+6. Add each claim the work rests on with `verified` or `unverified` status.
 7. Use typed `path`, `commit`, or `command` probes for verified claims.
 7a. Use a `command` probe only when the config authorises that exact command. An unlisted command probe rejects the packet.
 8. Label `skills_dispatched` as `telemetry` only when an event source exists.

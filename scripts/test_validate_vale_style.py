@@ -13,11 +13,13 @@ WHAT THIS SUITE HAS TO PROVE, AND WHY THE ORDINARY RUN CANNOT
 THE SCOPE BOUNDARY IS PINNED FIRST, ON PURPOSE
 
     `case_tree_wide_local_binding_rejected` runs before anything else, for the
-    same reason `test_validate_brand_kit.py` puts its README-body fixture first.
-    `assets/tokens.json` states that the marketing words appear in working
-    documentation deliberately, and the cheapest way to make this "more
-    thorough" is to bind the Local style to `[*.md]`. That fixture goes red the
-    moment anyone does.
+    same reason `test_validate_brand_kit.py` puts its inverted scope fixture
+    first. The rule it guards changed on 2026-09-06 but did not go away: the word
+    list now binds every line of prose (#261), and `scripts/validate_brand_kit.py`
+    is what enforces that. Vale stays bound to the one surface it can read, and a
+    `[*.md]` binding invented in `.vale.ini` rather than declared in
+    `assets/tokens.json` is still refused. That fixture goes red the moment anyone
+    writes one.
 
 THE MARKETING RULE FIRES ZERO TIMES ON THE LIVE TREE, SO ITS PROOF LIVES HERE
 

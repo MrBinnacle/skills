@@ -4,7 +4,7 @@
 
 - **The verification subagent can itself fabricate verdicts.** It's an LLM too. Keep its job
   mechanical (fetch URL, compare content, emit enum verdict) and spot-check any `UNRESOLVED`
-  that would kill a load-bearing finding — a transient 404 or a bot-blocked domain reads the
+  that would kill a finding the work depends on — a transient 404 or a bot-blocked domain reads the
   same as a fabricated source.
 - **`tools: *` doesn't guarantee searching happens.** A general-purpose agent with full tools
   can still answer from training data if the prompt doesn't demand live retrieval. Require
@@ -52,7 +52,7 @@ stress-test signal.)*
   never delivered. One of the three had its file write blocked by the host's own tooling guard and
   still delivered — full content fell back through `SendMessage`. This occurrence confirms Check 0's
   redundancy framing: the routes fail for unrelated causes, so one failing is survivable, and the
-  load-bearing instruction is to name a payload channel at all.
+  instruction that does the work is to name a payload channel at all.
 - **2026-09-06 / rotation and harvest pass (issue #213):** live documentation verification against
   code.claude.com/docs/en/tools-reference.md (Agent tool behavior), sub-agents.md (foreground /
   background return), and cross-session-messaging.md (`notify_when_idle`). Claim 1 was imprecise:
