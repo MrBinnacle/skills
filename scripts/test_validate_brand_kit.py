@@ -116,7 +116,15 @@ def baseline_tokens() -> dict[str, Any]:
         "color": {
             "structural": {
                 "repo.ink": {"value": "#E6EDF3", "role": "Primary text"},
-            }
+            },
+            # #256: the declared-hex surfaces are data. The baseline declares
+            # only the SVG surface, because the baseline tree ships no
+            # stylesheet and a surface matching nothing is a refusal.
+            "declared_hex_surfaces": {
+                "surfaces": [
+                    {"kind": "svg_hex", "glob": "assets/*.svg"},
+                ]
+            },
         },
         "copy": {
             "words_to_avoid": list(BASELINE_WORDS),
@@ -651,6 +659,127 @@ def case_undeclared_hex_rejected(tmp: Path) -> None:
     )
 
 
+def _tokens_with_css_surface() -> dict[str, Any]:
+    tokens = baseline_tokens()
+    tokens["color"]["declared_hex_surfaces"]["surfaces"].append(
+        {"kind": "css_hex", "glob": "site/*.css"}
+    )
+    return tokens
+
+
+def _tree_with_stylesheet(tmp: Path, css: str) -> Path:
+    root = baseline_tree(tmp, tokens=_tokens_with_css_surface())
+    site = root / "site"
+    site.mkdir(parents=True, exist_ok=True)
+    (site / "style.css").write_text(css, encoding="utf-8")
+    return root
+
+
+def case_css_undeclared_hex_rejected(tmp: Path) -> None:
+    """#256: the stylesheet joins the declared-hex check.
+
+    Before this, `site/style.css` drew every value from the token file and
+    nothing verified it. The page is where a stranger meets the colour, so a
+    hex reaching them through CSS is the same claim as one reaching them
+    through an asset.
+    """
+    expect_one_breach(
+        "an undeclared hex in the stylesheet rejected",
+        _tree_with_stylesheet(tmp, ":root { --ink: #3fb950; }\n"),
+        "undeclared hex #3fb950",
+    )
+
+
+def case_css_hex_in_a_comment_ignored(tmp: Path) -> None:
+    """A hex in a comment paints nothing, exactly as in the SVG scanner.
+
+    The SVG path gets this free from ElementTree discarding comments. CSS has
+    no parser here, so `css_hexes` strips `/* ... */` first. Without that, a
+    note recording why a colour was removed would be refused as the colour.
+    """
+    root = _tree_with_stylesheet(
+        tmp,
+        "/* #3fb950 belongs to the sibling instrument and is not used here. */\n"
+        ":root { --ink: #e6edf3; }\n",
+    )
+    result = run_checker(root)
+    check(
+        "a hex inside a CSS comment is not a shipped colour",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
+def case_unknown_hex_surface_kind_refused(tmp: Path) -> None:
+    """A declared surface nothing reads is a check that never runs."""
+    tokens = baseline_tokens()
+    tokens["color"]["declared_hex_surfaces"]["surfaces"] = [
+        {"kind": "sass_hex", "glob": "assets/*.svg"},
+    ]
+    expect_refusal(
+        "an unknown declared-hex surface kind refused",
+        baseline_tree(tmp, tokens=tokens),
+        "is not one this script",
+    )
+
+
+def case_hex_surface_matching_nothing_refused(tmp: Path) -> None:
+    """The vacuity guard: a glob matching no file is a check over nothing."""
+    tokens = baseline_tokens()
+    tokens["color"]["declared_hex_surfaces"]["surfaces"] = [
+        {"kind": "svg_hex", "glob": "assets/*.svg"},
+        {"kind": "css_hex", "glob": "site/*.css"},
+    ]
+    expect_refusal(
+        "a declared-hex surface matching no file refused",
+        baseline_tree(tmp, tokens=tokens),
+        "matched no file",
+    )
+
+
+def case_missing_hex_surface_block_refused(tmp: Path) -> None:
+    tokens = baseline_tokens()
+    del tokens["color"]["declared_hex_surfaces"]
+    expect_refusal(
+        "a token file declaring no hex surface refused",
+        baseline_tree(tmp, tokens=tokens),
+        "color.declared_hex_surfaces is missing",
+    )
+
+
+def case_live_stylesheet_surface_is_not_vacuous() -> None:
+    """Non-vacuity for the surface this change added, against what ships.
+
+    A glob that stopped matching, or a comment stripper that ate the file,
+    would leave the stylesheet unchecked while the PASS line still read PASS.
+    """
+    tokens = json.loads((REPO_ROOT / "assets" / "tokens.json").read_text(encoding="utf-8"))
+    globs = [
+        spec.get("glob")
+        for spec in tokens["color"]["declared_hex_surfaces"]["surfaces"]
+        if spec.get("kind") == "css_hex"
+    ]
+    check("a css_hex surface is declared", bool(globs), str(globs))
+    matched = [path for glob in globs if glob for path in REPO_ROOT.glob(glob)]
+    check("the css_hex glob matches a shipped stylesheet", bool(matched), str(globs))
+    found = {
+        kit.normalise_hex(raw)
+        for path in matched
+        for raw in kit.css_hexes(path.read_text(encoding="utf-8"))
+    }
+    check(
+        "the stylesheet scanner returns colours",
+        bool(found),
+        f"{[p.name for p in matched]} yielded no hex; the scanner has gone blind",
+    )
+    declared = kit.declared_hexes(tokens.get("color"), set())
+    check(
+        "every colour the stylesheet ships is declared",
+        found <= declared,
+        f"undeclared: {sorted(found - declared)}",
+    )
+
+
 def case_prose_naming_a_hex_declares_nothing(tmp: Path) -> None:
     """The defect the CI poison control found before this suite did.
 
@@ -980,6 +1109,11 @@ def main() -> None:
         case_missing_pair_half_rejected,
         case_empty_pairs_with_no_reason_refused,
         case_undeclared_hex_rejected,
+        case_css_undeclared_hex_rejected,
+        case_css_hex_in_a_comment_ignored,
+        case_unknown_hex_surface_kind_refused,
+        case_hex_surface_matching_nothing_refused,
+        case_missing_hex_surface_block_refused,
         case_prose_naming_a_hex_declares_nothing,
         case_declared_hex_is_case_insensitive,
         case_three_digit_hex_normalised,
@@ -1002,6 +1136,7 @@ def main() -> None:
     case_live_svg_scanner_sees_real_copy()
     case_live_banners_carry_no_instrument_palette()
     case_live_light_neutrals_are_declared()
+    case_live_stylesheet_surface_is_not_vacuous()
     case_live_notes_grant_no_permission_no_checker_implements()
     case_workflow_runs_the_checker()
 
@@ -1013,8 +1148,8 @@ def main() -> None:
         "tree(s) plus the live tree; every breach case asserts its own message and "
         "an exact breach count, the scope boundary is pinned by the fixture that "
         "was inverted when it moved, both exclusions have a fixture, the published "
-        "word-list digest is checked against the shipped list, and the SVG and "
-        "prose scanners are proven non-vacuous against what ships."
+        "word-list digest is checked against the shipped list, and the SVG, "
+        "prose and stylesheet scanners are proven non-vacuous against what ships."
     )
 
 

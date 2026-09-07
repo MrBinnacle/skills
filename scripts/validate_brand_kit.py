@@ -18,8 +18,13 @@ THE THREE CHECKS
        its recorded hash is refused. This is what stops a copy check from being
        defeated by editing a text-bearing source and shipping a stale export.
 
-    3. DECLARED HEXES. Every colour appearing in `assets/*.svg` is declared
-       as a token VALUE under `color`. Prose that merely NAMES a hex declares
+    3. DECLARED HEXES. Every colour appearing on a surface named in
+       `color.declared_hex_surfaces` is declared as a token VALUE under
+       `color`. Those surfaces are DATA for the same reason the copy surfaces
+       are: until #256 the glob was hard-coded to `assets/*.svg`, so the
+       landing page stylesheet drew every value from this file with nothing
+       verifying it, and widening the check was an edit here rather than a
+       recorded decision. Prose that merely NAMES a hex declares
        nothing - see `declared_hexes`. This is the check the ticket ordered LAST,
        and the order was a constraint rather than a preference: it would have
        failed on both banners until the two colour gaps closed, so landing it
@@ -80,13 +85,18 @@ WHY HEX SCANNING GOES THROUGH THE PARSER TOO
     now NAME the instrument green in a comment explaining why it was removed. A
     regex over the raw file would refuse them for the note recording the fix.
 
+    CSS has one comment form and no parser here, so `css_hexes` removes
+    `/* ... */` before scanning. That buys the stylesheet the same exemption
+    for the same reason: a hex inside a comment paints nothing.
+
 NON-VACUITY IS CHECKED AT RUNTIME, NOT ONLY IN THE SUITE
     Two of these three checks guard things that are ABSENT on a healthy
     repository - no banned word, no hash mismatch - which is exactly the
     condition under which a check that has gone blind is indistinguishable from
     one that is working. So this script refuses its own inputs when they could
     make it vacuous: an empty word list, a surface glob matching no file, an SVG
-    scan that returns no copy at all, an asset scan that finds no colour, or an
+    scan that returns no copy at all, a declared-hex surface list that is empty
+    or names a kind nothing reads, a hex scan that finds no colour, or an
     `asset_pairs` block recording neither a pair nor a stated reason for having
     none.
 
@@ -120,9 +130,9 @@ from typing import Any, Final
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 TOKENS_PATH: Final[str] = "assets/tokens.json"
-SVG_GLOB: Final[str] = "assets/*.svg"
 COPY_ELEMENTS: Final[frozenset[str]] = frozenset({"text", "title", "desc"})
 HEX_RE: Final[re.Pattern[str]] = re.compile(r"#[0-9a-fA-F]{3,8}\b")
+CSS_COMMENT_RE: Final[re.Pattern[str]] = re.compile(r"/\*.*?\*/", re.DOTALL)
 HEADING_RE: Final[re.Pattern[str]] = re.compile(r"^#{1,6}\s+(.*)$", re.MULTILINE)
 # Setext headings underline their text with = or - on the next line. They are
 # part of the headings surface too: the repo writes ATX throughout, but a
@@ -436,22 +446,75 @@ def declared_hexes(node: Any, into: set[str]) -> set[str]:
     return into
 
 
-def undeclared_hex_violations(root: Path, declared: set[str]) -> tuple[list[str], int, int]:
+def css_hexes(css: str) -> list[str]:
+    """Colours a stylesheet ships. A hex inside a comment ships nothing.
+
+    The SVG scanner goes through a parser so that a hex in an XML comment is
+    not read as a shipped colour (`case_hex_in_a_comment_ignored`). CSS needs
+    the same exemption for the same reason, and CSS has one comment form, so
+    removing `/* ... */` before scanning is the whole of it.
+    """
+    return HEX_RE.findall(CSS_COMMENT_RE.sub(" ", css))
+
+
+def hex_surface_specs(tokens: dict[str, Any]) -> list[dict[str, Any]]:
+    """The declared-hex surfaces, read as data (#256).
+
+    Hard-coding the glob would make widening the check an invisible edit. The
+    token file states which files ship colour, the same way it states which
+    files carry public copy.
+    """
+    colour_block = tokens.get("color")
+    block = colour_block.get("declared_hex_surfaces") if isinstance(colour_block, dict) else None
+    if not isinstance(block, dict):
+        raise Refusal("color.declared_hex_surfaces is missing")
+    specs = block.get("surfaces")
+    if not isinstance(specs, list) or not specs:
+        raise Refusal(
+            "color.declared_hex_surfaces.surfaces is empty. A declared palette "
+            "with no surface to read is a check over nothing."
+        )
+    return [spec for spec in specs if isinstance(spec, dict)]
+
+
+def undeclared_hex_violations(
+    root: Path, declared: set[str], specs: list[dict[str, Any]]
+) -> tuple[list[str], int, int]:
     violations: list[str] = []
     seen: set[str] = set()
-    files = sorted(root.glob(SVG_GLOB))
-    for path in files:
-        relative = path.relative_to(root).as_posix()
-        for raw in svg_hexes(path.read_text(encoding="utf-8")):
-            colour = normalise_hex(raw)
-            seen.add(colour)
-            if colour not in declared:
-                violations.append(
-                    f"{relative}: undeclared hex {colour}. Every colour an asset "
-                    "ships must be declared in assets/tokens.json. Declare it, or "
-                    "change the asset to a colour that is."
-                )
-    return sorted(set(violations)), len(seen), len(files)
+    files = 0
+    for spec in specs:
+        kind = spec.get("kind")
+        glob = spec.get("glob")
+        if not isinstance(glob, str) or not glob:
+            raise Refusal("a declared_hex_surfaces entry names no glob")
+        if kind not in ("svg_hex", "css_hex"):
+            raise Refusal(
+                f"declared_hex_surfaces kind {ascii(kind)} is not one this script "
+                "implements. Kinds are svg_hex and css_hex. A surface kind nothing "
+                "reads is a declared check that never runs."
+            )
+        paths = sorted(root.glob(glob))
+        if not paths:
+            raise Refusal(
+                f"declared_hex_surfaces glob {ascii(glob)} matched no file under "
+                f"{root}. A surface that matches nothing is a check over nothing."
+            )
+        files += len(paths)
+        for path in paths:
+            relative = path.relative_to(root).as_posix()
+            text = path.read_text(encoding="utf-8")
+            raws = svg_hexes(text) if kind == "svg_hex" else css_hexes(text)
+            for raw in raws:
+                colour = normalise_hex(raw)
+                seen.add(colour)
+                if colour not in declared:
+                    violations.append(
+                        f"{relative}: undeclared hex {colour}. Every colour a "
+                        "surface ships must be declared in assets/tokens.json. "
+                        "Declare it, or change the surface to a colour that is."
+                    )
+    return sorted(set(violations)), len(seen), files
 
 
 # --------------------------------------------------------------------------
@@ -546,13 +609,17 @@ def validate(root: Path) -> None:
     declared = declared_hexes(tokens.get("color"), set())
     if not declared:
         raise Refusal("assets/tokens.json declares no colour at all")
-    hex_violations, distinct_hexes, svg_files = undeclared_hex_violations(root, declared)
-    if svg_files == 0:
-        raise Refusal(f"no SVG asset found under {root}/assets")
+    hex_specs = hex_surface_specs(tokens)
+    hex_violations, distinct_hexes, hex_files = undeclared_hex_violations(
+        root, declared, hex_specs
+    )
+    if hex_files == 0:
+        raise Refusal(f"no declared-hex surface matched any file under {root}")
     if distinct_hexes == 0:
         raise Refusal(
-            "no colour was found in any SVG asset. Either every asset inherits "
-            "currentColor, or the hex scanner has gone blind."
+            "no colour was found on any declared-hex surface. Either every asset "
+            "inherits currentColor and the stylesheet names none, or the hex "
+            "scanner has gone blind."
         )
     violations.extend(hex_violations)
 
@@ -561,7 +628,7 @@ def validate(root: Path) -> None:
             print(f"  - {line}", file=sys.stderr)
         print(
             f"REJECTED: {len(violations)} brand kit breach(es) across "
-            f"{len(surfaces)} public copy surface(s) and {svg_files} SVG asset(s).",
+            f"{len(surfaces)} public copy surface(s) and {hex_files} declared-hex surface(s).",
             file=sys.stderr,
         )
         raise SystemExit(1)
@@ -571,7 +638,7 @@ def validate(root: Path) -> None:
         f"PASS: brand kit {version} enforced - {len(surfaces)} public copy "
         f"surface(s) scanned against {len(words)} banned word(s), "
         f"{len(pairs)} asset pair(s) hash-verified, {distinct_hexes} distinct "
-        f"hex(es) across {svg_files} SVG asset(s) all declared in the kit. "
+        f"hex(es) across {hex_files} declared-hex surface(s) all declared in the kit. "
         "This detects breaches; it does not prevent them."
     )
 
