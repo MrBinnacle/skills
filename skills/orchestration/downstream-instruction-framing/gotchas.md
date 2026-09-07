@@ -13,7 +13,7 @@
   part that keeps the rest from being executed blindly.
 - **Downstream over-correction.** An agent given full license to disagree can re-open settled
   values decisions without new evidence. The "no arbitrary re-opening" clause in the template is
-  load-bearing; keep it when adapting.
+  what prevents that; keep it when adapting.
 - **[ANTICIPATED 2026-08-12] Supersedes the first anticipated entry's universal wording.** A
   `Revisit if:` clause belongs only on a decision whose outcome could change with new evidence.
   Values decisions and explicit user constraints are non-negotiable; adding a clause to them is

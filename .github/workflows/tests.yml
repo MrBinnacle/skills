@@ -741,10 +741,15 @@ jobs:
       # files it pairs, and every hex an asset ships declared in the kit.
       #
       # The word list and the surface list are DATA. Adding a word is a one-line
-      # edit to the token file and never a change to the checker, and README
-      # BODY prose is deliberately outside the scope -- several banned words
-      # appear there, and in AGENTS.md and the skill cards, in the sense the
-      # words are good for.
+      # edit to the token file and never a change to the checker.
+      #
+      # The scope was public asset copy only until the operator ruled on
+      # 2026-09-06: one word list, all repositories, every single line of prose,
+      # the same rules (#261). The markdown_prose surface carries that, over
+      # every tracked .md except `_quarantine/**` and CHANGELOG.md, and the
+      # checker runs it inside the same `Brand-kit check` step below -- a new
+      # surface needs no new CI step, because the surface list is data the one
+      # checker reads.
       #
       # Same caveat as every other check here: this DETECTS breaches. `main` has
       # no required checks, so a nonzero exit is a signal, not a gate.
@@ -808,9 +813,52 @@ jobs:
             || { echo "::error::copy fixture failed for the wrong reason"; cat "$log"; exit 1; }
           grep -q "banned word 'earn'" "$log" \
             || { echo "::error::copy fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          # TWO breaches, one per surface. A README heading sits inside the
+          # markdown_prose surface as well as the headings surface, so the
+          # planted word is reported once by each. Asserting 2 and requiring both
+          # labels is stricter than asserting 1 was: deleting either check drops
+          # the count and reddens this control.
+          grep -q "README.md:prose" "$log" \
+            || { echo "::error::the prose surface did not report the planted heading"; cat "$log"; exit 1; }
+          grep -q 'REJECTED: 2 brand kit breach(es)' "$log" \
+            || { echo "::error::copy fixture was red for a reason other than the two surfaces"; cat "$log"; exit 1; }
+          echo "control: a banned word in a README heading rejected by both markdown surfaces"
+
+      # The prose half needs its own control, and it must be planted somewhere
+      # the headings surface cannot see. The step above plants a README HEADING,
+      # which both markdown surfaces read; if the markdown_prose surface stopped
+      # resolving, that control would still be red on the headings surface alone
+      # and report the prose scan as working. This one plants a banned word in
+      # the BODY of a skill card, where only the prose surface reaches -- so it
+      # is red if and only if the ruling of 2026-09-06 is enforced.
+      - name: Poison control - a banned word in skill-card body prose must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-brand-prose"
+          log="$RUNNER_TEMP/control-brand-prose.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/assets" "$tree/skills/engineering/a-card"
+          cp assets/*.svg assets/*.png assets/tokens.json "$tree/assets/"
+          cp README.md package.json "$tree/"
+          # Written with printf rather than a heredoc: a quoted heredoc inside an
+          # indented `run:` block never terminates, because only tabs are
+          # strippable and YAML forbids dedenting the closing word to column zero.
+          printf '# A card\n\nThe apostrophe rule here is load-bearing.\n' \
+            > "$tree/skills/engineering/a-card/SKILL.md"
+          grep -q 'load-bearing' "$tree/skills/engineering/a-card/SKILL.md" \
+            || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          if python scripts/validate_brand_kit.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::the planted body prose was ACCEPTED - the copy check does not read markdown prose"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'skills/engineering/a-card/SKILL.md:prose' "$log" \
+            || { echo "::error::prose fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -q "banned word 'load-bearing'" "$log" \
+            || { echo "::error::prose fixture failed for the wrong reason"; cat "$log"; exit 1; }
           grep -q 'REJECTED: 1 brand kit breach(es)' "$log" \
-            || { echo "::error::copy fixture was red for more than one reason"; cat "$log"; exit 1; }
-          echo "control: a banned word in a README heading rejected as expected"
+            || { echo "::error::prose fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: a banned word in skill-card body prose rejected as expected"
 
       # The freshness half needs its own control. The step above fails on copy
       # and returns nothing about hashes. This fixture's copy is clean and its

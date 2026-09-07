@@ -13,11 +13,18 @@ EACH FIXTURE FAILS ON ONE ASSERTION, AND THE SUITE PROVES IT
     reports, so a fixture red for two reasons would stay red if the check under
     test were deleted -- the count is what rules that out.
 
-THE SCOPE BOUNDARY IS PINNED BEFORE THE CHECK THAT COULD WIDEN IT
-    `case_readme_body_prose_passes` is first on purpose. The banned list holds
-    words that appear legitimately in working documentation, and the cheapest
-    way to make a copy check "more thorough" is to read whole files instead of
-    headings. That fixture goes red the moment anyone does.
+THE SCOPE BOUNDARY MOVED, AND THE FIXTURE THAT PINNED IT IS NOW ITS CONTROL
+    `case_readme_body_prose_passes` used to be first, asserting that a banned
+    word in README BODY prose PASSED. The operator ruling of 2026-09-06 - one
+    word list, all repositories, every single line of prose, the same rules -
+    made that assertion wrong, so it was inverted rather than deleted:
+    `case_markdown_prose_with_a_banned_word_rejected` now asserts the opposite,
+    and it is still first. A scope boundary needs a fixture on it whichever side
+    the boundary sits.
+
+    The two exclusions the ruling left standing have a fixture each,
+    `case_quarantine_document_excluded` and `case_changelog_excluded`, because an
+    exclusion nothing tests is an exclusion that can widen by accident.
 
 NON-VACUITY IS PROVEN TWICE
     Once against the temporary trees, where a scanner that returned nothing
@@ -63,10 +70,15 @@ BASELINE_SVG = (
     "</svg>\n"
 )
 
+# The baseline carries no banned word anywhere, headings or body. It used to
+# carry two in its body, as the evidence that body prose was out of scope; under
+# the 2026-09-06 ruling that same body is in scope, so a baseline carrying them
+# would make every fixture below red for a second reason and destroy the breach
+# counts the suite asserts.
 BASELINE_README = (
     "# The collection\n\n"
-    "The apostrophe rule here is load-bearing and the retry budget is robust.\n"
-    "Both sentences are working documentation, and both are out of scope.\n\n"
+    "The apostrophe rule here is what the parser depends on, and the retry budget is stated.\n"
+    "Both sentences are working documentation, and both are now in scope.\n\n"
     "## Admission method\n\n"
     "A card is admitted by the gate.\n"
 )
@@ -75,6 +87,20 @@ BASELINE_PACKAGE = {
     "name": "mrbinnacle-skills",
     "description": "A small, evidence-backed collection of agent skills.",
 }
+
+
+BASELINE_WORDS = ["earn", "curated", "load-bearing", "robust", "unlock"]
+
+
+def word_list_digest(words: list[str]) -> str:
+    """The published digest, recomputed here rather than imported from the checker.
+
+    Calling `kit.word_list_digest` would make every fixture agree with the
+    checker by construction, which is the same defect `baseline_tokens` avoids by
+    not reading assets/tokens.json: the fixture would stop being evidence that
+    the contract is the one the token file states.
+    """
+    return hashlib.sha256(json.dumps(words, separators=(",", ":")).encode()).hexdigest()
 
 
 def baseline_tokens() -> dict[str, Any]:
@@ -92,8 +118,12 @@ def baseline_tokens() -> dict[str, Any]:
             }
         },
         "copy": {
-            "words_to_avoid": ["earn", "curated", "load-bearing", "robust", "unlock"],
-            "words_to_avoid_scope": "Public asset copy only.",
+            "words_to_avoid": list(BASELINE_WORDS),
+            "words_to_avoid_digest": {
+                "algorithm": "sha256",
+                "sha256": word_list_digest(BASELINE_WORDS),
+            },
+            "words_to_avoid_scope": "Every line of prose, and the public asset copy.",
             "words_to_avoid_surfaces": {
                 "surfaces": [
                     {"kind": "svg_copy", "glob": "assets/*.svg"},
@@ -102,6 +132,11 @@ def baseline_tokens() -> dict[str, Any]:
                         "kind": "json_string_field",
                         "glob": "package.json",
                         "field": "description",
+                    },
+                    {
+                        "kind": "markdown_prose",
+                        "glob": "**/*.md",
+                        "exclude": ["_quarantine/**", "CHANGELOG.md"],
                     },
                 ]
             },
@@ -167,14 +202,37 @@ def expect_pass(name: str, root: Path) -> None:
     )
 
 
-def expect_one_breach(name: str, root: Path, *substrings: str) -> None:
+def expect_breaches(
+    name: str,
+    root: Path,
+    expected: int,
+    *substrings: str,
+    absent: tuple[str, ...] = (),
+) -> None:
+    """Assert an exact breach count, the messages present, and the messages absent.
+
+    The count is the single-reason guard: a fixture red for two reasons would
+    stay red if the check under test were deleted. `absent` is what separates
+    two surfaces that read the same file - a banned word in README body prose
+    must be reported by the prose surface and NOT by the headings surface.
+    """
     result = run_checker(root)
+    marker = f"REJECTED: {expected} brand kit breach(es)"
     missing = [item for item in substrings if item not in result.stderr]
+    unwanted = [item for item in absent if item in result.stderr]
     check(
         name,
-        result.returncode == 1 and ONE_BREACH in result.stderr and not missing,
-        f"rc={result.returncode} missing={missing!r} err={result.stderr.strip()!r}",
+        result.returncode == 1
+        and marker in result.stderr
+        and not missing
+        and not unwanted,
+        f"rc={result.returncode} missing={missing!r} unwanted={unwanted!r} "
+        f"err={result.stderr.strip()!r}",
     )
+
+
+def expect_one_breach(name: str, root: Path, *substrings: str) -> None:
+    expect_breaches(name, root, 1, *substrings)
 
 
 def expect_refusal(name: str, root: Path, *substrings: str) -> None:
@@ -189,45 +247,97 @@ def expect_refusal(name: str, root: Path, *substrings: str) -> None:
 
 
 # --------------------------------------------------------------------------
-# The scope boundary. First, on purpose.
+# The scope boundary. First, on purpose - now on the other side of itself.
 # --------------------------------------------------------------------------
-def case_readme_body_prose_passes(tmp: Path) -> None:
-    """Banned words in README BODY prose are out of scope and must pass.
+def case_markdown_prose_with_a_banned_word_rejected(tmp: Path) -> None:
+    """A banned word in markdown BODY prose is refused.
 
-    The baseline README carries two of them, in the sense the words are good
-    for. This repository's AGENTS.md, SECURITY.md and skill cards do the same.
-    Widening the copy check to whole files turns this red, which is the point.
+    THIS FIXTURE WAS INVERTED. It read `case_readme_body_prose_passes` and
+    asserted that the baseline README's body, which carried `load-bearing` and
+    `robust`, PASSED - because the token file declared body prose out of scope
+    and the words appeared in working documentation on purpose. The operator
+    ruled on 2026-09-06: one voice, one word list, all repositories, every
+    single line of prose, the same rules. MrBinnacle/skills#261 carries the
+    ruling and the 25-line rewrite it forced.
+
+    It was inverted rather than deleted because the boundary still needs a
+    fixture standing on it. A poison control that has never been watched fail is
+    not a control, so the flip was demonstrated both ways: red against the
+    checker before the markdown_prose surface was read, green after.
     """
-    expect_pass("readme body prose passes", baseline_tree(tmp))
+    readme = BASELINE_README + "\nThe apostrophe rule here is load-bearing.\n"
+    expect_breaches(
+        "a banned word in markdown body prose rejected",
+        baseline_tree(tmp, readme=readme),
+        1,
+        "README.md:prose",
+        "banned word 'load-bearing'",
+    )
 
 
 def case_readme_heading_rejected(tmp: Path) -> None:
+    """A README heading is inside BOTH markdown surfaces, so it reports twice.
+
+    The prose surface reads whole documents and the headings surface reads the
+    front page's headings, so this line is a breach on each. Both labels are
+    asserted: deleting either check drops the count to one and reddens this.
+    """
     readme = BASELINE_README.replace("## Admission method", "## Skills that earn their keep")
-    expect_one_breach(
+    expect_breaches(
         "readme heading with a banned word rejected",
         baseline_tree(tmp, readme=readme),
+        2,
         "README.md:headings",
+        "README.md:prose",
         "banned word 'earn'",
     )
 
 
-def case_body_prose_stays_out_when_the_heading_is_clean(tmp: Path) -> None:
-    """The discriminator. A banned word two lines below a clean heading passes.
+def case_body_prose_is_reported_as_prose_not_as_a_heading(tmp: Path) -> None:
+    """The discriminator between the two markdown surfaces.
 
-    A whole-file scan would call this a breach. The line number reported for
-    the heading case above must therefore be an offset into the HEADINGS, not
-    into the file.
+    A banned word two lines below a clean heading is one breach, on the prose
+    surface. If the headings surface also reported it, the heading scan would be
+    reading whole files and its line numbers would be meaningless.
     """
     readme = BASELINE_README + "\n### A clean heading\n\nMore curated notes here.\n"
-    expect_pass("body prose below a clean heading passes", baseline_tree(tmp, readme=readme))
+    expect_breaches(
+        "body prose below a clean heading is a prose breach only",
+        baseline_tree(tmp, readme=readme),
+        1,
+        "README.md:prose",
+        "banned word 'curated'",
+        absent=("README.md:headings",),
+    )
 
 
-def case_fenced_code_is_not_a_heading(tmp: Path) -> None:
-    """A shell comment inside a fence starts with '#' and is not a heading.
+def case_prose_line_number_is_the_line_number_in_the_file(tmp: Path) -> None:
+    """A breach after a fenced block reports its real line.
 
-    Cross-review reproduced the false breach: a fenced '# earn ...' line read
-    as a heading turned working documentation red -- exactly the class the
-    scope rule excludes.
+    The fence remover for the prose surface blanks fenced lines instead of
+    dropping them. Dropping them would shift every later line number by the
+    length of the fence and send a reader to the wrong line of a long card.
+    """
+    readme = BASELINE_README + (
+        "\n```bash\necho one\necho two\necho three\n```\n\nMore curated notes here.\n"
+    )
+    expected_line = readme.splitlines().index("More curated notes here.") + 1
+    expect_breaches(
+        "a prose breach reports its line number in the file",
+        baseline_tree(tmp, readme=readme),
+        1,
+        "README.md:prose",
+        f"at line {expected_line} of the",
+    )
+
+
+def case_fenced_code_is_out_of_both_markdown_surfaces(tmp: Path) -> None:
+    """A banned word inside a fence passes: a fence holds code, not prose.
+
+    Cross-review reproduced the false breach on the headings surface: a fenced
+    '# earn ...' line read as a heading. The prose surface skips fences for the
+    same reason and one more - inside a fence a banned word is often the name of
+    a real command, field or file rather than a claim about one.
     """
     readme = BASELINE_README + (
         "\n```bash\n# earn a receipt for every run\necho done\n```\n"
@@ -239,14 +349,80 @@ def case_setext_heading_rejected(tmp: Path) -> None:
     """A setext heading is part of the headings surface, same as ATX.
 
     Cross-review reproduced the miss: 'Skills that earn their keep' underlined
-    with equals signs passed while the same words behind '##' were refused.
+    with equals signs passed while the same words behind '##' were refused. It
+    is now a breach on the prose surface too; both labels are asserted.
     """
     readme = BASELINE_README + "\nSkills that earn their keep\n====\n"
-    expect_one_breach(
+    expect_breaches(
         "setext heading with a banned word rejected",
         baseline_tree(tmp, readme=readme),
+        2,
         "README.md:headings",
+        "README.md:prose",
         "banned word 'earn'",
+    )
+
+
+# --------------------------------------------------------------------------
+# The two exclusions the ruling left standing.
+# --------------------------------------------------------------------------
+def case_quarantine_document_excluded(tmp: Path) -> None:
+    """_quarantine/ holds frozen candidates, so a rule reddening on one would
+    demand an edit the repository forbids."""
+    root = baseline_tree(tmp)
+    candidate = root / "_quarantine" / "a-candidate"
+    candidate.mkdir(parents=True)
+    (candidate / "SKILL.md").write_text("# Frozen\n\nA robust candidate.\n", encoding="utf-8")
+    expect_pass("a banned word inside _quarantine passes", root)
+
+
+def case_changelog_excluded(tmp: Path) -> None:
+    """CHANGELOG.md records what shipped under the wording in force at the time,
+    so rewriting an entry would falsify the record the file exists to keep."""
+    root = baseline_tree(tmp)
+    (root / "CHANGELOG.md").write_text(
+        "# Changelog\n\n- A curated release note.\n", encoding="utf-8"
+    )
+    expect_pass("a banned word inside CHANGELOG.md passes", root)
+
+
+def case_exclusion_removing_every_file_refused(tmp: Path) -> None:
+    """A surface excluded down to nothing is a check that runs on nothing."""
+    tokens = baseline_tokens()
+    tokens["copy"]["words_to_avoid_surfaces"]["surfaces"][3]["exclude"] = ["**"]
+    expect_refusal(
+        "an exclude list that removes every file is refused",
+        baseline_tree(tmp, tokens=tokens),
+        "removed every one of them",
+    )
+
+
+# --------------------------------------------------------------------------
+# The published digest of the word list.
+# --------------------------------------------------------------------------
+def case_stale_word_list_digest_refused(tmp: Path) -> None:
+    """The drift contract MrBinnacle/skill-harness#462 vendors this list against.
+
+    A digest that no longer names the list on disk would have the sibling compare
+    against a list that does not exist, so the disagreement is a refusal here
+    rather than a breach: the token file's own inputs are wrong.
+    """
+    tokens = baseline_tokens()
+    tokens["copy"]["words_to_avoid_digest"]["sha256"] = "0" * 64
+    expect_refusal(
+        "a published digest that disagrees with the list is refused",
+        baseline_tree(tmp, tokens=tokens),
+        "was edited without re-recording the digest",
+    )
+
+
+def case_missing_word_list_digest_refused(tmp: Path) -> None:
+    tokens = baseline_tokens()
+    del tokens["copy"]["words_to_avoid_digest"]
+    expect_refusal(
+        "a token file publishing no digest is refused",
+        baseline_tree(tmp, tokens=tokens),
+        "copy.words_to_avoid_digest is missing",
     )
 
 
@@ -343,9 +519,17 @@ def case_package_description_rejected(tmp: Path) -> None:
 
 
 def case_ban_list_is_data(tmp: Path) -> None:
-    """Adding a word is a data edit. Nothing in the checker names any word."""
+    """Adding a word is a data edit. Nothing in the checker names any word.
+
+    The digest is re-recorded with it. That is the contract working, not a
+    workaround: editing the list without re-recording is what
+    `case_stale_word_list_digest_refused` proves is refused.
+    """
     tokens = baseline_tokens()
     tokens["copy"]["words_to_avoid"].append("inventory")
+    tokens["copy"]["words_to_avoid_digest"]["sha256"] = word_list_digest(
+        tokens["copy"]["words_to_avoid"]
+    )
     expect_one_breach(
         "a word added only to the token file is enforced",
         baseline_tree(tmp, tokens=tokens),
@@ -629,12 +813,66 @@ def case_live_light_neutrals_are_declared() -> None:
     )
 
 
+def case_live_published_digest_matches_the_live_list() -> None:
+    """The value MrBinnacle/skill-harness#462 vendors against, checked at source."""
+    tokens = json.loads((REPO_ROOT / "assets" / "tokens.json").read_text(encoding="utf-8"))
+    copy_block = tokens["copy"]
+    published = copy_block["words_to_avoid_digest"]["sha256"]
+    computed = word_list_digest(copy_block["words_to_avoid"])
+    check(
+        "the published digest names the shipped word list",
+        published == computed,
+        f"published {published}, computed {computed}",
+    )
+
+
+def case_live_prose_surface_reads_the_whole_tree() -> None:
+    """Non-vacuity for the widest surface, against what ships.
+
+    The prose surface resolves to one label per in-scope document. A glob that
+    had stopped matching, or an exclude list that had widened, would leave the
+    ruling enforced over a handful of files while the PASS line still read PASS.
+    """
+    tokens = json.loads((REPO_ROOT / "assets" / "tokens.json").read_text(encoding="utf-8"))
+    spec = next(
+        surface
+        for surface in tokens["copy"]["words_to_avoid_surfaces"]["surfaces"]
+        if surface["kind"] == "markdown_prose"
+    )
+    resolved = kit.surface_copy(REPO_ROOT, spec)
+    tracked = subprocess.run(
+        ["git", "ls-files", "*.md"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    in_scope = [
+        name
+        for name in tracked
+        if not name.startswith("_quarantine/") and name != "CHANGELOG.md"
+    ]
+    check(
+        "the prose surface resolves to every in-scope tracked document",
+        len(resolved) == len(in_scope) and len(in_scope) > 100,
+        f"surface resolved {len(resolved)} document(s), git tracks {len(in_scope)} in scope",
+    )
+    check(
+        "the prose surface excludes the two documents the ruling left out",
+        not any(
+            label.startswith("_quarantine/") or label.startswith("CHANGELOG.md")
+            for label, _ in resolved
+        ),
+        "an excluded document reached the prose surface",
+    )
+
+
 def case_workflow_runs_the_checker() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     for fragment in (
         "scripts/test_validate_brand_kit.py",
         "scripts/validate_brand_kit.py",
         "control-brand-copy",
+        "control-brand-prose",
         "control-brand-hash",
         "control-brand-hex",
     ):
@@ -643,11 +881,17 @@ def case_workflow_runs_the_checker() -> None:
 
 def main() -> None:
     in_tempdir = (
-        case_readme_body_prose_passes,
+        case_markdown_prose_with_a_banned_word_rejected,
         case_readme_heading_rejected,
-        case_body_prose_stays_out_when_the_heading_is_clean,
-        case_fenced_code_is_not_a_heading,
+        case_body_prose_is_reported_as_prose_not_as_a_heading,
+        case_prose_line_number_is_the_line_number_in_the_file,
+        case_fenced_code_is_out_of_both_markdown_surfaces,
         case_setext_heading_rejected,
+        case_quarantine_document_excluded,
+        case_changelog_excluded,
+        case_exclusion_removing_every_file_refused,
+        case_stale_word_list_digest_refused,
+        case_missing_word_list_digest_refused,
         case_malformed_package_json_refused,
         case_aria_label_only_rejected,
         case_text_element_rejected,
@@ -679,6 +923,8 @@ def main() -> None:
             case(Path(tmp))
 
     case_live_tree_passes()
+    case_live_published_digest_matches_the_live_list()
+    case_live_prose_surface_reads_the_whole_tree()
     case_live_svg_scanner_sees_real_copy()
     case_live_banners_carry_no_instrument_palette()
     case_live_light_neutrals_are_declared()
@@ -689,9 +935,11 @@ def main() -> None:
         raise SystemExit(1)
     print(
         f"PASS: brand-kit checker verified across {len(in_tempdir)} temporary "
-        "tree(s) plus the live tree; every breach case asserts its own message "
-        "and a breach count of one, the scope boundary is pinned by its own "
-        "fixture, and the SVG scanner is proven non-vacuous against what ships."
+        "tree(s) plus the live tree; every breach case asserts its own message and "
+        "an exact breach count, the scope boundary is pinned by the fixture that "
+        "was inverted when it moved, both exclusions have a fixture, the published "
+        "word-list digest is checked against the shipped list, and the SVG and "
+        "prose scanners are proven non-vacuous against what ships."
     )
 
 

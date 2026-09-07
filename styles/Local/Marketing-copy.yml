@@ -3,8 +3,9 @@
 # scripts/validate_vale_style.py --write. Edit the token file, then regenerate.
 #
 # Scope: this rule is bound in .vale.ini to the globs declared in
-# copy.words_to_avoid_surfaces. It is deliberately NOT applied to the tree - the
-# token file states that banned words appear in working documentation on purpose.
+# copy.words_to_avoid_surfaces, and it reaches README headings alone. The word list
+# itself binds every line of prose the repository publishes (operator ruling,
+# 2026-09-06); scripts/validate_brand_kit.py is the gate that enforces the rest.
 
 extends: existence
 message: "Marketing copy: %s is banned on public asset copy (assets/tokens.json > copy.words_to_avoid)."

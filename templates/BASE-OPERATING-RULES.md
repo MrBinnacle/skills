@@ -213,8 +213,8 @@ Adapt these to your stack; the shape is what matters.
 - New dependencies. *Because:* every dependency expands attack surface and upgrade load.
 - Database schema changes. *Because:* schema is migration-coupled; silent changes break
   test and integration databases.
-- Changing an architecture constraint or a locked decision. *Because:* those are
-  load-bearing for cross-session continuity.
+- Changing an architecture constraint or a locked decision. *Because:* cross-session
+  continuity depends on them.
 - A network call not in the original spec. *Because:* undeclared network access is a
   security concern and breaks offline-first guarantees.
 - Refactors spanning more than a few files. *Because:* blast radius scales with file count.

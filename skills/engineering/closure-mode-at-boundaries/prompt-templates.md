@@ -161,5 +161,5 @@ Return under 500 words.
 
 - **Customize the brackets per dispatch.** The prompts above are templates; the bracketed slots MUST be filled with concrete project state. Generic prompts produce generic verdicts.
 - **Word budgets are guidance, not hard limits.** Adjust based on candidate count and decision weight.
-- **The Critic is special.** Critic's frame-rejection carve-out is the single most load-bearing prompt detail. Do not omit it. If the Critic is just ranking within the frame, you've lost the SME's value at a boundary.
+- **The Critic is special.** Critic's frame-rejection carve-out is the one prompt detail the swarm's value depends on most. Do not omit it. If the Critic is just ranking within the frame, you've lost the SME's value at a boundary.
 - **Single message, parallel dispatch.** Send all 5 prompts together. They should not see each other's output.

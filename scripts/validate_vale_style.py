@@ -14,25 +14,25 @@ WHY THIS EXISTS
     which bans VAGUENESS (`various`, `several`, `stuff`). The two lists answer different
     questions and neither is a version of the other.
 
-THE SCOPE RULE, AND WHY THIS SCRIPT REFUSES TO WIDEN IT
+THE BINDING RULE, AND WHY THIS SCRIPT REFUSES A BINDING THE TOKEN FILE DOES NOT DECLARE
 
-    `assets/tokens.json > copy.words_to_avoid_surfaces.$note` states the constraint:
+    This check used to read as a scope check, and its reason was that banned words
+    appeared in working documentation on purpose. The operator ruled on 2026-09-06 that
+    one word list binds every line of prose in every repository (#261), so that reason is
+    gone. What the check does is unchanged, and it is a BINDING check: `.vale.ini` may
+    enable the generated rule only on a glob `copy.words_to_avoid_surfaces` declares, and
+    this script asserts that.
 
-        "Widening the scope is a decision, not a maintenance task ... README BODY prose
-        is deliberately absent - banned words appear there and in working documentation
-        on purpose."
+    The reason is now about which instrument enforces which surface. Vale lints markdown
+    and cannot read an SVG attribute, a JSON field, or the exclusions the prose surface
+    carries. `validate_brand_kit.py` is the GATE for all four declared surfaces, including
+    the whole-prose one. The generated Vale rule is an editor-and-CI convenience over the
+    one surface Vale can reach, README headings. A binding invented here rather than
+    declared in the token file would put Vale and `validate_brand_kit.py` on opposite
+    sides of one word list - the failure this repository has already recorded once, where
+    a renderer emitted the split its own guard banned.
 
-    So the generated rule is NOT applied to the tree. `.vale.ini` binds it to the same
-    globs `copy.words_to_avoid_surfaces` declares, and this script asserts that binding.
-    Running the marketing list over working documentation would report as findings the
-    very words that file says appear there deliberately, and would put Vale and
-    `scripts/validate_brand_kit.py` on opposite sides of one word list - the failure this
-    repository has already recorded once, where a renderer emitted the split its own
-    guard banned.
-
-    `validate_brand_kit.py` remains the GATE for those surfaces. The generated Vale rule
-    is an editor-and-CI convenience that reports the same list at the same scope. This
-    script's agreement check is what keeps the convenience honest: if the two ever
+    This script's agreement check is what keeps the convenience honest: if the two ever
     disagree, the run fails rather than letting the weaker one drift.
 
 WHAT IT CHECKS
@@ -80,8 +80,9 @@ GENERATED_HEADER = (
     "# scripts/validate_vale_style.py --write. Edit the token file, then regenerate.\n"
     "#\n"
     "# Scope: this rule is bound in .vale.ini to the globs declared in\n"
-    "# copy.words_to_avoid_surfaces. It is deliberately NOT applied to the tree - the\n"
-    "# token file states that banned words appear in working documentation on purpose.\n"
+    "# copy.words_to_avoid_surfaces, and it reaches README headings alone. The word list\n"
+    "# itself binds every line of prose the repository publishes (operator ruling,\n"
+    "# 2026-09-06); scripts/validate_brand_kit.py is the gate that enforces the rest.\n"
 )
 
 

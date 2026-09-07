@@ -25,16 +25,41 @@ THE THREE CHECKS
        failed on both banners until the two colour gaps closed, so landing it
        earlier meant landing a permanently red check that would be disabled.
 
-WHY THE SCOPE RULE IS DATA AND WHY README BODY PROSE IS OUT OF IT
+WHY THE SCOPE RULE IS DATA, AND WHAT THE SCOPE NOW IS
     `copy.words_to_avoid_scope` states the rule for a human;
-    `copy.words_to_avoid_surfaces` states the same rule for this script. The
-    scope is public asset copy - rendered graphics, front-page HEADINGS, the
-    repository description. Body prose, code comments and working documentation
-    are outside it, and several banned words appear there on purpose: this
-    repository's own AGENTS.md, SECURITY.md and skill cards use `load-bearing`
-    in exactly the sense the word is good for. A check that caught those would
-    be wrong, and widening the scope is a decision rather than a maintenance
-    task.
+    `copy.words_to_avoid_surfaces` states the same rule for this script.
+
+    The scope was public asset copy only - rendered graphics, front-page
+    HEADINGS, the repository description - and this docstring argued that body
+    prose belonged outside it because the repository used `load-bearing` in
+    working documentation on purpose. The operator ruling of 2026-09-06 ended
+    that split: one word list, all repositories, every single line of prose, the
+    same rules. The `markdown_prose` surface carries it, and the rewrite it
+    forced replaced 21 uses of `load-bearing` with the thing each sentence
+    actually named - the check, the rule, the dependency, the constraint.
+
+    Two exclusions survive the ruling, both declared in the token file rather
+    than here: `_quarantine/**`, whose candidates are frozen and must not be
+    rewritten, and `CHANGELOG.md`, whose entries record what shipped under the
+    wording in force at the time. Adding a further surface is still a decision
+    rather than a maintenance task.
+
+WHY THE PROSE SURFACE OVERLAPS THE HEADINGS SURFACE, AND WHY BOTH STAY
+    `markdown_prose` reads whole documents, so a README heading is inside both
+    it and `markdown_headings`, and a banned word there is reported twice. The
+    narrower surface is kept anyway: `.vale.ini` binds the fast Vale feedback to
+    the glob `README.md`, and `validate_vale_style.py` refuses a Vale binding to
+    any glob the token file does not declare. Dropping the README surface would
+    make the Vale binding a widening and redden that check.
+
+WHY THE PUBLISHED DIGEST IS OVER THE LIST AND NOT OVER THE FILE
+    `copy.words_to_avoid_digest.sha256` is sha256 over
+    `json.dumps(words_to_avoid, separators=(",",":")).encode()`, and this script
+    recomputes it on every run. MrBinnacle/skill-harness#462 vendors the list and
+    compares its copy against that value. A digest over the whole token file
+    would change on every unrelated edit - a colour value, a recorded pair hash,
+    a note - so the sibling would see drift it could not act on, and a contract
+    that cries wolf gets muted. Rewrite it with --record-digest.
 
 WHY SVG COPY IS PARSED AND NOT PATTERN-MATCHED
     Ported from the sibling instrument's scanner (skill-harness,
@@ -78,10 +103,12 @@ Usage:
     python scripts/validate_brand_kit.py
     python scripts/validate_brand_kit.py --root <tree>
     python scripts/validate_brand_kit.py --record-hashes
+    python scripts/validate_brand_kit.py --record-digest
 """
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import re
@@ -105,8 +132,14 @@ HEADING_RE: Final[re.Pattern[str]] = re.compile(r"^#{1,6}\s+(.*)$", re.MULTILINE
 SETEXT_RE: Final[re.Pattern[str]] = re.compile(
     r"^(\S[^\n]*)\n(?:=+|-+)[ \t]*$", re.MULTILINE
 )
+# The sha256 field inside the words_to_avoid_digest object and nothing else:
+# asset_pairs records sha256 values too, and a looser pattern would rewrite the
+# first of those instead.
+DIGEST_FIELD_RE: Final[re.Pattern[str]] = re.compile(
+    r'("words_to_avoid_digest"[\s\S]*?"sha256":\s*)"[0-9a-f]*"'
+)
 KNOWN_KINDS: Final[frozenset[str]] = frozenset(
-    {"svg_copy", "markdown_headings", "json_string_field"}
+    {"svg_copy", "markdown_headings", "markdown_prose", "json_string_field"}
 )
 
 
@@ -179,6 +212,37 @@ def strip_fenced_blocks(markdown: str) -> str:
     return "\n".join(kept)
 
 
+def blank_fenced_blocks(markdown: str) -> str:
+    """Markdown with every fenced-code line replaced by an empty line.
+
+    Same exclusion as strip_fenced_blocks, and the line COUNT is preserved, so a
+    violation's reported line number is its line number in the file. The
+    headings surface can afford to drop lines, because it reports an offset into
+    the headings it collected. A whole-document surface that dropped them would
+    send a reader to the wrong line of a long skill card.
+    """
+    kept: list[str] = []
+    fence: str | None = None
+    for line in markdown.splitlines():
+        stripped = line.lstrip()
+        if fence is None and (stripped.startswith("```") or stripped.startswith("~~~")):
+            fence = stripped[:3]
+            kept.append("")
+            continue
+        if fence is not None:
+            kept.append("")
+            if stripped.startswith(fence):
+                fence = None
+            continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
+def word_list_digest(words: list[str]) -> str:
+    """sha256 over the canonical JSON form of the word LIST, not of the file."""
+    return hashlib.sha256(json.dumps(words, separators=(",", ":")).encode()).hexdigest()
+
+
 def markdown_headings(markdown: str) -> list[str]:
     """ATX and setext headings, with fenced code stripped first."""
     prose = strip_fenced_blocks(markdown)
@@ -219,11 +283,38 @@ def surface_copy(root: Path, spec: dict[str, Any]) -> list[tuple[str, str]]:
     if not isinstance(glob, str) or not glob:
         raise Refusal(f"surface of kind {kind} states no glob")
 
+    excludes = spec.get("exclude", [])
+    if not isinstance(excludes, list) or not all(
+        isinstance(pattern, str) and pattern for pattern in excludes
+    ):
+        raise Refusal(
+            f"surface of kind {kind} states an exclude list that is not a list of "
+            "non-empty strings."
+        )
+
     paths = sorted(root.glob(glob))
     if not paths:
         raise Refusal(
             f"surface glob {ascii(glob)} matched no file under {root}. A "
             "surface that resolves to nothing is a check that runs on nothing."
+        )
+
+    # fnmatch's `*` crosses `/`, which is what lets `_quarantine/**` reach a
+    # candidate nested at any depth.
+    matched = len(paths)
+    paths = [
+        path
+        for path in paths
+        if not any(
+            fnmatch.fnmatch(path.relative_to(root).as_posix(), pattern)
+            for pattern in excludes
+        )
+    ]
+    if not paths:
+        raise Refusal(
+            f"surface glob {ascii(glob)} matched {matched} file(s) under {root} and "
+            "the exclude list removed every one of them. A surface excluded down to "
+            "nothing is a check that runs on nothing."
         )
 
     collected: list[tuple[str, str]] = []
@@ -234,6 +325,8 @@ def surface_copy(root: Path, spec: dict[str, Any]) -> list[tuple[str, str]]:
             collected.append((f"{relative}:svg-copy", svg_copy(text)))
         elif kind == "markdown_headings":
             collected.append((f"{relative}:headings", "\n".join(markdown_headings(text))))
+        elif kind == "markdown_prose":
+            collected.append((f"{relative}:prose", blank_fenced_blocks(text)))
         else:
             field = spec.get("field")
             if not isinstance(field, str) or not field:
@@ -376,6 +469,25 @@ def validate(root: Path) -> None:
             "copy.words_to_avoid is empty or not a list of strings. An empty ban "
             "list makes the copy check pass on every possible input."
         )
+    digest_block = copy_block.get("words_to_avoid_digest")
+    if not isinstance(digest_block, dict):
+        raise Refusal(
+            "copy.words_to_avoid_digest is missing. MrBinnacle/skill-harness#462 "
+            "vendors this word list and compares its copy against the published "
+            "digest, so an unpublished digest is a drift contract with nothing to "
+            "compare against."
+        )
+    published = digest_block.get("sha256")
+    computed = word_list_digest(words)
+    if published != computed:
+        raise Refusal(
+            f"copy.words_to_avoid_digest.sha256 records {ascii(published)}, and the "
+            f"list on disk digests to {ascii(computed)}. The word list was edited "
+            "without re-recording the digest, so the sibling that vendors this list "
+            "would compare against a value naming a list that no longer exists. Run: "
+            "python scripts/validate_brand_kit.py --record-digest"
+        )
+
     surface_block = copy_block.get("words_to_avoid_surfaces")
     if not isinstance(surface_block, dict):
         raise Refusal("copy.words_to_avoid_surfaces is missing")
@@ -388,12 +500,17 @@ def validate(root: Path) -> None:
 
     surfaces: list[tuple[str, str]] = []
     svg_copy_seen = 0
+    prose_seen = 0
+    prose_surfaces = 0
     for spec in specs:
         if not isinstance(spec, dict):
             raise Refusal("a surface entry is not an object")
         resolved = surface_copy(root, spec)
         if spec.get("kind") == "svg_copy":
             svg_copy_seen += sum(len(text.strip()) for _, text in resolved)
+        if spec.get("kind") == "markdown_prose":
+            prose_surfaces += 1
+            prose_seen += sum(len(text.strip()) for _, text in resolved)
         surfaces.extend(resolved)
 
     if svg_copy_seen == 0:
@@ -401,6 +518,12 @@ def validate(root: Path) -> None:
             "the SVG scanner saw no copy in any asset. Either no asset carries "
             "an aria-label or a text/title/desc element, or the scanner has gone "
             "blind - and a blind scanner passes everything."
+        )
+    if prose_surfaces and prose_seen == 0:
+        raise Refusal(
+            "the markdown prose scanner saw no text in any document. Either every "
+            "in-scope document is fenced code end to end, or the fence remover has "
+            "eaten the tree - and either way the widest surface is reading nothing."
         )
 
     violations = banned_word_violations(surfaces, words)
@@ -470,6 +593,31 @@ def record_hashes(root: Path) -> None:
     path.write_text(json.dumps(tokens, indent=2) + "\n", encoding="utf-8")
 
 
+def record_digest(root: Path) -> None:
+    """Rewrite the published digest in place, leaving the rest of the file alone.
+
+    A json.dumps round trip would reformat every compact array in the token file,
+    so the value is replaced as text. --record-hashes rewrites the whole file
+    because it has several values to set; this has one.
+    """
+    path = root / TOKENS_PATH
+    tokens = load_tokens(root)
+    copy_block = tokens.get("copy")
+    words = copy_block.get("words_to_avoid") if isinstance(copy_block, dict) else None
+    if not isinstance(words, list) or not words:
+        raise Refusal("copy.words_to_avoid is empty or missing, so there is nothing to digest")
+    digest = word_list_digest(words)
+    text = path.read_text(encoding="utf-8")
+    updated, count = DIGEST_FIELD_RE.subn(lambda m: f'{m.group(1)}"{digest}"', text, count=1)
+    if count != 1:
+        raise Refusal(
+            "copy.words_to_avoid_digest.sha256 is not present as a literal field in "
+            f"{TOKENS_PATH}, so it cannot be rewritten in place. Add the field first."
+        )
+    path.write_text(updated, encoding="utf-8")
+    print(f"recorded copy.words_to_avoid_digest.sha256 = {digest}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Check the brand kit against what ships.")
     parser.add_argument(
@@ -483,11 +631,19 @@ def main() -> None:
         action="store_true",
         help="rewrite every recorded pair hash from the files on disk",
     )
+    parser.add_argument(
+        "--record-digest",
+        action="store_true",
+        help="rewrite copy.words_to_avoid_digest.sha256 from the word list on disk",
+    )
     args = parser.parse_args()
     root = args.root.resolve()
     try:
         if args.record_hashes:
             record_hashes(root)
+            return
+        if args.record_digest:
+            record_digest(root)
             return
         validate(root)
     except Refusal as refusal:

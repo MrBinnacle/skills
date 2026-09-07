@@ -35,7 +35,7 @@ Deciding between the two paths:
 | Apply HALT-as-deliverable | Apply fix-and-re-run |
 |---|---|
 | The HALT reveals a structural inconsistency the audience would care about | The HALT reveals transient infrastructure (rate limit, flaky network) |
-| The discipline's credibility is itself a load-bearing claim | The experiment's specific result is the load-bearing claim |
+| The discipline's credibility is itself the claim at stake | The experiment's specific result is the claim at stake |
 | The catching is uncopyable / hard to fake | The catching is generic / commodity |
 | The audience is field-skeptical (impressed by the discipline) | The audience is result-focused (would not engage with meta) |
 | The author's own work was caught | Someone else's work was caught |

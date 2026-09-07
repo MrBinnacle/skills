@@ -60,11 +60,11 @@ Vale is not a Python dependency. If you do not have it installed the prose hooks
 install hint and pass — CI installs the pinned version, so the check still happens there.
 
 **One scope rule worth knowing before you widen anything.** The banned-marketing word list in
-`assets/tokens.json` applies to public asset copy only — README *headings*, the SVG assets, and
-the package description. Its own note states that those words appear in body prose and working
-documentation on purpose. `scripts/validate_vale_style.py` fails the build if the rule is bound
-anywhere else, and `scripts/validate_brand_kit.py` remains the gate for the surfaces Vale cannot
-read.
+`assets/tokens.json` binds every line of prose this repository publishes, plus the SVG assets
+and the package description. `_quarantine/` and `CHANGELOG.md` are the two exclusions, and the
+token file states why each survives the rule. `scripts/validate_brand_kit.py` is the gate for
+all of it. Vale is the fast feedback and reaches less: `scripts/validate_vale_style.py` fails
+the build if the Vale rule is bound to any glob the token file does not declare.
 
 ## Reporting a gotcha
 

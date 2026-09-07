@@ -8,7 +8,7 @@ description: A test that patches a helper which is itself a production stub repo
 ## The trap
 
 An implementer returns a track/PR with **all gates green** (pytest passing, mypy/lint
-clean) — and a load-bearing branch is **stubbed in production** but appears tested because
+clean) — and a branch the shipped behaviour depends on is **stubbed in production** but appears tested because
 the test **patches the very function that is the stub**. The green is hollow: the production
 code path it claims to cover never runs in any test.
 

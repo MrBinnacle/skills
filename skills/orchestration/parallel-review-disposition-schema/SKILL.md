@@ -42,7 +42,7 @@ Put all five of these in EVERY seat's dispatch prompt:
 
 2. **A shared per-item OUTPUT BLOCK.** One block per item, same fields, e.g.:
    `{Item · Verified?(cite) · Disposition(from enum) · Severity(if applicable) · Reasoning <=3 sentences · What-would-change-it}`.
-   "What-would-change-it" is the highest-value field — it exposes the load-bearing assumption
+   "What-would-change-it" is the highest-value field — it exposes the assumption the disposition rests on
    and is what the synthesizer uses to classify a disagreement as values/information/definition.
 
 3. **Explicit ITEM-OWNERSHIP per seat.** Assign each seat the specific findings it owns (by its

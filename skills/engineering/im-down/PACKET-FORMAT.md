@@ -41,7 +41,7 @@ The packet is one Markdown file. A hidden JSON manifest starts the file.
   "claims": [
     {
       "id": "C001",
-      "text": "load-bearing claim",
+      "text": "a claim the work rests on",
       "status": "verified",
       "probe": {"kind": "path|commit|command", "value": "evidence probe"},
       "evidence": "observed result"
