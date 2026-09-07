@@ -358,7 +358,7 @@ line, asserted **byte-identically in five places across three files** — keep t
 4. `assets/banner-dark.svg` — rendered banner-line `<text>`
 5. `README.md` — banner `<img alt>`
 
-The ruled line is `These aren't the Claude Code skills you're looking for.` — a site may
+The ruled line is `14 skill cards. Each states the condition that would retire it.` — a site may
 prefix it (the aria-label and alt lead with `skills — `) but not alter a byte of it, so a
 softened restatement ("are not", a dropped period, a straightened apostrophe) fails.
 

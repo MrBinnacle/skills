@@ -26,8 +26,25 @@ from typing import NoReturn
 # scoreboard's own doctrine carried forward): it is matched byte-identically at
 # every site, because a check that accepted a paraphrase would let a softened
 # or salesier restatement ship. Sites may prefix it (the aria-label and README
-# alt lead with "skills -- ") but may not alter a byte of the sentence itself.
-RULED_LINE = "These aren't the Claude Code skills you're looking for."
+# alt lead with "skills. ") but may not alter a byte of the sentence itself.
+#
+# The wording changed on 2026-09-07 under the S425 direction brief. The new line
+# states a COUNT, which the old one did not, and a count on a page is the thing
+# owner rulings retired from this banner twice for rotting (2026-08-23).  So it
+# is not written here: RULED_LINE is a template and the number is derived from
+# the card set on every run, by the same count the records already derive. A card
+# added or retired changes the sentence the sites must carry, and a site left
+# behind is a failure rather than a stale graphic nobody re-reads.
+#
+# The separator is a period rather than an em dash. Direction brief T4.9 admits
+# no U+2014 in a new aria-label, text node, heading or body line, and the owner
+# chose the period over a waiver on 2026-09-07.
+RULED_LINE_TEMPLATE = "{count} skill cards. Each states the condition that would retire it."
+
+
+def ruled_line(root: Path) -> str:
+    """The banner sentence this tree must carry, with its count derived."""
+    return RULED_LINE_TEMPLATE.format(count=count_admitted(root))
 CONTROLLED_FIELDS = ("Screen result", "Paired verdict")
 
 # The origin tier is the other number the front page states about the cards, and
@@ -382,22 +399,24 @@ def derive_counts(root: Path) -> tuple[int, int, int, int]:
     return admitted, measured, retired, turned
 
 
-def assert_site(label: str, text: str) -> None:
+def assert_site(label: str, text: str, line: str) -> None:
     # Byte-identical containment, not a pattern: the sentence's judgement is
-    # deliberate, and a match that tolerated an "are not", a dropped period, or
-    # a straightened apostrophe would let the softening ship. HTML entities are
-    # not decoded on purpose -- a site that encodes the apostrophe has changed
-    # the bytes a reader's tooling sees, and the fix is to say so at the site.
-    if RULED_LINE in text:
+    # deliberate, and a match that tolerated a "might" for "would", a dropped
+    # period, or a straightened apostrophe would let the softening ship. HTML
+    # entities are not decoded on purpose -- a site that encodes a character has
+    # changed the bytes a reader's tooling sees, and the fix is at the site.
+    if line in text:
         return
     fail(
         f"{label}: does not carry the ruled banner line verbatim "
-        f"({RULED_LINE!r}). The wording is ruled (2026-08-23); a site may "
-        f"prefix it but not alter it."
+        f"({line!r}). The wording is ruled (2026-08-23, reworded 2026-09-07) and "
+        f"the count is derived from the card set; a site may prefix it but not "
+        f"alter it."
     )
 
 
 def check_banner_line_sites(root: Path) -> None:
+    line = ruled_line(root)
     sites = [
         ("assets/banner-light.svg aria-label", root / "assets" / "banner-light.svg", True),
         ("assets/banner-light.svg text", root / "assets" / "banner-light.svg", False),
@@ -413,7 +432,7 @@ def check_banner_line_sites(root: Path) -> None:
             m = re.search(r'aria-label="([^"]*)"', text)
             if not m:
                 fail(f"{label}: no aria-label")
-            assert_site(label, m.group(1))
+            assert_site(label, m.group(1), line)
         elif path.suffix == ".svg":
             # Rendered text element(s), not the aria-label. The two-element
             # minimum is kept from the scoreboard era: texts[-1] is the banner
@@ -423,14 +442,14 @@ def check_banner_line_sites(root: Path) -> None:
             texts = re.findall(r"<text\b[^>]*>(.*?)</text>", text, flags=re.DOTALL)
             if len(texts) < 2:
                 fail(f"{label}: expected a banner-line <text> element")
-            assert_site(label, texts[-1])
+            assert_site(label, texts[-1], line)
         elif path.name == "README.md":
             m = re.search(r'<img\b[^>]*\balt="([^"]*)"', text)
             if not m:
                 fail(f"{label}: no img alt on banner")
-            assert_site(label, m.group(1))
+            assert_site(label, m.group(1), line)
         else:
-            assert_site(label, text)
+            assert_site(label, text, line)
 
 
 def policy_version(root: Path) -> str:

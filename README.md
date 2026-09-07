@@ -1,7 +1,7 @@
 <p>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
-    <img alt="skills — These aren't the Claude Code skills you're looking for." src="assets/banner-light.svg" width="620">
+    <img alt="skills. 14 skill cards. Each states the condition that would retire it." src="assets/banner-light.svg" width="620">
   </picture>
 </p>
 

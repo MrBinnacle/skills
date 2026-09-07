@@ -1035,15 +1035,28 @@ def case_live_svg_scanner_sees_real_copy() -> None:
     """
     banner = (REPO_ROOT / "assets" / "banner-dark.svg").read_text(encoding="utf-8")
     copy = kit.svg_copy(banner)
+    # The probe is the banner's OWN last <text> element, read here by an
+    # independent regex, not a phrase copied out of the banner wording. Both
+    # checks below were pinned to the literal "Claude Code skills" until
+    # 2026-09-07; the ruled line was reworded that day and they went red with
+    # the scanner unchanged. A non-vacuity check has to survive a rewrite of the
+    # copy it reads, or it is testing the wording instead of the scanner.
+    # Comments are stripped first. The banner documents its own layout in an
+    # XML comment that itself names a `<text` element, and a regex over the raw
+    # file captures that prose instead of the rendered line. ElementTree drops
+    # comments, so the checker never saw them; this probe has to do the same.
+    body = re.sub(r"<!--.*?-->", "", banner, flags=re.DOTALL)
+    texts = re.findall(r"<text\b[^>]*>(.*?)</text>", body, flags=re.DOTALL)
+    statement = texts[-1].strip() if texts else ""
     check(
         "the live scanner reads the banner statement",
-        "Claude Code skills" in copy,
-        f"scanned copy was {copy!r}",
+        len(statement) > 20 and statement in copy,
+        f"statement {statement!r} not in scanned copy {copy!r}",
     )
     stripped = kit.svg_copy(banner.replace(' aria-label="', ' data-not-a-label="'))
     check(
         "the aria-label is a distinct source of copy",
-        "Claude Code skills" in copy and copy != stripped and len(stripped) < len(copy),
+        statement in copy and copy != stripped and len(stripped) < len(copy),
         f"with label {len(copy)} chars, without {len(stripped)} chars",
     )
 
