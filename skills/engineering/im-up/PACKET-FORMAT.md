@@ -70,6 +70,25 @@ SESSION-PACKET-V1 -->
 - `skills_dispatched.source` states whether telemetry or model recall supplied the list.
 - The receiver accepts or rejects the packet with an explicit receipt.
 
+## Receipt
+
+The receiver prints one JSON receipt: `verdict` (`ACCEPTED` or `REJECTED`),
+`packet_id`, `errors`, `notes` and `checks`. A `REJECTED` receipt from receive
+mode also carries:
+
+- `packet_assertions_held`: `true` when every assertion the packet made held
+  against the tree (structure, branch, `HEAD`, every claim probe) and only
+  receiver checks failed; `false` otherwise, and when the repository
+  assertions were not run.
+- `failed_receiver_checks`: the failing checks by name.
+- `summary`: the same finding in plain words, last in the receipt.
+
+The verdict stays `REJECTED` either way. A defective receiver check is repaired
+by an ordinary reviewed commit to the gate; the receiver never edits the check
+it runs and never accepts past a red one. The producer refuses to write a
+packet after measuring a receiver check red, and produce mode refuses a
+manifest whose `tests[]` already records one.
+
 ## Probe execution
 
 A `path` or `commit` probe runs against the repository. A `command` probe runs

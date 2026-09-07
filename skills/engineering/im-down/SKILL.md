@@ -39,7 +39,8 @@ A project that declares no `close_commit` is unaffected by the marker check; the
 
 ## Procedure
 
-1. Run `close_session.py` with the objective, next action, and `$ARGUMENTS` purpose. This is the only close command: it writes durable state, commits with the `close_commit` marker, and writes the packet scaffold at the post-commit `HEAD`.
+1. Run `close_session.py` with the objective, next action, and `$ARGUMENTS` purpose. This is the only close command: it writes durable state, commits with the `close_commit` marker, runs the receiver checks, and writes the packet scaffold at the post-commit `HEAD`.
+1a. A red receiver check refuses the packet; the state commit stands. Fix the cause now, while this session holds the context, and close again.
 2. Open the generated packet path from the script's JSON output.
 3. Replace every `__REQUIRED__` marker.
 4. Record failed approaches and null results in time order.
@@ -87,7 +88,7 @@ python <skill-dir>/snapshot_state.py \
   --repo-root .
 ```
 
-`snapshot_state.py` writes the packet scaffold and prints its path. It does nothing else.
+`snapshot_state.py` runs the receiver checks, refuses when one is red, and otherwise writes the packet scaffold and prints its path. It does nothing else.
 
 That caller now owns the ordering guarantee `close_session.py` holds inside one process: commit first, snapshot second, then assert that the packet's recorded head equals `HEAD` measured after the commit. A caller that skips the assertion ships packets the receiver rejects as stale.
 
@@ -95,7 +96,15 @@ Use `close_session.py` unless the project's close needs that control.
 
 ## Boundary limits
 
-Do not run `/clear`. The operator controls session creation.
+The operator runs `/clear`. The producer owes them a **safe-to-clear** verdict, computed from five checks and never asserted. `/clear` is the one action at a session boundary whose cost is one-way, so an `ACCEPTED` receipt is not the verdict; it is the first check.
+
+1. The packet re-validates `ACCEPTED` at the current `HEAD`, not the `HEAD` it was minted against.
+2. `HEAD` equals the packet's recorded head and the remote ref.
+3. The working tree is clean apart from the exclusions the boundary config declares.
+4. Every long-running job the session launched is finished, judged on two signals: process state, and output or CPU. A flat log alone is not a verdict; a job can sit silent for an hour while its worker burns a core.
+5. Everything the next session needs is in committed state. A scratchpad path and the conversation are not committed state.
+
+Report residual risk beside the verdict even when it is yes: an unpushed branch, an untracked file, a job whose output lands where the durable state does not name it.
 
 Produce the packet after the session's final commit. A later commit moves HEAD and the receiver rejects the packet as stale. Keep the packet directory out of version control.
 
