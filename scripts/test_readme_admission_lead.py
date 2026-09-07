@@ -100,19 +100,48 @@ def readme_table(body: str) -> dict[str, tuple[str, int]]:
 
 
 def case_admission_method_leads() -> None:
+    """The three sections exist, and the policy is linked before the fold.
+
+    RETIRED 2026-09-07 (S425 direction brief, section 7 decision 4): the H2-ORDER
+    assertion. It required "## Admission method", "## Card map" and "## Card
+    evidence" to be the first three H2 sections, in that order, with no other H2
+    before them.
+
+    Why it went. The order lock forced a Reference document to open on the
+    collection's internal process, before a stranger had been told what a card
+    is or what one costs. Two cross-family reviewers reached that finding
+    independently against the shipped page (docs/audit/t1-readme-greenfield-S425/
+    RESULTS.md, convergence row C1). A lock that pins section ORDER cannot be
+    satisfied and also answer "what is this thing" first, so one of the two had
+    to go, and the reader's question outranks the page's table of contents.
+
+    What the lock was FOR survives here, because the reason it existed was never
+    the ordering: it was that the admission material must not be buried. The
+    replacement asserts the same protection without dictating sequence. All three
+    sections must still exist, and the policy link must appear within the first 40
+    lines, so it reaches the reader before the fold no matter where the section
+    itself sits.
+
+    What did NOT change: every other case in this file. The evidence table still
+    has to match every card's EVIDENCE.md, the admission section still has to link
+    ADMISSION.md and name both live instruments, the card map still has to name
+    all three forms, and the disposition record still has to be linked. Retiring
+    an order assertion is not a licence to loosen a fact assertion.
+    """
     body = README.read_text(encoding="utf-8")
-    positions = [
-        body.find("## Admission method"),
-        body.find("## Card map"),
-        body.find("## Card evidence"),
-    ]
+    headings = re.findall(r"^## .+$", body, re.MULTILINE)
+    required = ["## Admission method", "## Card map", "## Card evidence"]
+    missing = [heading for heading in required if heading not in headings]
     check(
-        "admission method, card map, and card evidence are the first three H2 sections",
-        positions[0] >= 0
-        and positions == sorted(positions)
-        and re.findall(r"^## .+$", body[: positions[2]], re.MULTILINE)
-        == ["## Admission method", "## Card map"],
-        str(positions),
+        "admission method, card map, and card evidence sections all exist",
+        not missing,
+        f"missing {missing}",
+    )
+    lead = "\n".join(body.splitlines()[:40])
+    check(
+        "the admission policy is linked within the first 40 lines",
+        "(ADMISSION.md)" in lead,
+        lead,
     )
 
 
