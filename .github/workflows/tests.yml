@@ -809,6 +809,13 @@ jobs:
           sed 's|^## Admission method$|## Skills that earn their keep|' README.md > "$tree/README.md"
           grep -q '^## Skills that earn their keep$' "$tree/README.md" \
             || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          # #267: the checker selects the TRACKED set, so a control tree that
+          # is not a repository is one it REFUSES to scan rather than one it
+          # finds clean - and a refusal is not the rejection this control is
+          # asserting. Stage the fixture. Nothing is committed: git ls-files
+          # reads the index, so staging is the whole requirement.
+          git -C "$tree" init --quiet --initial-branch=main
+          git -C "$tree" add -A
           if python scripts/validate_brand_kit.py --root "$tree" > "$log" 2>&1; then
             echo "::error::the planted heading was ACCEPTED - the copy check does not read README headings"
             cat "$log"
@@ -857,6 +864,13 @@ jobs:
             > "$tree/skills/engineering/a-card/SKILL.md"
           grep -q 'load-bearing' "$tree/skills/engineering/a-card/SKILL.md" \
             || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          # #267: the checker selects the TRACKED set, so a control tree that
+          # is not a repository is one it REFUSES to scan rather than one it
+          # finds clean - and a refusal is not the rejection this control is
+          # asserting. Stage the fixture. Nothing is committed: git ls-files
+          # reads the index, so staging is the whole requirement.
+          git -C "$tree" init --quiet --initial-branch=main
+          git -C "$tree" add -A
           if python scripts/validate_brand_kit.py --root "$tree" > "$log" 2>&1; then
             echo "::error::the planted body prose was ACCEPTED - the copy check does not read markdown prose"
             cat "$log"
@@ -907,6 +921,13 @@ jobs:
           python -c "import json,sys; p=sys.argv[1]; d=json.load(open(p, encoding='utf-8')); d['asset_pairs']['pairs']=[{'source': 'assets/banner-dark.svg', 'export': 'assets/banner-light.svg', 'source_sha256': sys.argv[3], 'export_sha256': sys.argv[2]}]; json.dump(d, open(p, 'w', encoding='utf-8'), indent=2)" "$tree/assets/tokens.json" "$fresh" "$stale"
           grep -q "$fresh" "$tree/assets/tokens.json"             || { echo "::error::the control fixture was not mutated - no pair was recorded"; exit 1; }
           python -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$tree/assets/tokens.json"             || { echo "::error::the control fixture is not valid JSON"; exit 1; }
+          # #267: the checker selects the TRACKED set, so a control tree that
+          # is not a repository is one it REFUSES to scan rather than one it
+          # finds clean - and a refusal is not the rejection this control is
+          # asserting. Stage the fixture. Nothing is committed: git ls-files
+          # reads the index, so staging is the whole requirement.
+          git -C "$tree" init --quiet --initial-branch=main
+          git -C "$tree" add -A
           if python scripts/validate_brand_kit.py --root "$tree" > "$log" 2>&1; then
             echo "::error::the mismatched hash was ACCEPTED - the freshness check does not compare"
             cat "$log"
@@ -940,6 +961,13 @@ jobs:
           sed -i 's|#8b949e|#3fb950|g' "$tree/assets/banner-dark.svg"
           grep -q '#3fb950' "$tree/assets/banner-dark.svg" \
             || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          # #267: the checker selects the TRACKED set, so a control tree that
+          # is not a repository is one it REFUSES to scan rather than one it
+          # finds clean - and a refusal is not the rejection this control is
+          # asserting. Stage the fixture. Nothing is committed: git ls-files
+          # reads the index, so staging is the whole requirement.
+          git -C "$tree" init --quiet --initial-branch=main
+          git -C "$tree" add -A
           if python scripts/validate_brand_kit.py --root "$tree" > "$log" 2>&1; then
             echo "::error::the planted instrument green was ACCEPTED - the token check does not read the assets"
             cat "$log"
