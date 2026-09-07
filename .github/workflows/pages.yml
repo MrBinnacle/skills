@@ -5,24 +5,25 @@ name: pages
 # The Pages source is this workflow, not a branch directory: a branch-rooted
 # source can only publish / or /docs, and docs/ holds ADRs, agent documents
 # and archived README drafts that are working documents, not site pages.
-# The artifact is assembled from site/ plus the two banner SVGs the page
-# embeds by reference (assets/banner-dark.svg, assets/banner-light.svg),
-# copied under assets/ so the page's relative paths resolve. No other file
-# reaches the artifact.
+# The artifact is assembled from site/ plus the two assets the page reaches
+# by reference (assets/favicon.svg, the icon link, and assets/social-preview.png,
+# the og:image), copied under assets/ so the page's relative paths and its
+# absolute image URL resolve. No other file reaches the artifact.
 #
-# This workflow deploys only once the repository's Pages source is set to
+# This workflow deploys only while the repository's Pages source is set to
 # "GitHub Actions" in the repository settings. Enabling Pages and setting the
-# repository homepage are publication steps and belong to the owner; until
-# then the deploy job fails at actions/deploy-pages with a message naming
-# the missing configuration, which is the intended state.
+# repository homepage are publication steps and belong to the owner; both were
+# done by the owner and measured on 2026-09-06 (has_pages true, homepage set).
+# Should the source be unset, the deploy job fails at actions/deploy-pages with
+# a message naming the missing configuration, which is the intended state.
 
 on:
   push:
     branches: [main]
     paths:
       - "site/**"
-      - "assets/banner-dark.svg"
-      - "assets/banner-light.svg"
+      - "assets/favicon.svg"
+      - "assets/social-preview.png"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -38,13 +39,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Assemble the artifact from site/ and the two banners
+      - name: Assemble the artifact from site/, the favicon and the social preview
         run: |
           set -euo pipefail
           rm -rf _site
           mkdir -p _site/assets
           cp -r site/. _site/
-          cp assets/banner-dark.svg assets/banner-light.svg _site/assets/
+          cp assets/favicon.svg assets/social-preview.png _site/assets/
           find _site -type f | sort
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
