@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -146,6 +147,20 @@ def baseline_tokens() -> dict[str, Any]:
             "pairs_pending": "No source ships yet.",
         },
     }
+
+
+# A note that reads as a grant of permission rather than as historical context
+# (#265). Deliberately over-broad: a false positive costs one reworded note, a
+# false negative ships a documented rule the build does not honour.
+_PERMISSION_WORDING = re.compile(
+    r"\b(permitted|permissible|allowed|allowable|acceptable|exempt|"
+    r"may (?:be )?use[ds]?|you may|is fine|is ok)\b",
+    re.IGNORECASE,
+)
+
+
+def _reads_as_a_permission(note: str) -> bool:
+    return bool(_PERMISSION_WORDING.search(note))
 
 
 def check(name: str, condition: bool, detail: str = "") -> None:
@@ -866,6 +881,65 @@ def case_live_prose_surface_reads_the_whole_tree() -> None:
     )
 
 
+def case_live_notes_grant_no_permission_no_checker_implements() -> None:
+    """#265: a note may not grant a permission that no checker enforces.
+
+    `copy.words_to_avoid_notes` used to say `robust` was "Permitted only when the
+    failure it resists is named in the same sentence" and `production-ready` was
+    "Permitted only with proof attached". Neither checker read the object at all,
+    so both words were banned flat. A contributor who read the note and wrote the
+    permitted sentence was refused by a build that the documentation said would
+    accept it, and then had no way to tell which of the other documented rules
+    were real.
+
+    The binding is deterministic: a note whose text reads as a grant is allowed
+    only once a checker reads `words_to_avoid_notes` AND names that word. Both
+    halves are greppable, so neither side can drift without this failing.
+
+    Keys beginning with `$` are metadata by the convention `words_to_avoid_digest`
+    already uses, and are not permissions.
+    """
+    tokens = json.loads((REPO_ROOT / "assets" / "tokens.json").read_text(encoding="utf-8"))
+    notes = tokens["copy"].get("words_to_avoid_notes", {})
+    checkers = {
+        name: (REPO_ROOT / "scripts" / name).read_text(encoding="utf-8")
+        for name in ("validate_brand_kit.py", "validate_vale_style.py")
+    }
+
+    granting = sorted(
+        word
+        for word, text in notes.items()
+        if not word.startswith("$") and _reads_as_a_permission(text)
+    )
+    unenforced = [
+        word
+        for word in granting
+        if not any(
+            "words_to_avoid_notes" in source and word in source for source in checkers.values()
+        )
+    ]
+    check(
+        "no note grants a permission that no checker implements",
+        not unenforced,
+        f"{unenforced} read as permissions; no checker reads words_to_avoid_notes and names them",
+    )
+
+    # Non-vacuity: the detector must fire on the wording that was actually removed.
+    check(
+        "the permission detector fires on the removed wording",
+        _reads_as_a_permission("Permitted only with proof attached.")
+        and _reads_as_a_permission(
+            "Permitted only when the failure it resists is named in the same sentence."
+        ),
+        "the detector would pass any note, including a grant",
+    )
+    check(
+        "the permission detector does not fire on a historical note",
+        not _reads_as_a_permission(notes["earn"]),
+        "a historical note was misread as a grant",
+    )
+
+
 def case_workflow_runs_the_checker() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     for fragment in (
@@ -928,6 +1002,7 @@ def main() -> None:
     case_live_svg_scanner_sees_real_copy()
     case_live_banners_carry_no_instrument_palette()
     case_live_light_neutrals_are_declared()
+    case_live_notes_grant_no_permission_no_checker_implements()
     case_workflow_runs_the_checker()
 
     if FAILURES:

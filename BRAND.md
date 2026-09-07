@@ -162,9 +162,13 @@ the opposite.
 
 ## Words
 
-Lists and scope: `tokens.json > copy`. Three of the words carry notes with conditions worth
-knowing before you draft; `copy.words_to_avoid_notes` names those three and states each
-condition.
+Lists and scope: `tokens.json > copy`. The ban is flat. Every word on the list is refused on
+every surface the checker reads, and no word carries a condition that would let it through.
+`copy.words_to_avoid_notes` holds historical context and nothing else: a note there never
+grants a permission, and `scripts/test_validate_brand_kit.py` refuses one that reads like a
+grant unless a checker actually implements it. Two notes did read like grants until
+2026-09-07, and neither checker implemented either
+([#265](https://github.com/MrBinnacle/skills/issues/265)).
 
 The origin is worth carrying here because it is why the list exists: the retired tagline, quoted in
 full at `tokens.json > copy.words_to_avoid_notes`, was cleared from three text surfaces and
