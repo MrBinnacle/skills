@@ -304,6 +304,167 @@ def cli_cases():
     assert "requires --config and --repo-root" in result.stdout, result.stdout
 
 
+def _boundary_config(repo: Path, name: str, check_command: str) -> Path:
+    config = repo / name
+    config.write_text(json.dumps({
+        "state_file": ".claude/session-state.json",
+        "close_commit": {"contains": "RITUAL:"},
+        "packet_dir": "packets",
+        "receiver_checks": [{"name": "under-test", "command": check_command}],
+    }), encoding="utf-8")
+    return config
+
+
+def red_check_cases():
+    """A producer that has measured a receiver check red writes no packet.
+
+    skills#238: snapshot_state.py recorded exit_code 1 in tests[] and still
+    wrote the packet, so the next session paid for a failure the closing
+    session had already observed. Three surfaces refuse now: both producer
+    scripts before the file exists, and produce mode on a manifest that
+    already carries a red entry (a packet written by another caller).
+    """
+    red, _ = validator.extract(HERE / "fixture-red-check.md")
+    errors = validator.validate_recorded_checks(red)
+    assert any("recorded receiver check failed" in e for e in errors), errors
+    assert any("tests[1]" in e for e in errors), errors
+    clean, _ = validator.extract(HERE / "fixture-clean.md")
+    assert not validator.validate_recorded_checks(clean)
+
+    result = subprocess.run(
+        ["python", str(HERE / "validate_packet.py"), str(HERE / "fixture-red-check.md"),
+         "--mode", "produce"],
+        text=True, capture_output=True,
+    )
+    assert result.returncode == 2, result.stdout
+    assert "recorded receiver check failed" in result.stdout, result.stdout
+
+    snapshot_py = _pair_script("snapshot_state.py")
+    close_py = _pair_script("close_session.py")
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        _init_repo(repo)
+        packet_dir = repo / "packets"
+        args = ["--repo-root", str(repo), "--objective", "x",
+                "--next-action", "y", "--purpose", "z"]
+
+        red_config = _boundary_config(repo, "red.json", FAILING_COMMAND)
+        result = subprocess.run(
+            ["python", str(snapshot_py), "--config", str(red_config), *args],
+            text=True, capture_output=True,
+        )
+        assert result.returncode != 0, "snapshot wrote a packet after a red check"
+        assert FAILING_COMMAND in result.stderr, result.stderr
+        assert not packet_dir.exists() or not list(packet_dir.glob("*.md")), \
+            "snapshot refused but a packet file exists"
+
+        green_config = _boundary_config(repo, "green.json", PASSING_COMMAND)
+        result = subprocess.run(
+            ["python", str(snapshot_py), "--config", str(green_config), *args],
+            text=True, capture_output=True,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert Path(result.stdout.strip()).is_file(), "green snapshot wrote no packet"
+
+        # close_session.py carries its own snapshot stage and must refuse the
+        # same way. The close commit stands; only the packet is withheld.
+        before = sorted(packet_dir.glob("*.md"))
+        result = subprocess.run(
+            ["python", str(close_py), "--config", str(red_config), *args],
+            text=True, capture_output=True,
+        )
+        assert result.returncode != 0, "close wrote a packet after a red check"
+        payload = json.loads(result.stdout)
+        assert payload["failed_receiver_checks"][0]["name"] == "under-test", payload
+        assert sorted(packet_dir.glob("*.md")) == before, "close refused but a packet appeared"
+
+
+def assertions_held_cases():
+    """A REJECTED receive receipt says whether every packet assertion held.
+
+    Ruled S411 (skills_research#153, direction D): the verdict vocabulary
+    stays ACCEPTED / REJECTED. A defective receiver check on a sound packet
+    still rejects, but the receipt now states that the packet's own
+    assertions held and names the failing checks, so the reader can tell a
+    packet defect from a gate defect. Both directions are controlled here.
+    """
+    close_py = _pair_script("close_session.py")
+    open_py = _pair_script("open_session.py")
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        _init_repo(repo)
+        green_config = _boundary_config(repo, "green.json", PASSING_COMMAND)
+        closed = subprocess.run(
+            ["python", str(close_py), "--config", str(green_config),
+             "--repo-root", str(repo), "--objective", "x",
+             "--next-action", "y", "--purpose", "z"],
+            text=True, capture_output=True,
+        )
+        assert closed.returncode == 0, closed.stdout + closed.stderr
+        out = json.loads(closed.stdout)
+        head = out["head"]
+        sound = _fill_packet(Path(out["packet_path"]), head)
+
+        # The receiver's check is defective; the packet is sound.
+        red_config = _boundary_config(repo, "red.json", FAILING_COMMAND)
+        result = subprocess.run(
+            ["python", str(HERE / "validate_packet.py"), str(sound),
+             "--mode", "receive", "--repo-root", str(repo), "--config", str(red_config)],
+            text=True, capture_output=True,
+        )
+        assert result.returncode == 2, result.stdout
+        receipt = json.loads(result.stdout)
+        assert receipt["verdict"] == "REJECTED", receipt
+        assert receipt["packet_assertions_held"] is True, receipt
+        assert receipt["failed_receiver_checks"] == ["under-test"], receipt
+        assert list(receipt)[-1] == "summary", "the plain-words line must be last"
+        assert "under-test" in receipt["summary"], receipt
+        assert "receiver checks alone" in receipt["summary"], receipt
+
+        # open_session.py passes the classification through unchanged.
+        result = subprocess.run(
+            ["python", str(open_py), str(sound),
+             "--config", str(red_config), "--repo-root", str(repo)],
+            text=True, capture_output=True,
+        )
+        assert result.returncode != 0, result.stdout
+        receipt = json.loads(result.stdout)
+        assert receipt["verdict"] == "REJECTED", receipt
+        assert receipt["packet_assertions_held"] is True, receipt
+        assert list(receipt)[-1] == "summary", receipt
+
+        # Red control: a failing claim probe under the same defective check
+        # rejects with the field false. The rejection is the packet's.
+        failed, _ = validator.extract(HERE / "fixture-failed-probe.md")
+        failed["repository"]["head"] = head
+        failed["repository"]["branch"] = "main"
+        broken = repo / "broken.md"
+        broken.write_text(
+            f"<!-- SESSION-PACKET-V1\n{json.dumps(failed)}\nSESSION-PACKET-V1 -->\n"
+            "## Narrative\nx\n## Decisions\nx\n## What We Tried\nx\n## Resume Bootstrap\nx\n",
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            ["python", str(HERE / "validate_packet.py"), str(broken),
+             "--mode", "receive", "--repo-root", str(repo), "--config", str(red_config)],
+            text=True, capture_output=True,
+        )
+        assert result.returncode == 2, result.stdout
+        receipt = json.loads(result.stdout)
+        assert receipt["packet_assertions_held"] is False, receipt
+        assert any("path probe failed" in e for e in receipt["errors"]), receipt
+
+        # An ACCEPTED receipt carries no classification: there is nothing to
+        # classify, and an always-present field would read as a verdict.
+        result = subprocess.run(
+            ["python", str(HERE / "validate_packet.py"), str(sound),
+             "--mode", "receive", "--repo-root", str(repo), "--config", str(green_config)],
+            text=True, capture_output=True,
+        )
+        assert result.returncode == 0, result.stdout
+        assert "packet_assertions_held" not in json.loads(result.stdout)
+
+
 # Every file measured byte-identical across the pair (sha256, 2026-08-24) is
 # in the contract. If a file stops being shared, REMOVE it from this tuple and
 # record why in the removing change -- a contract that silently narrows is the
@@ -317,6 +478,7 @@ SHARED_PARITY_CONTRACT = (
     "fixture-clean.md",
     "fixture-failed-probe.md",
     "fixture-missing-field.md",
+    "fixture-red-check.md",
     "fixture-stale.md",
     "test_validate_packet.py",
     "validate_packet.py",
@@ -592,12 +754,14 @@ if __name__ == "__main__":
     cli_cases()
     close_session_cases()
     open_session_cases()
+    red_check_cases()
+    assertions_held_cases()
     parity_verified, parity_message = duplication_case()
     print(parity_message)
     roster = ("PASS: clean, stale, incomplete, failed-probe, placeholder, "
               "unfailable-check, command-probe, close-commit, close-commit-cli, "
               "claimed-head, claimed-head-cli, receive-mode-config, "
-              "close-session, open-session")
+              "close-session, open-session, red-check, assertions-held")
     # no-drift appears in the pass roster only when parity was actually
     # compared; a single-card install reports NOT VERIFIED above instead.
     print(roster + ", no-drift" if parity_verified else roster)

@@ -60,6 +60,8 @@ Reject when one condition is true:
 
 Do not repair a rejected packet inside local assumptions. Return to the producer or repair the durable packet first.
 
+A `REJECTED` receipt carries `packet_assertions_held`. When it is `true`, every assertion the packet made held and the rejection rests on the named `failed_receiver_checks` alone; the `summary` line says so in plain words. The verdict stays `REJECTED`. Repair a defective check with an ordinary reviewed commit to the gate, and proceed on the operator's word or wait. Never edit the check inside the receiver and never accept past a red one.
+
 ## Required fixtures
 
-Before adoption, run `test_validate_packet.py`. It covers clean, stale, incomplete, failed-probe, close-session, and open-session packets.
+Before adoption, run `test_validate_packet.py`. It covers clean, stale, incomplete, failed-probe, red-check, assertions-held, close-session, and open-session packets.

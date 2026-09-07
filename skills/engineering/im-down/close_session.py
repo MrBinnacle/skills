@@ -25,25 +25,56 @@ def git(root: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def run_check(root: Path, check: dict) -> dict:
-    observed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    result = subprocess.run(
-        check["command"], cwd=root, shell=True, text=True, capture_output=True,
-    )
-    return {
-        "command": check["command"],
-        "exit_code": result.returncode,
-        "observed_at": observed_at,
-        "head": git(root, "rev-parse", "HEAD"),
-    }
-
-
 class CloseError(Exception):
     """Closeable failure with a JSON-serialisable payload."""
 
     def __init__(self, payload: dict):
         self.payload = payload
         super().__init__(payload.get("error", "close failed"))
+
+
+def run_check(root: Path, check: dict) -> tuple[dict, str]:
+    """Run one receiver check. Returns the manifest entry and the captured output."""
+    observed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    result = subprocess.run(
+        check["command"], cwd=root, shell=True, text=True, capture_output=True,
+    )
+    entry = {
+        "command": check["command"],
+        "exit_code": result.returncode,
+        "observed_at": observed_at,
+        "head": git(root, "rev-parse", "HEAD"),
+    }
+    return entry, (result.stdout + result.stderr)[-2000:]
+
+
+def run_checks(root: Path, config: dict) -> list[dict]:
+    """Run every receiver check; refuse the close when any is red.
+
+    The receiver will re-run these and reject the packet on a red one. That
+    is known here, one session earlier, while the cause is still in context,
+    so no packet is written (skills#238). The close commit already made stays:
+    it is durable state and is correct as written. Fix the cause and close
+    again; the next close records a new HEAD.
+    """
+    entries: list[dict] = []
+    red: list[dict] = []
+    for check in config.get("receiver_checks", []):
+        entry, output = run_check(root, check)
+        entries.append(entry)
+        if entry["exit_code"] != 0:
+            red.append({
+                "name": check.get("name", check["command"]),
+                "command": check["command"],
+                "exit_code": entry["exit_code"],
+                "output": output,
+            })
+    if red:
+        raise CloseError({
+            "error": "refusing to write a packet: a receiver check is red",
+            "failed_receiver_checks": red,
+        })
+    return entries
 
 
 def write_state(root: Path, config: dict, objective: str, next_action: str,
@@ -95,10 +126,6 @@ def write_state(root: Path, config: dict, objective: str, next_action: str,
 def snapshot_packet(root: Path, config: dict, objective: str, next_action: str,
                     purpose: str, head: str) -> Path:
     """Write the packet scaffold at the post-commit HEAD already captured."""
-    packet_dir = root / config["packet_dir"]
-    packet_dir.mkdir(parents=True, exist_ok=True)
-    now = datetime.now(timezone.utc)
-    packet_id = str(uuid.uuid4())
     current_head = git(root, "rev-parse", "HEAD")
     if current_head != head:
         raise CloseError({
@@ -106,6 +133,11 @@ def snapshot_packet(root: Path, config: dict, objective: str, next_action: str,
             "expected": head,
             "current": current_head,
         })
+    tests = run_checks(root, config)
+    packet_dir = root / config["packet_dir"]
+    packet_dir.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    packet_id = str(uuid.uuid4())
     manifest = {
         "packet_version": "1",
         "packet_id": packet_id,
@@ -116,7 +148,7 @@ def snapshot_packet(root: Path, config: dict, objective: str, next_action: str,
             "head": head,
             "status_porcelain": git(root, "status", "--porcelain"),
         },
-        "tests": [run_check(root, check) for check in config.get("receiver_checks", [])],
+        "tests": tests,
         "skills_dispatched": {"source": "model-reported", "items": []},
         "objective": objective,
         "next_action": {"task": next_action, "purpose": purpose},

@@ -296,6 +296,28 @@ def validate_structure(data: dict, text: str) -> list[str]:
     return errors
 
 
+def validate_recorded_checks(data: dict) -> list[str]:
+    """Refuse a packet whose own manifest records a receiver check as red.
+
+    The producer runs every receiver check and writes the exit code into
+    tests[]. A packet carrying a non-zero exit code there has already measured
+    itself as one the receiver will reject, and it says so in its own manifest.
+    Shipping it moves the failure to the next session, which has neither the
+    context nor the cause. The producer scripts refuse before writing the
+    file; this check is the second line, for a packet written by another
+    caller or edited by hand after the snapshot.
+    """
+    errors: list[str] = []
+    for index, test in enumerate(data.get("tests", [])):
+        code = test.get("exit_code") if isinstance(test, dict) else None
+        if isinstance(code, int) and code != 0:
+            errors.append(
+                f"recorded receiver check failed: tests[{index}] exited {code}: "
+                f"{test.get('command')}. Fix the cause and produce the packet again."
+            )
+    return errors
+
+
 def validate_repository(
     data: dict, repo_root: Path, allowed_commands: set[str] | None = None
 ) -> tuple[list[str], list[str]]:
@@ -391,12 +413,16 @@ def main() -> int:
                 raise PacketError("config must be a JSON object")
             config = loaded
             notes.extend(lint_receiver_checks(config))
+        if args.mode == "produce":
+            errors.extend(validate_recorded_checks(data))
+        assertions_verified = False
         if args.repo_root:
             repo_errors, repo_notes = validate_repository(
                 data, args.repo_root.resolve(), trusted_commands(config)
             )
             errors.extend(repo_errors)
             notes.extend(repo_notes)
+            assertions_verified = True
             if args.mode == "produce":
                 # The producer's obligation, checked at the only moment it can
                 # still be repaired cheaply. The receiver inherits it: a packet
@@ -406,6 +432,13 @@ def main() -> int:
                 errors.extend(
                     validate_unclaimed_head(config, args.repo_root.resolve(), args.packet)
                 )
+        # Everything above this line is an assertion the PACKET made: its
+        # structure, its branch and HEAD, every claim probe. Everything below
+        # is a check the RECEIVER runs against the tree. The split is what the
+        # REJECTED receipt reports, so the reader can tell a packet defect from
+        # a gate defect without re-deriving it (S411 ruling on skills_research#153).
+        packet_errors = list(errors)
+        failed_receiver_checks: list[str] = []
         if args.mode == "receive":
             # Receive mode without a config used to skip every configured check
             # in silence and still return ACCEPTED. A verification that can be
@@ -416,6 +449,7 @@ def main() -> int:
                 checks = rerun_checks(config, args.repo_root.resolve())
                 for check in checks:
                     if check["exit_code"] != 0:
+                        failed_receiver_checks.append(check["name"])
                         errors.append(f"receiver check failed: {check['name']}")
         receipt = {
             "verdict": "REJECTED" if errors else "ACCEPTED",
@@ -424,6 +458,29 @@ def main() -> int:
             "notes": notes,
             "checks": checks,
         }
+        if errors and args.mode == "receive":
+            # `true` is a positive finding, not the absence of a negative one:
+            # it is asserted only when the repository assertions were actually
+            # run (a repo root was given) and every one of them held. The
+            # verdict stays REJECTED either way. The repair for a defective
+            # check is an ordinary reviewed commit to the gate, never a
+            # receiver that edits the check it is running or accepts past it.
+            held = assertions_verified and not packet_errors
+            receipt["packet_assertions_held"] = held
+            receipt["failed_receiver_checks"] = failed_receiver_checks
+            if held:
+                receipt["summary"] = (
+                    "Every assertion the packet made was verified against this "
+                    "tree: structure, branch, HEAD and every claim probe held. "
+                    "The rejection rests on the named receiver checks alone: "
+                    + ", ".join(failed_receiver_checks) + "."
+                )
+            else:
+                receipt["summary"] = (
+                    "The packet's own assertions did not all hold, or were not "
+                    "verified; the rejection is not attributable to the receiver "
+                    "checks alone."
+                )
         print(json.dumps(receipt, indent=2))
         return 2 if errors else 0
     except (OSError, PacketError, json.JSONDecodeError) as exc:
