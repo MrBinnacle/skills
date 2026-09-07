@@ -203,7 +203,7 @@ the package and the validator becomes a test of the move.
 
 ## [OBSERVED] 2026-09-06 — A filename carried residue the gate could not see
 
-The field report arrived as `FIELD-REPORT-2026-08-17-workspace-lint.md`. The last part of that name
+The field report arrived as `FIELD-REPORT-2026-08-17-<private-repo-name>.md`. The last part of that name
 is the maintainer's private repository.
 
 The de-personalization gate did not catch it, and would not have. Its hooks are content greps over

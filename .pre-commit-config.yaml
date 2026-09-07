@@ -47,7 +47,7 @@ repos:
       - id: residue-research-dir
         name: "residue 'skills_research' (private research dir) -> a generic descriptor"
         language: pygrep
-        entry: 'skills_research'
+        entry: 'skills[_.-]research'
         files: '\.md$'
       - id: residue-private-repo-dir
         name: "residue 'youwontdoit' (private repo dir) -> a generic descriptor"
@@ -62,8 +62,42 @@ repos:
       - id: residue-private-linter-repo
         name: "residue 'workspace_lint' (PRIVATE repo name) -> a generic descriptor"
         language: pygrep
-        entry: 'workspace_lint'
+        entry: 'workspace[_.-]lint'
         files: '\.md$'
+
+      # -- Residue in PATHS (#243) -------------------------------------------
+      #
+      # The seven hooks above read CONTENTS and never see a filename, so a
+      # private name in a path passed them and reached main. This hook reads
+      # `git ls-files` - every tracked and staged PATH - against the same seven
+      # terms, with `_`, `-` and `.` treated as one separator. The term list is
+      # duplicated in the script on purpose; its suite fails when the two drift.
+      - id: residue-in-paths
+        name: "residue term in a tracked file or directory NAME"
+        language: system
+        entry: python scripts/validate_path_residue.py
+        pass_filenames: false
+        always_run: true
+
+      # -- Quarantine landing (#249) -----------------------------------------
+      #
+      # `_quarantine/` is tracked, so `git add -A` sweeps an unfinished
+      # candidate into a public commit. This hook refuses a commit that stages a
+      # NEW `_quarantine/<skill>/` directory - one with no tracked file at HEAD -
+      # unless the same commit stages `LANDING.md` in that directory with
+      # `intentional-landing: true` on its first line. The marker is authored
+      # with the candidate, not typed at the keyboard.
+      #
+      # It reads the STAGED index, so `pre-commit run --all-files` in CI - where
+      # nothing is staged relative to HEAD - passes with a note. That is by
+      # design: #249 measured the hazard as a main-tree one.
+      - id: quarantine-landing
+        name: "a new _quarantine/<skill>/ needs LANDING.md to declare the landing"
+        language: system
+        entry: python scripts/validate_quarantine_landing.py
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
 
       # -- Taste prose style (#194) ------------------------------------------
       #
@@ -83,11 +117,17 @@ repos:
         pass_filenames: false
         always_run: true
 
+      # SCOPE (#244): README.md, skills/ and docs/ - the same three paths CI
+      # lints in .github/workflows/vale.yml. `_quarantine/` is NOT linted at
+      # either site: it holds frozen documents that must not be rewritten, and a
+      # hook that refused what CI accepts was being skipped as routine. Change
+      # this regex and the workflow's path list together;
+      # scripts/test_vale_scope.py fails when the two sets differ.
       - id: vale-prose
-        name: "Taste prose (error level) on staged markdown"
+        name: "Taste prose (error level) on staged markdown under README.md, skills/, docs/"
         language: system
         entry: python scripts/vale_hook.py
-        files: '\.md$'
+        files: '^(README\.md|skills/.*\.md|docs/.*\.md)$'
 
       - id: vale-commit-msg
         name: "Taste prose (error level) on the commit message"
