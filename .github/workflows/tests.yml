@@ -778,7 +778,7 @@ jobs:
           log="$RUNNER_TEMP/control-brand-hash.log"
           rm -rf "$tree"
           mkdir -p "$tree/assets"
-          cp assets/*.svg assets/tokens.json "$tree/assets/"
+          cp assets/*.svg assets/*.png assets/tokens.json "$tree/assets/"
           cp README.md package.json "$tree/"
           # The pair is injected with sed rather than a heredoc: a quoted
           # heredoc inside an indented `run:` block never terminates, because
@@ -821,7 +821,7 @@ jobs:
           log="$RUNNER_TEMP/control-brand-hex.log"
           rm -rf "$tree"
           mkdir -p "$tree/assets"
-          cp assets/*.svg assets/tokens.json "$tree/assets/"
+          cp assets/*.svg assets/*.png assets/tokens.json "$tree/assets/"
           cp README.md package.json "$tree/"
           sed -i 's|#8b949e|#3fb950|g' "$tree/assets/banner-dark.svg"
           grep -q '#3fb950' "$tree/assets/banner-dark.svg" \
