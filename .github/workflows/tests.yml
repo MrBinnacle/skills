@@ -800,6 +800,11 @@ jobs:
           # The PNG is one half of an asset_pairs entry; a tree without it reports a
           # second breach and the "exactly one reason" assertion below goes red.
           cp assets/*.svg assets/*.png assets/tokens.json "$tree/assets/"
+          # #256: the stylesheet is a declared hex surface. A control tree
+          # without it makes the surface match nothing, which the checker
+          # refuses as a check over nothing -- correctly, so copy it.
+          mkdir -p "$tree/site"
+          cp site/*.css "$tree/site/"
           cp package.json "$tree/"
           sed 's|^## Admission method$|## Skills that earn their keep|' README.md > "$tree/README.md"
           grep -q '^## Skills that earn their keep$' "$tree/README.md" \
@@ -839,6 +844,11 @@ jobs:
           rm -rf "$tree"
           mkdir -p "$tree/assets" "$tree/skills/engineering/a-card"
           cp assets/*.svg assets/*.png assets/tokens.json "$tree/assets/"
+          # #256: the stylesheet is a declared hex surface. A control tree
+          # without it makes the surface match nothing, which the checker
+          # refuses as a check over nothing -- correctly, so copy it.
+          mkdir -p "$tree/site"
+          cp site/*.css "$tree/site/"
           cp README.md package.json "$tree/"
           # Written with printf rather than a heredoc: a quoted heredoc inside an
           # indented `run:` block never terminates, because only tabs are
@@ -873,6 +883,11 @@ jobs:
           rm -rf "$tree"
           mkdir -p "$tree/assets"
           cp assets/*.svg assets/*.png assets/tokens.json "$tree/assets/"
+          # #256: the stylesheet is a declared hex surface. A control tree
+          # without it makes the surface match nothing, which the checker
+          # refuses as a check over nothing -- correctly, so copy it.
+          mkdir -p "$tree/site"
+          cp site/*.css "$tree/site/"
           cp README.md package.json "$tree/"
           # The pair is injected with sed rather than a heredoc: a quoted
           # heredoc inside an indented `run:` block never terminates, because
@@ -916,6 +931,11 @@ jobs:
           rm -rf "$tree"
           mkdir -p "$tree/assets"
           cp assets/*.svg assets/*.png assets/tokens.json "$tree/assets/"
+          # #256: the stylesheet is a declared hex surface. A control tree
+          # without it makes the surface match nothing, which the checker
+          # refuses as a check over nothing -- correctly, so copy it.
+          mkdir -p "$tree/site"
+          cp site/*.css "$tree/site/"
           cp README.md package.json "$tree/"
           sed -i 's|#8b949e|#3fb950|g' "$tree/assets/banner-dark.svg"
           grep -q '#3fb950' "$tree/assets/banner-dark.svg" \

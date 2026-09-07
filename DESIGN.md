@@ -48,7 +48,11 @@ closed on 2026-08-24. The two asset gaps below closed on 2026-09-06.
 
 **The token set is enforced.** `scripts/validate_brand_kit.py` performs three checks over
 `assets/tokens.json`: banned copy on the surfaces named in `copy.words_to_avoid_surfaces`,
-sha256 asset-pair hashes, and every hex in `assets/*.svg` declared as a token value. It runs
+sha256 asset-pair hashes, and every hex on the surfaces named in
+`color.declared_hex_surfaces` declared as a token value. Those hex surfaces are the SVG
+assets and the landing page stylesheet; the stylesheet joined them in
+[#256](https://github.com/MrBinnacle/skills/issues/256), before which it drew every value
+from the token file with nothing verifying it. It runs
 inside the `validator` job in `.github/workflows/tests.yml` on both operating-system cells,
 with a poison control per assertion, and is a required status check on the protected branch.
 **A green CI run is compliance, not silence.**
