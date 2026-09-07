@@ -3,8 +3,15 @@
  * Every colour below is a value declared under assets/tokens.json > color.
  * Light mode is the default and uses color.structural_light; dark mode uses
  * color.structural, switched by prefers-color-scheme with no toggle and no
- * script. No accent family is used: nothing on the page has a semantic use
- * for one (tokens.json usage_rules; crib.* are role-bound).
+ * script. One accent, crib.sage #6B6B50 ("governed or active utility
+ * accent"), appears in exactly two state roles: the :focus-visible outline
+ * and the :hover underline colour. It never carries text or an icon
+ * (5.46:1 on light.bg, 3.76:1 on repo.bg: clears the 3:1 non-text floor in
+ * both modes and not the 4.5:1 text floor in dark).
+ *
+ * Text pairs, the only four used:
+ *   light.ink   on light.bg  15.80    repo.ink   on repo.bg  17.38
+ *   light.muted on light.bg   6.39    repo.muted on repo.bg   6.68
  *
  * Radius scale (tokens.json > shape), one documented use per value:
  *   radius.none  0    -> layout, rules, list items, links
@@ -12,7 +19,9 @@
  *   radius.panel 4px  -> the install command block (<kbd>)
  *
  * Regions separate with 1px rules (repo.line / light.line), never shadows.
- * No gradient, glow, blur, glass, parallax or decorative motion.
+ * No gradient, glow, blur, glass, parallax or decorative motion. Motion is
+ * hover and focus only, colour and underline thickness, 120ms, behind
+ * prefers-reduced-motion: no-preference.
  */
 
 :root {
@@ -21,6 +30,7 @@
   --ink: #1F2328;       /* light.ink */
   --muted: #57606A;     /* light.muted */
   --line: #D0D7DE;      /* light.line */
+  --accent: #6B6B50;    /* crib.sage: focus ring and hover underline only */
 
   --font-body: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -36,6 +46,8 @@
   --s5: 32px;
   --s6: 48px;
   --s7: 96px;
+
+  --measure: 70ch;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -63,35 +75,68 @@ body {
   font-family: var(--font-body);
   font-size: 1.0625rem;
   line-height: 1.6;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--line);
+  color: var(--ink);
 }
 
 .wrap {
-  max-width: 760px;
+  max-width: 1040px;
   margin-inline: auto;
   padding-inline: var(--s4);
+}
+
+/* Skip link: visually hidden until focused */
+
+.skip {
+  position: absolute;
+  left: var(--s4);
+  top: var(--s2);
+  padding: var(--s2) var(--s3);
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  transform: translateY(-200%);
+}
+
+.skip:focus-visible {
+  transform: none;
+}
+
+/* The icon sprite holds symbols only; it takes no space */
+
+.sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 /* Type roles (tokens.json > type.roles) */
 
 h1 {
   font-weight: 700;
-  font-size: clamp(1.125rem, 0.5rem + 2.75vw, 2.25rem);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  margin: var(--s5) 0 var(--s3);
-  max-width: 24ch;
+  font-size: clamp(1.75rem, 1rem + 3vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--s4);
+  text-wrap: balance;
 }
 
 h2 {
   font-weight: 600;
-  font-size: 1.25rem;
+  font-size: 1.375rem;
   line-height: 1.3;
   margin: 0 0 var(--s3);
 }
 
 p {
   margin: 0 0 var(--s3);
-  max-width: 70ch;
+  max-width: var(--measure);
+  text-wrap: pretty;
 }
 
 a {
@@ -99,15 +144,21 @@ a {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.15em;
+  text-decoration-color: currentColor;
   border-radius: var(--radius-none);
+  /* Vertical padding on an inline box extends the touch target without
+     moving the line box: 12px above and below a 27px line is a 51px target. */
+  padding-block: 12px;
+  margin-block: -12px;
 }
 
 a:hover {
   text-decoration-thickness: 2px;
+  text-decoration-color: var(--accent);
 }
 
-a:focus-visible {
-  outline: 2px solid var(--ink);
+:focus-visible {
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -115,67 +166,149 @@ code,
 kbd {
   font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 0.9375em;
 }
 
 code {
+  font-size: 0.9375em;
   background: var(--surface);
   border-radius: var(--radius-small);
   padding: 0 var(--s1);
 }
 
-/* Hero */
+/* Icons: currentColor of the enclosing text, centred on the x-height with a
+   1px optical nudge, one family, one weight (Phosphor regular) */
+
+.icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  vertical-align: -0.25em;
+  margin-right: var(--s2);
+  position: relative;
+  top: -1px;
+  fill: currentColor;
+  flex: none;
+}
+
+.icon-small {
+  width: 16px;
+  height: 16px;
+  vertical-align: -0.2em;
+}
+
+/* Header: the lockup, no navigation, one hairline below */
+
+.site-head {
+  border-bottom: 1px solid var(--line);
+}
+
+.site-head-row {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+}
+
+.lockup {
+  display: block;
+  color: var(--ink);
+}
+
+.lockup-horizontal {
+  height: 28px;
+  width: auto;
+}
+
+.lockup-stacked {
+  display: none;
+  height: 61px;
+  width: auto;
+}
+
+@media (max-width: 359.98px) {
+  .site-head-row {
+    padding-block: var(--s3);
+  }
+  .lockup-horizontal {
+    display: none;
+  }
+  .lockup-stacked {
+    display: block;
+  }
+}
+
+/* Hero: split, mark column and text column at 768px and above */
 
 .hero {
   padding-top: var(--s6);
   padding-bottom: var(--s6);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s4);
 }
 
-.hero picture,
-.hero img {
+.mark {
   display: block;
-  max-width: 100%;
-  height: auto;
+  height: 72px;
+  width: auto;
+  color: var(--ink);
+}
+
+@media (min-width: 768px) {
+  .hero {
+    padding-top: 64px;
+    grid-template-columns: 160px minmax(0, 1fr);
+    gap: var(--s5);
+    align-items: start;
+  }
+  .mark {
+    height: 144px;
+  }
 }
 
 .owner {
-  color: var(--muted);
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--ink);
 }
 
 .action {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: var(--s2) var(--s3);
-  margin-top: var(--s4);
+  margin-top: var(--s5);
+  max-width: none;
 }
 
 .action-label {
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
 }
 
 .action kbd {
   display: inline-block;
+  min-height: 44px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
   padding: var(--s2) var(--s3);
   font-size: 1rem;
-  line-height: 1.5;
+  line-height: 1.6;
   overflow-wrap: anywhere;
 }
 
 .secondary {
-  margin: 0;
+  margin: var(--s2) 0 0;
 }
 
-/* Sections: one hairline above each */
+/* Regions: one hairline above each, more space above a heading than below */
 
-section,
-.foot {
+.record,
+.pair {
   border-top: 1px solid var(--line);
-  padding-top: var(--s5);
-  padding-bottom: var(--s5);
+  padding-top: var(--s6);
+  padding-bottom: var(--s6);
 }
 
 /* The record: label/value pairs in a hairline grid */
@@ -198,13 +331,20 @@ section,
 
 .record dt {
   font-weight: 600;
+  display: flex;
+  align-items: flex-start;
+}
+
+.record dt .icon {
+  top: 0;
+  margin-top: 0.2em;
 }
 
 .record dd {
   color: var(--muted);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   .record dl {
     display: block;
     border: 0;
@@ -220,6 +360,49 @@ section,
   }
 }
 
+/* The pair: two sections side by side with one vertical hairline between */
+
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s6);
+  padding-bottom: 0;
+}
+
+.pair section {
+  padding-bottom: var(--s6);
+}
+
+.pair .isnt {
+  border-top: 1px solid var(--line);
+  padding-top: var(--s6);
+}
+
+@media (min-width: 768px) {
+  .pair {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+  }
+  .pair .version {
+    padding-right: var(--s5);
+    border-right: 1px solid var(--line);
+  }
+  .pair .isnt {
+    padding-left: var(--s5);
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
+.pair h2 {
+  display: flex;
+  align-items: center;
+}
+
+.pair h2 .icon {
+  top: 0;
+}
+
 /* Lists */
 
 .isnt ul,
@@ -233,22 +416,39 @@ section,
   padding: var(--s2) 0;
 }
 
+.isnt li a,
+.foot li a,
+.secondary a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-block: 0;
+  margin-block: 0;
+}
+
+/* Footer */
+
+.foot {
+  border-top: 1px solid var(--line);
+  font-size: 1rem;
+  color: var(--muted);
+}
+
 .foot ul {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s2) var(--s4);
+  padding: var(--s5) var(--s4) var(--s7);
 }
 
-.foot {
-  font-size: 1rem;
+.foot a {
   color: var(--muted);
-  padding-bottom: var(--s7);
 }
 
-/* Motion: hover and focus only, colour only, gated */
+/* Motion: hover and focus only, colour and thickness, gated */
 
 @media (prefers-reduced-motion: no-preference) {
   a {
-    transition: color 120ms linear;
+    transition: text-decoration-color 120ms linear, text-decoration-thickness 120ms linear;
   }
 }

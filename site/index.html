@@ -3,64 +3,184 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MRBINNACLE / skills</title>
+  <meta name="description" content="These aren't the Claude Code skills you're looking for.">
+  <meta property="og:description" content="These aren't the Claude Code skills you're looking for.">
+  <meta name="twitter:description" content="These aren't the Claude Code skills you're looking for.">
+  <meta property="og:title" content="MRBINNACLE / skills">
+  <meta name="twitter:title" content="MRBINNACLE / skills">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mrbinnacle.github.io/skills/">
+  <link rel="canonical" href="https://mrbinnacle.github.io/skills/">
+  <meta property="og:image" content="https://mrbinnacle.github.io/skills/assets/social-preview.png">
+  <meta name="twitter:image" content="https://mrbinnacle.github.io/skills/assets/social-preview.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="MRBINNACLE / skills">
+  <meta name="twitter:image:alt" content="MRBINNACLE / skills">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFFFFF">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#010409">
   <meta name="color-scheme" content="light dark">
-  <title>skills</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="wrap">
+  <a class="skip" href="#main">Skip to content</a>
 
-    <header class="hero">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
-        <img alt="" src="assets/banner-light.svg" width="760" height="150">
-      </picture>
-      <h1>These aren't the Claude Code skills you're looking for.</h1>
-      <p class="owner">
-        Skills that started with problems I encountered.
-      </p>
-      <p class="action">
-        <span class="action-label">Install in Claude Code</span>
-        <kbd>/plugin marketplace add MrBinnacle/skills</kbd>
-      </p>
-      <p class="secondary"><a href="https://github.com/MrBinnacle/skills#readme">Read the README</a></p>
-    </header>
+  <!--
+    Icon sprite. Seven glyphs from Phosphor Icons, regular weight, vendored as
+    path data so the page makes no network request at render time.
+
+    Source repository: https://github.com/phosphor-icons/core
+    Tag: v2.0.8
+    Files: assets/regular/<name>.svg at that tag, fetched once at build on
+    2026-09-06 and inlined unchanged. sha256 of each fetched file:
+      terminal-window  5ee2be45ae5f7ff95d51e142baad1103cd8b473f89e69f983f3f5b40c884327d
+      door-open        6418503777f13d50b8ab85dcbe3f3e84b2780110dc3d9127cab0ad6a765d1e67
+      archive          bde81c0c44e80a7b8bf97f29ec11488c1b48998f2f74b2eb29e13ef8c1975e75
+      clipboard-text   1b1116133ad78d227c8d77f52856bde049dc02a351a1810d5dc91b2475cb873f
+      tag              56633631b2e56436c33010c432f5da46533d2cfcae9773e694ee90ad43d96d69
+      prohibit         7dab6c9d295b578a7ec5df0b21c2e5ee56869ccd76ea23e2696d74fa7ae5be59
+      github-logo      eec5e2120017580de1e12f638488a0231478c02f1f404cfee8b4ff9e6bcce7ac
+
+    Licence: MIT. The licence text at that tag, reproduced as the licence requires:
+
+      MIT License
+
+      Copyright (c) 2023 Phosphor Icons
+
+      Permission is hereby granted, free of charge, to any person obtaining a copy
+      of this software and associated documentation files (the "Software"), to deal
+      in the Software without restriction, including without limitation the rights
+      to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+      copies of the Software, and to permit persons to whom the Software is
+      furnished to do so, subject to the following conditions:
+
+      The above copyright notice and this permission notice shall be included in all
+      copies or substantial portions of the Software.
+
+      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+      IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+      FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+      AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+      LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+      SOFTWARE.
+  -->
+  <svg class="sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+    <symbol id="ph-terminal-window" viewBox="0 0 256 256"><path d="M128,128a8,8,0,0,1-3,6.25l-40,32a8,8,0,1,1-10-12.5L107.19,128,75,102.25a8,8,0,1,1,10-12.5l40,32A8,8,0,0,1,128,128Zm48,24H136a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm56-96V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Z"/></symbol>
+    <symbol id="ph-door-open" viewBox="0 0 256 256"><path d="M232,216H208V40a16,16,0,0,0-16-16H64A16,16,0,0,0,48,40V216H24a8,8,0,0,0,0,16H232a8,8,0,0,0,0-16ZM192,40V216H176V40ZM64,40h96V216H64Zm80,92a12,12,0,1,1-12-12A12,12,0,0,1,144,132Z"/></symbol>
+    <symbol id="ph-archive" viewBox="0 0 256 256"><path d="M224,48H32A16,16,0,0,0,16,64V88a16,16,0,0,0,16,16v88a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V104a16,16,0,0,0,16-16V64A16,16,0,0,0,224,48ZM208,192H48V104H208ZM224,88H32V64H224V88ZM96,136a8,8,0,0,1,8-8h48a8,8,0,0,1,0,16H104A8,8,0,0,1,96,136Z"/></symbol>
+    <symbol id="ph-clipboard-text" viewBox="0 0 256 256"><path d="M168,152a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,152Zm-8-40H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16Zm56-64V216a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V48A16,16,0,0,1,56,32H92.26a47.92,47.92,0,0,1,71.48,0H200A16,16,0,0,1,216,48ZM96,64h64a32,32,0,0,0-64,0ZM200,48H173.25A47.93,47.93,0,0,1,176,64v8a8,8,0,0,1-8,8H88a8,8,0,0,1-8-8V64a47.93,47.93,0,0,1,2.75-16H56V216H200Z"/></symbol>
+    <symbol id="ph-tag" viewBox="0 0 256 256"><path d="M243.31,136,144,36.69A15.86,15.86,0,0,0,132.69,32H40a8,8,0,0,0-8,8v92.69A15.86,15.86,0,0,0,36.69,144L136,243.31a16,16,0,0,0,22.63,0l84.68-84.68a16,16,0,0,0,0-22.63Zm-96,96L48,132.69V48h84.69L232,147.31ZM96,84A12,12,0,1,1,84,72,12,12,0,0,1,96,84Z"/></symbol>
+    <symbol id="ph-prohibit" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm88,104a87.56,87.56,0,0,1-20.41,56.28L71.72,60.4A88,88,0,0,1,216,128ZM40,128A87.56,87.56,0,0,1,60.41,71.72L184.28,195.6A88,88,0,0,1,40,128Z"/></symbol>
+    <symbol id="ph-github-logo" viewBox="0 0 256 256"><path d="M208.31,75.68A59.78,59.78,0,0,0,202.93,28,8,8,0,0,0,196,24a59.75,59.75,0,0,0-48,24H124A59.75,59.75,0,0,0,76,24a8,8,0,0,0-6.93,4,59.78,59.78,0,0,0-5.38,47.68A58.14,58.14,0,0,0,56,104v8a56.06,56.06,0,0,0,48.44,55.47A39.8,39.8,0,0,0,96,192v8H72a24,24,0,0,1-24-24A40,40,0,0,0,8,136a8,8,0,0,0,0,16,24,24,0,0,1,24,24,40,40,0,0,0,40,40H96v16a8,8,0,0,0,16,0V192a24,24,0,0,1,48,0v40a8,8,0,0,0,16,0V192a39.8,39.8,0,0,0-8.44-24.53A56.06,56.06,0,0,0,216,112v-8A58.14,58.14,0,0,0,208.31,75.68ZM200,112a40,40,0,0,1-40,40H112a40,40,0,0,1-40-40v-8a41.74,41.74,0,0,1,6.9-22.48A8,8,0,0,0,80,73.83a43.81,43.81,0,0,1,.79-33.58,43.88,43.88,0,0,1,32.32,20.06A8,8,0,0,0,119.82,64h32.35a8,8,0,0,0,6.74-3.69,43.87,43.87,0,0,1,32.32-20.06A43.81,43.81,0,0,1,192,73.83a8.09,8.09,0,0,0,1,7.65A41.72,41.72,0,0,1,200,104Z"/></symbol>
+  </svg>
+
+  <header class="site-head">
+    <div class="wrap site-head-row">
+      <!-- Inlined from assets/lockup-horizontal.svg (path data byte-identical to the asset); shown at 360px and above. The viewBox is cropped to the lockup's own content so the wordmark renders at its native 24px inside the 56px row; the header's padding supplies the clear space. -->
+      <svg class="lockup lockup-horizontal" xmlns="http://www.w3.org/2000/svg" viewBox="22 22 332.4 28" height="28" role="img" aria-label="MRBINNACLE / skills">
+        <g transform="translate(22 22) scale(0.3111111)" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"/>
+          <line x1="14" y1="24" x2="58" y2="24"/>
+          <line x1="14" y1="40" x2="58" y2="40"/>
+          <line x1="14" y1="56" x2="40" y2="56" stroke-opacity="0.55"/>
+          <circle cx="53" cy="56" r="6.5" stroke-width="2.5" stroke-opacity="0.55"/>
+          <circle cx="53" cy="56" r="2" fill="currentColor" fill-opacity="0.55" stroke="none"/>
+        </g>
+        <text x="60.4" y="44.7" fill="currentColor" font-size="24" xml:space="preserve"><tspan
+            font-family="Inter, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif"
+            font-weight="700" letter-spacing="-0.24">MRBINNACLE</tspan><tspan
+            font-family="ui-monospace, &quot;SFMono-Regular&quot;, Consolas, &quot;Liberation Mono&quot;, monospace"
+            font-weight="500"> / skills</tspan></text>
+      </svg>
+      <!-- Inlined from assets/lockup-stacked.svg (path data byte-identical to the asset); shown below 360px only (tokens.json > wordmark.construction.default_rendering). Same crop rule as above. -->
+      <svg class="lockup lockup-stacked" xmlns="http://www.w3.org/2000/svg" viewBox="22 22 294 61" height="61" role="img" aria-label="MRBINNACLE / skills">
+        <g transform="translate(157.8 22) scale(0.3111111)" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"/>
+          <line x1="14" y1="24" x2="58" y2="24"/>
+          <line x1="14" y1="40" x2="58" y2="40"/>
+          <line x1="14" y1="56" x2="40" y2="56" stroke-opacity="0.55"/>
+          <circle cx="53" cy="56" r="6.5" stroke-width="2.5" stroke-opacity="0.55"/>
+          <circle cx="53" cy="56" r="2" fill="currentColor" fill-opacity="0.55" stroke="none"/>
+        </g>
+        <text x="169" y="83.4" fill="currentColor" font-size="24" text-anchor="middle" xml:space="preserve"><tspan
+            font-family="Inter, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif"
+            font-weight="700" letter-spacing="-0.24">MRBINNACLE</tspan><tspan
+            font-family="ui-monospace, &quot;SFMono-Regular&quot;, Consolas, &quot;Liberation Mono&quot;, monospace"
+            font-weight="500"> / skills</tspan></text>
+      </svg>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+
+    <section class="hero">
+      <!-- The receipt glyph: the hero mark, in the two banners' own path data, currentColor. -->
+      <svg class="mark" xmlns="http://www.w3.org/2000/svg" viewBox="-2 2 76 90" aria-hidden="true" focusable="false">
+        <g fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"/>
+          <line x1="14" y1="24" x2="58" y2="24"/>
+          <line x1="14" y1="40" x2="58" y2="40"/>
+          <line x1="14" y1="56" x2="40" y2="56" stroke-opacity="0.55"/>
+          <circle cx="53" cy="56" r="6.5" stroke-width="2.5" stroke-opacity="0.55"/>
+          <circle cx="53" cy="56" r="2" fill="currentColor" fill-opacity="0.55" stroke="none"/>
+        </g>
+      </svg>
+      <div class="hero-text">
+        <h1>These aren't the Claude Code skills you're looking for.</h1>
+        <p class="owner">
+          Skills that started with problems I encountered.
+        </p>
+        <p class="action">
+          <span class="action-label"><svg class="icon" aria-hidden="true" focusable="false" width="20" height="20"><use href="#ph-terminal-window"/></svg>Install in Claude Code</span>
+          <kbd>/plugin marketplace add MrBinnacle/skills</kbd>
+        </p>
+        <p class="secondary"><a href="https://github.com/MrBinnacle/skills#readme">Read the README</a></p>
+      </div>
+    </section>
 
     <section class="record">
       <h2>What the record holds</h2>
       <dl>
-        <dt><a href="https://github.com/MrBinnacle/skills/blob/main/ADMISSION.md">Admission policy</a></dt>
+        <dt><svg class="icon" aria-hidden="true" focusable="false" width="20" height="20"><use href="#ph-door-open"/></svg><a href="https://github.com/MrBinnacle/skills/blob/main/ADMISSION.md">Admission policy</a></dt>
         <dd>Four questions decide whether a card enters. The default answer is no.</dd>
-        <dt><a href="https://github.com/MrBinnacle/skills/blob/main/RETIRED.md">Retirement record</a></dt>
+        <dt><svg class="icon" aria-hidden="true" focusable="false" width="20" height="20"><use href="#ph-archive"/></svg><a href="https://github.com/MrBinnacle/skills/blob/main/RETIRED.md">Retirement record</a></dt>
         <dd>A card that leaves is recorded, with the reason it left.</dd>
-        <dt><a href="https://github.com/MrBinnacle/skills#card-evidence">Evidence per card</a></dt>
+        <dt><svg class="icon" aria-hidden="true" focusable="false" width="20" height="20"><use href="#ph-clipboard-text"/></svg><a href="https://github.com/MrBinnacle/skills#card-evidence">Evidence per card</a></dt>
         <dd>Each card carries its own record. A figure nobody measured is written down as missing, not filled in.</dd>
       </dl>
     </section>
 
-    <section class="version">
-      <h2>What a version promises</h2>
-      <p>The install path and the card format are what a version promises. The set of cards is not. Cards are added and retired under a minor release, so what you can install is expected to change.</p>
-      <p><a href="https://github.com/MrBinnacle/skills/blob/main/docs/adr/0002-a-release-is-a-delivery-event.md">The decision record</a> says why. <a href="https://github.com/MrBinnacle/skills/blob/main/CHANGELOG.md">The changelog</a> says what changed.</p>
-    </section>
+    <div class="pair">
+      <section class="version">
+        <h2><svg class="icon" aria-hidden="true" focusable="false" width="20" height="20"><use href="#ph-tag"/></svg>What a version promises</h2>
+        <p>The install path and the card format are what a version promises. The set of cards is not. Cards are added and retired under a minor release, so what you can install is expected to change.</p>
+        <p><a href="https://github.com/MrBinnacle/skills/blob/main/docs/adr/0002-a-release-is-a-delivery-event.md">The decision record</a> says why. <a href="https://github.com/MrBinnacle/skills/blob/main/CHANGELOG.md">The changelog</a> says what changed.</p>
+      </section>
 
-    <section class="isnt">
-      <h2>What this isn't</h2>
-      <ul>
-        <li><a href="https://github.com/MrBinnacle/skills#not-a-catalog">Not a catalog</a></li>
-        <li><a href="https://github.com/MrBinnacle/skills#not-proof-that-these-skills-work">Not proof that these skills work</a></li>
-        <li><a href="https://github.com/MrBinnacle/skills#not-a-runtime">Not a runtime</a></li>
-      </ul>
-    </section>
-
-    <footer class="foot">
-      <ul>
-        <li><a href="https://github.com/MrBinnacle/skills">Repository</a></li>
-        <li><a href="https://github.com/MrBinnacle/skill-harness">skill-harness</a></li>
-        <li><a href="https://github.com/MrBinnacle/skills/blob/main/LICENSE">MIT License</a></li>
-      </ul>
-    </footer>
+      <section class="isnt">
+        <h2><svg class="icon" aria-hidden="true" focusable="false" width="20" height="20"><use href="#ph-prohibit"/></svg>What this isn't</h2>
+        <ul>
+          <li><a href="https://github.com/MrBinnacle/skills#not-a-catalog">Not a catalog</a></li>
+          <li><a href="https://github.com/MrBinnacle/skills#not-proof-that-these-skills-work">Not proof that these skills work</a></li>
+          <li><a href="https://github.com/MrBinnacle/skills#not-a-runtime">Not a runtime</a></li>
+        </ul>
+      </section>
+    </div>
 
   </main>
+
+  <footer class="foot">
+    <ul class="wrap">
+      <li><a href="https://github.com/MrBinnacle/skills"><svg class="icon icon-small" aria-hidden="true" focusable="false" width="16" height="16"><use href="#ph-github-logo"/></svg>Repository</a></li>
+      <li><a href="https://github.com/MrBinnacle/skill-harness">skill-harness</a></li>
+      <li><a href="https://github.com/MrBinnacle/skills/blob/main/LICENSE">MIT License</a></li>
+    </ul>
+  </footer>
 </body>
 </html>
