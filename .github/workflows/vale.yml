@@ -68,6 +68,11 @@ jobs:
             || { echo "::error::STYLE_SOURCE.json records Vale $recorded, workflow installed $installed"; exit 1; }
           echo "Vale $installed matches the recorded pin"
 
+      # SCOPE (#244): README.md, skills/ and docs/ - the same three paths the
+      # vale-prose hook in .pre-commit-config.yaml matches. `_quarantine/` is
+      # NOT linted at either site: it holds frozen documents that must not be
+      # rewritten. Change this path list and the hook's `files:` regex
+      # together; scripts/test_vale_scope.py fails when the two sets differ.
       - name: Run Vale on prose (report, all rows)
         continue-on-error: true
         run: vale --config .vale.ini README.md skills/ docs/

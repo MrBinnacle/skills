@@ -55,6 +55,52 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::captured-exit suite emitted no PASS line - it did not run"; exit 1; }
 
+      # #255 (compiling #243, #244, #249): three commit gates were checking the
+      # wrong surface. Each suite below builds poison trees in a temp dir and
+      # proves its gate goes red on them; none commits a poison fixture.
+      #
+      # #243: the residue hooks read contents and never a filename. This suite
+      # proves a clean-content file whose NAME carries a term is refused in the
+      # underscore, hyphen and dot forms, and that the yaml and script term
+      # lists agree. The sweep step after it is the backward check on the tree.
+      - name: Path-residue suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_path_residue.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::path-residue suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Path-residue sweep
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_path_residue.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+
+      # #244: the vale-prose hook and CI's vale job must lint the same set of
+      # paths. The suite reads both sites and partitions every tracked path
+      # under each; with Vale installed it also plants an error-level violation
+      # inside and outside the scope and runs CI's exact command.
+      - name: Vale scope agreement suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_vale_scope.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::vale-scope suite emitted no PASS line - it did not run"; exit 1; }
+
+      # #249: a new _quarantine/<skill>/ staged without LANDING.md is refused.
+      # The guard reads the staged index, so there is no live-tree check step:
+      # under --all-files in CI nothing is staged and the hook passes with a
+      # note. The five #249 fixtures and the two named candidates are here.
+      - name: Quarantine-landing suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_quarantine_landing.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::quarantine-landing suite emitted no PASS line - it did not run"; exit 1; }
+
       # #194: the Taste style is authored in skill-harness and vendored here. These
       # two steps check CONFIGURATION INTEGRITY - digests, generated-rule agreement,
       # and the scope binding - and they GATE, because a vendored rule that no longer

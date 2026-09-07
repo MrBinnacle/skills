@@ -243,7 +243,7 @@ occurrences of it. We made the same replacement, using the identical phrase that
 passages counting distinct projects as separate evidence stay distinguishable. One line changed; a
 `diff` against the source confirms nothing else did.
 
-The file was also renamed. It arrived as `FIELD-REPORT-2026-08-17-workspace-lint.md` and landed as
+The file was also renamed. It arrived as `FIELD-REPORT-2026-08-17-<private-repo-name>.md` and landed as
 `FIELD-REPORT-2026-08-17.md`. The old name carried the private repository in the path. The gate
 would not have caught it: the hook matches the underscored spelling inside file contents, and the
 filename used a hyphen. A residue check that reads only file contents cannot see a filename.
