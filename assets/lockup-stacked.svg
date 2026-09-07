@@ -1,23 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 338 105" width="338" height="105" role="img" aria-label="MRBINNACLE / skills">
   <!--
-    Stacked lockup: compact mark above the wordmark. Use ONLY below 360px
+    Stacked lockup: the receipt glyph above the wordmark. Use ONLY below 360px
     (assets/tokens.json > wordmark.construction.default_rendering); the
     horizontal lockup is the default everywhere else.
 
-    Geometry: clear space 22 (width of the M at 24px) on every side; mark 28px,
-    centred; 16px gap (a space token); wordmark set at 24px, centred.
+    The mark is the receipt glyph the two banners draw, in the banners' own path
+    data, scaled 28/90 so the glyph's 90-unit canvas stands 28px tall. The MB
+    compact mark this file drew until 2026-09-06 left the repo identity by owner
+    ruling (tokens.json > wordmark.compact_mark_retired); the receipt glyph is the
+    repository's semantic mark and no replacement mark was manufactured.
 
-    Colour is currentColor by design: the kit declares dark-surface neutrals only
-    (tokens.json > known_gaps.no_light_mode_neutrals), so a hard-coded hex here
-    would be an invented token. Inherits from the embedding context instead.
+    Geometry: clear space 22 (width of the M at 24px) on every side; mark 28px
+    tall, 22.4px wide, centred; 16px gap (a space token); wordmark set at 24px,
+    centred.
+
+    Colour is currentColor by design: a file with no hex cannot violate the token
+    set, and the same file inherits either ink (color.structural or
+    color.structural_light, both declared since 2026-08-24). The banners draw the
+    stamped line and seal in the muted neutral; here that relationship is carried
+    by stroke-opacity on the same currentColor, so the file still declares no hex.
   -->
-  <g transform="translate(155 22) scale(1.1666667)" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter">
-    <rect x="2" y="2" width="20" height="20" rx="2"/>
-    <path d="M12 2 V5.5"/>
-    <path d="M5.25 16.5 V8.5 L8.5 12.5 L11.75 8.5 V16.5"/>
-    <path d="M13.75 8.5 V16.5"/>
-    <path d="M13.75 8.5 H16.5 A2 2 0 0 1 16.5 12.5 H13.75"/>
-    <path d="M13.75 12.5 H16.75 A2 2 0 0 1 16.75 16.5 H13.75"/>
+  <g transform="translate(157.8 22) scale(0.3111111)" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"/>
+    <line x1="14" y1="24" x2="58" y2="24"/>
+    <line x1="14" y1="40" x2="58" y2="40"/>
+    <line x1="14" y1="56" x2="40" y2="56" stroke-opacity="0.55"/>
+    <circle cx="53" cy="56" r="6.5" stroke-width="2.5" stroke-opacity="0.55"/>
+    <circle cx="53" cy="56" r="2" fill="currentColor" fill-opacity="0.55" stroke="none"/>
   </g>
   <text x="169" y="83.4" fill="currentColor" font-size="24" text-anchor="middle" xml:space="preserve"><tspan
       font-family="Inter, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif"

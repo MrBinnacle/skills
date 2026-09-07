@@ -40,11 +40,11 @@ check.
 
 ---
 
-## Colour: two gaps closed, two remaining
+## Colour: four gaps closed, none remaining
 
 `tokens.json > known_gaps` records what remains open, measured against the committed assets.
 The two colour gaps — no light-mode neutrals, and instrument green on inventory assets —
-closed on 2026-08-24.
+closed on 2026-08-24. The two asset gaps below closed on 2026-09-06.
 
 **The token set is enforced.** `scripts/validate_brand_kit.py` performs three checks over
 `assets/tokens.json`: banned copy on the surfaces named in `copy.words_to_avoid_surfaces`,
@@ -53,20 +53,20 @@ inside the `validator` job in `.github/workflows/tests.yml` on both operating-sy
 with a poison control per assertion, and is a required status check on the protected branch.
 **A green CI run is compliance, not silence.**
 
-Two gaps remain open:
-- **Social preview raster is unreadable.** `assets/social-preview.png` is a raster with no
-  text layer; no check can read its copy or colours. Closing it is the social-preview rebuild
-  (`MrBinnacle/skills#62`).
+Two gaps closed on 2026-09-06, each a receipt under `tokens.json > closed_gaps`:
+- **Social preview raster is unreadable.** `assets/social-preview.png` is now an export of
+  `assets/social-preview.svg`, the text-bearing source (`MrBinnacle/skills#62`), and the two
+  are a recorded hash pair. The upload to the repository setting is still the owner's act.
 - **Compact mark still in the lockups.** `assets/lockup-horizontal.svg` and
-  `assets/lockup-stacked.svg` still draw the retired MB compact mark. What replaces it is a
-  design decision.
+  `assets/lockup-stacked.svg` now draw the receipt glyph, the banners' own mark, in the
+  banners' own path data.
 
 **Author new marks with `currentColor`**, not a literal hex. A file with no hex cannot violate a
 token set, needs no light-mode neutral to exist, and inherits on either surface — which matters
 because the kit declares dark-surface neutrals only. *Revisit if:* light-mode neutrals land, or
 an asset needs more than one ink value.
 
-⚠ `currentColor` does not survive `<img src="…">`; an asset embedded that way renders black. Use
+`currentColor` does not survive `<img src="…">`; an asset embedded that way renders black. Use
 `<picture>` with `prefers-color-scheme` as `README.md` already does, or inline the SVG.
 
 ---
@@ -81,13 +81,9 @@ compass rose or an anchor points at the sea; the name points at the *housing*. T
 banned list — gear, robot, brain, circuit, sparkle — is the generic developer-tool iconography
 the collection is trying not to resemble.
 
-**Centre the letter band on the housing interior, not the raw grid.** With a 1.5px stroke the
-housing's inner edges sit at 2.75 and 21.25 on a 24-unit grid.
-
-**Check the `M`/`B` gap at 20px specifically**, which is the declared minimum. A nominal 2px gap
-between stem centres leaves roughly a quarter-pixel of visible space at a 1.5px stroke, and the
-pair reads as one glyph. *Revisit if:* the minimum size changes, or the mark is redrawn as
-filled type rather than strokes.
+**The mark is the receipt glyph** the two banners draw, in the banners' own path data, and it is
+the mark in both lockups, the favicon and the landing page since 2026-09-06; the MB compact mark
+it replaced is retired (`tokens.json > wordmark.compact_mark_retired`).
 
 ---
 
@@ -119,7 +115,7 @@ caught the retired tagline surviving on the card.
 overlapping elements. That class is uncovered here by choice; catching it needs visual regression
 tooling, which costs a second toolchain. Also revisit if GitHub changes the accepted formats.
 
-⚠ Re-dereference those line numbers before citing them. They were exact when written; line
+Re-dereference those line numbers before citing them. They were exact when written; line
 references rot.
 
 ---

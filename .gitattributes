@@ -10,6 +10,13 @@
 # A hash over a text file must not depend on the platform that checked it out.
 styles/** text eol=lf
 
+# The same rule for the SVG halves of asset_pairs: assets/tokens.json records a
+# SHA-256 of each, and a CRLF checkout on the Windows runner changes the bytes
+# without changing the file. Measured on PR #257: ubuntu green, windows red on
+# assets/social-preview.svg. The PNG half is binary and unaffected.
+assets/*.svg text eol=lf
+assets/*.png binary
+
 # WHY THIS FILE DOES NOT PIN THE WHOLE REPOSITORY, THOUGH IT SHOULD EVENTUALLY.
 #
 # Ten tracked files currently hold CRLF in the index:

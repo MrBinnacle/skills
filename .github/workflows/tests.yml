@@ -792,7 +792,9 @@ jobs:
           log="$RUNNER_TEMP/control-brand-copy.log"
           rm -rf "$tree"
           mkdir -p "$tree/assets"
-          cp assets/*.svg assets/tokens.json "$tree/assets/"
+          # The PNG is one half of an asset_pairs entry; a tree without it reports a
+          # second breach and the "exactly one reason" assertion below goes red.
+          cp assets/*.svg assets/*.png assets/tokens.json "$tree/assets/"
           cp package.json "$tree/"
           sed 's|^## Admission method$|## Skills that earn their keep|' README.md > "$tree/README.md"
           grep -q '^## Skills that earn their keep$' "$tree/README.md" \
@@ -822,7 +824,7 @@ jobs:
           log="$RUNNER_TEMP/control-brand-hash.log"
           rm -rf "$tree"
           mkdir -p "$tree/assets"
-          cp assets/*.svg assets/tokens.json "$tree/assets/"
+          cp assets/*.svg assets/*.png assets/tokens.json "$tree/assets/"
           cp README.md package.json "$tree/"
           # The pair is injected with sed rather than a heredoc: a quoted
           # heredoc inside an indented `run:` block never terminates, because
@@ -837,8 +839,9 @@ jobs:
           # unmutated fixture and reported the checker as working.
           fresh="$(sha256sum < "$tree/assets/banner-light.svg" | cut -d" " -f1)"
           stale="0000000000000000000000000000000000000000000000000000000000000000"
-          pair="\"pairs\": [{\"source\": \"assets/banner-dark.svg\", \"export\": \"assets/banner-light.svg\", \"source_sha256\": \"$stale\", \"export_sha256\": \"$fresh\"}],"
-          sed -i "s|\"pairs\": \[\],|$pair|" "$tree/assets/tokens.json"
+          # The live token file records a real pair since the v2 assets landed, so the
+          # fixture REPLACES the pairs list rather than filling an empty one.
+          python -c "import json,sys; p=sys.argv[1]; d=json.load(open(p, encoding='utf-8')); d['asset_pairs']['pairs']=[{'source': 'assets/banner-dark.svg', 'export': 'assets/banner-light.svg', 'source_sha256': sys.argv[3], 'export_sha256': sys.argv[2]}]; json.dump(d, open(p, 'w', encoding='utf-8'), indent=2)" "$tree/assets/tokens.json" "$fresh" "$stale"
           grep -q "$fresh" "$tree/assets/tokens.json"             || { echo "::error::the control fixture was not mutated - no pair was recorded"; exit 1; }
           python -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$tree/assets/tokens.json"             || { echo "::error::the control fixture is not valid JSON"; exit 1; }
           if python scripts/validate_brand_kit.py --root "$tree" > "$log" 2>&1; then
@@ -864,7 +867,7 @@ jobs:
           log="$RUNNER_TEMP/control-brand-hex.log"
           rm -rf "$tree"
           mkdir -p "$tree/assets"
-          cp assets/*.svg assets/tokens.json "$tree/assets/"
+          cp assets/*.svg assets/*.png assets/tokens.json "$tree/assets/"
           cp README.md package.json "$tree/"
           sed -i 's|#8b949e|#3fb950|g' "$tree/assets/banner-dark.svg"
           grep -q '#3fb950' "$tree/assets/banner-dark.svg" \

@@ -3,8 +3,8 @@
 
 The file told readers to treat the token set as unenforced. It is enforced,
 and has been since 2026-08-24. These tests pin the correction: the stale claim
-must be gone, the truth must be present, and the two remaining open gaps must
-be quoted from known_gaps as it now reads — including the real asset paths.
+must be gone, the truth must be present, and the two gaps closed on 2026-09-06
+must be quoted from closed_gaps as it now reads, including the real asset paths.
 
 Each test reads the live DESIGN.md rather than a fixture, because the file is
 the source of truth being verified. Gap paths are cross-checked against
@@ -36,6 +36,10 @@ def _design() -> str:
 
 def _known_gaps() -> dict:
     return json.loads(TOKENS.read_text(encoding="utf-8"))["known_gaps"]
+
+
+def _closed_gaps() -> dict:
+    return json.loads(TOKENS.read_text(encoding="utf-8"))["closed_gaps"]
 
 
 # --------------------------------------------------------------------------
@@ -106,13 +110,14 @@ def case_ci_gate_mentioned() -> None:
 
 
 # --------------------------------------------------------------------------
-# Criterion 3: two remaining gaps quoted from known_gaps, real paths
+# Criterion 3: the two closed gaps quoted from closed_gaps, real paths
 # --------------------------------------------------------------------------
 def case_social_preview_gap_mentioned() -> None:
-    """The social preview raster gap must be stated with the live asset path."""
+    """The social preview raster closure must be stated with the live asset path."""
     text = _design()
-    gaps = _known_gaps()
+    gaps = _closed_gaps()
     assert "social_preview_raster_is_unreadable" in gaps
+    assert "social_preview_raster_is_unreadable" not in _known_gaps()
     check(
         "social preview raster gap stated",
         "assets/social-preview.png" in text
@@ -122,10 +127,11 @@ def case_social_preview_gap_mentioned() -> None:
 
 
 def case_compact_mark_gap_mentioned() -> None:
-    """The compact mark gap must name both lockups that known_gaps records."""
+    """The compact mark closure must name both lockups that closed_gaps records."""
     text = _design()
-    gaps = _known_gaps()
-    gap_text = gaps["compact_mark_still_in_the_lockups"]
+    gaps = _closed_gaps()
+    record = gaps["compact_mark_still_in_the_lockups"]
+    gap_text = " ".join(v for v in record.values() if isinstance(v, str))
     # The two paths known_gaps itself names — inventing lockup-staged.svg must fail.
     required_paths = [
         p
@@ -135,13 +141,13 @@ def case_compact_mark_gap_mentioned() -> None:
     check(
         "compact mark gap paths match known_gaps",
         len(required_paths) == 2,
-        "tokens.json known_gaps no longer names both lockup paths; re-read before pinning",
+        "tokens.json closed_gaps no longer names both lockup paths; re-read before pinning",
     )
     missing = [p for p in required_paths if p not in text]
     check(
         "compact mark gap stated with live lockup paths",
         not missing and ("compact mark" in text.lower() or "compact_mark_still_in_the_lockups" in text),
-        f"DESIGN.md missing lockup path(s) recorded in known_gaps: {missing}",
+        f"DESIGN.md missing lockup path(s) recorded in closed_gaps: {missing}",
     )
 
 
