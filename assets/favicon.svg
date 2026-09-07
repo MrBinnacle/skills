@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="skills">
+  <!--
+    Favicon: the receipt glyph on a transparent ground, in the two banners' own
+    path data, centred on a square canvas.
+
+    An SVG favicon is loaded by the browser chrome, not by the page, so it cannot
+    inherit currentColor. The two inks are therefore literal, and both are token
+    values: light.ink #1F2328 by default, switching to repo.ink #E6EDF3 under
+    prefers-color-scheme: dark (assets/tokens.json > color.structural_light,
+    color.structural). The stamped line and seal carry the banners' muted-over-ink
+    relationship through stroke-opacity on the same ink, so no third value ships.
+    This file sits under assets/ so scripts/validate_brand_kit.py reads both hexes.
+  -->
+  <style>
+    .ink { stroke: #1F2328; }
+    .seal { fill: #1F2328; }
+    @media (prefers-color-scheme: dark) {
+      .ink { stroke: #E6EDF3; }
+      .seal { fill: #E6EDF3; }
+    }
+  </style>
+  <g transform="translate(12 3)" fill="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <path class="ink" d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"/>
+    <line class="ink" x1="14" y1="24" x2="58" y2="24"/>
+    <line class="ink" x1="14" y1="40" x2="58" y2="40"/>
+    <line class="ink" x1="14" y1="56" x2="40" y2="56" stroke-opacity="0.55"/>
+    <circle class="ink" cx="53" cy="56" r="6.5" stroke-width="2.5" stroke-opacity="0.55"/>
+    <circle class="seal" cx="53" cy="56" r="2" fill-opacity="0.55" stroke="none"/>
+  </g>
+</svg>
