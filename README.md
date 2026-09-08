@@ -120,7 +120,7 @@ integer that opens the card's `Occasions counted` row.
 | [`im-down`](skills/engineering/im-down/EVIDENCE.md) | unmeasured | 2 |
 | [`im-up`](skills/engineering/im-up/EVIDENCE.md) | unmeasured | 1 |
 | [`mocked-stub`](skills/engineering/mocked-stub/EVIDENCE.md) | origin-trace | 1 |
-| [`pretooluse-prose`](skills/engineering/pretooluse-prose/EVIDENCE.md) | origin-trace | 5 |
+| [`pretooluse-prose`](skills/engineering/pretooluse-prose/EVIDENCE.md) | origin-trace | 7 |
 | [`vacuous-check`](skills/engineering/vacuous-check/EVIDENCE.md) | origin-trace | 2 |
 | [`decision-rights`](skills/orchestration/decision-rights/EVIDENCE.md) | origin-trace | 1 |
 | [`disposition-schema`](skills/orchestration/disposition-schema/EVIDENCE.md) | origin-trace | 2 |

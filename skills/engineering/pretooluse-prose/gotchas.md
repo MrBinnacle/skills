@@ -108,3 +108,103 @@
   that observed the blocks closed without writing this entry, and the debt was carried in
   its close packet as an owed row. A card whose admission rests on counted recurrence is
   undercounted exactly when its author is busiest, which is when the guards fire most.
+
+- [OBSERVED 2026-09-08] Five blocks in one working day across two repositories, all from a
+  guard in **this collection's own preventive half** — `guard-git-pull-rebase.py`, the hook the
+  `pull-rebase` card prescribes, and the same guard the 2026-08-23 entry above already counted
+  twice. Three were observed first-hand by an agent whose entire task was to write about the
+  trap that guard polices: it was authoring a findings document and a task fixture for a
+  measurement of that very card, so every artifact it produced had to quote the hazard action.
+  Two more were reported the same day by a peer agent in the same session, one on a
+  pull-request body that merely mentioned an installer command; that pair is counted but its
+  predicates were not preserved, and the limit is stated rather than smoothed over.
+
+  The three first-hand blocks, in the order they fired:
+
+  1. A `python -c` payload whose Python **string literal** carried the card's operative rule.
+  2. The same payload with the token deliberately **split** as `'git ' + 'pull'` — which still
+     blocked.
+  3. A `git commit -F -` **heredoc body** quoting the card's own `description`.
+
+  The third is this card's canonical shape and needs no elaboration. **The second is why this
+  entry exists: the author's obvious workaround fails.** The predicate is
+
+      PULL_INVOCATION = re.compile(r"(?<![\w-])git\s+[^|;&\n]*?(?<![\w-])pull(?![\w.-])")
+
+  and its gap `[^|;&\n]*?` spans any run of characters short of a command separator, so
+  `'git ' + 'pull'` reads as an invocation with `'+'` sitting in the middle. **Splitting a
+  token defeats a literal scan; it does not defeat a gapped one.** Anyone who reaches for that
+  trick after a false block concludes the guard is unpredictable rather than over-broad, which
+  is a worse end state than the block itself.
+
+  What makes this more than a sixth restatement: **the guard had already been narrowed for
+  this exact family and still had the gap.** Its header records an earlier over-block — the
+  bare identifier `git-pull-rebase-trap` inside a PATH, "Observed live twice" — fixed by
+  anchoring both words so a hyphenated identifier no longer matches. It also documents
+  `git log --grep="pull"` as a knowing, deliberate false positive, on the reasoning that "a
+  false block costs one re-issue; a false PASS costs every local SHA". That trade is sound and
+  this entry does not ask to loosen it. The point is narrower, and it is the same one the
+  2026-08-24 entry made about a fix wired to one caller instead of the class:
+  **command-position anchoring was added to this guard and heredoc stripping never was.** The
+  commit-message block is a gap this card's standing remedy closes without touching anything
+  the guard deliberately keeps.
+
+  One correction to the cost model, offered because the guard's own comment states it. A false
+  block does **not** cost one re-issue when the subject of the work *is* the trap. It recurs on
+  every artifact the session produces — the script that checks the rule, the commit that
+  explains the check, the record that reports it — because each must quote the hazard to say
+  anything true about it. The 2026-08-23 entry already observed that the cost lands on whoever
+  documents the trap; this occurrence measures how it scales, which is per artifact and not per
+  incident.
+
+  Recovered all three times by this card's standing remedy: write the payload to a file and
+  pass it by path (`python script.py`, `git commit -F msg.txt`). Recorded the same day, by the
+  session that was blocked — which is the debt the entry above says goes unpaid.
+
+- [OBSERVED 2026-09-08] **The first occurrence that is not prose at all**, from the same guard
+  as the entry above, found within the hour by a second agent trying to check out the pull
+  request that carried that entry:
+
+      git fetch origin pull/292/head:pr292
+
+  blocked. Nothing here is text about the trap. `pull` is a path segment in
+  `refs/pull/<n>/head`, GitHub's standard namespace for a pull-request ref, and the predicate's
+  gap swallows `fetch origin ` on the way to it. Verified by importing the guard's own
+  `targets_bare_pull` and running it over a case table: both `pull/292/head:pr292` and the
+  fully-qualified `refs/pull/292/head` return True, while `git fetch origin main`,
+  `git push origin main` and both explicit-intent pulls return False and a genuine bare pull
+  still returns True. **So the guard blocks fetching any pull request by ref, in any repository
+  whose effective config arms it, whatever the pull request contains.**
+
+  Two things this changes.
+
+  **The blast radius is not confined to authoring.** Every entry before this one says that
+  writing about a trap is how you trip its guard, and that the cost lands on whoever documents
+  it. This one costs a routine review workflow — fetching a PR to reproduce a failure — with no
+  prose involved and nobody documenting anything.
+
+  **The guard refuses a form of its own prescribed remedy.** The `pull-rebase` card's remedy is
+  `git fetch` and then `git merge --no-ff`. Here a `git fetch` is blocked over its refspec. The
+  2026-08-23 entry recorded the general version of this and acted on it — "a guard that refuses
+  its own prescribed remedy trains you to route around it", which is why the `-L` remedy
+  detector was loosened in that pass. The same reasoning applies and has not been applied here.
+
+  **Scope, stated rather than assumed.** This is not an instance of the card's *prose* framing,
+  and it is counted anyway. The card's general rule — a predicate that decides whether
+  something will RUN must read command structure, not text — covers it exactly: `pull` is a
+  path segment here, not a subcommand, and only a predicate that never looks at command
+  position can confuse the two. Whether the card's headline framing should widen from "prose"
+  to "anything that is not the command in command position" is a card-text question this record
+  does not decide.
+
+  **The fix is already built next door.** Anchoring the token to the start of a simple command
+  fixes the prose cases and this one together, since `pull` sits in subcommand position in
+  neither. The sibling measurement repository solved this same class on 2026-09-08 for its own
+  hazard counter: segment a command string into simple commands on unquoted `&&`, `||`, `;`,
+  `|` and newlines, normalise each through `shlex`, and match against that, so a `^` in a
+  registered pattern means "this command IS the hazard" (`MrBinnacle/skill-harness#438`, merged
+  as `1a5027a`). That is the remedy this card has prescribed since 2026-08-23, now with a
+  worked implementation to copy. This guard has not adopted it.
+
+  **Not a falsifier**, for the same reason as the entry above: command-position anchoring was
+  never applied to this guard, so the remedy is absent rather than defeated.
