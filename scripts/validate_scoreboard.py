@@ -420,9 +420,8 @@ def assert_site(label: str, text: str, line: str) -> None:
         return
     fail(
         f"{label}: does not carry the ruled banner line verbatim "
-        f"({line!r}). The wording is ruled (2026-08-23, reworded 2026-09-07) and "
-        f"the count is derived from the card set; a site may prefix it but not "
-        f"alter it."
+        f"({line!r}). The wording is ruled (2026-08-23, reworded 2026-09-07, "
+        f"count removed 2026-09-08); a site may prefix it but not alter it."
     )
 
 
