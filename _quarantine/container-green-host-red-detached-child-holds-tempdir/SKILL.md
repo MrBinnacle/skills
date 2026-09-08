@@ -1,15 +1,6 @@
 ---
 name: container-green-host-red-detached-child-holds-tempdir
-description: |
-  A hook or script self-test passes in a Linux CI/factory container and fails on the
-  Windows host where the hook actually runs. Use when: (1) a Python self-test aborts with
-  `PermissionError: [WinError 32] The process cannot access the file because it is being
-  used by another process` at `TemporaryDirectory` cleanup, after the early checks passed;
-  (2) `ignore_cleanup_errors=True` on the obvious tempdir does NOT clear it; (3) the code
-  under test launches a detached child (`subprocess.Popen(..., start_new_session=True)`)
-  and a test runs it with `cwd=<tempdir>`; (4) a Windows-only `endswith(".claude/state/x")`
-  path assertion fails on backslashes. The child inherited the tempdir as its cwd and holds
-  it for its lifetime; the fix is in the product (pin the child's cwd), not the test.
+description: Use when a self-test passes in a Linux container and fails on Windows with WinError 32 at TemporaryDirectory cleanup. A detached child inherited the tempdir as its cwd; fix the product, not the test.
 author: Claude Code
 version: 1.0.0
 date: 2026-08-29

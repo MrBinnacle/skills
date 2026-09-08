@@ -1,17 +1,6 @@
 ---
 name: hidden-and-plugin-skill-reachability
-description: |
-  Diagnose "that skill doesn't exist" when the skill is installed and working.
-  Use when: (1) the Skill tool refuses a skill name the user just typed as
-  `/name`, (2) a skill named in CLAUDE.md or a docs file is absent from the
-  available-skills listing, (3) `find ~/.claude/plugins -maxdepth 4 -iname
-  "*skill*"` returns nothing for a plugin skill you know is installed, (4) a
-  skill works for the operator but not for the agent, (5) a skill is present in
-  the plugin cache and still unreachable. Three independent mechanisms make a
-  present skill unreachable — `disable-model-invocation: true` frontmatter,
-  plugin-cache directory depth, and project-level `skillOverrides` — and each
-  produces the same symptom. Includes the verification commands for all three
-  and the rule for documenting a skill list so this cannot recur.
+description: Use when a skill that is installed and working reports as missing, is refused by the Skill tool, or is absent from the listing. Three separate mechanisms produce that symptom; each has its own check.
 author: Claude Code
 version: 1.0.0
 date: 2026-08-18

@@ -1,15 +1,6 @@
 ---
 name: agent-definition-snapshot-at-session-start
-description: |
-  A subagent reports a tool as unavailable and the harness says it is "disabled for this session,
-  in subagents as well as here" — but the main session is using that tool fine. Use when:
-  (1) you edited a file in `.claude/agents/` and dispatched that agent in the SAME session to
-  confirm the fix; (2) a subagent returns "No such tool available: X" for a tool listed in its own
-  `tools:` frontmatter; (3) a newly written agent file returns "Agent type '<name>' not found";
-  (4) you are about to escalate a subagent capability gap as a harness limitation or a settings
-  problem. The agent registry — file list AND file contents — is resolved once at session start,
-  so a correct repair reports as a failure and the failure names the tool rather than the
-  staleness. Prevents a stale snapshot being escalated as a missing capability.
+description: Use when a subagent reports a tool as unavailable or an agent type as not found after you edited .claude/agents/ this same session. The registry is snapshotted at session start, so the fix is inert.
 author: Claude Code
 version: 1.0.0
 date: 2026-08-26

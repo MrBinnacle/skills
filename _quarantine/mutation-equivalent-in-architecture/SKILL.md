@@ -1,19 +1,6 @@
 ---
 name: mutation-equivalent-in-architecture
-description: |
-  Use when a mutation-testing campaign produces a surviving mutant that LOOKS
-  like a genuine test-coverage gap but cannot be killed by ANY falsifiable test
-  in the current code architecture. The honest disposition is RE-CLASSIFY as
-  EQUIVALENT-IN-CURRENT-ARCHITECTURE and document the architectural constraint
-  blocking independent killability — NOT ship a disjunction-based test that
-  passes either way under the mutation (which is itself slop by the
-  mutation-testing rubric's own discipline). Common trigger: sequential guards
-  where guard N+1 can only fire when guard N also fires; mutating guard N+1's
-  threshold is structurally unreachable so the surviving mutant is equivalent
-  not gap. Sibling discipline to ai-slop-sentinel's "non-falsifying test"
-  taxonomy: a test that passes under both current code AND the proposed
-  mutation is exactly the slop pattern the mutation-testing rubric exists to
-  surface — so writing one to "kill" the mutant defeats the entire purpose.
+description: Use when a surviving mutant looks like a coverage gap but no falsifiable test can kill it in the current architecture. Re-classify it as equivalent; a test passing either way is the slop it hunts.
 author: Claude Code
 version: 1.0.0
 date: 2026-06-07

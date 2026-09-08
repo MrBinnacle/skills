@@ -1,21 +1,6 @@
 ---
 name: two-phase-doc-honesty-then-engineering
-description: |
-  Response pattern after a state-drift catch surfaces BOTH doc inaccuracies
-  AND a deeper engineering gap the docs were obscuring. Split the response
-  into two phases that ship on different cadences: Phase A is an inline
-  doc-honesty commit (truthful documentation of current state, orchestrator-
-  direct, no authorization needed). Phase B surfaces the engineering gap to
-  the PM as a separate dispatch decision (needs greenlight, costs more
-  agent budget). Both ship; neither blocks the other. Use when: (1) a stale
-  planning doc / spec / handoff catches mid-task and you're about to either
-  silently re-do already-shipped work OR ship a doc-only fix that papers
-  over a real engineering gap, (2) a "hard right over easy wrong" prompt
-  forces you out of literal-spec adherence, (3) any catch where the
-  documentation truth is small/fast and the engineering follow-on is
-  larger/needs-authorization. Sibling to halt-as-deliverable (which covers
-  the reframing of the work product); this skill covers the execution
-  response after the catch is named.
+description: Use when a drift catch surfaces both an inaccurate doc and the engineering gap it hid. Ship the doc truth inline now; surface the engineering work as its own dispatch decision. Neither blocks.
 metadata:
   type: pattern
 ---

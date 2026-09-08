@@ -1,15 +1,6 @@
 ---
 name: openrouter-assistant-prefill-host-rejection
-description: |
-  Diagnose and fix "This model does not support assistant message prefill. The
-  conversation must end with a user message." errors when running Anthropic models
-  through OpenRouter (opencode, agent harnesses, any client that sometimes ends a
-  request on an assistant turn). Use when: (1) that exact error kills a run, branded
-  [Azure], [Amazon Bedrock], [Google], or [Anthropic]; (2) the failure is intermittent
-  across otherwise-identical runs; (3) a provider routing pin "fixed" it and it came
-  back. Covers why pins cannot fix it, why intermittent green runs prove nothing, the
-  behavioral probe that actually tests a candidate model, and the model-family change
-  that resolves it.
+description: Use when an OpenRouter run dies on "does not support assistant message prefill", intermittently, or after a provider pin appeared to fix it. Pins cannot fix it and a green run proves nothing.
 author: Claude Code
 version: 1.0.0
 date: 2026-08-17

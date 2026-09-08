@@ -1,20 +1,6 @@
 ---
 name: anthropic-sdk-via-openrouter
-description: |
-  Route Anthropic SDK calls through OpenRouter as a fallback when
-  ANTHROPIC_API_KEY is absent but OPENROUTER_API_KEY is present.
-  Pattern: anthropic.Anthropic(api_key=OPENROUTER_API_KEY,
-  base_url="https://openrouter.ai/api/v1") + provider-prefixed model id
-  "anthropic/claude-sonnet-4.6" (note dots, not dashes). The Anthropic SDK
-  speaks Anthropic Messages API at the base_url; OpenRouter implements that
-  contract at /v1/messages, so the same .messages.create(model=..., tools=...,
-  tool_choice=...) call works without any code change beyond the constructor.
-  Use when: (1) supporting users on Claude Code subscription auth (no direct
-  ANTHROPIC_API_KEY but OPENROUTER_API_KEY available), (2) building any
-  Python tool that uses the Anthropic SDK and wants to support
-  OpenRouter-only environments without rewriting to use the OpenAI SDK or a
-  different API contract, (3) implementing the symmetric fallback to a
-  similar pattern on the OpenAI SDK side.
+description: Use when ANTHROPIC_API_KEY is absent and OPENROUTER_API_KEY is present. Point the Anthropic SDK at openrouter.ai/api/v1 with a provider-prefixed model id; no other code changes.
 metadata:
   type: pattern
 ---

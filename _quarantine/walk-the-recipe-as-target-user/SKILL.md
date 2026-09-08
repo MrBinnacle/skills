@@ -1,22 +1,6 @@
 ---
 name: walk-the-recipe-as-target-user
-description: |
-  Validation discipline for any "documented workflow" (README reproduction
-  recipe, getting-started guide, install script, onboarding doc, deploy
-  procedure). Simulate the ACTUAL target user's environment — different
-  auth path, different SDK credentials, different OS, different tooling —
-  and walk every documented step as that user would. Each step that breaks
-  for the target user is real friction. Each step that silently assumes
-  "you already have X set up" is an undocumented precondition. Use when:
-  (1) the workflow was written by a developer whose machine has every
-  privilege/credential/tool pre-configured and you're worried real users
-  don't, (2) "first-touch hardening" or "on-ramp polish" or any phase
-  whose stated purpose is making the workflow reachable for non-developers,
-  (3) you've just changed the underlying CLI/API surface and the
-  documented workflow predates the change, (4) a literal-spec adherence
-  move (do the checklist items the doc names) would miss the friction the
-  doc was MEANT to address. Catches the structurally-invisible
-  "works-on-my-machine" failure mode that the original author cannot see.
+description: Use when validating a README recipe, install script, onboarding or deploy doc written by someone whose machine already had everything. Walk every step in the target user's environment, not your own.
 metadata:
   type: discipline
 ---

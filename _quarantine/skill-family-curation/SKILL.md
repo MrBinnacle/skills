@@ -1,25 +1,6 @@
 ---
 name: skill-family-curation
-description: |
-  Discipline for managing the long-term entropy of a growing skill library
-  (~/.claude/skills/ + ~/.claude/skills/_quarantine/). Detects candidate
-  "families" of overlapping skills surfaced via three touchpoints
-  (extraction-time, promotion-time, search-time), runs a mechanical
-  falsifiability gate (literal fixtures + pseudocode tests, NOT English
-  assertions), surfaces dispositions to the human in a strict 3-line
-  format, and on CONSOLIDATED dispositions performs Graduation cleanup
-  (physical deletion of child SKILL.md files + grep verification). Defends
-  against (a) skill-bloat from unchecked extraction, (b) doc-rot from stale
-  child skills left after consolidation, (c) Theater (LLM-generated
-  plausible but unfalsifiable family hypotheses), (d) global instruction-
-  budget pollution. Use when: (1) a /claudeception extraction round produced
-  ≥1 new skill and you want to check for family-candidate hints,
-  (2) a manual §1.5 quarantine-promotion review is in progress, (3) a Skill
-  tool search returned ≥K overlapping results for one query, (4) you notice
-  multiple skills "sound similar" and want to test whether they should
-  consolidate or stay distinct with see-also links. NEVER consolidate
-  silently; the LLM proposes + provides mechanical evidence; the human
-  dispositions.
+description: "Weeds a growing skill library: tests whether overlapping skills are one family using fixtures, then hands the human a disposition. Consolidation deletes child cards, so the human decides."
 disable-model-invocation: true
 metadata:
   type: discipline

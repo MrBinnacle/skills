@@ -1,16 +1,6 @@
 ---
 name: curated-context-becomes-the-reviewers-boundary
-description: |
-  You asked an external reviewer or subagent for a design recommendation, sent a
-  selected subset of the governing rules, and its answer collided with a rule it
-  was never shown. Use when: (1) a review proposes something the codebase's own
-  conventions forbid; (2) you are about to write up that collision as "the
-  reviewer was wrong" or "the house rule overrides"; (3) you are assembling a
-  brief and choosing which rules are "relevant"; (4) a recommendation conforms
-  suspiciously well to the framing you supplied. The failure is that your
-  SELECTION of context silently became the reviewer's design boundary, so the
-  answer is bounded by what you left out and the collision is manufactured, not
-  discovered. Names what must go in every brief.
+description: Use when assembling a brief for a reviewer or subagent, or when its answer collides with a rule you never sent. Your selection became its design boundary, so the collision is manufactured, not found.
 author: Claude Code
 version: 1.0.0
 date: 2026-09-06

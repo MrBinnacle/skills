@@ -1,17 +1,6 @@
 ---
 name: structure-at-the-write-site
-description: |
-  Fix for a downstream reader re-deriving a structural fact by pattern-matching
-  prose that the program itself emitted. Use when: (1) a classifier greps an
-  error/cause/log message for keywords to decide severity, retryability, or
-  category; (2) a regex over a message string decides control flow, and adding a
-  new message silently changes the outcome; (3) a status is inferred from an
-  adjacent field that only correlates with it (a stage reached, a timestamp
-  present, a count non-zero); (4) two consumers of the same message disagree
-  about what it means. Root cause is that the site which KNEW the structural
-  facts recorded only their prose summary, so every later reader must guess.
-  Fix: record the facts as a value at the site that knows them, and delete the
-  pattern match.
+description: Use when a reader greps an error, log or status message to decide severity, retryability or control flow. The site that knew the facts recorded only prose. Record them as a value, delete the match.
 author: Claude Code
 version: 1.0.0
 date: 2026-08-17
