@@ -357,18 +357,18 @@ Section 14 applied to this collection — eight skills, grouped by when you'd re
 
 **Finishing a phase**
 
-- **`closure-mode-at-boundaries`** — a phase just locked and you're about to decide what's
+- **`closure-mode`** — a phase just locked and you're about to decide what's
   next. Wrap up first, decide second.
 
 **Writing instructions someone else will follow**
 
-- **`downstream-instruction-framing`** — any handoff, plan, ADR, or subagent prompt.
-- **`parallel-review-disposition-schema`** — you're sending the same question to several
+- **`decision-rights`** — any handoff, plan, ADR, or subagent prompt.
+- **`disposition-schema`** — you're sending the same question to several
   reviewers and will need to add their answers up.
-- **`subagent-research-reliability`** — before and after you hand research to a helper agent.
+- **`subagent-handback`** — before and after you hand research to a helper agent.
 
 **Traps that surface themselves** — listed so you know they're installed, not to remember:
-**`git-pull-rebase-trap`** and **`github-pages-deploy-verification`**.
+**`pull-rebase`** and **`stale-deploy`**.
 
 ## The project delta
 

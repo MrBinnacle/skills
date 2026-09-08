@@ -67,7 +67,7 @@ A skill that is model-invocable upstream can be switched off per project:
 
 ```jsonc
 // <project>/.claude/settings.local.json
-{ "skillOverrides": { "azimuth": "off", "router-skill-predicate-gap": "off" } }
+{ "skillOverrides": { "azimuth": "off", "dead-predicate": "off" } }
 ```
 
 This is invisible from the skill itself. A skill whose frontmatter says nothing and whose
@@ -145,7 +145,7 @@ it is authoritative: the reader cannot act on the name alone.
   project. A skill can be reachable in one repo and not the next with no change to either
   the skill or the agent.
 - See also: `claude-code-stop-hook-envelope` for the adjacent case of wiring that is present
-  and silently ineffective, and `router-skill-predicate-gap` for a skill that is reachable
+  and silently ineffective, and `dead-predicate` for a skill that is reachable
   and still does not fire.
 
 ## References

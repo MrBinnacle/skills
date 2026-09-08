@@ -110,6 +110,6 @@ found that without needing the refusal text to be helpful.
 - **The reverse error exists.** Recording *"the action is fine, the tool is just fussy"* and
   reaching for `--force` is the opposite failure and a worse one. The move is to find the
   route the guard permits, never to disable the guard.
-- Related: `pretooluse-bash-guard-prose-false-positive`, which covers a guard firing on
+- Related: `pretooluse-prose`, which covers a guard firing on
   prose that merely mentions what it forbids — a false positive on content, where this card
   covers a correct block whose scope was over-read.

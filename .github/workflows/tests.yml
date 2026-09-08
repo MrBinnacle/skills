@@ -1555,7 +1555,7 @@ jobs:
           log="$RUNNER_TEMP/spec-poison.log"
           rm -rf "$tree"
           git clone --quiet --no-hardlinks . "$tree"
-          card="$tree/skills/meta/router-skill-predicate-gap/SKILL.md"
+          card="$tree/skills/meta/dead-predicate/SKILL.md"
           # The target is named, so it can go missing. A retirement that removes
           # this card would otherwise make the control vacuous in silence -- which
           # is exactly what the previous target, skill-necessity-gate, was

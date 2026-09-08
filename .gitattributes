@@ -38,11 +38,11 @@ assets/*.png binary
 #   .claude-plugin/marketplace.json          scripts/validate_conformance.py
 #   SECURITY.md                              scripts/validate_eval_corpora.py
 #   dispositions/2026-08-15-S295-admission-triage.md
-#   skills/engineering/git-pull-rebase-trap/SKILL.md
+#   skills/engineering/pull-rebase/SKILL.md
 #   skills/engineering/im-down/test_validate_packet.py
 #   skills/engineering/im-up/test_validate_packet.py
-#   skills/orchestration/parallel-review-disposition-schema/SKILL.md
-#   skills/orchestration/parallel-review-disposition-schema/gotchas.md
+#   skills/orchestration/disposition-schema/SKILL.md
+#   skills/orchestration/disposition-schema/gotchas.md
 #
 # A repository-wide `* text=auto eol=lf` marks every one of them for
 # renormalization at once. Measured on this branch: that makes `changeset status

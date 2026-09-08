@@ -99,9 +99,9 @@ These cards use three forms:
 
 | Type | What it is | Cards |
 |---|---|---|
-| Trap | A warning and recovery path for a command or platform behavior that can report success after doing the wrong work. | `git-pull-rebase-trap`, `github-pages-deploy-verification`, `click-clirunner-env-none-deletes`, `mock-masked-stub-trap`, `pretooluse-bash-guard-prose-false-positive`, `success-test-accepts-any-output` |
-| Procedure | An ordered set of actions for a boundary, handoff, or verification task. | `im-down`, `im-up`, `closure-mode-at-boundaries`, `subagent-research-reliability`, `downstream-instruction-framing`, `router-skill-predicate-gap`, `halt-as-deliverable` |
-| Schema | A fixed output shape for comparable parallel reviews. | `parallel-review-disposition-schema` |
+| Trap | A warning and recovery path for a command or platform behavior that can report success after doing the wrong work. | `pull-rebase`, `stale-deploy`, `clirunner-env`, `mocked-stub`, `pretooluse-prose`, `vacuous-check` |
+| Procedure | An ordered set of actions for a boundary, handoff, or verification task. | `im-down`, `im-up`, `closure-mode`, `subagent-handback`, `decision-rights`, `dead-predicate`, `halt-as-deliverable` |
+| Schema | A fixed output shape for comparable parallel reviews. | `disposition-schema` |
 
 ## Card evidence
 
@@ -112,20 +112,20 @@ integer that opens the card's `Occasions counted` row.
 
 | Card | Evidence posture | Occasions counted |
 |---|---|---:|
-| [`click-clirunner-env-none-deletes`](skills/engineering/click-clirunner-env-none-deletes/EVIDENCE.md) | origin-trace | 1 |
-| [`closure-mode-at-boundaries`](skills/engineering/closure-mode-at-boundaries/EVIDENCE.md) | origin-trace | 1 |
-| [`git-pull-rebase-trap`](skills/engineering/git-pull-rebase-trap/EVIDENCE.md) | measured | 1 |
-| [`github-pages-deploy-verification`](skills/engineering/github-pages-deploy-verification/EVIDENCE.md) | origin-trace | 1 |
+| [`clirunner-env`](skills/engineering/clirunner-env/EVIDENCE.md) | origin-trace | 1 |
+| [`closure-mode`](skills/engineering/closure-mode/EVIDENCE.md) | origin-trace | 1 |
+| [`pull-rebase`](skills/engineering/pull-rebase/EVIDENCE.md) | measured | 1 |
+| [`stale-deploy`](skills/engineering/stale-deploy/EVIDENCE.md) | origin-trace | 1 |
 | [`halt-as-deliverable`](skills/engineering/halt-as-deliverable/EVIDENCE.md) | origin-trace | 3 |
 | [`im-down`](skills/engineering/im-down/EVIDENCE.md) | unmeasured | 2 |
 | [`im-up`](skills/engineering/im-up/EVIDENCE.md) | unmeasured | 1 |
-| [`mock-masked-stub-trap`](skills/engineering/mock-masked-stub-trap/EVIDENCE.md) | origin-trace | 1 |
-| [`pretooluse-bash-guard-prose-false-positive`](skills/engineering/pretooluse-bash-guard-prose-false-positive/EVIDENCE.md) | origin-trace | 5 |
-| [`success-test-accepts-any-output`](skills/engineering/success-test-accepts-any-output/EVIDENCE.md) | origin-trace | 2 |
-| [`downstream-instruction-framing`](skills/orchestration/downstream-instruction-framing/EVIDENCE.md) | origin-trace | 1 |
-| [`parallel-review-disposition-schema`](skills/orchestration/parallel-review-disposition-schema/EVIDENCE.md) | origin-trace | 2 |
-| [`subagent-research-reliability`](skills/orchestration/subagent-research-reliability/EVIDENCE.md) | origin-trace | 5 |
-| [`router-skill-predicate-gap`](skills/meta/router-skill-predicate-gap/EVIDENCE.md) | origin-trace | 2 |
+| [`mocked-stub`](skills/engineering/mocked-stub/EVIDENCE.md) | origin-trace | 1 |
+| [`pretooluse-prose`](skills/engineering/pretooluse-prose/EVIDENCE.md) | origin-trace | 5 |
+| [`vacuous-check`](skills/engineering/vacuous-check/EVIDENCE.md) | origin-trace | 2 |
+| [`decision-rights`](skills/orchestration/decision-rights/EVIDENCE.md) | origin-trace | 1 |
+| [`disposition-schema`](skills/orchestration/disposition-schema/EVIDENCE.md) | origin-trace | 2 |
+| [`subagent-handback`](skills/orchestration/subagent-handback/EVIDENCE.md) | origin-trace | 5 |
+| [`dead-predicate`](skills/meta/dead-predicate/EVIDENCE.md) | origin-trace | 2 |
 
 CI rebuilds this table from the records and fails on any disagreement, so the records are the
 place to change a row.
@@ -139,14 +139,14 @@ These are about an operation, a test, or an agent reporting an outcome that did 
 
 | Card | What goes wrong |
 |---|---|
-| `git-pull-rebase-trap` | A pull rewrites local commits and reports an ordinary merge. |
-| `github-pages-deploy-verification` | A poll matches content already on the page, so the check confirms a deploy that has not landed. |
-| `mock-masked-stub-trap` | A test patches a helper that is a stub in production, so the suite passes over a branch that never ran. |
-| `success-test-accepts-any-output` | A success test accepts an error body, because it asks only whether the output is non-empty. |
-| `click-clirunner-env-none-deletes` | A test's environment override leaves a key in place, the call the test exists to prevent happens, and the assertion still passes. |
-| `router-skill-predicate-gap` | A router's silence reads as "no prompt needed it" when the cause is a predicate that cannot match. |
-| `pretooluse-bash-guard-prose-false-positive` | A command guard reads prose that mentions the command it polices, and blocks the text instead of the action. |
-| `subagent-research-reliability` | A subagent returns claims and citations nobody checked, from tools it may not hold. |
+| `pull-rebase` | A pull rewrites local commits and reports an ordinary merge. |
+| `stale-deploy` | A poll matches content already on the page, so the check confirms a deploy that has not landed. |
+| `mocked-stub` | A test patches a helper that is a stub in production, so the suite passes over a branch that never ran. |
+| `vacuous-check` | A success test accepts an error body, because it asks only whether the output is non-empty. |
+| `clirunner-env` | A test's environment override leaves a key in place, the call the test exists to prevent happens, and the assertion still passes. |
+| `dead-predicate` | A router's silence reads as "no prompt needed it" when the cause is a predicate that cannot match. |
+| `pretooluse-prose` | A command guard reads prose that mentions the command it polices, and blocks the text instead of the action. |
+| `subagent-handback` | A subagent returns claims and citations nobody checked, from tools it may not hold. |
 | `im-up` | A session start checks the previous session's stated paths, predicates, and sequence against the repository. |
 
 These are about what one session, agent, or reviewer writes down for the next:
@@ -154,9 +154,9 @@ These are about what one session, agent, or reviewer writes down for the next:
 | Card | What it does |
 |---|---|
 | `im-down` | Writes the session's closing state as a packet the receiver can validate. |
-| `closure-mode-at-boundaries` | Runs the verification list at a boundary instead of handing it back as options. |
-| `downstream-instruction-framing` | Separates what the reader may re-examine from what the handoff has settled. |
-| `parallel-review-disposition-schema` | Fixes the output shape so parallel reviews can be compared. |
+| `closure-mode` | Runs the verification list at a boundary instead of handing it back as options. |
+| `decision-rights` | Separates what the reader may re-examine from what the handoff has settled. |
+| `disposition-schema` | Fixes the output shape so parallel reviews can be compared. |
 | `halt-as-deliverable` | Records a halt by your own gate as the result, rather than routing around it. |
 
 ## Evidence records
@@ -191,7 +191,7 @@ does state.
 ### Controlled results
 
 A controlled result comes from a with-and-without evaluation run under the evaluation protocol.
-[`git-pull-rebase-trap`](skills/engineering/git-pull-rebase-trap/EVIDENCE.md) carries one. Its
+[`pull-rebase`](skills/engineering/pull-rebase/EVIDENCE.md) carries one. Its
 verdict, dates, and receipts live in that record and nowhere else, so the page points at the
 record instead of copying it. The [card evidence](#card-evidence) table marks every card carrying
 a controlled result as `measured`; the rest are `UNMEASURED` in the controlled fields.

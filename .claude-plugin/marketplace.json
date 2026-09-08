@@ -14,16 +14,16 @@
       "source": "./",
       "strict": false,
       "skills": [
-        "./skills/engineering/click-clirunner-env-none-deletes",
-        "./skills/engineering/closure-mode-at-boundaries",
-        "./skills/engineering/git-pull-rebase-trap",
-        "./skills/engineering/github-pages-deploy-verification",
+        "./skills/engineering/clirunner-env",
+        "./skills/engineering/closure-mode",
+        "./skills/engineering/pull-rebase",
+        "./skills/engineering/stale-deploy",
         "./skills/engineering/halt-as-deliverable",
         "./skills/engineering/im-down",
         "./skills/engineering/im-up",
-        "./skills/engineering/mock-masked-stub-trap",
-        "./skills/engineering/pretooluse-bash-guard-prose-false-positive",
-        "./skills/engineering/success-test-accepts-any-output"
+        "./skills/engineering/mocked-stub",
+        "./skills/engineering/pretooluse-prose",
+        "./skills/engineering/vacuous-check"
       ],
       "version": "1.6.0"
     },
@@ -33,9 +33,9 @@
       "source": "./",
       "strict": false,
       "skills": [
-        "./skills/orchestration/downstream-instruction-framing",
-        "./skills/orchestration/parallel-review-disposition-schema",
-        "./skills/orchestration/subagent-research-reliability"
+        "./skills/orchestration/decision-rights",
+        "./skills/orchestration/disposition-schema",
+        "./skills/orchestration/subagent-handback"
       ],
       "version": "1.6.0"
     },
@@ -45,7 +45,7 @@
       "source": "./",
       "strict": false,
       "skills": [
-        "./skills/meta/router-skill-predicate-gap"
+        "./skills/meta/dead-predicate"
       ],
       "version": "1.6.0"
     }

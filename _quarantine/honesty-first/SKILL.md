@@ -120,5 +120,5 @@ The audit trail reads cleanly: state-drift catch → Phase A doc honesty → PM 
 ## See also
 
 - `[[halt-as-deliverable]]` — the upstream skill: when discipline catches author's own mistake, the catching itself becomes the deliverable. Two-phase applies when the deliverable-of-the-catch is "now we know about gap Y; fix in two steps."
-- `[[downstream-instruction-framing]]` — apply when drafting the Phase B brief for a downstream agent or contractor. The brief itself is an artifact for a less-informed reader.
+- `[[decision-rights]]` — apply when drafting the Phase B brief for a downstream agent or contractor. The brief itself is an artifact for a less-informed reader.
 - `[[subagent-driven-development]]` — the standard pattern for Phase B engineering dispatches (implementer + reviews + fix cycle).
