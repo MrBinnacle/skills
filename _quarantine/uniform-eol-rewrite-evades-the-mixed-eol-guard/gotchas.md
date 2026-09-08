@@ -37,3 +37,44 @@ Commit-time normalisation via `* text=auto eol=lf` stops the converted bytes rea
 ## [ANTICIPATED] The repair is `--amend`, and that is only safe before a push
 
 The fix rewrites the commit. If the branch has already been pushed and anyone has fetched it, amending forces a divergence. Check whether the branch is pushed before reaching for `--amend`; after a push, a follow-up commit that restores the endings is the honest repair even though the history keeps the noisy commit.
+
+## [OBSERVED 2026-09-07] The same conversion, with no diff to notice it in
+
+A session auditing evidence pointers extracted 19 URLs, wrote them one per line with
+`open(path, "w")`, then read the file back in a shell loop and fetched each with `curl`.
+
+Every fetch returned `000`. Not 404, not 403 — no connection at all, on all 19, including
+`https://arxiv.org/abs/2410.06992`, which is not a plausible outage.
+
+The write had converted each LF to CRLF. The shell's `read` strips the newline and leaves the
+carriage return, so every URL carried a trailing CR and `curl` tried to resolve a hostname that
+did not exist. The character is invisible in terminal output, and the failure presented exactly
+like a network outage or a repository that had gone private.
+
+**What this adds to the 2026-09-06 record.** That one establishes the conversion corrupts a
+commit, and its stated diagnostic is to read `git diff --numstat` before committing what a script
+wrote. This one had no commit and no diff: the file was scratch, never staged, so no diffstat
+existed and no EOL guard had a write to inspect. The only symptom was a downstream tool failing
+for a reason it could not report.
+
+So the card's diagnostic is necessary and not sufficient. It catches the conversion when the file
+reaches git. It cannot catch the conversion in data in flight, where a trailing CR on a URL, a
+hostname, a token or a path fails silently at whatever consumes it.
+
+**The general rule is the write, not the diff.** On Windows, use `write_bytes`, or pass an explicit
+`newline` to `open`, for any file whose bytes another program will parse. Reading the diffstat is
+the backstop for the case where you forgot.
+
+**The diagnostic that resolved it** was a control, not a theory: fetch one of the same URLs typed
+directly into the command, outside the loop. It returned 200, which separated the apparatus from
+the subject in a single call. A zero-cost failure across every item of a batch is an apparatus
+fault until a control says otherwise. The repair was to strip the carriage returns and re-run.
+
+**While writing this entry the same class of bug recurred, and it is worth stating because it
+shows how narrow the safe path is.** The first attempt at this append passed the entry through a
+shell heredoc; the escaping collapsed one level and wrote four real CR bytes into the prose that
+describes CR bytes. The diffstat did not show it — the append was a clean 36 insertions, 0
+deletions — because a stray CR inside a line is not a line-ending change. A byte count found it.
+The fix was to stop passing prose through shell escaping layers and write the text as a file.
+That third instance is a symptom of this same occasion, not a separate one, and is not counted
+as one.
