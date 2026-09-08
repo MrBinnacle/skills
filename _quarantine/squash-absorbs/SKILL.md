@@ -120,7 +120,7 @@ between its commit and its snapshot step.
 - **`git status`'s "ahead by N commits" is the warning**, and it is easy to read as routine
   because it is routine. The line is not "you are about to lose something"; it becomes that
   only in combination with a branch cut and a squash.
-- Related: `git-pull-rebase-trap` (a bare `git pull` under `pull.rebase=true` rewrites local
+- Related: `pull-rebase` (a bare `git pull` under `pull.rebase=true` rewrites local
   SHAs, which breaks citations by a different route).
 
 ## References

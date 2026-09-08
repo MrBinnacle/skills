@@ -562,7 +562,7 @@ def case_live_thin_labels_match_the_counts() -> None:
 
     The 2026-08-15 S295 triage flagged seven, which is not the same as seven
     RECURRENCE-THIN verdicts: it gave six of them that verdict and gave
-    git-pull-rebase-trap CEILING-LIKELY on the measurement axis, and that
+    pull-rebase CEILING-LIKELY on the measurement axis, and that
     card's own row says why one counted occasion still earns the label.
 
     The split moved from 7/2 to 6/3 on 2026-08-23, when im-down recorded a

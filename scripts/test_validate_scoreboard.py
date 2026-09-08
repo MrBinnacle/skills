@@ -163,7 +163,7 @@ def case_dropping_a_measured_card_is_refused() -> None:
         readme = _readme(root)
         text = readme.read_text(encoding="utf-8")
         section = _controlled_section(text)
-        poisoned = text.replace(section, section.replace("git-pull-rebase-trap", "REMOVED"), 1)
+        poisoned = text.replace(section, section.replace("pull-rebase", "REMOVED"), 1)
         assert poisoned != text, "poisoning did not change the README"
         readme.write_text(poisoned, encoding="utf-8", newline="\n")
 

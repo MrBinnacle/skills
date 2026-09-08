@@ -179,22 +179,22 @@ _SKIP_DIRS: Final[frozenset[str]] = frozenset({"__pycache__", ".git"})
 _ALLOWLIST_RECORDED: Final[str] = "2026-09-06"
 _ALLOWLIST: Final[frozenset[tuple[str, str]]] = frozenset({
     # Over the 7,168-byte ceiling. Both are named in the twelve-card migration.
-    ("skills/orchestration/downstream-instruction-framing", "size"),
-    ("skills/orchestration/subagent-research-reliability", "size"),
+    ("skills/orchestration/decision-rights", "size"),
+    ("skills/orchestration/subagent-handback", "size"),
     # EVIDENCE.md and gotchas.md are not reachable from these cards' SKILL.md.
     # Twelve of fourteen cards, measured 2026-09-06.
-    ("skills/engineering/click-clirunner-env-none-deletes", "reachability"),
-    ("skills/engineering/git-pull-rebase-trap", "reachability"),
-    ("skills/engineering/github-pages-deploy-verification", "reachability"),
+    ("skills/engineering/clirunner-env", "reachability"),
+    ("skills/engineering/pull-rebase", "reachability"),
+    ("skills/engineering/stale-deploy", "reachability"),
     ("skills/engineering/halt-as-deliverable", "reachability"),
     ("skills/engineering/im-down", "reachability"),
     ("skills/engineering/im-up", "reachability"),
-    ("skills/engineering/mock-masked-stub-trap", "reachability"),
-    ("skills/engineering/pretooluse-bash-guard-prose-false-positive", "reachability"),
-    ("skills/engineering/success-test-accepts-any-output", "reachability"),
-    ("skills/meta/router-skill-predicate-gap", "reachability"),
-    ("skills/orchestration/downstream-instruction-framing", "reachability"),
-    ("skills/orchestration/parallel-review-disposition-schema", "reachability"),
+    ("skills/engineering/mocked-stub", "reachability"),
+    ("skills/engineering/pretooluse-prose", "reachability"),
+    ("skills/engineering/vacuous-check", "reachability"),
+    ("skills/meta/dead-predicate", "reachability"),
+    ("skills/orchestration/decision-rights", "reachability"),
+    ("skills/orchestration/disposition-schema", "reachability"),
 })
 
 
@@ -229,8 +229,8 @@ def corroborating_text(card: Path, *rows: str) -> str:
     WHERE THAT STOPS SHORT, stated because the gap is load-bearing: the
     haystack is every `*.md` in the card, EVIDENCE.md included, so a SIBLING
     ROW of the same record corroborates the count. Two published cards rest on
-    exactly that -- parallel-review-disposition-schema's 2026-07-10 and
-    subagent-research-reliability's 2026-07-12 are recorded in `Validated
+    exactly that -- disposition-schema's 2026-07-10 and
+    subagent-handback's 2026-07-12 are recorded in `Validated
     against` and `Observed in use`, not in gotchas.md or a case study -- and
     they are the two cards whose count carries them past the thin threshold.
     Narrowing the haystack to the card's OTHER files turns both red, so it is

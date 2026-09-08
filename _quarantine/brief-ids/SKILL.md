@@ -35,7 +35,7 @@ publicly disclose the drafting error in the next fix-brief.
   pattern is still present
 
 Applies to:
-- Multi-seat council fires (dev-team-council, parallel-review-disposition-schema)
+- Multi-seat council fires (dev-team-council, disposition-schema)
 - Multi-track ai-slop sentinel reviews (one per code surface)
 - Multi-domain security audits (one per lens — injection, authz, secrets, etc.)
 - Any disposition document that aggregates N → 1
@@ -157,7 +157,7 @@ to renumber or split.
   role — e.g., one Opus 4.7 reviewer for code-review, then a separate
   re-dispatch for security-audit. Each role produces its own M-ID sequence;
   the consolidator must not collide them.
-- Companion skills: `parallel-review-disposition-schema` (output contract for
+- Companion skills: `disposition-schema` (output contract for
   parallel reviewers), `cross-talk-council-dispatch` (dispatch mechanics),
   `verbatim-content-subagent-dispatch` (input contract for the reviewers).
 - Disclosure pattern: when a drop is detected post-hoc, the consolidator should
@@ -166,7 +166,7 @@ to renumber or split.
 
 ## See also
 
-- `parallel-review-disposition-schema` — the output contract this discipline
+- `disposition-schema` — the output contract this discipline
   augments
 - `verbatim-content-subagent-dispatch` — input-side discipline for dispatching
   reviewers

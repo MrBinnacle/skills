@@ -10,7 +10,7 @@ WHY THIS ONE IS DIFFERENT FROM THE OTHER SEVEN
 
     That is not theoretical. On 2026-08-24 this validator's first run over the
     live tree rejected TWO PUBLISHED CARDS for invalid YAML frontmatter --
-    `click-clirunner-env-none-deletes` and `router-skill-predicate-gap` -- each
+    `clirunner-env` and `dead-predicate` -- each
     carrying an unquoted description scalar containing a `: ` or a `{`. Claude
     Code's own parser tolerates both and the cards work; a specification-
     conformant reader cannot load either. No local gate saw it, because no local

@@ -444,14 +444,14 @@ mechanism working. An evolving ecosystem, not a chop list.
       path, and a zero there is weak but real evidence that the card's description was never
       picked. The counter is blind to the enforcing path only, so the absence caps how much
       that zero can carry — it does not erase it. Measured 2026-08-24, two of the fifteen
-      published cards are in this case — `git-pull-rebase-trap` and
-      `github-pages-deploy-verification` — and both say so in their own `Dispatches recorded`
+      published cards are in this case — `pull-rebase` and
+      `stale-deploy` — and both say so in their own `Dispatches recorded`
       row, which is why that row's zero must read `No recorded dispatch` and never `0`.
 
       **The evidence behind those two differs in kind, and this branch does not make them
-      equal.** `git-pull-rebase-trap` has a dedicated PreToolUse guard with a test beside it, in
+      equal.** `pull-rebase` has a dedicated PreToolUse guard with a test beside it, in
       the maintainer's private environment; the mechanism demonstrably exists.
-      `github-pages-deploy-verification` has **no dedicated guard** — only a prompt-router
+      `stale-deploy` has **no dedicated guard** — only a prompt-router
       nudge, and a nudge is not a hook firing: if the model acts on a nudge by calling the Skill
       tool, the counter *would* see it. So for that card the absence is equally consistent with
       the nudge never firing and with the nudge firing and being ignored. Do not file a card
@@ -561,7 +561,7 @@ mechanism working. An evolving ecosystem, not a chop list.
      is an honest label, not a gap to close.
    - **Screen only a candidate carrying a frozen empirical contract** — a fixture AND a
      counterfixture — because that is the only shape the harness can return a real verdict
-     on. Two candidates qualify today: `mock-masked-stub-trap` and
+     on. Two candidates qualify today: `mocked-stub` and
      `walk-the-recipe`.
    - **Read existing verdicts read-only** rather than running anything, from two sources.
      First, the harness's evidence store: `python -m skill_harness screen verdict

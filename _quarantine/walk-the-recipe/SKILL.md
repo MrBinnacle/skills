@@ -128,5 +128,5 @@ The doc-honesty pass and the extractor OpenRouter fallback engineering dispatch 
 
 - `[[honesty-first]]` — the execution response when this walk surfaces both doc gaps and engineering gaps.
 - `[[halt-as-deliverable]]` — the narrative reframing when the walk catches something publicly worth catching.
-- `[[downstream-instruction-framing]]` — applies when writing the recipe in the first place: frame for a less-informed reader operating closer to the evidence than you are.
+- `[[decision-rights]]` — applies when writing the recipe in the first place: frame for a less-informed reader operating closer to the evidence than you are.
 - `[[strategic-frame-audit-no-twin-product]]` — sibling discipline at the strategic level: when there's no competitor product to copy a recipe from, the walk discipline becomes more important because no external recipe will catch your gaps for you.

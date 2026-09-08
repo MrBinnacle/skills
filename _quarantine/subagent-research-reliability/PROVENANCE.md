@@ -4,9 +4,9 @@
 
 ## What this is
 
-`subagent-research-reliability` is **already promoted**. It lives in the canonical skills repo at
-`C:\Users\mlpgr\2026_Projects\skills\skills\orchestration\subagent-research-reliability\` and is
-symlinked into the active set at `~/.claude/skills/subagent-research-reliability`.
+`subagent-handback` is **already promoted**. It lives in the canonical skills repo at
+`C:\Users\mlpgr\2026_Projects\skills\skills\orchestration\subagent-handback\` and is
+symlinked into the active set at `~/.claude/skills/subagent-handback`.
 
 The `SKILL.md` beside this file is that skill **with a patch applied**. It is staged here rather
 than left live because the standing rule is quarantine-first and manual review before anything
@@ -24,11 +24,11 @@ directory shadowing the symlink and give you two divergent copies.
 
 ```sh
 cp ~/.claude/skills/_quarantine/subagent-research-reliability/SKILL.md \
-   /c/Users/mlpgr/2026_Projects/skills/skills/orchestration/subagent-research-reliability/SKILL.md
+   /c/Users/mlpgr/2026_Projects/skills/skills/orchestration/subagent-handback/SKILL.md
 cd /c/Users/mlpgr/2026_Projects/skills && git diff   # review, then commit
 ```
 
-Verify it took: `grep -c "dead letter" ~/.claude/skills/subagent-research-reliability/SKILL.md`
+Verify it took: `grep -c "dead letter" ~/.claude/skills/subagent-handback/SKILL.md`
 returns `3` through the symlink.
 
 ## What the patch changes

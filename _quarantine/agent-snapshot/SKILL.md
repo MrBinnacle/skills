@@ -114,6 +114,6 @@ desk.
 - The inverse also holds and is the more dangerous direction: **narrowing** a grant mid-session
   does not take effect either, so a subagent can still hold a tool you believe you revoked. Do not
   rely on a mid-session edit as a security or blast-radius control.
-- See also: `subagent-research-reliability` for the neighbouring failure — the description claiming
+- See also: `subagent-handback` for the neighbouring failure — the description claiming
   a capability the frontmatter never granted, which is a *real* grant defect and is repaired the
   same way, in a new session.
