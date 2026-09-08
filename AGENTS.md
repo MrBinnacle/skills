@@ -562,7 +562,7 @@ mechanism working. An evolving ecosystem, not a chop list.
    - **Screen only a candidate carrying a frozen empirical contract** — a fixture AND a
      counterfixture — because that is the only shape the harness can return a real verdict
      on. Two candidates qualify today: `mock-masked-stub-trap` and
-     `walk-the-recipe-as-target-user`.
+     `walk-the-recipe`.
    - **Read existing verdicts read-only** rather than running anything, from two sources.
      First, the harness's evidence store: `python -m skill_harness screen verdict
      --evidence-db <path>/evidence.db`. Checked 2026-08-23: that store answered "No

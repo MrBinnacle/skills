@@ -86,7 +86,7 @@ enum-level false agreement that the mechanical synthesizer missed.
 
 ## [OBSERVED] Reviewer-local ID collision silently drops a finding at consolidation
 
-Folded 2026-08-17 (S306) from the quarantine card `fix-brief-consolidation-id-hygiene`,
+Folded 2026-08-17 (S306) from the quarantine card `brief-ids`,
 per the S305 Gate-0 routing (layer finding: this card's content belongs here, not as a
 standalone skill). The incident is real, not anticipated: in the Skill Harness Track E
 ai-slop fix-brief, two reviewers each numbered their findings M1–M5 locally; the

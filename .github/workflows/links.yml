@@ -52,7 +52,7 @@ jobs:
       # location they no longer sit in.
       # `https://openrouter.ai/api/v1` is excluded for the same reason as the
       # directory above: it is correct, not broken. It appears in
-      # _quarantine/anthropic-sdk-via-openrouter/SKILL.md as the value of a
+      # _quarantine/sdk-via-openrouter/SKILL.md as the value of a
       # `base_url=` argument inside the frontmatter description. It is an API
       # base path that client code concatenates a route onto, not a page a
       # reader is meant to open, and a bare GET against it returns 404 by

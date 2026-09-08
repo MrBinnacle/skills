@@ -25,7 +25,7 @@
   something external checks. Cite a signature or a documented parameter, not a line number,
   and pin to a ref the project keeps alive.
 
-  Not an instance of `github-linkcheck-404-throttle-false-negative`: that card is about
+  Not an instance of `linkcheck-throttle`: that card is about
   GitHub answering a throttled request with 404 rather than 429, where the link is alive. Here
   the checker's complaint was a 429 and the underlying link was genuinely dead. The two look
   alike at the CI log and diverge on the one check that matters — asking the API whether the

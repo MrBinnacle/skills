@@ -36,7 +36,7 @@ close this entry.
 An implement pass rewrote `description` from the upstream
 `A guide for writing self-documenting code` (43 characters) to a longer router string, and
 documented the original as "285 characters" (that figure belongs to a different candidate,
-`anti-slop-frontend-secure`). Issue #216 criterion 5 forbids rewriting the baseline while
+`frontend-slop`). Issue #216 criterion 5 forbids rewriting the baseline while
 landing it. Restored byte-identical to upstream; keep the freeze on any later edit that is
 not an explicit version bump.
 
