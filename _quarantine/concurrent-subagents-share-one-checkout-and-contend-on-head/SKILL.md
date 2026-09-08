@@ -1,19 +1,6 @@
 ---
 name: concurrent-subagents-share-one-checkout-and-contend-on-head
-description: |
-  Two or more subagents dispatched at the same repository by absolute path run
-  in ONE working directory and contend on HEAD, so one agent's commit lands on
-  another's branch and a rebase retargets a branch its author does not own.
-  Use when: (1) about to dispatch more than one agent that will run git in the
-  same repo, whether or not their FILES overlap; (2) a pre-launch check
-  concluded "no collision" on the basis of file-overlap or different-repos
-  reasoning; (3) `git log` on your branch shows a commit you did not author,
-  or `git status -sb` reports ahead/behind counts that make no sense for a
-  branch you just pushed; (4) an agent reports it rebased or committed and the
-  result appears on someone else's ref; (5) `git branch -a --contains <sha>`
-  returns only a branch belonging to different work. File-overlap analysis
-  cannot see this class: the contention is on HEAD and the index, not on paths.
-  The fix is worktree isolation at dispatch, not coordination after the fact.
+description: Use before dispatching more than one agent that runs git in the same repo, or when a commit or rebase lands on a branch nobody targeted. They share one HEAD, which a file-overlap check cannot see.
 ---
 
 # Concurrent subagents share one checkout and contend on HEAD

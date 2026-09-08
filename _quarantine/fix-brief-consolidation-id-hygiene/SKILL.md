@@ -1,15 +1,6 @@
 ---
 name: fix-brief-consolidation-id-hygiene
-description: |
-  Use when synthesizing findings from N parallel reviewers/seats/SMEs into a single
-  fix-brief, disposition doc, or punch list. Prevents the "reviewer-local M-ID
-  collision drops a finding" failure mode where each reviewer's local M1/M2/M3
-  numbering collides at the consolidation layer and one reviewer's finding gets
-  silently dropped while another reviewer's same-numbered finding is kept under
-  the consolidated label. Specifically: (1) N-seat parallel council fires
-  producing per-seat findings, (2) multi-reviewer ai-slop / code-review /
-  security-audit dispatches, (3) any synthesis step that flattens
-  per-reviewer-local IDs into a global brief.
+description: Use when flattening findings from several reviewers or seats into one brief or punch list. Their reviewer-local M1/M2/M3 ids collide at the consolidation layer and one finding is dropped silently.
 author: Claude Code
 version: 1.0.0
 date: 2026-06-07

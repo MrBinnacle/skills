@@ -1,15 +1,6 @@
 ---
 name: summary-narrows-a-disjunction-to-its-nameable-half
-description: |
-  A summary states one member of a two-member disjunction and attaches a universal
-  quantifier to it, so the summary is MORE specific than the receipt it came from.
-  Use when: (1) writing or reading a state summary, checkpoint band, handoff, close
-  packet, or standup note that compresses a longer receipt; (2) a summary says "all X
-  are in P" and the source said "every X is under P or Q"; (3) a plan built from a
-  summary produces a fix that clears a small fraction of the cases and the author
-  concludes the fix failed; (4) a count in a summary is right while the location,
-  cause, or scope attached to it is wrong; (5) auditing a claim before acting on it.
-  The surviving member is the one with the familiar name, often not the larger one.
+description: Use when writing or trusting a checkpoint band, handoff or packet that compresses a receipt. A summary reading "all X are P" where the source said "P or Q" keeps the half with the familiar name.
 author: Claude Code
 version: 1.0.0
 date: 2026-09-07

@@ -1,16 +1,6 @@
 ---
 name: a-blocked-command-form-is-not-a-blocked-action
-description: |
-  A safety guard refuses one spelling of a command and names the safe spelling in its
-  own refusal text, but the refusal gets recorded as "this action is impossible" and
-  escalated to a human. Use when: (1) a guard, hook, permission net or sandbox blocks
-  a command and you are about to write down that the task needs someone else; (2) a
-  handoff, checkpoint or ticket says an action is blocked and names the tool that
-  blocked it; (3) `git branch -D`, `git reset --hard`, `git checkout --`, `git stash
-  drop`, `rm -rf` or a similar destructive form is refused; (4) an item has been
-  waiting on a human for more than one session with a tool refusal as its only
-  justification. Read the refusal text before recording the limit: guards that
-  suggest an alternative are stating a route, not a wall.
+description: Use when a guard, hook or sandbox refuses a destructive command and you are about to record the action as blocked, escalate it, or leave a ticket waiting. Read the refusal text first.
 author: Claude Code
 version: 1.0.0
 date: 2026-09-07

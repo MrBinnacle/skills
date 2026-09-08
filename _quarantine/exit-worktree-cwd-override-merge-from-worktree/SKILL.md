@@ -1,18 +1,6 @@
 ---
 name: exit-worktree-cwd-override-merge-from-worktree
-description: |
-  When ExitWorktree refuses with "cannot be called from a subagent with
-  a cwd override," merge the worktree branch back to main using
-  `git -C "<main-repo-path>" merge <worktree-branch>` from inside the
-  worktree, instead of trying to exit first. Git merge operates on
-  branch refs and doesn't care about working directory. Use when: (1) you
-  entered a worktree via EnterWorktree, did your work, and now want to
-  merge back to main but ExitWorktree refuses with the cwd-override error;
-  (2) you need to merge a branch in worktree A while you are physically
-  cwd'd in worktree B; (3) any situation where the harness-managed cwd
-  state blocks the directory change ExitWorktree would normally do.
-  Avoids the trap of trying to chase the ExitWorktree refusal by
-  navigating manually — the merge doesn't need the navigation.
+description: Use when ExitWorktree refuses with a cwd-override error and the branch still needs merging. Merge by ref with git -C from inside the worktree; a merge needs no navigation.
 metadata:
   type: workaround
 ---

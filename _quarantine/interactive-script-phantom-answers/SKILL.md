@@ -1,13 +1,6 @@
 ---
 name: interactive-script-phantom-answers
-description: |
-  A prompting script run without a TTY records fabricated answers instead of failing.
-  Use when: (1) an interactive bash/python script "completed" but wrote empty or default
-  values, (2) a wizard's summary says "wrote N values" yet the output file is blank,
-  (3) `read -r` / `input()` returns instantly with no visible typing, (4) a y/N `confirm`
-  resolved to its default that nobody chose, (5) you are about to tell a user to run an
-  interactive script through an AI harness, a pipe, CI, or an editor "run" button.
-  Covers the guard pattern for any script whose output becomes evidence.
+description: Use when a prompting script completes with nobody typing, writes blanks or defaults, or is about to run through a harness, pipe or CI. Without a TTY, read returns EOF rather than an error.
 author: Claude Code
 version: 1.0.0
 date: 2026-08-17

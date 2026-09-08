@@ -1,17 +1,6 @@
 ---
 name: bash-cwd-drift-false-clean-grep
-description: |
-  Catch the false all-clear produced when the Bash tool's persistent working
-  directory drifts and a verification grep silently searches the wrong tree.
-  Use when: (1) a `grep -rn` over known-present strings returns nothing and you
-  are about to conclude the repo is clean, (2) an earlier `cd subdir/` in the
-  session was followed by a repo-root-relative command, (3) a "no matches"
-  result is being used as evidence rather than as an absence of evidence,
-  (4) a stale-claim sweep or a pre-commit consistency check returns empty,
-  (5) `ls`/`cat` on a root file reports No such file or directory. The Bash
-  tool persists cwd across calls, so a grep with relative paths reports zero
-  matches instead of erroring, and zero matches reads exactly like a passing
-  check. Includes the guard that turns a silent miss into a loud one.
+description: Use when a verification grep returns no matches and you are about to call the tree clean. The Bash tool's cwd persists across calls, so a relative path searches the wrong tree and reports zero.
 author: Claude Code
 version: 1.0.0
 date: 2026-08-18

@@ -1,14 +1,6 @@
 ---
 name: github-linkcheck-404-throttle-false-negative
-description: |
-  Diagnose CI link-checker (lychee and similar) failures reporting 404 on
-  github.com issue/PR URLs that actually exist. Use when: (1) a link-check job
-  goes red on `https://github.com/<owner>/<repo>/issues/<n>` links, (2) `gh api
-  repos/<owner>/<repo>/issues/<n>` returns the issue fine, (3) the same check
-  passed recently with no doc changes, (4) other unrelated CI jobs fail at the
-  same time. GitHub throttles anonymous HTML page requests with 404 (not 429),
-  which a checker cannot distinguish from a dead link; platform outages produce
-  the same signature repo-wide.
+description: Use when a CI link checker reports 404 on github.com issue or PR URLs that gh api resolves fine. GitHub throttles anonymous page requests with 404, not 429, which reads exactly like a dead link.
 author: Claude Code
 version: 1.0.0
 date: 2026-08-17

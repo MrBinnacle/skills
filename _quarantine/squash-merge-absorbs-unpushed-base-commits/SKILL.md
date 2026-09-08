@@ -1,17 +1,6 @@
 ---
 name: squash-merge-absorbs-unpushed-base-commits
-description: |
-  A squash merge silently relabels commits that were never yours to squash, when the
-  branch was cut from a local base that sat ahead of its remote. Use when: (1) a PR's
-  commit list shows commits you did not write on that branch — a release commit, a
-  session close, a colleague's merge — alongside your own; (2) `git log` on the default
-  branch no longer shows a commit you know landed, though its content is present;
-  (3) a tag, a changelog entry, a state file or a handoff references a SHA that is no
-  longer reachable from the default branch; (4) you are about to cut a feature branch
-  and `git status` says "Your branch is ahead of 'origin/main' by N commits"; (5) a
-  workflow commits to the default branch locally without pushing (a close ritual, a
-  version bump, a generated-artifact commit) and later work branches off it. The content
-  always survives; the absorbed commits' messages, SHAs and authorship do not.
+description: Use before cutting a branch while git says you are ahead of origin, or when a PR lists commits you did not write and a known SHA has left the default branch. Squash absorbs the unpushed base.
 author: Claude Code
 version: 1.0.0
 date: 2026-08-31

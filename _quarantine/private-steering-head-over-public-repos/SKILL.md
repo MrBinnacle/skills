@@ -1,15 +1,6 @@
 ---
 name: private-steering-head-over-public-repos
-description: |
-  Running one private repository that decides, audits and stages work for two or more public
-  repositories it owns. Use when: (1) a question arrives that a sibling repo already answers and
-  you are about to answer it from the steering repo instead; (2) you are about to build an
-  instrument — script, metric, harness, gate, receipt schema, checker — without reading the
-  siblings first; (3) you write or match a bare `#N` issue reference that will be read in a
-  different repository than it was written in; (4) you are summing or averaging board health,
-  drift or coverage across repos; (5) an artifact is produced and its home repo is unobvious;
-  (6) a wayfinder-style map or index spans repos. Covers the cross-repo issue-number collision,
-  per-board failure-mode asymmetry, the sibling-first prior-art gate, and artifact routing.
+description: "Use when one private repo decides and audits for public repos it owns: before building an instrument, when writing a bare #N issue reference, or when an artifact's home repo is unclear."
 author: Claude Code
 version: 1.0.0
 date: 2026-08-26

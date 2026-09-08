@@ -1,19 +1,6 @@
 ---
 name: uniform-eol-rewrite-evades-the-mixed-eol-guard
-description: |
-  A script edits a few lines of a file and the commit shows every line changed,
-  because the write silently converted the whole file's line endings. Use when:
-  (1) a diffstat reports insertions and deletions roughly equal to the file's
-  total line count after a small targeted edit; (2) a Python script edits a file
-  with `pathlib.Path.write_text()` or `open(path, "w")` on Windows, which
-  translate `\n` to `os.linesep` by default; (3) a mixed-EOL PostToolUse guard
-  is installed and stayed silent through exactly this; (4) a repo-scoped hook
-  did not fire on a write into a sibling repository reached by absolute path.
-  A guard testing `crlf > 0 and lone_lf > 0` is blind to a UNIFORM conversion,
-  which is the case where the damage is largest, because the diff becomes
-  unreviewable and the real change is hidden inside it. Also covers (5) the same
-  whole-file diff caused instead by re-serializing a JSON, YAML or TOML file to
-  change one string, which unequal insertion and deletion counts distinguish.
+description: Use when a small edit produces a diffstat near the file's whole line count, or before writing a file with write_text on Windows. A uniform EOL conversion is invisible to a mixed-endings guard.
 author: Claude Code
 version: 1.1.0
 date: 2026-09-07
