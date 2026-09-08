@@ -15,8 +15,8 @@ from the cards themselves, so it is where to read what ships today.
 An installed card's `description` is read at startup whether or not the card ever fires, so
 breadth you never use is still paid for on every turn. Both install routes copy files onto your
 machine and start nothing: there is no build step, no package to import, and no service to run.
-Most of what lands is Markdown. Every card also ships an `evals/evals.json`, and two cards,
-`im-down` and `im-up`, ship the Python scripts their own procedures call. Those scripts run only
+Most of what lands is Markdown. Every card also ships an `evals/evals.json`, and the `im-down`
+and `im-up` cards ship the Python scripts their own procedures call. Those scripts run only
 when you run them.
 
 No card here has evidence that it helps. Where a card carries a controlled result, that result is
@@ -49,7 +49,7 @@ recording each card's source path and a hash. `--global` writes to your home dir
 npx skills add MrBinnacle/skills
 ```
 
-The two card directories are the installer's own convention for agent tools that read one path or
+Those two directories are the installer's own convention for agent tools that read one path or
 the other. This collection does not choose them and does not configure them.
 
 It tracks `main` rather than a tag, so it installs the current tip of the collection.

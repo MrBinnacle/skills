@@ -10,6 +10,20 @@
 # A hash over a text file must not depend on the platform that checked it out.
 styles/** text eol=lf
 
+# scripts/vendor/ is HASH-PINNED for the same reason and by the same argument.
+# POPULATION_SOURCE.json records a SHA-256 over the vendored contract's bytes, and
+# check_prose_claims.py refuses a mismatch. Without an eol rule Git checks the file
+# out with CRLF on Windows and LF elsewhere, so the digest describes bytes that
+# exist on one runner and not the other.
+#
+# Observed on PR #283: validator (ubuntu-latest) passed and validator
+# (windows-latest) failed with the digest mismatched and nothing wrong with the
+# file. A hash over a text file must not depend on the platform that checked it
+# out. Normalising inside the checker was the alternative and is worse - it would
+# hide a real line-ending injection into a vendored contract, which is the thing
+# the digest exists to catch.
+scripts/vendor/** text eol=lf
+
 # The same rule for the SVG halves of asset_pairs: assets/tokens.json records a
 # SHA-256 of each, and a CRLF checkout on the Windows runner changes the bytes
 # without changing the file. Measured on PR #257: ubuntu green, windows red on

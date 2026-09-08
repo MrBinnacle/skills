@@ -288,6 +288,98 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::disposition-counts check emitted no PASS line - it did not run"; exit 1; }
 
+      # PROSE CLAIMS. The three checks above each anchor to a sentence they were
+      # told about: the origin-tier regex, the controlled-results section, the
+      # four disposition phrases. On 2026-09-08 three reader-facing surfaces were
+      # found asserting things that were false, and every one sat in a sentence no
+      # anchor reaches -- the README's eleven card counts, a bold claim in
+      # _quarantine/README.md that no candidate carried an EVIDENCE.md when three
+      # did, and a card README drawing three subdirectories that do not exist.
+      #
+      # A fourth anchored regex would guard the sentences already deleted. These
+      # two steps check the claims that are STRUCTURAL instead: what a group
+      # README enumerates against what the directory holds, both directions, and
+      # what a layout block draws against what is on disk.
+      #
+      # Both are enumeration-driven, so both run under the population-integrity
+      # contract vendored byte-equal from skill-harness, which reports
+      # UNINTERPRETABLE rather than PASS when the analysed set cannot be
+      # established. Exit 2 is that refusal, and it is a failure here.
+      - name: Prose-claims suite
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_check_prose_claims.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::prose-claims suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Prose-claims check
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          set -euo pipefail
+          out="$(python scripts/check_prose_claims.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::prose-claims check emitted no PASS line - it did not run"; exit 1; }
+
+      # A gate that cannot fail guards nothing. Built in RUNNER_TEMP rather than
+      # checked in: a breaching README committed inside the guarded tree would
+      # turn the real run red. Each control asserts the SPECIFIC message, never
+      # merely a non-zero exit -- the origin-tier fixture in this repository
+      # passed for the wrong reason on 2026-09-08, when a banner change made it
+      # fail before it reached the thing it tests. Each also verifies the
+      # mutation changed the file, so a moved anchor cannot make the control
+      # vacuous.
+      #
+      # The copy carries .git, because the check enumerates READMEs with
+      # git ls-files rather than a filesystem walk.
+      - name: Poison control - a group README omitting a card must be rejected
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/prose-omit"
+          rm -rf "$tree"
+          cp -r . "$tree"
+          readme="$tree/skills/engineering/README.md"
+          before="$(wc -c < "$readme")"
+          python -c "import pathlib,sys; p=pathlib.Path(sys.argv[1]); t=p.read_text(encoding='utf-8'); m='- [**halt-as-deliverable**](halt-as-deliverable/SKILL.md)'; assert m in t, 'control anchor absent; the fixture would prove nothing'; p.write_text(t[:t.index(m)].rstrip()+chr(10), encoding='utf-8')" "$readme"
+          after="$(wc -c < "$readme")"
+          [ "$before" != "$after" ] || { echo "::error::the control mutation changed nothing"; exit 1; }
+          if python scripts/check_prose_claims.py --root "$tree" > control-prose.log 2>&1; then
+            echo "::error::a group README omitting a card was ACCEPTED - the enumeration is not derived from disk"
+            cat control-prose.log
+            exit 1
+          fi
+          grep -q "does not name" control-prose.log \
+            || { echo "::error::the omitted-card control failed for the wrong reason"; cat control-prose.log; exit 1; }
+          echo "control: a group README omitting a card rejected as expected"
+
+      - name: Poison control - a documented path that does not exist must be rejected
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/prose-path"
+          rm -rf "$tree"
+          cp -r . "$tree"
+          readme="$tree/README.md"
+          before="$(wc -c < "$readme")"
+          python -c "import pathlib,sys; p=pathlib.Path(sys.argv[1]); t=p.read_text(encoding='utf-8'); a='templates/         global operating-rules template'+chr(10); assert a in t, 'control anchor absent; the fixture would prove nothing'; p.write_text(t.replace(a, a+'references/        planted, and not on disk'+chr(10), 1), encoding='utf-8')" "$readme"
+          after="$(wc -c < "$readme")"
+          [ "$before" != "$after" ] || { echo "::error::the control mutation changed nothing"; exit 1; }
+          if python scripts/check_prose_claims.py --root "$tree" > control-path.log 2>&1; then
+            echo "::error::a README naming a path that does not exist was ACCEPTED"
+            cat control-path.log
+            exit 1
+          fi
+          grep -q "do not exist beside it" control-path.log \
+            || { echo "::error::the documented-path control failed for the wrong reason"; cat control-path.log; exit 1; }
+          echo "control: a documented path that does not exist rejected as expected"
+
       # A gate that cannot fail guards nothing. The breach shape is a README
       # that states a disposition count the linked record does not support.
       # Built in RUNNER_TEMP rather than checked in -- a committed breaching

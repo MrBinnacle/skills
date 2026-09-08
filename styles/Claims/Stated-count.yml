@@ -1,0 +1,7 @@
+extends: existence
+message: "Stated count: '%s' puts a card-set number in prose. It rots the next time a card is admitted or retired. State the fact; let the card-evidence table CI rebuilds carry the number."
+level: error
+ignorecase: true
+tokens:
+  - '\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|[0-9]+)\s+(?:published\s+|admitted\s+|retired\s+|skill\s+|quarantine\s+)*cards?\b'
+  - '\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|[0-9]+)\s+(?:quarantine\s+)*candidates?\b'
