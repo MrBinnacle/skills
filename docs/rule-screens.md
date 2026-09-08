@@ -85,7 +85,7 @@ This entry is the rationale for the amendments landed that day. It is not itself
 
 **Cross-references — `REVISE`, on repository evidence.** The prior rule read *"inline at moment-of-need. No trailing 'Related' / 'See also' section."*
 
-Measured across the fourteen published cards: **21 of 47 reader-facing auxiliaries are named nowhere in their own `SKILL.md`.** `im-up` ships a `PACKET-FORMAT.md` its card depends on and never mentions. Twelve of fourteen cards do not link `EVIDENCE.md`.
+Measured on 2026-09-06, across the fourteen cards published at that date: **21 of 47 reader-facing auxiliaries are named nowhere in their own `SKILL.md`.** `im-up` ships a `PACKET-FORMAT.md` its card depends on and never mentions. Twelve of those fourteen did not link `EVIDENCE.md`.
 
 An earlier count said 32 of 59. That figure counted test fixtures and a test script as discoverability failures; no reader should traverse those. 21 of 47 is the count by role.
 

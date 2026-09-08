@@ -1,14 +1,16 @@
 <p>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
-    <img alt="skills. 14 skill cards. Each states the condition that would retire it." src="assets/banner-light.svg" width="620">
+    <img alt="skills. Each card states the condition that would retire it." src="assets/banner-light.svg" width="620">
   </picture>
 </p>
 
 # `skills`
 
 A skill card is a Markdown file that Claude Code loads as instructions. This repository publishes
-14 of them, grouped into `engineering`, `orchestration`, and `meta`.
+cards in three groups: `engineering`, `orchestration`, and `meta`. The
+[card evidence](#card-evidence) table below names every published card, and CI rebuilds that table
+from the cards themselves, so it is where to read what ships today.
 
 An installed card's `description` is read at startup whether or not the card ever fires, so
 breadth you never use is still paid for on every turn. Both install routes copy files onto your
@@ -17,12 +19,12 @@ Most of what lands is Markdown. Every card also ships an `evals/evals.json`, and
 `im-down` and `im-up`, ship the Python scripts their own procedures call. Those scripts run only
 when you run them.
 
-No card here has evidence that it helps. One card carries a controlled result, and that result is
-`CANT_TELL_YET`. Eleven carry a dated record of the failure that produced them and no screen. Two
-carry neither. Those three counts come from the cards' own `EVIDENCE.md` records, and the
-[card evidence](#card-evidence) table below is rebuilt from those records by CI. What all 14 do
-carry is a pre-registered retirement trigger: the specific change that would remove the failure
-each card addresses, named in advance. Membership is governed by the
+No card here has evidence that it helps. Where a card carries a controlled result, that result is
+`CANT_TELL_YET`. Most carry a dated record of the failure that produced them and no screen, and
+some carry neither. Which card is in which state comes from the cards' own `EVIDENCE.md` records,
+and the [card evidence](#card-evidence) table marks it card by card rather than tallying it. What
+every card does carry is a pre-registered retirement trigger: the specific change that would
+remove the failure the card addresses, named in advance. Membership is governed by the
 [admission policy](ADMISSION.md).
 
 ## Install
@@ -85,8 +87,11 @@ identical tasks is large enough to produce one on its own.
 [Why naive skill benchmarks mislead](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/why-naive-skill-benchmarks-mislead.md)
 carries the measurement behind that second sentence.
 
-The [nine-card admission triage record](dispositions/2026-08-15-S295-admission-triage.md) applied
-`admission-policy v1` to the nine cards published on 2026-08-15, and retired none of them.
+The [admission triage record](dispositions/2026-08-15-S295-admission-triage.md) applied
+`admission-policy v1` to the cards published on 2026-08-15, and retired none of them.
+
+Candidates that have not cleared the gate sit in [`_quarantine/`](_quarantine/README.md), in the
+open. That directory's own README states what being there does and does not claim.
 
 ## Card map
 
@@ -127,10 +132,10 @@ place to change a row.
 
 ## What the cards cover
 
-Every published card appears once below. The [Card map](#card-map) above groups the same 14 by
+Every published card appears once below. The [Card map](#card-map) above groups the same cards by
 form.
 
-Nine are about an operation, a test, or an agent reporting an outcome that did not happen:
+These are about an operation, a test, or an agent reporting an outcome that did not happen:
 
 | Card | What goes wrong |
 |---|---|
@@ -144,7 +149,7 @@ Nine are about an operation, a test, or an agent reporting an outcome that did n
 | `subagent-research-reliability` | A subagent returns claims and citations nobody checked, from tools it may not hold. |
 | `im-up` | A session start checks the previous session's stated paths, predicates, and sequence against the repository. |
 
-Five are about what one session, agent, or reviewer writes down for the next:
+These are about what one session, agent, or reviewer writes down for the next:
 
 | Card | What it does |
 |---|---|
@@ -176,18 +181,20 @@ What has been measured:
 | `UNMEASURED` | No qualifying measurement exists yet. |
 
 Each card states its own state in its own record, and that record is the only place the state is
-asserted. This page states no tally of the provenance states, deliberately: a number here would
-need re-checking every time a card enters or leaves.
+asserted. This page states no tally of the card set, deliberately: a number written here would
+need re-checking every time a card enters or leaves, and a reader who caught one stale number
+would be right to distrust every other claim on the page. Numbers belong in the
+[card evidence](#card-evidence) table, which CI derives from the records on every run.
 `scripts/validate_scoreboard.py` derives the states from the records and checks any tally the page
 does state.
 
 ### Controlled results
 
 A controlled result comes from a with-and-without evaluation run under the evaluation protocol.
-One card carries one:
-[`git-pull-rebase-trap`](skills/engineering/git-pull-rebase-trap/EVIDENCE.md). Its verdict, dates,
-and receipts live in that record and nowhere else, so the page points at the record instead of
-copying it. Every other card is `UNMEASURED` in the controlled fields.
+[`git-pull-rebase-trap`](skills/engineering/git-pull-rebase-trap/EVIDENCE.md) carries one. Its
+verdict, dates, and receipts live in that record and nowhere else, so the page points at the
+record instead of copying it. The [card evidence](#card-evidence) table marks every card carrying
+a controlled result as `measured`; the rest are `UNMEASURED` in the controlled fields.
 
 ### Observed in use
 
@@ -210,12 +217,15 @@ A card can be re-screened with
 change warrants it. The same task runs with the card and without it, and the result is reported
 only as far as the evidence carries it.
 
-A card can also retire against the trigger it registered in advance. All 14 published cards carry
+A card can also retire against the trigger it registered in advance. Every published card carries
 one. The trigger names the specific platform or model change that would make the underlying
 failure impossible, written down before the change happens so the call cannot be reasoned
-backwards from the outcome. Two cards have already left: one retired against its own trigger when
-Claude Code shipped the change it named, and one was withdrawn on the policy, because its own
-record could not satisfy the criterion the policy requires.
+backwards from the outcome.
+
+Both routes have already been used. A card retired against its own trigger when Claude Code
+shipped the change it named, and a card was withdrawn on the policy because its own record could
+not satisfy the criterion the policy requires. [`RETIRED.md`](RETIRED.md) lists every departure
+with its evidence.
 
 The admission policy caps what enters and the retirement routes take cards back out, so the
 collection stays small and covers little ground. For breadth,
@@ -229,13 +239,14 @@ skills/
   orchestration/   disciplines for multi-agent work
   meta/            skills about the skill system itself
 
+_quarantine/       candidate cards that have not cleared admission
 templates/         global operating-rules template
 
 CLAUDE.md          rules for working in this repository
 AGENTS.md          conventions for agents working here
 ```
 
-Every card directory contains these four:
+Every published card directory contains these four:
 
 ```text
 SKILL.md            entry point
@@ -246,6 +257,10 @@ evals/evals.json    the card's evaluation cases
 
 Cards may carry more. A card that needs supporting prose adds it as a further Markdown file, and
 `im-down` and `im-up` each ship the Python scripts and fixtures their procedures call.
+
+`_quarantine/` holds candidates, which are not published skills and are not required to carry that
+set. [`_quarantine/README.md`](_quarantine/README.md) states what is missing from them and what
+admission still requires.
 
 `templates/BASE-OPERATING-RULES.md` holds the project-agnostic operating rules the owner uses
 across repositories: anti-anchoring, decision escalation, layer placement, verification, and
