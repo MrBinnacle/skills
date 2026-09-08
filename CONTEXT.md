@@ -55,10 +55,23 @@ merges to `main`; the tag and the GitHub release record it afterwards. Before 20
 word named a tag that delivered nothing, because both install routes track `main`.
 _Avoid_: tag, publish — a tag records a release and does not constitute one.
 
+**Install path**:
+The route by which the collection is installed — the plugin marketplace commands and the
+installer command in `README.md` §Install. Not a card's directory: that is the card's *name*,
+which is a separate part of the declared surface and is priced differently.
+_Avoid_: using it for `skills/<group>/<name>/`. The undefined phrase carried both senses until
+2026-09-08 and is what made the surface question unanswerable from this glossary.
+
 **Declared surface**:
-What the version number promises: the install path and the on-disk shape of a card. The card
-set is deliberately outside it, so admitting or retiring a card is a minor change rather than a
-breaking one. This is Semantic Versioning's *public API* for this collection, declared in
-[`docs/adr/0002-a-release-is-a-delivery-event.md`](docs/adr/0002-a-release-is-a-delivery-event.md).
+What the version number promises: the install path, a card's name, and the on-disk shape of a
+card. The card *set* is deliberately outside it, so admitting or retiring a card is a minor
+change rather than a breaking one — but renaming a card is a major change, because consumers
+resolve a card by its name. This is Semantic Versioning's *public API* for this collection,
+declared in
+[`docs/adr/0002-a-release-is-a-delivery-event.md`](docs/adr/0002-a-release-is-a-delivery-event.md)
+and amended on the name by
+[`docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md`](docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md).
 _Avoid_: bare "public API" — this collection ships no code interface, and the unqualified phrase
-invites a reader to assume the card set is covered when it is not.
+invites a reader to assume the card set is covered when it is not. _Avoid_ also treating a rename
+as a retirement plus an admission: they are the same operation inside the repository and opposite
+promises outside it.

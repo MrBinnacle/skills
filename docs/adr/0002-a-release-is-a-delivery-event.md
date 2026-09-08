@@ -36,6 +36,13 @@ Semantic Versioning MUST declare a public API."* This collection has never made 
 it.** Adding or retiring a card is a minor change. Changing the install path, or the on-disk
 shape of a card, is a major change. Corrections within a card are a patch.
 
+> **Amended 2026-09-08 by [ADR 0003](0003-a-cards-name-is-part-of-the-declared-surface.md).** A
+> card's **name** is also part of the declared surface, so renaming a card is a major change. The
+> card **set** remains outside it and admitting or retiring a card remains minor — the paragraph
+> below still holds and is the reason. The amendment came from this ADR's own Revisit-if firing:
+> renaming eleven cards broke eleven installs that resolved them by name. Read 0003 for the
+> current rule.
+
 This is a deliberate narrowing, and it is the reverse of the obvious reading. Under the wide
 reading — the card set is the surface — every retirement is a breaking change. This collection
 retires cards on recorded evidence and says so on its front page. A scheme under which the
@@ -87,10 +94,15 @@ publication rather than advise it, and a model with no publication act has nothi
   taken 2026-08-24 against the three options recorded above. A later session may implement it
   differently; it may not quietly revert to a model in which the version number describes
   nothing obtainable.
-- **Revisable with new evidence:** the narrow declared surface. *Revisit if:* anything is found
-  to depend on a specific card existing — a downstream document, a script, or another
-  repository resolving a card by name. That would make the card set part of the surface in
-  fact, and the declaration would then be false rather than merely narrow.
+- ~~**Revisable with new evidence:** the narrow declared surface.~~ **This clause fired on
+  2026-09-08 and is settled by [ADR 0003](0003-a-cards-name-is-part-of-the-declared-surface.md).**
+  It read: *"Revisit if: anything is found to depend on a specific card existing — a downstream
+  document, a script, or another repository resolving a card by name. That would make the card set
+  part of the surface in fact, and the declaration would then be false rather than merely narrow."*
+  Eleven junctioned installs, a sibling repository's pinned receipts, and two tracked repository
+  files were all found resolving cards by name. ADR 0003 rules that the finding reaches a card's
+  **name**, not the card **set**: renaming became a major change, admitting and retiring stayed
+  minor. The successor Revisit-if clauses live in 0003.
 - **Revisable with new evidence:** generating the manifest version from `package.json` rather
   than maintaining it separately. *Revisit if:* the platform gains a mechanism that reads the
   version from one place, which would make the generator redundant.
