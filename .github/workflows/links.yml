@@ -67,6 +67,26 @@ jobs:
       #
       # The exclusion is anchored to the exact base path. A 404 anywhere else on
       # openrouter.ai still fails this job. Recorded as skills#240.
+      # 429 is accepted, and it is the one status that carries no information
+      # about the link. A 429 says the server declined to answer, not that the
+      # target is missing: the check did not happen. Failing the merge gate on it
+      # reports link rot that was never observed.
+      #
+      # Measured 2026-09-08 on skills#290, a pull request that touched seven
+      # files and none of the one that failed. lychee reported
+      # `[429] .../blob/v1.3.0/skills/meta/skill-necessity-gate/gotchas.md` in
+      # skills/orchestration/disposition-schema/ADVERSARIAL-VERIFY-SEAT.md. The
+      # same URL returns 200 to an anonymous curl from outside Actions, and the
+      # job had already failed identically two minutes earlier, so the three
+      # retries above do not outlast the throttle window. GITHUB_TOKEN is already
+      # set below and does not cover it: the token authenticates API calls, and
+      # this is a blob PAGE fetch.
+      #
+      # The cost is stated rather than hidden: a throttled URL goes unverified in
+      # that run. The weekly scheduled run above is the second look that catches
+      # real rot, and a genuinely dead link answers 404, which still fails here.
+      # _quarantine/linkcheck-throttle/ documents the sibling case where GitHub
+      # answers the same throttle with 404 instead, which this does NOT mask.
       - name: Check links
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2
         with:
@@ -74,6 +94,7 @@ jobs:
             --no-progress
             --max-retries 3
             --retry-wait-time 5
+            --accept '200..=299,429'
             --exclude-path docs/design/variants
             --exclude '^https://openrouter\.ai/api/v1$'
             --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
