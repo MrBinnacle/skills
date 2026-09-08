@@ -1,7 +1,7 @@
 # EVIDENCE — mock-masked-stub-trap
 
 Provenance record per the collection's evidence convention (see top-level README →
-"The receipts, explained"). Fields are honest by construction: UNMEASURED means exactly that.
+"Evidence records"). Fields are honest by construction: UNMEASURED means exactly that.
 
 RECURRENCE-THIN: one counted occasion. ADMISSION.md criterion 2 asks for a failure that is
 not a one-off, and this card has not yet shown one. The label comes off when a second

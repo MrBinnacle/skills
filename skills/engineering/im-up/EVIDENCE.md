@@ -1,7 +1,7 @@
 # EVIDENCE — im-up
 
 Provenance record per the collection's evidence convention (see top-level README →
-"The receipts, explained"). Fields are honest by construction: UNMEASURED means exactly that.
+"Evidence records"). Fields are honest by construction: UNMEASURED means exactly that.
 
 | Field | Value |
 |---|---|

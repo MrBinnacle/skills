@@ -1,7 +1,7 @@
 # EVIDENCE — anti-slop-frontend-secure
 
 Provenance record per the collection's evidence convention (see top-level README ->
-"The receipts, explained"). Fields are honest by construction: UNMEASURED means exactly
+"Evidence records"). Fields are honest by construction: UNMEASURED means exactly
 that, and ABSENT means the record does not exist.
 
 ## NOT ADMISSIBLE — the origin occurrence is ABSENT
