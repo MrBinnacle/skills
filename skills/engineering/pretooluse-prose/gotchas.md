@@ -160,3 +160,51 @@
   Recovered all three times by this card's standing remedy: write the payload to a file and
   pass it by path (`python script.py`, `git commit -F msg.txt`). Recorded the same day, by the
   session that was blocked — which is the debt the entry above says goes unpaid.
+
+- [OBSERVED 2026-09-08] **The first occurrence that is not prose at all**, from the same guard
+  as the entry above, found within the hour by a second agent trying to check out the pull
+  request that carried that entry:
+
+      git fetch origin pull/292/head:pr292
+
+  blocked. Nothing here is text about the trap. `pull` is a path segment in
+  `refs/pull/<n>/head`, GitHub's standard namespace for a pull-request ref, and the predicate's
+  gap swallows `fetch origin ` on the way to it. Verified by importing the guard's own
+  `targets_bare_pull` and running it over a case table: both `pull/292/head:pr292` and the
+  fully-qualified `refs/pull/292/head` return True, while `git fetch origin main`,
+  `git push origin main` and both explicit-intent pulls return False and a genuine bare pull
+  still returns True. **So the guard blocks fetching any pull request by ref, in any repository
+  whose effective config arms it, whatever the pull request contains.**
+
+  Two things this changes.
+
+  **The blast radius is not confined to authoring.** Every entry before this one says that
+  writing about a trap is how you trip its guard, and that the cost lands on whoever documents
+  it. This one costs a routine review workflow — fetching a PR to reproduce a failure — with no
+  prose involved and nobody documenting anything.
+
+  **The guard refuses a form of its own prescribed remedy.** The `pull-rebase` card's remedy is
+  `git fetch` and then `git merge --no-ff`. Here a `git fetch` is blocked over its refspec. The
+  2026-08-23 entry recorded the general version of this and acted on it — "a guard that refuses
+  its own prescribed remedy trains you to route around it", which is why the `-L` remedy
+  detector was loosened in that pass. The same reasoning applies and has not been applied here.
+
+  **Scope, stated rather than assumed.** This is not an instance of the card's *prose* framing,
+  and it is counted anyway. The card's general rule — a predicate that decides whether
+  something will RUN must read command structure, not text — covers it exactly: `pull` is a
+  path segment here, not a subcommand, and only a predicate that never looks at command
+  position can confuse the two. Whether the card's headline framing should widen from "prose"
+  to "anything that is not the command in command position" is a card-text question this record
+  does not decide.
+
+  **The fix is already built next door.** Anchoring the token to the start of a simple command
+  fixes the prose cases and this one together, since `pull` sits in subcommand position in
+  neither. The sibling measurement repository solved this same class on 2026-09-08 for its own
+  hazard counter: segment a command string into simple commands on unquoted `&&`, `||`, `;`,
+  `|` and newlines, normalise each through `shlex`, and match against that, so a `^` in a
+  registered pattern means "this command IS the hazard" (`MrBinnacle/skill-harness#438`, merged
+  as `1a5027a`). That is the remedy this card has prescribed since 2026-08-23, now with a
+  worked implementation to copy. This guard has not adopted it.
+
+  **Not a falsifier**, for the same reason as the entry above: command-position anchoring was
+  never applied to this guard, so the remedy is absent rather than defeated.
