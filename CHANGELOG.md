@@ -1,5 +1,9 @@
 # Changelog
 
+All notable changes to the collection. A release is a delivery event: changed cards reach
+installed users when a version is released, not on every merge to `main`. See
+[ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
+
 ## v1.6.0 — 2026-09-07
 
 ### Minor Changes
@@ -94,10 +98,6 @@
   Both conditional entries are removed and the historical note is kept. `scripts/test_validate_brand_kit.py` gains a case that binds the two together: a note whose text reads as a grant is allowed only once a checker reads `words_to_avoid_notes` and names that word, so the documentation and the check cannot drift apart again. The case asserts its own non-vacuity — the detector must fire on both removed sentences and must not fire on the historical note. `BRAND.md` said three words carried conditions; it now states the flat ban and points at the test that holds it.
 
   The published word-list digest is unchanged. It is taken over `copy.words_to_avoid`, and this change touches only the notes beside it, so the sibling repository's vendored copy still agrees.
-
-All notable changes to the collection. A release is a delivery event: changed cards reach
-installed users when a version is released, not on every merge to `main`. See
-[ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
 ## v1.5.0 — 2026-09-06
 
