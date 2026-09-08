@@ -28,23 +28,34 @@ from typing import NoReturn
 # or salesier restatement ship. Sites may prefix it (the aria-label and README
 # alt lead with "skills. ") but may not alter a byte of the sentence itself.
 #
-# The wording changed on 2026-09-07 under the S425 direction brief. The new line
-# states a COUNT, which the old one did not, and a count on a page is the thing
-# owner rulings retired from this banner twice for rotting (2026-08-23).  So it
-# is not written here: RULED_LINE is a template and the number is derived from
-# the card set on every run, by the same count the records already derive. A card
-# added or retired changes the sentence the sites must carry, and a site left
-# behind is a failure rather than a stale graphic nobody re-reads.
+# The wording changed twice. The S425 direction brief put a COUNT into the line on
+# 2026-09-07, and this module derived that count per run so that no tracked file
+# would hold a stale number. That was the wrong repair. The number still reached a
+# reader through the rendered SVG, the social card and the README alt text, and
+# none of those is regenerated in the reader's browser: CI can keep the repository
+# internally consistent and still ship a banner telling a stranger a number that
+# stopped being true.
+#
+# Owner ruling 2026-09-07, verbatim, the typo theirs: "you foolishly keep creating
+# images and enduring content that explictly states how many skills (14) which is
+# just not smart." The count came out of the line entirely on 2026-09-08, along
+# with the eleven counts the README prose carried. The sentence now states what is
+# true of every card whatever the card set is, and a number reaches a reader only
+# where it is derived on read: the card-evidence table CI rebuilds from the cards.
+#
+# The line stays ruled byte-identically at every site, because a check that
+# accepted a paraphrase would let a softened restatement ship.
 #
 # The separator is a period rather than an em dash. Direction brief T4.9 admits
 # no U+2014 in a new aria-label, text node, heading or body line, and the owner
 # chose the period over a waiver on 2026-09-07.
-RULED_LINE_TEMPLATE = "{count} skill cards. Each states the condition that would retire it."
+RULED_LINE = "Each card states the condition that would retire it."
 
 
 def ruled_line(root: Path) -> str:
-    """The banner sentence this tree must carry, with its count derived."""
-    return RULED_LINE_TEMPLATE.format(count=count_admitted(root))
+    """The banner sentence this tree must carry. Stated, never counted."""
+    del root  # the sentence no longer depends on the card set, which is the point
+    return RULED_LINE
 CONTROLLED_FIELDS = ("Screen result", "Paired verdict")
 
 # The origin tier is the other number the front page states about the cards, and
