@@ -123,6 +123,35 @@ collection has no collision today. If `uniform-eol` is ever admitted, the privat
 should point at it or give up that section, and the maintainer should decide which. Recorded so the
 choice is made on purpose when it comes due.
 
+## Observation log — step 2, open
+
+Step 1 of "What would admit it, and when to re-test" is complete. The guard is built and merged.
+It compares the working file's dominant separator against the bytes git would check out, and it
+resolves the repository from the written path. Step 2 is the observation window, and it is open,
+not concluded. Each entry below is one observation with the instrument that produced it.
+
+| Date | Observation | Instrument | Result |
+|---|---|---|---|
+| 2026-09-08 | Deliberate scratch write into this repository: a tracked, uniformly-CRLF file converted to LF the way occurrence 4's normaliser did. | `git diff --numstat` after the write; the guard run with a real `PostToolUse` payload. | **Caught.** The diffstat read 53 / 53 for a zero-content change, which is occurrence 4's signature. The guard named the file and the direction, `CRLF -> LF`. The file was restored byte-identical and the tree left clean. |
+
+**One observation is not the branch condition.** The record asks whether the guard catches *every*
+git-visible uniform conversion over the next scripted writes. One deliberate probe in the "caught"
+direction does not settle that, and criterion 3 stays exactly where this record put it: not
+decidable, with enforcement as the hypothesis. This candidate stays in `_quarantine/`. No verdict
+in the table above is changed by this section.
+
+Three defects were found in the guard during the build. They are recorded here because they bear on
+what the observation can be trusted to mean. The first draft compared against the stored blob,
+which under `core.autocrlf=true` would have reported every honest write to every tracked text file
+as a conversion; the reference is now `git cat-file --filters`. The second draft repaired only the
+lane that receives a file path, leaving the lane that receives a shell command — the lane
+occurrence 4 itself arrived on — still single-repository. The third read quoted porcelain paths, so
+a file with a non-ASCII name was skipped in silence. Each has a fixture, and six hand-run mutations
+establish which fixture holds which line. Build record: research notebook ticket `#190`.
+
+*Revisit if:* a git-visible uniform conversion lands with the guard live. That reopens criterion 3
+and is adjudication-class.
+
 ## Links
 
 - The four occurrences, dated: [`_quarantine/uniform-eol/EVIDENCE.md`](../_quarantine/uniform-eol/EVIDENCE.md)
