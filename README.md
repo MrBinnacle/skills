@@ -11,8 +11,11 @@ A skill card is a Markdown file that Claude Code loads as instructions. This rep
 14 of them, grouped into `engineering`, `orchestration`, and `meta`.
 
 An installed card's `description` is read at startup whether or not the card ever fires, so
-breadth you never use is still paid for on every turn. Both install routes copy Markdown files
-onto your machine. There is nothing to import and no framework to run.
+breadth you never use is still paid for on every turn. Both install routes copy files onto your
+machine and start nothing: there is no build step, no package to import, and no service to run.
+Most of what lands is Markdown. Every card also ships an `evals/evals.json`, and two cards,
+`im-down` and `im-up`, ship the Python scripts their own procedures call. Those scripts run only
+when you run them.
 
 No card here has evidence that it helps. One card carries a controlled result, and that result is
 `CANT_TELL_YET`. Eleven carry a dated record of the failure that produced them and no screen. Two
@@ -36,12 +39,16 @@ one plugin per bucket:
 The other two plugins are `mrbinnacle-orchestration` and `mrbinnacle-meta`. Install only the
 buckets you want.
 
-**Installer.** `npx skills add` copies cards into `.claude/skills/` under the directory you run it
-in, or into your home directory with `--global`:
+**Installer.** `npx skills add` writes three things under the directory you run it in: a copy of
+every card in `.claude/skills/`, a second copy in `.agents/skills/`, and a `skills-lock.json`
+recording each card's source path and a hash. `--global` writes to your home directory instead.
 
 ```text
 npx skills add MrBinnacle/skills
 ```
+
+The two card directories are the installer's own convention for agent tools that read one path or
+the other. This collection does not choose them and does not configure them.
 
 It tracks `main` rather than a tag, so it installs the current tip of the collection.
 
@@ -228,13 +235,17 @@ CLAUDE.md          rules for working in this repository
 AGENTS.md          conventions for agents working here
 ```
 
-Each card directory contains:
+Every card directory contains these four:
 
 ```text
 SKILL.md            entry point
 gotchas.md          append-only record of observed failure modes
 EVIDENCE.md         provenance and evaluation record
+evals/evals.json    the card's evaluation cases
 ```
+
+Cards may carry more. A card that needs supporting prose adds it as a further Markdown file, and
+`im-down` and `im-up` each ship the Python scripts and fixtures their procedures call.
 
 `templates/BASE-OPERATING-RULES.md` holds the project-agnostic operating rules the owner uses
 across repositories: anti-anchoring, decision escalation, layer placement, verification, and
