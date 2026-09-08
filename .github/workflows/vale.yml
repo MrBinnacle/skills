@@ -79,3 +79,27 @@ jobs:
 
       - name: Run Vale on prose (gate, error-level rows only)
         run: vale --config .vale.ini --minAlertLevel=error README.md skills/ docs/
+
+      # The Vale rule is the other half, and it bans rather than verifies. A
+      # verified count stays on the page, where CI keeps the repository
+      # consistent and a reader's browser still renders a number nobody
+      # regenerated. This control proves the ban fires; the live surfaces above
+      # are its positive control, since the Vale job runs them at error level.
+      - name: Poison control - a stated card count must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/vale-count"
+          rm -rf "$tree"
+          mkdir -p "$tree/skills/engineering"
+          cp .vale.ini "$tree/"
+          cp -r styles "$tree/styles"
+          python -c "import pathlib,sys; pathlib.Path(sys.argv[1]).write_text('# Engineering skills'+chr(10)*2+'This group holds 10 published cards and 3 candidates.'+chr(10), encoding='utf-8')" "$tree/skills/engineering/README.md"
+          cd "$tree"
+          vale --output=line --minAlertLevel=error skills/engineering/README.md > control-count.log 2>&1 && {
+            echo "::error::a stated card count was ACCEPTED - the Claims.Stated-count rule does not fire"
+            cat control-count.log
+            exit 1
+          }
+          grep -q "Claims.Stated-count" control-count.log \
+            || { echo "::error::the stated-count control failed for the wrong reason"; cat control-count.log; exit 1; }
+          echo "control: a stated card count rejected as expected"

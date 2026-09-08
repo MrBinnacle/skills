@@ -1,0 +1,9 @@
+{
+  "$note": "Pinned provenance for the vendored population-integrity contract. The source of truth is skill-harness, which registers it as a general invariant (docs/INVARIANTS.md:298-326) and names tests/test_receipts_index.py as its first consumer. This repository consumes a byte-equal copy because the two repositories share no dependency. scripts/check_prose_claims.py recomputes this digest and refuses a mismatch, so a local edit to the contract fails rather than forking it silently. Re-vendor by copying the file and re-running the recorder, never by editing a digest.",
+  "source_repo": "MrBinnacle/skill-harness",
+  "source_path": "src/skill_harness/population.py",
+  "source_commit": "269159680742d43e676bd9d568fbbae3ac2df510",
+  "files": {
+    "population.py": "9cd77c10ff63f640173f3bc1391aefaae69dc81a689ef9b2d5d50cad5adf32a3"
+  }
+}
