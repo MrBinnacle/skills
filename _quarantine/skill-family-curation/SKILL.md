@@ -156,11 +156,11 @@ Migrating this skill's trigger into a globally-loaded file taxes the LLM's instr
 
 From the 2026-06-09 session-end claudeception round:
 
-The orchestrator extracted 6 skills across the day and observed in the closing summary: "4 of 6 skills relate to the discipline of 'look before you trust the spec/handoff/recipe/SDK assumption.'" The candidates: `halt-as-deliverable`, `two-phase-doc-honesty-then-engineering`, `walk-the-recipe-as-target-user`, `click-clirunner-env-none-deletes`.
+The orchestrator extracted 6 skills across the day and observed in the closing summary: "4 of 6 skills relate to the discipline of 'look before you trust the spec/handoff/recipe/SDK assumption.'" The candidates: `halt-as-deliverable`, `honesty-first`, `walk-the-recipe`, `click-clirunner-env-none-deletes`.
 
 Running this skill's falsifiability gate:
 
-- **Test A (tracer-bullet)**: Fixture-A "I'm validating my own SOP doc before dispatching new work" — would `look-before-you-trust` (parent) fire? Plausibly. Would `halt-as-deliverable` fire? No (it fires AFTER a discipline catches an inconsistency, not BEFORE validation). Would `walk-the-recipe-as-target-user` fire? Yes (it fires on validating workflows). Parent and child both fire on the same fixture → parent does NOT have unique coverage that justifies its existence above the child. Fixture-B "I'm validating a workflow as a non-privileged user" — `walk-the-recipe-as-target-user` fires specifically; the parent would not specifically add value. **Test A: FAIL** (parent doesn't have unique trigger coverage that justifies separation).
+- **Test A (tracer-bullet)**: Fixture-A "I'm validating my own SOP doc before dispatching new work" — would `look-before-you-trust` (parent) fire? Plausibly. Would `halt-as-deliverable` fire? No (it fires AFTER a discipline catches an inconsistency, not BEFORE validation). Would `walk-the-recipe` fire? Yes (it fires on validating workflows). Parent and child both fire on the same fixture → parent does NOT have unique coverage that justifies its existence above the child. Fixture-B "I'm validating a workflow as a non-privileged user" — `walk-the-recipe` fires specifically; the parent would not specifically add value. **Test A: FAIL** (parent doesn't have unique trigger coverage that justifies separation).
 - **Test B (distinct-response)**: Parent's proposed response: "verify before trusting." Children's responses: halt-as-deliverable → "reframe the catch as the deliverable" (specific narrative action); two-phase-doc-honesty → "Phase A inline + Phase B dispatched" (specific orchestration shape); walk-the-recipe → "simulate target user environment + walk steps" (specific validation action); clirunner-env-none-deletes → "pass `{key: None}` to delete" (specific test code). Parent's response is generic enough to be vacuous — REJECT-AS-MANUFACTURED.
 - **Test C (evidence-anchored)**: only one session (today, 2026-06-09) where the pattern was retrospectively visible. Cannot name three. **Test C: FAIL** (evidence-incomplete).
 
@@ -179,7 +179,7 @@ Registry entry FAMILY-001 records this rejection. Future skill writers can read 
 ## See also
 
 - `[[halt-as-deliverable]]` — companion: when a curation gate REJECTS a family the orchestrator earlier proposed, that rejection IS the deliverable for the curation step. Surface it.
-- `[[walk-the-recipe-as-target-user]]` — companion: when verifying that this skill's flow actually works for a future reviewer, simulate the reviewer's perspective.
-- `[[two-phase-doc-honesty-then-engineering]]` — companion: when a curation pass discovers that prior consolidations have rotted (child stubs left behind), the response is doc-honesty pass + engineering cleanup.
+- `[[walk-the-recipe]]` — companion: when verifying that this skill's flow actually works for a future reviewer, simulate the reviewer's perspective.
+- `[[honesty-first]]` — companion: when a curation pass discovers that prior consolidations have rotted (child stubs left behind), the response is doc-honesty pass + engineering cleanup.
 - `[[claudeception]]` (global skill at `~/.claude/skills/claudeception/SKILL.md`) — the upstream skill whose extraction step generates the registry hints.
 - `[[lossless-orchestrator-infrastructure]]` (referenced in MEMORY.md feedback) — the architectural principle that each piece has one job; this skill is the curation piece, distinct from extraction (claudeception) or promotion (manual §1.5).

@@ -40,8 +40,8 @@ DECLARATION = "intentional-landing: true\n\nLanded on purpose; see the pull requ
 
 # The two directories #249 measured untracked on main at 63252ec, 2026-09-06.
 NAMED_CANDIDATES = (
-    "_quarantine/curated-context-becomes-the-reviewers-boundary",
-    "_quarantine/uniform-eol-rewrite-evades-the-mixed-eol-guard",
+    "_quarantine/reviewer-horizon",
+    "_quarantine/uniform-eol",
 )
 
 FAILURES: list[str] = []
