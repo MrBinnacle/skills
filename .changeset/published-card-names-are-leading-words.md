@@ -1,5 +1,5 @@
 ---
-"mrbinnacle-skills": minor
+"mrbinnacle-skills": major
 ---
 
 Every published card is named after the word a reader reaches for.

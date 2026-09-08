@@ -10,9 +10,24 @@ calling tags and the file "a reading aid, not a pin", and the README offered no
 disclosure that the card set is expected to change under a minor release. These
 cases pin the corrected surfaces.
 
+ADR 0003 (docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md) then
+amended that surface on one point: a card's NAME is inside it, so renaming a card
+is a major change while admitting and retiring one stay minor. Renaming eleven
+cards broke eleven installs that resolved them by name, which is the evidence
+0002's own Revisit-if named. The cases below pin the amended promise on both
+surfaces that state it.
+
+site/index.html is one of those surfaces and was asserted by nothing until
+2026-09-08. It is deployed to GitHub Pages, so it is the most public statement of
+the model and was the only one free to drift. It also stated a card count four
+times, which styles/Claims/Stated-count.yml bans -- but that rule is bound to
+README.md and skills/*/README.md in .vale.ini, both Markdown, so it never reached
+an HTML page.
+
 The scope is deliberate. Historical release notes state counts and describe the
 old model; they are dated snapshots and are not rewritten here. The guarantee is
-about what a reader of the preamble and the Install section is told today.
+about what a reader of the preamble, the Install section and the landing page is
+told today.
 """
 from __future__ import annotations
 
@@ -28,6 +43,9 @@ CHANGELOG = ROOT / "CHANGELOG.md"
 README = ROOT / "README.md"
 ADR = ROOT / "docs" / "adr" / "0002-a-release-is-a-delivery-event.md"
 ADR_RELATIVE = "(docs/adr/0002-a-release-is-a-delivery-event.md)"
+ADR_NAME = ROOT / "docs" / "adr" / "0003-a-cards-name-is-part-of-the-declared-surface.md"
+ADR_NAME_RELATIVE = "(docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md)"
+SITE = ROOT / "site" / "index.html"
 
 FAILURES: list[str] = []
 
@@ -143,6 +161,57 @@ def case_readme_states_card_moves_are_minor() -> None:
         "the readme states plainly that admitting or retiring a card is a minor change",
         bool(re.search(r"[Aa]dmitting or retiring a card is a minor change", collapsed)),
         collapsed,
+    )
+
+
+def case_readme_states_a_rename_is_major() -> None:
+    """ADR 0003 put a card's NAME inside the declared surface; the front page must say so.
+
+    The old promise was locked by the two cases above and the new clause would be
+    unguarded without this one, which is how a disclosure rots: the sentence that
+    was true when written stays asserted while the sentence added beside it is
+    asserted by nothing.
+    """
+    collapsed = " ".join(
+        promise_paragraph(section(README.read_text(encoding="utf-8"), "Install")).split()
+    )
+    check(
+        "the readme states plainly that renaming a card is a major change",
+        bool(re.search(r"renaming (a card )?(one )?is a major change", collapsed)),
+        collapsed,
+    )
+    check(
+        "the promise links ADR 0003 and the record exists",
+        ADR_NAME_RELATIVE in collapsed and ADR_NAME.is_file(),
+        collapsed,
+    )
+
+
+def case_landing_page_states_the_same_promise() -> None:
+    """The published landing page carries the promise too, and nothing asserted it.
+
+    `site/index.html` is deployed to GitHub Pages by `.github/workflows/pages.yml`
+    and told visitors the pre-ADR-0003 promise. Every other surface stating the
+    model was pinned by a case here; this one was not, so it drifted silently and
+    would have kept drifting. It is the most public of the surfaces, which is the
+    wrong one to leave unasserted.
+    """
+    text = " ".join(SITE.read_text(encoding="utf-8").split())
+    check(
+        "the landing page names a card's name as part of the promise",
+        "a card's name" in text and "the set of cards is not" in text.lower(),
+        text[:400],
+    )
+    check(
+        "the landing page states that renaming a card is a major release",
+        bool(re.search(r"[Rr]enaming a card is a major release", text)),
+        text[:400],
+    )
+    check(
+        "the landing page links both decision records",
+        "0002-a-release-is-a-delivery-event.md" in text
+        and "0003-a-cards-name-is-part-of-the-declared-surface.md" in text,
+        text[:400],
     )
 
 
@@ -342,6 +411,8 @@ def main() -> None:
     case_preamble_states_the_delivery_model()
     case_readme_states_the_declared_surface()
     case_readme_states_card_moves_are_minor()
+    case_readme_states_a_rename_is_major()
+    case_landing_page_states_the_same_promise()
     case_disclosed_surfaces_state_no_count()
     case_count_scan_can_fail()
     case_agents_procedure_describes_delivery_event_not_tag_by_hand()

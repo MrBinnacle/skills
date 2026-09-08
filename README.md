@@ -63,7 +63,7 @@ manifest and the published tree disagree, in either direction: a path the manife
 card at it, and a published card no plugin names. That is standing obligation **O7** in
 [`SECURITY.md`](SECURITY.md).
 
-**What a version promises.** The install path and the card format, not the card set. Admitting or retiring a card is a minor change, so the cards you can install are expected to change under a minor release; moving the install path or changing the format of a card would be a major one. That narrowing is deliberate, and [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) records why.
+**What a version promises.** The install path and the card format, not the card set. Admitting or retiring a card is a minor change, so the cards you can install are expected to change under a minor release; moving the install path or changing the format of a card would be a major one. A card's name is covered too, so renaming one is a major change — you resolve a card by its name, and a rename stops your existing reference working. That narrowing is deliberate, and [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) records why, with [ADR 0003](docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md) recording why the name is inside it.
 
 ## Admission method
 
