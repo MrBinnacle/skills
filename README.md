@@ -44,9 +44,8 @@ buckets you want.
 **Installer.** `npx skills add` writes three things under the directory you run it in: every card
 as a real directory in `.agents/skills/`, a symbolic link to each of those in `.claude/skills/`,
 and a `skills-lock.json` recording each card's source path and a hash. `--global` writes to your
-home directory instead. The links are the installer's behaviour, not this collection's. On Windows
-they need Developer Mode or an elevated shell to create, and tooling that does not follow symbolic
-links should read `.agents/skills/` directly.
+home directory instead. The links are the installer's behaviour, not this collection's. Tooling
+that does not follow symbolic links should read `.agents/skills/` directly.
 
 ```text
 npx skills add MrBinnacle/skills
@@ -135,8 +134,7 @@ integer that opens the card's `Occasions counted` row.
 | [`dead-predicate`](skills/meta/dead-predicate/EVIDENCE.md) | origin-trace | 2 |
 
 CI checks this table against the records and fails on any disagreement, so the records are the
-place to change a row. `scripts/validate_scoreboard.py` is a test, not a generator: it refuses
-drift and never writes this file.
+place to change a row. Nothing generates it.
 
 ## What the cards cover
 
