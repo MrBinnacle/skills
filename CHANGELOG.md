@@ -4,6 +4,384 @@ All notable changes to the collection. A release is a delivery event: changed ca
 installed users when a version is released, not on every merge to `main`. See
 [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
+## v2.0.0 - 2026-09-13
+
+### Major Changes
+
+- [#286](https://github.com/MrBinnacle/skills/pull/286) [`541522a`](https://github.com/MrBinnacle/skills/commit/541522a1574ec6174077c652d44a9c45332f997a) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Every published card is named after the word a reader reaches for.
+
+  Eleven cards carried a name that stated the card's finding as a whole sentence:
+  `pretooluse-bash-guard-prose-false-positive`, `success-test-accepts-any-output`,
+  `click-clirunner-env-none-deletes`. The longest ran to forty-two characters. A proposition has to
+  be read to be understood, cannot be recalled unprompted, and cannot be said out loud. The name is
+  the string a person types to invoke a card, so a name nobody can recall is a card nobody reaches.
+
+  The rule these names were chosen under: name the card after the thing the reader is holding when
+  they reach for it. For a card someone sets out to run, that thing is the activity. For a card
+  nobody sets out to meet, it is the symptom. `writing-for-agents` states the mechanism, that the
+  name is a trigger word someone actually types, and the symptom is what they hold at that moment.
+  This is why `github-pages-deploy-verification` becomes `stale-deploy`, the deploy you cannot tell
+  is live, rather than a name for the fix, which helps only a reader who has already opened the card.
+
+  | Was                                          | Is                   |
+  | -------------------------------------------- | -------------------- |
+  | `click-clirunner-env-none-deletes`           | `clirunner-env`      |
+  | `closure-mode-at-boundaries`                 | `closure-mode`       |
+  | `git-pull-rebase-trap`                       | `pull-rebase`        |
+  | `github-pages-deploy-verification`           | `stale-deploy`       |
+  | `mock-masked-stub-trap`                      | `mocked-stub`        |
+  | `pretooluse-bash-guard-prose-false-positive` | `pretooluse-prose`   |
+  | `success-test-accepts-any-output`            | `vacuous-check`      |
+  | `router-skill-predicate-gap`                 | `dead-predicate`     |
+  | `downstream-instruction-framing`             | `decision-rights`    |
+  | `parallel-review-disposition-schema`         | `disposition-schema` |
+  | `subagent-research-reliability`              | `subagent-handback`  |
+
+  `halt-as-deliverable`, `im-down` and `im-up` are unchanged, argued rather than inherited.
+  `halt-as-deliverable` carries its whole idea in its name, and renaming it would spend the idea to
+  save four characters. `im-down` and `im-up` are the owner's own spoken words for ending and
+  starting a session, and they hold forty-nine and fifty references each. Paying the highest
+  migration cost in the set for no gain in recall is the worst trade available.
+
+  The `-trap` suffix is retired. Most of these cards are traps, so the suffix distinguishes nothing.
+
+  This is the migration the quarantine rename declined to attempt. That changeset said a rename here
+  breaks installed junctions, `skills-lock.json` entries, inbound links and the paths cited in dated
+  records, and that it wanted its own review. This is that review, executed.
+
+  Each moved card's `name:` frontmatter matches its new directory. Only `skills-ref@0.1.5` checks
+  that equality, in CI, so a mismatch passes every local script. Every live reference is repointed:
+  `.claude-plugin/marketplace.json`, `.gitattributes`, `.github/workflows/tests.yml`, `README.md`,
+  `AGENTS.md`, `templates/BASE-OPERATING-RULES.md`, the three group READMEs, the allowlist and
+  docstrings in `scripts/validate_card_files.py`, the poison control in
+  `scripts/test_validate_scoreboard.py` that removes a card name from the README to prove the check
+  refuses a drop, and the cross-references nine quarantine candidates carry. 198 occurrences across
+  68 files.
+
+  Dated records keep the old names, because a record states what was true when it was written.
+  `CHANGELOG.md`, `dispositions/`, the already-written changesets and `docs/rule-screens.md` are the
+  set the collection already recognises. Three more are argued rather than assumed: `docs/adr/0001`,
+  which sits behind the canonical-document guard and cites a measurement taken on a date;
+  `docs/design/variants/`, whose own provenance block dates the drafts to 2026-08-30 and calls them
+  unselected raw material; and the worked example in `_quarantine/skill-family-curation`, which
+  quotes a 2026-06-09 adjudication and records its disposition under the names in force that day.
+
+  Two occurrences survive inside files that were otherwise repointed. The
+  `reclass-git-pull-rebase-trap.json` receipts cited in that card's `EVIDENCE.md` are real files at
+  pinned commits in `skill-harness`, and a rename here does not rename them there.
+  `_quarantine/subagent-research-reliability/` keeps its own name inside its `PROVENANCE.md`, because
+  only the published card moved.
+
+  The rename script did not repeat the failure the last one produced. Every edit is a byte-level
+  replacement, so no line ending is rewritten anywhere in the path. The quarantine pass normalised
+  four uniformly-CRLF files to LF before encoding and produced 1,520 insertions against a 53-line
+  change. This diff is 162 insertions against 162 deletions across 76 entries, and
+  `.claude-plugin/marketplace.json`, which is CRLF, reads 11 and 11 rather than 53 and 53.
+
+  After the change, each exiting zero: `validate_card_files.py`, `validate_scoreboard.py`,
+  `validate_brand_kit.py`, `check_prose_claims.py`, `validate_eval_corpora.py`,
+  `validate_spec_conformance.py` at 0 breaches across 39 cards, `validate_path_residue.py`,
+  `validate_voice_provenance.py`, `validate_disposition_counts.py`, `validate_conformance.py`,
+  `validate_skill_formats.py`, `validate_vale_style.py`, `release_gate.py`, and every matching test
+  suite including the poison controls. Vale reports zero errors. 171 relative links resolve.
+
+  Two things this does not settle. `[#284](https://github.com/MrBinnacle/skills/issues/284)` changes shape without resolving: the published card has
+  moved out from under the name, and the orphan quarantine directory now holds it alone. And the
+  junctions in a local `~/.claude/skills/` point at directories that no longer exist, which no
+  repository file can repair.
+
+### Minor Changes
+
+- [#297](https://github.com/MrBinnacle/skills/pull/297) [`e3d89fb`](https://github.com/MrBinnacle/skills/commit/e3d89fb1ab41a85901b903ed87312c5268a29437) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Add `scripts/refresh_dispatch_counts.py`: a harvest-step path that rewrites each published card's `Dispatches recorded` row from the usage log.
+
+  The log path is an input (`SKILL_USAGE_LOG`, defaulting to a sibling private research checkout). A missing log prints SKIP, changes nothing, and exits 0. An empty log rewrites nonzero rows to zero. Already-zero rows keep their card-specific diagnosis (hook-unobservable prose on `pull-rebase` and `stale-deploy`) and only move the measurement date. AGENTS.md harvest step 2 names the script.
+
+### Patch Changes
+
+- [#276](https://github.com/MrBinnacle/skills/pull/276) [`af331bd`](https://github.com/MrBinnacle/skills/commit/af331bda0d3d0586a7360ac836c8fa1dd744c842) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Every card's `EVIDENCE.md` now points at a heading that exists.
+
+  Each `EVIDENCE.md` opened with a provenance line directing the reader to the top-level README under the heading `"The receipts, explained"`. `README.md` has no such heading. The section that line describes is `## Evidence records`, at README.md:157, which defines the two evidence axes and their states.
+
+  Measured before the change: every published card carried the dead pointer, plus one quarantine card, `_quarantine/anti-slop-frontend-secure` — 15 tracked `EVIDENCE.md` files and 17 occurrences in total, since two cards carry it twice, once in the header provenance line and once inline in an `Observed in use` row. After the change, zero occurrences remain.
+
+  The collection's bar for publication is that a visitor who opens a card and follows it finds something that supports what the card said. A pointer to a heading that does not exist fails that bar, and it failed on every published card at once. A reader checking what `UNMEASURED` or `OBSERVED IN USE` is supposed to mean arrived at the README and found no section by the name the card gave.
+
+  This change edits the quoted heading name and nothing else. No evidence field, verdict, count, date or claim is modified. `validate_card_files.py` continues to PASS across every published card with its allowlisted breaches unchanged, and `validate_scoreboard.py` continues to derive the same admitted, measured and retired tallies it derived before.
+
+  The defect was found by following each card's evidence pointer to its destination, the way a stranger would, rather than by reading the cards alone. A cross-family review seat reading a separate description of the collection named the same repair independently.
+
+- [#282](https://github.com/MrBinnacle/skills/pull/282) [`047e270`](https://github.com/MrBinnacle/skills/commit/047e2704aa16f00d05fade6b2c7793f24661c2d4) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The front page, the banners and the quarantine README stop asserting things that go stale or were
+  already false.
+
+  **The card count came out of enduring content.** The README stated it eleven times: "publishes 14
+  of them", "One card carries a controlled result", "Eleven carry a dated record", "Two carry
+  neither", "What all 14 do carry", "the same 14 by form", "Nine are about an operation", "Five are
+  about what one session writes down", "All 14 published cards carry one", "Two cards have already
+  left", "One card carries one". Both banner SVGs carried it twice each, in the rendered text and in
+  the `aria-label`, and the README's `<img alt>` repeated it.
+
+  Every one of those rots the moment a card is admitted or retired. The same README also carried a
+  paragraph asserting that it "states no tally of the provenance states, deliberately: a number here
+  would need re-checking every time a card enters or leaves." Both statements cannot be true, and a
+  reader who caught the contradiction would be right to distrust the rest of the page.
+
+  The ruled banner line is now `Each card states the condition that would retire it.` — the same
+  claim, true whatever the card set is. `scripts/validate_scoreboard.py` no longer derives a count
+  into that sentence. Deriving it was the wrong repair: CI kept the repository internally consistent
+  and still shipped a rendered SVG and a social card telling a stranger a number, and no reader's
+  browser regenerates those. The number now reaches a reader in one place only, the card-evidence
+  table CI rebuilds from the cards themselves.
+
+  **`_quarantine/README.md` asserted something false.** In bold: "No candidate in this directory
+  currently carries an `EVIDENCE.md`. That is the standing blocker on every one of them." Three
+  candidates carry one. The real blocker is stated instead — `ADMISSION.md` criterion 2 needs
+  counted, independent recurrence, and a candidate without an `EVIDENCE.md` has no counted occasions
+  whatever else is true of it. The file now also states the two mechanical conventions a candidate
+  must satisfy before promotion, the leading-word name and the 200-character description, and states
+  no count of its own contents.
+
+  **`_quarantine/self-documenting-code/README.md` documented a package that does not exist.** It
+  described `references/`, `assets/` and `scripts/` subdirectories and the command
+  `python scripts/validate_package.py .`. The files are flat and that path is wrong. The README now
+  lists the real layout, and records that the card's own `validate_package.py` **exits 1 on the
+  card's own directory** — the checker was written against a nested layout the card does not use.
+  Nothing in CI runs that checker, because candidates are not gated, which is how a red self-check
+  sat unreported on one of the two candidates closest to publication. The disagreement is recorded
+  rather than papered over; resolving it is a promotion-gate matter, not a README fix.
+
+  The README also now points at `_quarantine/` from the admission section and the repository layout,
+  which it did not before.
+
+  No card, evidence field, verdict or date is modified. `validate_card_files.py`,
+  `validate_scoreboard.py`, `test_validate_quarantine_landing.py` and `test_readme_admission_lead.py`
+  all PASS.
+
+  **What this does not fix.** No gate would have caught any of the three. `validate_scoreboard.py`
+  checks the tallies it already knows the wording of; it cannot see a number in a sentence nobody
+  told it about. The defect class is a prose assertion about repository state that nothing
+  re-derives from the state, and this changeset repairs three instances of it without building the
+  detector that would catch the fourth.
+
+- [#292](https://github.com/MrBinnacle/skills/pull/292) [`ed8f07a`](https://github.com/MrBinnacle/skills/commit/ed8f07aab9a15e8f0ba4fbea40309c719328d82c) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `pretooluse-prose` records two more occurrences, and the second is a shape the card had not seen.
+
+  Both come from `guard-git-pull-rebase.py`, the hook the `pull-rebase` card prescribes. The first is the card's known shape at a larger scale: five blocks in one working day across two repositories, three of them first-hand to a session whose whole task was writing about the trap that guard polices. Among those three, the one worth the entry is a payload where the token was deliberately split as `'git ' + 'pull'` and blocked anyway, because the predicate's gap `[^|;&\n]*?` spans the concatenation. Splitting a token defeats a literal scan and not a gapped one, so the workaround an author reaches for first leaves them thinking the guard is unpredictable rather than over-broad.
+
+  The second occurrence is not prose at all. `git fetch origin pull/292/head:pr292` is blocked, because `pull` is a path segment in GitHub's pull-request ref namespace. The guard therefore refuses to fetch any pull request by ref, in any repository whose config arms it, whatever that pull request contains — and it refuses a form of the `git fetch` remedy the `pull-rebase` card itself prescribes. Verified by importing the guard's own `targets_bare_pull` over a case table: both the short and fully-qualified ref forms block, while ordinary fetches, pushes and both explicit-intent pulls pass and a genuine bare pull still blocks.
+
+  That widens what the card's remedy has to cover. Every prior occurrence says writing about a trap is how you trip its guard; this one costs a routine review workflow with no prose involved. It is counted under the card's general rule — a predicate that decides whether something will RUN must read command structure, not text — and flagged where it sits outside the card's narrower prose framing, because widening that framing is a card-text change this record does not make.
+
+  Neither occurrence is a falsifier under the card's re-screen trigger. That trigger falsifies on an instance where command-position anchoring and heredoc stripping fail to prevent the false positive; this guard never had either applied, so the remedy is absent rather than defeated.
+
+  `EVIDENCE.md` moves from 5 occasions to 7, the screen-result row from five incidents to seven, and the front-page card-evidence table from 5 to 7 to match. No verdict, date or claim changes: the card remains UNMEASURED on both screen result and paired verdict.
+
+- [#283](https://github.com/MrBinnacle/skills/pull/283) [`45bba76`](https://github.com/MrBinnacle/skills/commit/45bba763ba829153f2b1be82e8a7bb38beea0e6d) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - A README claim about this tree is now checked against the tree, and a card-set number in prose is
+  now refused.
+
+  ## The defect class
+
+  On 2026-09-08 three reader-facing surfaces were found asserting things that were false, with every
+  gate green: the front page stated the card count eleven times, `_quarantine/README.md` said in bold
+  that no candidate carried an `EVIDENCE.md` when three did, and a card README documented three
+  subdirectories and a command path that do not exist.
+
+  The repository already had three derive-and-compare checks — the origin-tier and controlled-results
+  checks in `validate_scoreboard.py`, and `validate_disposition_counts.py`. Every one is a regex
+  anchored to a known sentence in a known section; `validate_disposition_counts.py` guards four
+  phrases inside `## Admission method` alone. All three defects sat in sentences no anchor reaches.
+
+  A fourth anchored regex would have guarded the sentences that were deleted and missed the next one.
+  So this adds two mechanisms that are not anchored to sentences.
+
+  ## 1. `scripts/check_prose_claims.py` — structural claims, checked against disk
+
+  **Enumeration.** A group README names the cards in its group. That set must equal the directories on
+  disk in **both directions**. A card the page omits is as much a defect as a card it invents; the
+  omission direction is the shape `_quarantine/README.md` had.
+
+  **Documented paths.** A README that draws its own layout in a fenced block is making a claim about
+  the filesystem. Every path in such a block must exist beside it. This is the third defect exactly.
+
+  Both checks discover their own inputs, so both run under the population-integrity contract vendored
+  byte-equal from `skill-harness` at `scripts/vendor/population.py`. That contract reports a third
+  verdict, `UNINTERPRETABLE`, when the analysed set cannot be established as the declared set — a
+  refusal is not a pass. `skill-harness` registers it as a general invariant and names its own
+  `tests/test_receipts_index.py` as the first consumer; this is the second. The copy is pinned by
+  digest in `scripts/vendor/POPULATION_SOURCE.json` and a local edit to it fails the check, the same
+  rule `validate_vale_style.py` applies to the vendored Vale style.
+
+  ## 2. `styles/Claims/Stated-count.yml` — the number is banned, not verified
+
+  Verifying a stated number leaves the number on the page. That was tried: `validate_scoreboard.py`
+  derived the card count into the ruled banner line per run, and the repository still shipped a
+  rendered SVG and a social card telling a stranger a number no reader's browser regenerates. The
+  Vale rule refuses `N cards` and `N candidates` in prose instead, at error level, bound to `README.md`
+  and the group READMEs.
+
+  It is bound only where Vale is actually run. `_quarantine/` is deliberately outside both run sites,
+  so binding a rule there would declare an assurance that never executes — which is the shape of
+  defect this rule exists to catch. Quarantine prose is covered by the checker instead.
+
+  **Stated plainly: the rule cannot see `publishes 14 of them`,** where the number is adjacent to no
+  noun it can anchor on. Nothing lexical can. That form is covered by there being exactly one surface
+  where a number is derived on read, the card-evidence table CI rebuilds.
+
+  ## Controls
+
+  `scripts/test_check_prose_claims.py` carries seven, each planting one defect into a copy of the live
+  tree and requiring the check to refuse it **by name** — not merely to exit non-zero. The origin-tier
+  fixture in this repository passed for the wrong reason earlier the same day, when a banner change
+  made it fail before it reached the thing it tests, so a bare exit-code assertion is not enough.
+
+  Three controls found real bugs while being written:
+
+  - The digest check read the script's own directory and ignored `--root`, so it always examined the
+    live repository whatever tree it was pointed at. Its control ACCEPTED a deliberately edited
+    contract. A check no fixture can exercise cannot be shown to work.
+  - The path parser read an indented tree as a flat list, so the repository's own README was reported
+    as naming three directories that do not exist — they exist, one level under `skills/`.
+  - The README enumeration walked the filesystem and reached an untracked sandcastle worktree. It now
+    enumerates with `git ls-files`, which is what a reader can actually fetch.
+
+  An eighth condition is covered by `case_no_group_readme_is_uninterpretable`: with no input the check
+  exits 2, not 0. A detector that receives nothing reports no defect, and that is the failure the
+  whole contract exists to prevent.
+
+  CI runs the suite and the check in `validator`, with two poison controls beside them, and the Vale
+  ban's poison control in the `vale` workflow where Vale is installed.
+
+  ## Also corrected
+
+  `README.md` carried two more counts this work surfaced: `two cards ... ship the Python scripts`, and
+  `the two card directories` describing the installer's fixed structure. The first is a subset tally
+  that rots; the second is not a card count at all, and the phrase was rewritten rather than teaching
+  the regex an exception.
+
+  _Revisit if:_ a false claim is found on a reader-facing surface that neither mechanism could have
+  caught, which is the evidence that the class needs a third.
+
+- [#298](https://github.com/MrBinnacle/skills/pull/298) [`6170f2d`](https://github.com/MrBinnacle/skills/commit/6170f2d2f3d6ab0ff5337e757742434c374b94d2) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `pull-rebase` records a second class of guard false positive and two new rows in its required acceptance table. The 2026-08-10 observation named this failure "mention-only", which is too narrow: a guard refused `git fetch origin pull/506/head:probe506`, where nothing mentions the skill and `pull` is a path segment in GitHub's documented refspec for a pull request head. Three further reproductions the same day were the mention-only class the earlier entry already covers, including two review subagents independently blocked while writing their reports. The acceptance table now requires a refspec and a prose commit body to pass, so an adopter tests both before relying on a guard. The entry also records that the fix applied to the private guard was a regex narrowing, not this card's own remedy: `preventive-recipes.md` says never to search the raw string for a `git` token followed later by the subcommand token, which is exactly the defect that fired, and the parse-the-arguments remedy remains unimplemented there. No verdict changes and no count changes: a guard false positive is not an instance of the trap this card's `Occasions counted` row measures.
+
+- [#280](https://github.com/MrBinnacle/skills/pull/280) [`b66e140`](https://github.com/MrBinnacle/skills/commit/b66e14030feb9de38e8733756decdd1ca671ab2b) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Every quarantine candidate's `description` now fits the 200-character router bar.
+
+  Measured before the change: 25 candidates carry a `SKILL.md`, and 3 of them had a description
+  within 200 characters. The other 22 ran between 566 and 1,272 characters. Most were the card's
+  whole problem statement plus a numbered trigger list, copied into the frontmatter.
+
+  A description is a context pointer. It is loaded on every turn for a model-invoked skill, and its
+  job is to state what the material is and name the branches that should reach it. A 900-character
+  description does not do that job better than a 190-character one; it spends nine hundred
+  characters of every turn's attention to do it worse, because the trigger is buried in the middle.
+  The published cards already sit under the bar, which is what `validate_card_files.py` enforces, so
+  this was the difference between a candidate and a card rather than a matter of taste.
+
+  Each of the 22 was rewritten to lead with the condition that should fire it and to state the
+  mechanism in one clause. The finding itself stays in the card body, which is where a reader who
+  has already been routed there needs it. `skill-family-curation` carries
+  `disable-model-invocation: true`, so its description is human-facing and drops the trigger list
+  entirely.
+
+  No card body, evidence field, verdict, count or date is modified. The diff is 22 insertions
+  against 270 deletions across 22 files, one line changed per file.
+
+  Effect on the mechanical publication bars: candidates within the 200-character description bar go
+  from 3 to 25, candidates within the 7,168-byte `SKILL.md` ceiling go from 16 to 17 (the shorter
+  frontmatter carried one file under it), and candidates clearing every mechanical bar at once go
+  from 1 to 2 — `self-documenting-code` and `uniform-eol-rewrite-evades-the-mixed-eol-guard`.
+  `anti-slop-frontend-secure` is now blocked on size alone, at 7,816 bytes.
+
+  This clears a clerical blocker, not a substantive one. `ADMISSION.md` criterion 2 requires counted,
+  independent recurrence, and 22 of the 25 candidates still carry no `EVIDENCE.md` and therefore no
+  counted occasions. None of them is admitted by this change.
+
+- [#281](https://github.com/MrBinnacle/skills/pull/281) [`bbf80b8`](https://github.com/MrBinnacle/skills/commit/bbf80b8072240ce8466bd4f10f66d8a6607cf813) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Every quarantine candidate is renamed to a leading word instead of a sentence.
+
+  23 of the 25 candidates carried a name that stated the card's finding:
+  `uniform-eol-rewrite-evades-the-mixed-eol-guard`,
+  `concurrent-subagents-share-one-checkout-and-contend-on-head`,
+  `applied-layer-answer-hides-the-governing-result`. Each is a complete proposition. A proposition
+  must be read to be understood, cannot be recalled unprompted, and cannot be said aloud.
+
+  A card's name sits in the pointer position — the directory, the install listing, the first word of
+  the description, the string someone types to invoke it. `writing-for-agents` names the mechanism: a
+  leading word is a compact concept the model already holds, and in a pointer it steers invocation.
+  `wayfinder` and `triage` recruit priors. `applied-layer-answer-hides-the-governing-result` recruits
+  nothing.
+
+  The convention applied, in full: the name is a leading word of one to three tokens, preferring a
+  word the model already holds; it names the trap rather than the sentence about the trap; it can be
+  said out loud; and the proposition still gets written, in the description, where it does the
+  disambiguating work. The card's H1 heading is unchanged and still states the finding, which is
+  where a reader who has already been routed there needs it.
+
+  The renames, by `git mv`:
+
+  | Was                                                           | Is                   |
+  | ------------------------------------------------------------- | -------------------- |
+  | `uniform-eol-rewrite-evades-the-mixed-eol-guard`              | `uniform-eol`        |
+  | `a-blocked-command-form-is-not-a-blocked-action`              | `blocked-form`       |
+  | `applied-layer-answer-hides-the-governing-result`             | `wrong-altitude`     |
+  | `concurrent-subagents-share-one-checkout-and-contend-on-head` | `shared-checkout`    |
+  | `container-green-host-red-detached-child-holds-tempdir`       | `detached-child`     |
+  | `curated-context-becomes-the-reviewers-boundary`              | `reviewer-horizon`   |
+  | `summary-narrows-a-disjunction-to-its-nameable-half`          | `nameable-half`      |
+  | `bash-cwd-drift-false-clean-grep`                             | `cwd-drift`          |
+  | `agent-definition-snapshot-at-session-start`                  | `agent-snapshot`     |
+  | `squash-merge-absorbs-unpushed-base-commits`                  | `squash-absorbs`     |
+  | `mutation-equivalent-in-architecture`                         | `equivalent-mutant`  |
+  | `interactive-script-phantom-answers`                          | `phantom-answers`    |
+  | `github-linkcheck-404-throttle-false-negative`                | `linkcheck-throttle` |
+  | `openrouter-assistant-prefill-host-rejection`                 | `prefill-rejection`  |
+  | `hidden-and-plugin-skill-reachability`                        | `skill-reachability` |
+  | `exit-worktree-cwd-override-merge-from-worktree`              | `worktree-cwd`       |
+  | `two-phase-doc-honesty-then-engineering`                      | `honesty-first`      |
+  | `fix-brief-consolidation-id-hygiene`                          | `brief-ids`          |
+  | `private-steering-head-over-public-repos`                     | `steering-head`      |
+  | `anthropic-sdk-via-openrouter`                                | `sdk-via-openrouter` |
+  | `anti-slop-frontend-secure`                                   | `frontend-slop`      |
+  | `structure-at-the-write-site`                                 | `write-site`         |
+  | `walk-the-recipe-as-target-user`                              | `walk-the-recipe`    |
+
+  `self-documenting-code` and `skill-family-curation` already satisfied the convention and are
+  unchanged.
+
+  Each moved card's `name:` frontmatter key now matches its directory. Every live reference is
+  repointed: `AGENTS.md`, `.github/workflows/links.yml`, `scripts/test_validate_quarantine_landing.py`,
+  two published cards' `gotchas.md`, and the cross-references between candidates. `CHANGELOG.md`,
+  `dispositions/` and the already-written changesets keep the old names, because those record what was
+  true when they were written and rewriting them would falsify the record rather than update it.
+
+  **No published card is renamed.** A rename there breaks installed junctions, `skills-lock.json`
+  entries in every install target, inbound links, and the `Occasions counted` dates that cite paths.
+  That is a migration with its own review, and it is not proposed here.
+
+  After the change: `validate_card_files.py` PASS, `validate_scoreboard.py` PASS,
+  `test_validate_quarantine_landing.py` PASS, and the `frontend-slop` candidate's own 25-test oracle
+  suite PASS.
+
+  **The rename script reproduced the failure documented by the card it was renaming.** Its write step
+  called `.replace("\r\n", "\n")`, a guard written to avoid introducing CRLF on Windows. Four files
+  that were uniformly CRLF in the index were normalised to LF, and the staged diff read 1,520
+  insertions against 1,520 deletions for a 53-line change. Caught by reading the numstat, repaired by
+  restoring CRLF, and counted as occasion 4 on `_quarantine/uniform-eol/EVIDENCE.md`. The rule the
+  card already states, now with a fourth instance behind it: match the file's existing line endings.
+  Avoiding the wrong ending is not the same thing.
+
+- [#299](https://github.com/MrBinnacle/skills/pull/299) [`d3914bb`](https://github.com/MrBinnacle/skills/commit/d3914bbbca387ecd7dbcb8c62339fecaa8fefbf1) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The front page said CI rebuilds the card evidence table. Nothing rebuilds it. A check fails when it drifts. Six places said the stronger thing, including the two scripts whose own comments justify the mechanism. All six now say what happens.
+
+  `npx skills add` writes one real copy of each card under `.agents/skills/` and a symbolic link to each under `.claude/skills/`. The page promised two copies. Reproduced in a clean directory before correcting.
+
+  The 2026-08-15 admission triage retired nothing, and the page said so in a way that read as though nothing was found. It now carries what the record reports.
+
+  Cut rather than corrected: the name of the script that runs the check, and a claim about Windows symbolic-link permissions that was never measured.
+
+- [#293](https://github.com/MrBinnacle/skills/pull/293) [`dd8dc49`](https://github.com/MrBinnacle/skills/commit/dd8dc492dbef3473f5b2965398d84107b7c266d2) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - A disposition record for the S432 admission re-test of the three quarantine candidates that carry an `EVIDENCE.md`. No card is admitted or cut. `uniform-eol` clears criteria 1 and 2 on four counted occasions and is deferred on criterion 3: the failure belongs to a hook first, on the candidate's own measurement that retrieval scored 0 of 4 with a matching card installed, and on its own re-screen trigger, which names a working guard as the thing that subsumes it. The re-test rule is dated in the record.
+
+- [#294](https://github.com/MrBinnacle/skills/pull/294) [`f684fc5`](https://github.com/MrBinnacle/skills/commit/f684fc5ced160075b9bc8fb182bf3933d86a00ad) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - An observation log on the S432 disposition record. Step 1 of the `uniform-eol` re-test is complete: the guard named in the candidate's own retirement trigger is built and merged, comparing the working file's dominant separator against the bytes git would check out and resolving the repository from the written path. Step 2, the observation window, is open with one entry: a deliberate conversion of a tracked uniformly-CRLF file in this repository read 53 / 53 in the diffstat for a zero-content change and was caught by name and direction. One observation is not the branch condition. No verdict changes, and the candidate stays in `_quarantine/`.
+
+All notable changes to the collection. A release is a delivery event: changed cards reach
+installed users when a version is released, not on every merge to `main`. See
+[ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
+
 ## v1.6.0 — 2026-09-07
 
 ### Minor Changes
