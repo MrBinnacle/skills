@@ -20,6 +20,30 @@
 
 - **2026-08-10 / mention-only false positives:** A private guard matched a `git` token followed later by a `pull` token anywhere in the command string. It repeatedly blocked legitimate commands that only named the skill or guard, including reading the guard's own source; two later reproductions blocked path globs naming this skill's directory. Parse actual shell/Git arguments instead. A guard that trains users to bypass the whole family is worse than no guard.
 
+- **2026-09-13 / the false positive is not only mention-only, and it reproduced four more times:**
+  The 2026-08-10 entry above calls this class "mention-only". That name is too narrow, and the
+  narrowness hid a second class until a session walked into it. A private guard refused
+  `git fetch origin pull/506/head:probe506`. Nothing in that command mentions the skill, the guard,
+  or any prose. `pull/506/head` is GitHub's documented refspec for a pull request head, and `pull`
+  there is a **path segment**. The guard's lookahead excluded a word character, a dot and a hyphen
+  after the matched word, and a slash is in none of those, so a path matched as a subcommand.
+
+  Three further reproductions the same day, all of the mention-only class the 2026-08-10 entry
+  already names: a `git commit -F -` whose message body spelled the subcommand in prose, refused
+  twice while writing up this very change, and two review subagents independently reporting that
+  writing their reports through a shell heredoc was refused for the same reason. The 2026-08-23
+  entry recorded the commit-message case reproducing during that run; it reproduces still.
+
+  **What was applied, and it is not what this card prescribes.** The fix was to add the slash to
+  that lookahead, proven by mutation, with the three refspec forms pinned and re-run against the
+  prior pattern so a future edit that makes the narrowing vacuous fails loudly. That removes one
+  class of string. It does not adopt this card's own remedy. `preventive-recipes.md` says, in its
+  Shared predicate, never to search the raw string for a `git` token followed later by the
+  subcommand token, because paths and quoted data contain both — which is precisely what happened
+  here, and the card said so before the guard was written. A regex narrowing shrinks the blast
+  radius of an approach this card rejects. The parse-the-arguments remedy remains unimplemented in
+  that guard.
+
 - **2026-08-23 / discriminator run (rotation pass, step 2):** This card had never been
   model-invoked across 261 tracked startups, so the retrieval-vs-insurance discriminator ran: a
   corpus sweep of the maintainer's three tracked clones (all `.md` surfaces, including session
