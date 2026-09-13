@@ -1,5 +1,5 @@
 extends: existence
-message: "Stated count: '%s' puts a card-set number in prose. It rots the next time a card is admitted or retired. State the fact; let the card-evidence table CI rebuilds carry the number."
+message: "Stated count: '%s' puts a card-set number in prose. It rots the next time a card is admitted or retired. State the fact; let the card-evidence table CI checks carry the number."
 level: error
 ignorecase: true
 tokens:

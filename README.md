@@ -9,8 +9,8 @@
 
 A skill card is a Markdown file that Claude Code loads as instructions. This repository publishes
 cards in three groups: `engineering`, `orchestration`, and `meta`. The
-[card evidence](#card-evidence) table below names every published card, and CI rebuilds that table
-from the cards themselves, so it is where to read what ships today.
+[card evidence](#card-evidence) table below names every published card, and CI checks that table
+against the cards themselves and fails on any disagreement, so it is where to read what ships today.
 
 An installed card's `description` is read at startup whether or not the card ever fires, so
 breadth you never use is still paid for on every turn. Both install routes copy files onto your
@@ -41,9 +41,11 @@ one plugin per bucket:
 The other two plugins are `mrbinnacle-orchestration` and `mrbinnacle-meta`. Install only the
 buckets you want.
 
-**Installer.** `npx skills add` writes three things under the directory you run it in: a copy of
-every card in `.claude/skills/`, a second copy in `.agents/skills/`, and a `skills-lock.json`
-recording each card's source path and a hash. `--global` writes to your home directory instead.
+**Installer.** `npx skills add` writes three things under the directory you run it in: every card
+as a real directory in `.agents/skills/`, a symbolic link to each of those in `.claude/skills/`,
+and a `skills-lock.json` recording each card's source path and a hash. `--global` writes to your
+home directory instead. The links are the installer's behaviour, not this collection's. Tooling
+that does not follow symbolic links should read `.agents/skills/` directly.
 
 ```text
 npx skills add MrBinnacle/skills
@@ -88,7 +90,11 @@ identical tasks is large enough to produce one on its own.
 carries the measurement behind that second sentence.
 
 The [admission triage record](dispositions/2026-08-15-S295-admission-triage.md) applied
-`admission-policy v1` to the cards published on 2026-08-15, and retired none of them.
+`admission-policy v1` to the cards published on 2026-08-15. It retired nothing, because retirement
+runs through this repository's rituals rather than through a triage pass. What it found is the
+part worth reading: most of the cards it surveyed did not pass all four criteria on recorded
+evidence, and the systemic gap was criterion 2, recurrence counted independently. The record
+carries the counts.
 
 Candidates that have not cleared the gate sit in [`_quarantine/`](_quarantine/README.md), in the
 open. That directory's own README states what being there does and does not claim.
@@ -127,8 +133,8 @@ integer that opens the card's `Occasions counted` row.
 | [`subagent-handback`](skills/orchestration/subagent-handback/EVIDENCE.md) | origin-trace | 5 |
 | [`dead-predicate`](skills/meta/dead-predicate/EVIDENCE.md) | origin-trace | 2 |
 
-CI rebuilds this table from the records and fails on any disagreement, so the records are the
-place to change a row.
+CI checks this table against the records and fails on any disagreement, so the records are the
+place to change a row. Nothing generates it.
 
 ## What the cards cover
 
@@ -184,7 +190,7 @@ Each card states its own state in its own record, and that record is the only pl
 asserted. This page states no tally of the card set, deliberately: a number written here would
 need re-checking every time a card enters or leaves, and a reader who caught one stale number
 would be right to distrust every other claim on the page. Numbers belong in the
-[card evidence](#card-evidence) table, which CI derives from the records on every run.
+[card evidence](#card-evidence) table, which CI checks against the records on every run.
 `scripts/validate_scoreboard.py` derives the states from the records and checks any tally the page
 does state.
 
