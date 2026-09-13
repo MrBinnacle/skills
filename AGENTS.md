@@ -505,6 +505,13 @@ mechanism working. An evolving ecosystem, not a chop list.
    checked everything except the predicate deciding whether anything fires. Recognising the
    shape is the point — the apparatus that grades a thing tends to grade what is easy to
    assert, and the trigger is never the easy part.
+
+   **Refresh dispatch rows.** Run `scripts/refresh_dispatch_counts.py` to rewrite every
+   published card's `Dispatches recorded` row from the usage telemetry. The script reads the
+   log path from `SKILL_USAGE_LOG` when set; otherwise it defaults to the sibling
+   private research checkout. When the log is absent, no card is changed and the script
+   prints a skip line. When the log is present, every card's row is rewritten with the
+   current count and the date of the newest record consumed — never the previous figure.
 3. **Repair gate — run BEFORE screening, and before any admission or retirement call.**
    A card whose text is wrong is the wrong artifact to measure: a screen on a stale card
    produces a real number about a document you are replacing. Repair first, then screen the
