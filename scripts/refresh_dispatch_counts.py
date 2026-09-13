@@ -15,6 +15,12 @@ the harvest step sees an honest skip.
 When the log is present but contains no record for a card: write a row that
 says zero, dated. Never leave the previous figure standing.
 
+When a row is already a zero form ("No recorded dispatch"), only the
+measurement date is moved. Card-specific diagnosis — hook-unobservable prose
+on pull-rebase and stale-deploy, quarantine tautology prose elsewhere — stays.
+Replacing that prose with a generic zero would erase the harvest pass's
+unobservable-vs-insurance discriminator (AGENTS.md step 2).
+
 Record kinds:
   baseline — first record, absolute lifetime totals in "counts.skillUsage".
   delta    — every later record, per-session changes in "deltas.skillUsage".
@@ -26,7 +32,9 @@ zero. Only skillUsage is read; pluginUsage counts plugin loads, not card
 dispatches.
 
 The date written into a row is the ts of the newest record consumed, not
-today's date.
+today's date. An empty log has no record ts; the date then is the UTC day
+the script ran, because a measured clause is required and no log timestamp
+exists to prefer.
 """
 from __future__ import annotations
 
@@ -41,12 +49,12 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 
-# The dispatch row in EVIDENCE.md is the one this script owns.
-DISPATCH_ROW_HEADER = "Dispatches recorded"
 # Regex matching the full table row containing the dispatch value.
 _DISPATCH_ROW_RE = re.compile(
     r"^\| \*\*Dispatches recorded\*\* \|.*\|$", re.MULTILINE
 )
+_MEASURED_DATE_RE = re.compile(r"measured 20\d{2}-\d{2}-\d{2}")
+_ZERO_OPEN_RE = re.compile(r"No recorded dispatch\b")
 
 # The boilerplate suffix shared by all nonzero dispatch rows. The prefix
 # (count + "dispatches, ...") varies; the suffix is constant.
@@ -58,9 +66,8 @@ _NONZERO_SUFFIX = (
     "per-session figure is not derivable. Never recurrence, lift, or worth."
 )
 
-# The zero row's prose. It is deliberately standardised: a tautology stated
-# only so the row is not blank.
-_ZERO_PREFIX = "No recorded dispatch, measured {date}."
+# Standard zero form used only when the previous row was nonzero (or had no
+# zero opening). Already-zero rows keep their card-specific diagnosis.
 _ZERO_SUFFIX = "Demand evidence only: never recurrence, lift, or worth."
 
 
@@ -123,12 +130,22 @@ def _format_date(ts: str) -> str:
 
 
 def _make_row(count: int, date: str) -> str:
-    """Build the replacement dispatch row string."""
+    """Build a full replacement dispatch row (nonzero, or first-time zero)."""
     if count == 0:
         prefix = f"No recorded dispatch, measured {date}."
         return f"| **Dispatches recorded** | {prefix} {_ZERO_SUFFIX} |"
     prefix = f"{count} dispatches, lifetime platform counter, measured {date}."
     return f"| **Dispatches recorded** | {prefix} {_NONZERO_SUFFIX} |"
+
+
+def _row_for(count: int, date: str, existing_row: str) -> str:
+    """Choose the replacement row, preserving already-zero card diagnosis."""
+    if count == 0 and _ZERO_OPEN_RE.search(existing_row):
+        # Keep hook-unobservable / quarantine tautology prose; move the date.
+        if _MEASURED_DATE_RE.search(existing_row):
+            return _MEASURED_DATE_RE.sub(f"measured {date}", existing_row, count=1)
+        return _make_row(0, date)
+    return _make_row(count, date)
 
 
 def find_cards(repo_root: Path) -> list[Path]:
@@ -160,17 +177,20 @@ def _skill_name_from_path(card: Path) -> str:
 def rewrite_dispatch_row(evidence: Path, count: int, date: str) -> bool:
     """Rewrite the dispatch row in an EVIDENCE.md file.
 
-    Returns True if the file was changed, False if the row was not found.
+    Returns True if the file was changed, False if the row was not found
+    or the replacement matched the existing text.
     """
     text = evidence.read_text(encoding="utf-8")
-    new_row = _make_row(count, date)
-    new_text, n = _DISPATCH_ROW_RE.subn(new_row, text, count=1)
-    if n == 0:
+    match = _DISPATCH_ROW_RE.search(text)
+    if match is None:
         return False
-    if new_text != text:
-        evidence.write_text(new_text, encoding="utf-8")
-        return True
-    return False
+    existing = match.group(0)
+    new_row = _row_for(count, date, existing)
+    if new_row == existing:
+        return False
+    new_text = text[: match.start()] + new_row + text[match.end() :]
+    evidence.write_text(new_text, encoding="utf-8")
+    return True
 
 
 def resolve_log_path(repo_root: Path) -> Path | None:
@@ -220,7 +240,11 @@ def main() -> None:
     if anomaly_count:
         print(f"NOTE: skipped {anomaly_count} anomaly record(s)", file=sys.stderr)
 
-    date = _format_date(newest_ts) if newest_ts else "1970-01-01"
+    if newest_ts:
+        date = _format_date(newest_ts)
+    else:
+        # Empty log: no record ts to prefer; a measured clause is still required.
+        date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     cards = find_cards(repo_root)
     if not cards:

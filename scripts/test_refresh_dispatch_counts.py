@@ -12,7 +12,6 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -28,11 +27,15 @@ def _make_fixture_log(
     *,
     include_delta: bool = False,
     delta_counts: dict[str, int] | None = None,
+    plugin_usage: dict[str, int] | None = None,
 ) -> Path:
     """Write a fixture usage log and return its path."""
     log = tmp_path / "usage-log.jsonl"
     lines = []
-    baseline = {"kind": "baseline", "ts": ts, "v": 1, "counts": {"skillUsage": skill_counts}}
+    counts: dict = {"skillUsage": skill_counts}
+    if plugin_usage is not None:
+        counts["pluginUsage"] = plugin_usage
+    baseline = {"kind": "baseline", "ts": ts, "v": 1, "counts": counts}
     lines.append(json.dumps(baseline))
     if include_delta and delta_counts:
         delta = {"kind": "delta", "ts": ts, "v": 1, "deltas": {"skillUsage": delta_counts}}
@@ -58,7 +61,9 @@ def _run_script(log_path: Path | None, tmp_path: Path) -> subprocess.CompletedPr
     if log_path is not None:
         env["SKILL_USAGE_LOG"] = str(log_path)
     else:
-        env.pop("SKILL_USAGE_LOG", None)
+        # Point at a hole under tmp so a real skills_research checkout
+        # beside the workspace cannot satisfy the "missing log" control.
+        env["SKILL_USAGE_LOG"] = str(tmp_path / "definitely-absent-usage-log.jsonl")
     return subprocess.run(
         [sys.executable, str(SCRIPT), "--root", str(tmp_path)],
         capture_output=True,
@@ -126,12 +131,14 @@ class TestControl1FixtureLog:
         original = _read_dispatch_row(
             repo_copy / "skills/engineering/im-up/EVIDENCE.md"
         )
+        assert "No recorded dispatch" not in original  # fixture starts nonzero
         # Run with a log that names a DIFFERENT skill.
         log = _make_fixture_log(repo_copy, {"vacuous-check": 7})
         result = _run_script(log, repo_copy)
         assert result.returncode == 0
         row = _read_dispatch_row(repo_copy / "skills/engineering/im-up/EVIDENCE.md")
         assert "No recorded dispatch" in row
+        assert "54 dispatches" not in row
         assert row != original  # Must have changed.
 
     def test_plugin_key_not_counted(self, repo_copy: Path) -> None:
@@ -141,6 +148,20 @@ class TestControl1FixtureLog:
         assert result.returncode == 0
         row = _read_dispatch_row(repo_copy / "skills/engineering/im-up/EVIDENCE.md")
         assert "No recorded dispatch" in row
+        assert "99" not in row
+
+    def test_plugin_usage_not_counted(self, repo_copy: Path) -> None:
+        """pluginUsage counts plugin loads; they must not enter a demand row."""
+        log = _make_fixture_log(
+            repo_copy,
+            {"im-up": 3},
+            plugin_usage={"safety-net@safety-net-dev": 17262},
+        )
+        result = _run_script(log, repo_copy)
+        assert result.returncode == 0
+        row = _read_dispatch_row(repo_copy / "skills/engineering/im-up/EVIDENCE.md")
+        assert "3 dispatches" in row
+        assert "17262" not in row
 
     def test_anomaly_records_skipped(self, repo_copy: Path) -> None:
         """Anomaly records do not contribute to the count."""
@@ -174,6 +195,9 @@ class TestControl2EmptyLog:
         log.write_text("")
         result = _run_script(log, repo_copy)
         assert result.returncode == 0
+        # Empty is not missing: the script rewrote, it did not skip.
+        assert "SKIP" not in result.stdout
+        assert "PASS:" in result.stdout
 
         for card in (repo_copy / "skills").rglob("EVIDENCE.md"):
             row = _read_dispatch_row(card)
@@ -182,6 +206,34 @@ class TestControl2EmptyLog:
             orig = originals[card]
             if "dispatches" in orig and "No recorded" not in orig:
                 assert row != orig, f"{card}: row was not rewritten from nonzero"
+                # The prior "N dispatches" opening must not survive.
+                assert not any(
+                    f"{tok} dispatches" in row
+                    for tok in orig.split()
+                    if tok.isdigit()
+                ), f"{card}: prior count leaked into zero row"
+
+    def test_empty_log_preserves_unobservable_diagnosis(self, repo_copy: Path) -> None:
+        """Hook-fired cards keep the counter-blindness prose on a zero rewrite.
+
+        AGENTS.md harvest step 2 branch 1 names pull-rebase and stale-deploy as
+        unobservable, and says both state that in their Dispatches recorded row.
+        A refresh that flattens them to a generic zero erases the discriminator.
+        """
+        log = repo_copy / "empty.jsonl"
+        log.write_text("")
+        result = _run_script(log, repo_copy)
+        assert result.returncode == 0
+
+        for name in ("pull-rebase", "stale-deploy"):
+            row = _read_dispatch_row(
+                repo_copy / f"skills/engineering/{name}/EVIDENCE.md"
+            )
+            assert "No recorded dispatch" in row, name
+            assert "this counter cannot see" in row, (
+                f"{name}: lost unobservable diagnosis"
+            )
+            assert "never unused" in row, name
 
 
 class TestControl3MissingLog:
@@ -197,6 +249,7 @@ class TestControl3MissingLog:
         result = _run_script(None, repo_copy)
         assert result.returncode == 0
         assert "SKIP" in result.stdout
+        assert "PASS:" not in result.stdout
 
         for card, original_bytes in snapshots.items():
             assert card.read_bytes() == original_bytes, f"{card} was modified"
@@ -256,3 +309,5 @@ class TestEdgeCases:
         # dispatch row should be clean.)
         assert "must open with a nonzero integer" not in val_result.stderr
         assert "states no 'measured <date>'" not in val_result.stderr
+        assert "must open with a nonzero integer" not in val_result.stdout
+        assert "states no 'measured <date>'" not in val_result.stdout
