@@ -41,7 +41,7 @@ from typing import NoReturn
 # just not smart." The count came out of the line entirely on 2026-09-08, along
 # with the eleven counts the README prose carried. The sentence now states what is
 # true of every card whatever the card set is, and a number reaches a reader only
-# where it is derived on read: the card-evidence table CI rebuilds from the cards.
+# where it is derived on read: the card-evidence table CI checks against the cards.
 #
 # The line stays ruled byte-identically at every site, because a check that
 # accepted a paraphrase would let a softened restatement ship.

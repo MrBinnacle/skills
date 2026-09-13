@@ -40,7 +40,7 @@ WHAT IT CHECKS
     A count in prose is NOT checked here, and deliberately so. Verifying a
     stated number keeps the number on the page, where it goes stale between one
     run of CI and one reader's browser. `styles/Claims/` bans the number
-    instead, and the card-evidence table CI rebuilds is the one surface where a
+    instead, and the card-evidence table CI checks is the one surface where a
     number is derived on read.
 
 POPULATION INTEGRITY
