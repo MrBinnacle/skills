@@ -25,6 +25,8 @@ Both recipes below MUST pass this table before use.
 | MUST PASS | `git pull --no-rebase` (intent recorded) |
 | MUST PASS | Reading or setting `pull.rebase` or `branch.<name>.rebase` |
 | MUST PASS | Any command merely naming `pull-rebase` or the guard file, including a path glob or reading the guard source |
+| MUST PASS | A refspec whose path contains the subcommand word, such as `git fetch origin pull/506/head:probe506`, `git ls-remote origin 'pull/*/head'`, or `git push origin HEAD:refs/pull/12/head`. This is GitHub's documented form for a pull request head, so any adopter who reviews pull requests will run it |
+| MUST PASS | A commit whose message body spells the subcommand in prose, such as `git commit -F msg.txt` where the file describes this trap |
 | MUST PASS | Guard internal error, missing Git, or outside a repository (fail open; never wedge the session) |
 
 ## Claude Code `PreToolUse`
