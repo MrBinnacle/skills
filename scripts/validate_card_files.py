@@ -49,6 +49,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Final
@@ -415,6 +416,157 @@ def evidence_breaches(card: Path) -> list[str]:
     return breaches
 
 
+ORIGIN_ROW: Final[str] = "Origin"
+
+# Locators in an OBSERVED Origin row. A reviewer follows a locator to evidence
+# the card's provenance claim rests on. The check verifies that in-repository
+# locators resolve -- it does not read the target and judge whether it supports
+# the claim. That stays a review question.
+#
+# Patterns for extracting locators from the Origin row value:
+# 1. Markdown link targets: [text](target) -- local paths and external URLs
+# 2. Bare external URLs (http/https/mailto)
+# 3. File paths after labels: Details: <path>, Full entry: <path>, etc.
+#    The path is delimited by whitespace, an arrow (→), or end of text.
+# 4. Commit SHAs: 40-character hex strings
+_LOCATOR_LINK_RE: Final[re.Pattern[str]] = re.compile(
+    r"\[([^\]]+)\]\(([^)]+)\)"
+)
+# Bare external references. Trailing sentence punctuation is stripped after match.
+_LOCATOR_URL_RE: Final[re.Pattern[str]] = re.compile(
+    r"https?://[^\s\]|>]+|mailto:[^\s\]|>]+"
+)
+# Match file paths after known labels. The path ends at whitespace, a right
+# arrow (used as a section separator in Origin rows), or punctuation. The
+# optional extension group prefers a filename shape over bare prose after a
+# label. Stripped trailing punctuation before use.
+_LOCATOR_PATH_RE: Final[re.Pattern[str]] = re.compile(
+    r"(?:Details|Full entr(?:y|ies)|Full traces?)\s*:\s*\[?([^\s\].,;:)\]→]+(?:\.[a-zA-Z0-9]+)?)"
+)
+_LOCATOR_SHA_RE: Final[re.Pattern[str]] = re.compile(
+    r"\b([0-9a-f]{40})\b"
+)
+
+
+def _is_external_locator(loc: str) -> bool:
+    return loc.startswith(("http://", "https://", "mailto:"))
+
+
+def _extract_locators(origin_value: str) -> list[str]:
+    """Extract locators from an OBSERVED Origin row value.
+
+    A locator is something a reviewer can follow to evidence: a markdown link
+    target (local or external), a bare external URL, a file path after a known
+    label, or a commit SHA. Bare prose (e.g. 'a personal production project')
+    carries no resolvable identity and is not a locator.
+    """
+    locators: list[str] = []
+
+    # Markdown link targets, including external URLs.
+    for m in _LOCATOR_LINK_RE.finditer(origin_value):
+        locators.append(m.group(2))
+
+    # Bare external URLs not already captured as link targets.
+    for m in _LOCATOR_URL_RE.finditer(origin_value):
+        locators.append(m.group(0).rstrip(".,;:)"))
+
+    # File paths after known labels (in-repo forms only; URLs handled above).
+    for m in _LOCATOR_PATH_RE.finditer(origin_value):
+        path = m.group(1).rstrip(".")
+        if not _is_external_locator(path):
+            locators.append(path)
+
+    # Commit SHAs.
+    for m in _LOCATOR_SHA_RE.finditer(origin_value):
+        locators.append(m.group(1))
+
+    return locators
+
+
+def origin_locator_breaches(card: Path) -> list[str]:
+    """An OBSERVED Origin asserts an occurrence and requires a locator.
+
+    A resolvable locator is one a reviewer can follow to something that
+    exists: a path in this repository, a commit SHA in this repository,
+    a dated entry in dispositions/, a named record in a sibling repository,
+    or an external reference carrying enough identity to be looked up.
+
+    This check establishes that an OBSERVED claim has attached evidence
+    that can be located and inspected. It does not establish that the
+    underlying event occurred -- that stays a review question.
+    """
+    evidence = card / "EVIDENCE.md"
+    if not evidence.is_file():
+        return []
+
+    rows = scoreboard.evidence_fields(evidence, (ORIGIN_ROW,))
+    origin = rows.get(ORIGIN_ROW, "")
+    opening = origin.lstrip("* `_").upper()
+
+    if not opening.startswith("OBSERVED"):
+        return []
+
+    locators = _extract_locators(origin)
+    if not locators:
+        return [
+            "Origin states OBSERVED but no locator identifies evidence a "
+            "reviewer can inspect. An OBSERVED claim asserts an occurrence; "
+            "asserting one requires attaching a locator"
+        ]
+
+    breaches: list[str] = []
+    seen: set[str] = set()
+    for loc in locators:
+        if loc in seen:
+            continue
+        seen.add(loc)
+
+        # Commit SHA: check it exists in this repository.
+        if re.fullmatch(r"[0-9a-f]{40}", loc):
+            try:
+                result = subprocess.run(
+                    ["git", "cat-file", "-t", loc],
+                    capture_output=True,
+                    text=True,
+                    cwd=str(card),
+                    timeout=10,
+                )
+                if result.returncode != 0:
+                    breaches.append(
+                        f"Origin locator names commit SHA {loc[:12]}... which "
+                        "is not present in this repository"
+                    )
+            except (subprocess.TimeoutExpired, OSError):
+                # If git is unavailable, skip this check -- the SHA is at
+                # least structurally present even if unresolvable.
+                pass
+            continue
+
+        # External reference: accepted as a locator (reviewer can follow it).
+        # Reachability is not checked -- that would turn this gate into a
+        # network oracle and fail closed on every offline run.
+        if _is_external_locator(loc):
+            continue
+
+        # In-repository path: must resolve relative to the card directory.
+        candidate = card / loc
+        if not candidate.exists():
+            # Try from the repo root as well, for absolute-style paths.
+            repo_root = card
+            while repo_root.name != "skills" and repo_root.parent != repo_root:
+                repo_root = repo_root.parent
+            if repo_root.name == "skills":
+                repo_root = repo_root.parent
+            candidate = repo_root / loc
+            if not candidate.exists():
+                breaches.append(
+                    f"Origin locator names {loc!r} which does not exist in "
+                    "this repository"
+                )
+
+    return breaches
+
+
 def _is_exempt(name: str) -> bool:
     """Return True if *name* is a test/build-support file exempt from reachability."""
     import fnmatch
@@ -687,6 +839,7 @@ def validate(root: Path) -> None:
         for kind, details in (
             ("missing", [f"missing {name}" for name in missing_files(card)]),
             ("evidence", evidence_breaches(card)),
+            ("origin_locator", origin_locator_breaches(card)),
             ("description", description_breaches(card)),
             ("size", size_breaches(card)),
             ("link", link_breaches(card)),
