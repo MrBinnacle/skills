@@ -87,6 +87,26 @@ jobs:
       # real rot, and a genuinely dead link answers 404, which still fails here.
       # _quarantine/linkcheck-throttle/ documents the sibling case where GitHub
       # answers the same throttle with 404 instead, which this does NOT mask.
+      # Our own commit permalinks in CHANGELOG.md are excluded, and the reason is
+      # the same as the two exclusions above: they are correct, not broken.
+      # Changesets generates them from real SHAs in this repository, so a
+      # 40-hex-digit commit URL here is valid by construction and can only fail
+      # for a reason that is not link rot.
+      #
+      # Measured 2026-09-14 on skills#312: 96 of 722 links failed, every one a
+      # 503 Service Unavailable on a github.com/MrBinnacle/skills/commit/ URL in
+      # CHANGELOG.md, while the same workflow was green on main 13 hours earlier.
+      # That is GitHub throttling one runner for fetching ~96 commit pages, not a
+      # dead link. The count grows with every release, so the throttle gets more
+      # likely over time and the gate would fail more often the longer the
+      # project ships.
+      #
+      # The pattern is anchored and 40-hex-specific on purpose. It excludes
+      # generated permalinks and nothing else: a malformed commit URL, a commit
+      # URL in another repository, and every issue and pull request link are all
+      # still checked. `--accept 429` above already handles the throttle's
+      # documented status code; these answer 503 instead, which is the sibling
+      # case _quarantine/linkcheck-throttle/ records.
       - name: Check links
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2
         with:
@@ -97,6 +117,7 @@ jobs:
             --accept '200..=299,429'
             --exclude-path docs/design/variants
             --exclude '^https://openrouter\.ai/api/v1$'
+            --exclude '^https://github\.com/MrBinnacle/skills/commit/[0-9a-f]{40}$'
             --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
             './**/*.md'
           fail: true
