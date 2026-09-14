@@ -1137,9 +1137,14 @@ def case_observed_origin_valid_path_passes(root: Path) -> None:
 
 
 def case_observed_origin_external_ref_passes(root: Path) -> None:
-    """OBSERVED with a well-formed external reference passes."""
+    """OBSERVED with a well-formed external reference passes.
+
+    The locator is an external URL only -- no in-repo path. A prior edition of
+    this case pointed at gotchas.md and still claimed to cover the external
+    branch; that left the branch untested while the suite stayed green.
+    """
     evidence = _observed_evidence(
-        "Full entry: [gotchas.md](gotchas.md) → [OBSERVED]."
+        "See [upstream record](https://github.com/example/repo/issues/1)."
     )
     write_card(root, "ext-ref-card", evidence, CONFORMING_GOTCHAS)
     result = run_checker(root)

@@ -418,55 +418,62 @@ def evidence_breaches(card: Path) -> list[str]:
 
 ORIGIN_ROW: Final[str] = "Origin"
 
-# The origin tier vocabulary, imported from validate_scoreboard rather than
-# restated, so a new tier is a one-place edit.
-ORIGIN_TIERS: Final[tuple[str, ...]] = ("OBSERVED", "DESIGNED", "DISTILLED")
-
 # Locators in an OBSERVED Origin row. A reviewer follows a locator to evidence
 # the card's provenance claim rests on. The check verifies that in-repository
 # locators resolve -- it does not read the target and judge whether it supports
 # the claim. That stays a review question.
 #
 # Patterns for extracting locators from the Origin row value:
-# 1. Markdown link targets: [text](target)
-# 2. File paths after labels: Details: <path>, Full entry: <path>, etc.
+# 1. Markdown link targets: [text](target) -- local paths and external URLs
+# 2. Bare external URLs (http/https/mailto)
+# 3. File paths after labels: Details: <path>, Full entry: <path>, etc.
 #    The path is delimited by whitespace, an arrow (→), or end of text.
-# 3. Commit SHAs: 40-character hex strings
+# 4. Commit SHAs: 40-character hex strings
 _LOCATOR_LINK_RE: Final[re.Pattern[str]] = re.compile(
     r"\[([^\]]+)\]\(([^)]+)\)"
 )
+# Bare external references. Trailing sentence punctuation is stripped after match.
+_LOCATOR_URL_RE: Final[re.Pattern[str]] = re.compile(
+    r"https?://[^\s\]|>]+|mailto:[^\s\]|>]+"
+)
 # Match file paths after known labels. The path ends at whitespace, a right
 # arrow (used as a section separator in Origin rows), or punctuation. The
-# path must contain a dot (to be a file, not prose like "Details: the user
-# caught"). Stripped trailing punctuation before use.
+# optional extension group prefers a filename shape over bare prose after a
+# label. Stripped trailing punctuation before use.
 _LOCATOR_PATH_RE: Final[re.Pattern[str]] = re.compile(
-    r"(?:Details|Full entries?|Full traces?)\s*:\s*\[?([^\s\].,;:)\]→]+(?:\.[a-zA-Z0-9]+)?)"
+    r"(?:Details|Full entr(?:y|ies)|Full traces?)\s*:\s*\[?([^\s\].,;:)\]→]+(?:\.[a-zA-Z0-9]+)?)"
 )
 _LOCATOR_SHA_RE: Final[re.Pattern[str]] = re.compile(
     r"\b([0-9a-f]{40})\b"
 )
 
 
+def _is_external_locator(loc: str) -> bool:
+    return loc.startswith(("http://", "https://", "mailto:"))
+
+
 def _extract_locators(origin_value: str) -> list[str]:
     """Extract locators from an OBSERVED Origin row value.
 
     A locator is something a reviewer can follow to evidence: a markdown link
-    target, a file path after a known label, or a commit SHA. Bare prose
-    (e.g. 'a personal production project') carries no resolvable identity and
-    is not a locator.
+    target (local or external), a bare external URL, a file path after a known
+    label, or a commit SHA. Bare prose (e.g. 'a personal production project')
+    carries no resolvable identity and is not a locator.
     """
     locators: list[str] = []
 
-    # Markdown link targets (skip external URLs).
+    # Markdown link targets, including external URLs.
     for m in _LOCATOR_LINK_RE.finditer(origin_value):
-        target = m.group(2)
-        if not target.startswith(("http://", "https://", "mailto:")):
-            locators.append(target)
+        locators.append(m.group(2))
 
-    # File paths after known labels.
+    # Bare external URLs not already captured as link targets.
+    for m in _LOCATOR_URL_RE.finditer(origin_value):
+        locators.append(m.group(0).rstrip(".,;:)"))
+
+    # File paths after known labels (in-repo forms only; URLs handled above).
     for m in _LOCATOR_PATH_RE.finditer(origin_value):
         path = m.group(1).rstrip(".")
-        if not path.startswith(("http://", "https://", "mailto:")):
+        if not _is_external_locator(path):
             locators.append(path)
 
     # Commit SHAs.
@@ -535,8 +542,10 @@ def origin_locator_breaches(card: Path) -> list[str]:
                 pass
             continue
 
-        # External URL: accepted as a locator (reviewer can follow it).
-        if loc.startswith(("http://", "https://", "mailto:")):
+        # External reference: accepted as a locator (reviewer can follow it).
+        # Reachability is not checked -- that would turn this gate into a
+        # network oracle and fail closed on every offline run.
+        if _is_external_locator(loc):
             continue
 
         # In-repository path: must resolve relative to the card directory.

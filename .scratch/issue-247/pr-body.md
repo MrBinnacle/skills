@@ -104,15 +104,15 @@ verifies it exists relative to the card directory, finds it, and passes.
 ### Criterion 7: `Origin: OBSERVED` with well-formed external reference — PASSES
 
 **Built:** `case_observed_origin_external_ref_passes` creates a card with
-`Origin: OBSERVED 2026-01-01, a fixture. Full entry: [gotchas.md](gotchas.md)
-→ [OBSERVED].`
+`Origin: OBSERVED 2026-01-01, a fixture. See [upstream record](https://github.com/example/repo/issues/1).`
+— an external URL only, no in-repo path.
 
 **Test:** The checker exits zero.
 
-**Observed:** The check extracts `gotchas.md` from the markdown link target,
-verifies it exists relative to the card directory (it does — `write_card`
-creates it), and passes. The `[OBSERVED]` in the arrow section is not
-extracted as a locator because it is inside a markdown link text, not a target.
+**Observed:** The check extracts the `https://…` markdown-link target as an
+external locator and accepts it without a reachability probe. A prior edition
+of this fixture pointed at `gotchas.md` while claiming to cover the external
+branch; that left the branch untested.
 
 ## Additional passing cases
 
