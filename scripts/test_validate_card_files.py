@@ -1015,6 +1015,153 @@ def case_index_only_name_is_not_a_link(root: Path) -> None:
     )
 
 
+# --- Origin locator enforcement (issue #247) ---
+
+
+def _observed_evidence(locator_part: str) -> str:
+    """Build an EVIDENCE.md with OBSERVED origin and the given locator text."""
+    return (
+        "# EVIDENCE - fixture\n\n"
+        "| Field | Value |\n|---|---|\n"
+        f"| **Origin** | OBSERVED 2026-01-01, a fixture. {locator_part} |\n"
+        "| **Occasions counted** | 1 - 2026-01-01 the one incident. RECURRENCE-THIN. |\n"
+        "| **Dispatches recorded** | 5 dispatches, fixture counter, measured 2026-01-02. |\n"
+        "| **Re-screen trigger** | A platform fix that makes the failure impossible. |\n"
+    )
+
+
+def _absent_evidence() -> str:
+    """Build an EVIDENCE.md with ABSENT origin and zero occasions."""
+    return (
+        "# EVIDENCE - fixture\n\n"
+        "| Field | Value |\n|---|---|\n"
+        "| **Origin** | ABSENT. No incident recorded. |\n"
+        "| **Occasions counted** | 0 - no occurrence to count. RECURRENCE-THIN. |\n"
+        "| **Dispatches recorded** | No recorded dispatch, fixture counter, measured 2026-01-02. |\n"
+        "| **Re-screen trigger** | A platform fix that makes the failure impossible. |\n"
+    )
+
+
+def case_observed_origin_no_locator_is_rejected(root: Path) -> None:
+    """Poison 1: OBSERVED with no locator at all."""
+    evidence = _observed_evidence(
+        "A model produced an artifact exhibiting the described failures."
+    )
+    write_card(root, "no-loc-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "OBSERVED origin with no locator is rejected",
+        result.returncode != 0 and "no locator identifies evidence" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_observed_origin_bad_path_is_rejected(root: Path) -> None:
+    """Poison 2: OBSERVED with locator naming a non-existent in-repo path."""
+    evidence = _observed_evidence("Details: nonexistent-file.md.")
+    write_card(root, "bad-path-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "OBSERVED origin with non-existent file locator is rejected",
+        result.returncode != 0 and "nonexistent-file.md" in result.stderr
+        and "does not exist" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_observed_origin_bad_sha_is_rejected(root: Path) -> None:
+    """Poison 3: OBSERVED with locator naming a commit SHA not in this repo."""
+    fake_sha = "a" * 40
+    evidence = _observed_evidence(f"See commit {fake_sha}.")
+    write_card(root, "bad-sha-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "OBSERVED origin with non-existent commit SHA is rejected",
+        result.returncode != 0 and fake_sha[:12] in result.stderr
+        and "not present in this repository" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_observed_origin_prose_only_is_rejected(root: Path) -> None:
+    """Poison 4: OBSERVED with prose locator but no resolvable identity.
+
+    This is the #230 shape: a description of a project or session, with no
+    file, link, or SHA a reviewer can follow.
+    """
+    evidence = _observed_evidence(
+        "In a personal production project (sprint-boundary session), "
+        "the model produced an artifact exhibiting the described failures "
+        "during a session on the operator's machine."
+    )
+    write_card(root, "prose-only-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "OBSERVED origin with prose-only locator is rejected",
+        result.returncode != 0 and "no locator identifies evidence" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_absent_origin_no_locator_passes(root: Path) -> None:
+    """ABSENT with zero occasions passes -- the honest disposition must not be
+    made more expensive than the confident one."""
+    evidence = _absent_evidence()
+    write_card(root, "absent-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "ABSENT origin with no locator passes",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
+def case_observed_origin_valid_path_passes(root: Path) -> None:
+    """OBSERVED with a locator resolving to a real in-repo file passes."""
+    card = write_card(root, "valid-path-card", "", CONFORMING_GOTCHAS)
+    # Create the referenced file inside the card directory.
+    (card / "evidence-log.md").write_text("# evidence log\n", encoding="utf-8")
+    evidence = _observed_evidence("Details: evidence-log.md.")
+    (card / "EVIDENCE.md").write_text(evidence, encoding="utf-8")
+    # Link to evidence-log.md from SKILL.md so reachability passes.
+    (card / "SKILL.md").write_text(
+        skill_md("valid-path-card") + "\n[evidence-log](evidence-log.md)\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "OBSERVED origin with valid in-repo file locator passes",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
+def case_observed_origin_external_ref_passes(root: Path) -> None:
+    """OBSERVED with a well-formed external reference passes."""
+    evidence = _observed_evidence(
+        "Full entry: [gotchas.md](gotchas.md) → [OBSERVED]."
+    )
+    write_card(root, "ext-ref-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "OBSERVED origin with external reference locator passes",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
+def case_observed_origin_gotcha_md_path_passes(root: Path) -> None:
+    """OBSERVED with a gotchas.md locator (the most common pattern) passes."""
+    evidence = _observed_evidence("Full entry: [gotchas.md](gotchas.md) → [OBSERVED].")
+    write_card(root, "gotcha-loc-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "OBSERVED origin with gotchas.md locator passes",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
 def main() -> None:
     case_committed_poison_is_red()
     case_committed_missing_row_fixture_is_red()
@@ -1054,6 +1201,14 @@ def main() -> None:
         case_stale_allowlist_entry_is_rejected,
         case_allowlist_entry_for_an_absent_card_is_not_stale,
         case_index_only_name_is_not_a_link,
+        case_observed_origin_no_locator_is_rejected,
+        case_observed_origin_bad_path_is_rejected,
+        case_observed_origin_bad_sha_is_rejected,
+        case_observed_origin_prose_only_is_rejected,
+        case_absent_origin_no_locator_passes,
+        case_observed_origin_valid_path_passes,
+        case_observed_origin_external_ref_passes,
+        case_observed_origin_gotcha_md_path_passes,
     ]
     for func in isolated:
         with tempfile.TemporaryDirectory() as tmp:
