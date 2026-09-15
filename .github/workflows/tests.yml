@@ -89,6 +89,20 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::vale-scope suite emitted no PASS line - it did not run"; exit 1; }
 
+      # link-skills.ps1 writes links into a local install directory. Measured 2026-09-15:
+      # a consumer repository held links into this clone, ignored none of them, and so
+      # tracked this repo's bytes in a second git index. A routine checkout there removed
+      # one link and its files left that index in one operation. The script now refuses a
+      # destination inside a git working tree that does not ignore the link path, and this
+      # suite seeds that refusal rather than trusting that the guard is present.
+      - name: Link destination guard suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_link_skills_guard.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::link-guard suite emitted no PASS line - it did not run"; exit 1; }
+
       # #249: a new _quarantine/<skill>/ staged without LANDING.md is refused.
       # The guard reads the staged index, so there is no live-tree check step:
       # under --all-files in CI nothing is staged and the hook passes with a

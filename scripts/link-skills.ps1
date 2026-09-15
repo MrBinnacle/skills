@@ -82,6 +82,47 @@ if (Test-Path $Dest) {
   }
 }
 
+# Guard: refuse to write a link into a git working tree that does not ignore it.
+#
+# Measured 2026-09-15. `~/.claude/skills/` held 15 links into this repo. `~/.claude` is
+# itself a git working tree and ignored none of them. Git does not model a link: it walks
+# through and records what it finds as ordinary tracked files. So both repositories
+# tracked the same bytes, and both HEAD trees hashed to the same object. A routine
+# `git checkout` in that repository then removed one link and its tracked files left that
+# index in a single operation, with nothing anywhere reporting it. A second card showed as
+# locally modified there while this repo was clean, so a `git restore` would have written
+# a stale HEAD through the link and reverted a merged commit in this repo's working tree.
+#
+# The existing Dest guard above does not catch this. It only fires when Dest is itself a
+# link into this repo, which was not the case.
+$destForGit = if (Test-Path $Dest) { (Resolve-Path $Dest).Path } else { (Split-Path $Dest -Parent) }
+$gitRoot = ''
+if ($destForGit -and (Test-Path $destForGit)) {
+  $probe = & git -C $destForGit rev-parse --show-toplevel 2>$null
+  if ($LASTEXITCODE -eq 0 -and $probe) { $gitRoot = ($probe | Select-Object -First 1).Trim() }
+}
+
+if ($gitRoot) {
+  $unignored = @()
+  foreach ($src in $skillDirs) {
+    $candidate = Join-Path $Dest $src.Name
+    & git -C $gitRoot check-ignore -q -- $candidate 2>$null
+    if ($LASTEXITCODE -ne 0) { $unignored += $candidate }
+  }
+  if ($unignored.Count -gt 0) {
+    Write-Host ''
+    Write-Error (
+      "REFUSED: the destination lies inside the git working tree at $gitRoot, " +
+      "and $($unignored.Count) of the $($skillDirs.Count) link path(s) are not ignored there. " +
+      "First: $($unignored[0]). Git records a link as ordinary files, so that tree would " +
+      "track this repo's bytes and a routine checkout in either repository could delete " +
+      "them from the other's index. Add these paths to that repository's .gitignore, or " +
+      "install the collection instead with `claude plugin marketplace add MrBinnacle/skills`."
+    )
+    exit 1
+  }
+}
+
 if (-not $Apply) {
   # Nothing is created in dry run, including the backup root.
 } else {
