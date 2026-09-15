@@ -46,15 +46,46 @@ Each skill is a directory containing `SKILL.md` (entry point) plus sibling files
 ## Source of truth & maintainer workflow
 
 For the **published** skills in this repo, the repo — not any local install — is the source of
-truth. Maintainers install the published skills as **symlinks back into a clone** so a `git pull`
-updates every installed copy and local↔repo drift is structurally impossible:
+truth. Maintainers **install** the collection and hold a pinned copy. They do not link into the
+clone.
 
-- `scripts/link-skills.ps1` (Windows) iterates the skills in this repo and replaces each local
-  install dir with a symlink into the clone. It is a maintainer dev tool, not the supported
-  end-user installer (end users use `npx skills add`). It dry-runs by default and backs up any
-  real dir it replaces; Windows symlinks need Developer Mode or an elevated shell.
-- Private, unpublished skills in a maintainer's local library are never symlinked and never enter
-  this repo. Only what lives here is linked.
+- **Install it the way an end user does.** `claude plugin marketplace add MrBinnacle/skills`,
+  then `claude plugin install mrbinnacle-engineering@mrbinnacle-skills` and the other two
+  buckets. The install lands under `plugins/cache/mrbinnacle-skills/<plugin>/<version>/` and
+  records a version and a `gitCommitSha` in `plugins/installed_plugins.json`. That pin is a
+  committed statement of which bytes are in use, and it is the thing a link can never make.
+  `npx skills add MrBinnacle/skills` is the other supported route; it writes a
+  `skills-lock.json` and tracks `main` rather than a tag.
+- **A pinned copy lags the clone, and that is correct.** Changing a published card means
+  editing the clone, opening a PR, merging, and updating the install. That is the gauntlet
+  below. Linking existed to skip it.
+- `scripts/link-skills.ps1` (Windows) remains a maintainer dev tool and now **refuses** to write
+  a link into a git working tree that does not ignore the link path. It dry-runs by default and
+  backs up any real dir it replaces; Windows symlinks need Developer Mode or an elevated shell.
+- Private, unpublished skills in a maintainer's local library are never linked and never enter
+  this repo. Only what lives here is published.
+
+**This section used to say the opposite, and the correction is worth reading once.** Until
+2026-09-15 it said maintainers install published skills as symlinks back into a clone "so a
+`git pull` updates every installed copy and local↔repo drift is structurally impossible". The
+intent was right. The mechanism delivered the reverse.
+
+Git does not model a link. It walks through and records what it finds as ordinary tracked
+files. So a consumer repository holding links into this clone tracks this repo's bytes in a
+second index, and neither index knows the other exists. Measured on 2026-09-15 in one such
+repository: `skills/_quarantine` there and `_quarantine` here both hashed to the identical tree
+object `898390a4938764cfc0957b4328442f15fea6d4f4`. A routine `git checkout` in that repository
+removed one link, and every file under it left that index in a single operation with nothing
+reporting it. Separately, `skills/pull-rebase` showed there as locally modified while this repo
+was clean at `6170f2d` (#298), so a `git restore` on that path would have written a stale HEAD
+through the link and reverted a merged commit in this repo's own working tree.
+
+Recover the scale of any such overlap with
+`git -C <consumer> ls-files -- <link path> | wc -l`, never from a number written here.
+
+*Revisit if:* a consumer must be the authoring surface for published cards with edits live on
+save. The mechanism then is a `git submodule`, which records a pinned commit instead of the
+files and makes the double-tracking impossible. It is never a filesystem link.
 
 **Every change is a branch → PR → gate → merge:**
 
@@ -107,9 +138,12 @@ updates every installed copy and local↔repo drift is structurally impossible:
    NOT catch a leftover `metadata:` block, which is spec-legal; for that key this step is still the
    whole enforcement.
 3. PR → gate → merge (with a changeset).
-4. **Then** replace the maintainer's local real dir with a symlink to the repo copy
-   (`link-skills.ps1`), so from that point the published skill has exactly one copy and cannot
-   drift.
+4. **Then** update the maintainer's install so it carries the merged card
+   (`claude plugin update mrbinnacle-engineering@mrbinnacle-skills`, or the bucket that holds
+   it). The install is a pinned copy, so it lags this repo until that step runs, and the pin in
+   `plugins/installed_plugins.json` says which commit it holds. ⛔ Do **not** replace the local
+   dir with a link to the repo copy. That was this step until 2026-09-15, and it is what put the
+   same bytes in two git indexes; the section above records what it cost.
 
 ## Authoring conventions
 
