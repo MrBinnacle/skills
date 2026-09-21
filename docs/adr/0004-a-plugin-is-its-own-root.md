@@ -7,11 +7,11 @@ version lives. ADR 0002 put it on the marketplace entry; it now lives in the plu
 decision, that a release is the act of delivering changed cards, is untouched.
 
 Each of the collection's three plugins is packaged at its own bucket, `skills/<bucket>/`, with a
-`.claude-plugin/plugin.json` that states its name, version and exact skill list. The marketplace
-entry now says only where each plugin lives. Until this change every entry pointed at the
-repository root and declared its skills in the marketplace file, and `claude plugin eval`,
-pointed at an install, loaded that tree as a plugin with no name, no version and no skills. An
-eval of this collection could therefore measure nothing and still report a score.
+`.claude-plugin/plugin.json` that states its name, version and exact skill list, and the
+marketplace entry says only where each plugin lives. Until this change every entry pointed at the
+repository root and declared its skills in the marketplace file, so `claude plugin eval` loaded an
+install as a plugin with no name, no version and no skills. An eval of this collection could
+therefore measure nothing and still report a score.
 
 ## The evidence, measured
 
