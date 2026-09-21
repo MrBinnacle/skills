@@ -4,6 +4,28 @@ All notable changes to the collection. A release is a delivery event: changed ca
 installed users when a version is released, not on every merge to `main`. See
 [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
+## v3.0.0 - 2026-09-21
+
+### Major Changes
+
+- [#316](https://github.com/MrBinnacle/skills/pull/316) [`3f2aeae`](https://github.com/MrBinnacle/skills/commit/3f2aeaef54133d50f8489bde0b00f45f528ea39b) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Each plugin is now packaged at its own bucket, `skills/<bucket>/`, with a `.claude-plugin/plugin.json` that states its name, version and exact card list, and each marketplace entry points its `source` at that bucket. Before this change an install was a copy of the whole repository with no plugin manifest, so `claude plugin eval` loaded each plugin with no name, no version and no skills. The install path changes from the whole repository to one bucket, which ADR 0002 makes a major change; the decision is recorded in ADR 0004. The standing obligations move to `conformance v3`, because O7 now reads each plugin's own manifest. Two links between buckets now point at the published repository, since an install no longer carries the other buckets.
+
+### Patch Changes
+
+- [#313](https://github.com/MrBinnacle/skills/pull/313) [`32a9c59`](https://github.com/MrBinnacle/skills/commit/32a9c59d4020122ee9cbe56bc95ceff3b139da79) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The maintainer workflow installs the collection and holds a pinned copy; it no longer links into the clone. `link-skills.ps1` refuses a destination inside a git working tree that does not ignore the link path, because git records a link as ordinary files and a consumer repository was therefore tracking this repo's bytes in a second index. A seeded suite asserts the refusal by the phrase it prints.
+
+- [#303](https://github.com/MrBinnacle/skills/pull/303) [`afb6354`](https://github.com/MrBinnacle/skills/commit/afb63541099eb95d53162cf940c1004c3871ae1a) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - OBSERVED Origin rows must carry a resolvable locator. The card-files validator rejects an OBSERVED claim with no locator, a non-existent in-repo path, a missing commit SHA, or prose with no inspectable identity, and accepts ABSENT, valid paths, and well-formed external references.
+
+- [#302](https://github.com/MrBinnacle/skills/pull/302) [`25473f8`](https://github.com/MrBinnacle/skills/commit/25473f88fa34aa0c47b5d880545a4cf5bdb76c8b) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The triage vocabulary in `docs/agents/triage-labels.md` now declares two axes instead of one flat list. The role axis says who acts next and is unchanged in content. The disposition axis says what was decided and holds `declined`, `subsumed`, `cant-tell-yet` and `wontfix`. An issue carrying a disposition carries no role, because a decided issue has no next actor.
+
+  `wontfix` moved from the role table to the disposition table. The label is unchanged and every issue carrying it keeps it. What changed is which question it answers: it was always a decision wearing a role's clothes, and four of the five values around it answered a different question.
+
+  `declined`, `subsumed` and `cant-tell-yet` are non-terminal and each requires a row in the revisit-conditions registry naming what would reverse the decision. `wontfix` is terminal, is watched by nothing, and requires no row. That difference is the reason the axis exists: without it, `declined` becomes a second `wontfix` and the reversal condition goes unwritten.
+
+  The disposition values are borrowed from the measurement instrument's ratified verdict enum rather than invented, so the board reads in the same terms as the instrument that judges the work.
+
+- [#301](https://github.com/MrBinnacle/skills/pull/301) [`6ce3608`](https://github.com/MrBinnacle/skills/commit/6ce360880c4cf452223a2986a1591ba5f7549b18) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The em dash ban the voice card stated on 2026-07-12 is now enforced. Two Taste rules vendored from skill-harness#530 at ba61b47: Dashes at warning across every tracked markdown file, and Dashes-readme at error on README.md, where the one prose em dash on the front page was recast as a sentence break. Vale counted 709 warning-level hits across the tree at vendoring; they stay warnings until a sweep lands.
+
 ## v2.0.0 - 2026-09-13
 
 ### Major Changes
