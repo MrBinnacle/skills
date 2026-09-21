@@ -60,9 +60,11 @@ The same route lists the collection on [skills.sh](https://www.skills.sh/MrBinna
 directory behind that command, where each card appears by name with its install count. That
 directory ranks by installs only. It carries none of the evidence records described below.
 
-The manifest is the machine-readable statement of what ships. CI rejects any state where the
-manifest and the published tree disagree, in either direction: a path the manifest names with no
-card at it, and a published card no plugin names. That is standing obligation **O7** in
+The marketplace names each plugin and its bucket folder, and each bucket's
+`.claude-plugin/plugin.json` names that plugin's cards and version. Together they are the
+machine-readable statement of what ships. CI rejects any state where they and the published tree
+disagree, in either direction: a path a plugin names with no card at it, and a published card no
+plugin names. That is standing obligation **O7** in
 [`SECURITY.md`](SECURITY.md).
 
 **What a version promises.** The install path and the card format, not the card set. Admitting or retiring a card is a minor change, so the cards you can install are expected to change under a minor release; moving the install path or changing the format of a card would be a major one. A card's name is covered too, so renaming one is a major change. You resolve a card by its name, and a rename stops your existing reference working. That narrowing is deliberate, and [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) records why, with [ADR 0003](docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md) recording why the name is inside it.

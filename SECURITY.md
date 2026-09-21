@@ -120,9 +120,10 @@ reported as a pass.
   fix is citable, published receipts, and that work does not live in this repository.
 - **O6 — scoreboard lockstep.** The front-page counts stay derivable from the cards. Checked by
   `scripts/validate_scoreboard.py`.
-- **O7 — plugin manifest and published tree agree.** `.claude-plugin/marketplace.json` is the
-  machine-readable statement of what this collection ships. It must name every published card
-  exactly once, and every path it names must have a card at it. Both directions are checked,
+- **O7 — plugin manifest and published tree agree.** `.claude-plugin/marketplace.json` lists
+  each plugin and its source, and each source's `.claude-plugin/plugin.json` lists that plugin's
+  cards. Together they are the machine-readable statement of what this collection ships. They
+  must name every published card exactly once, and every path they name must have a card at it. Both directions are checked,
   because a one-directional check on the sibling occasions row let an undercount stay green
   until August 2026. An absent or unparseable manifest is `FAIL`, not `CANNOT-CHECK`: the file
   is this repository's own artifact, and without it the collection ships no install path.
