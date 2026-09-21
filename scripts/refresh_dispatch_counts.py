@@ -165,7 +165,7 @@ def find_cards(repo_root: Path) -> list[Path]:
         and not bucket.name.startswith(".")
         and bucket.name not in scoreboard.UNSHIPPED_BUCKETS
         for card in bucket.iterdir()
-        if card.is_dir()
+        if card.is_dir() and not card.name.startswith(".")
     )
 
 

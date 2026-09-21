@@ -200,6 +200,12 @@ _ALLOWLIST: Final[frozenset[tuple[str, str]]] = frozenset({
 
 
 def find_cards(root: Path) -> list[Path]:
+    """Every published card directory: skills/<bucket>/<card>.
+
+    A dot-named directory at card depth is not a card. Each bucket is its own
+    plugin root and carries `.claude-plugin/plugin.json` beside its cards
+    (#314); reading that as a card demanded EVIDENCE.md of a manifest folder.
+    """
     skills = root / "skills"
     if not skills.is_dir():
         return []
@@ -210,7 +216,7 @@ def find_cards(root: Path) -> list[Path]:
         and not bucket.name.startswith(".")
         and bucket.name not in scoreboard.UNSHIPPED_BUCKETS
         for card in bucket.iterdir()
-        if card.is_dir()
+        if card.is_dir() and not card.name.startswith(".")
     )
 
 
