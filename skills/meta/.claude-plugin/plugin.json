@@ -1,6 +1,6 @@
 {
   "name": "mrbinnacle-meta",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Skills about the skill system itself: whether a skill should exist, and whether it can be reached.",
   "author": {
     "name": "MrBinnacle",
