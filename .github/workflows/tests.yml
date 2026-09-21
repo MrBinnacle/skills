@@ -1205,17 +1205,22 @@ jobs:
           {
             printf '{\n'
             printf '  "plugins": [\n'
-            printf '    {"name": "control-plugin-clean-a", "skills": [], "version": "1.2.0"},\n'
-            printf '    {"name": "control-plugin-drifted", "skills": [], "version": "0.0.0"},\n'
-            printf '    {"name": "control-plugin-clean-b", "skills": [], "version": "1.2.0"}\n'
+            printf '    {"name": "control-plugin-clean-a", "source": "./plugins/clean-a"},\n'
+            printf '    {"name": "control-plugin-drifted", "source": "./plugins/drifted"},\n'
+            printf '    {"name": "control-plugin-clean-b", "source": "./plugins/clean-b"}\n'
             printf '  ]\n'
             printf '}\n'
           } > "$tree/.claude-plugin/marketplace.json"
+          for plugin in clean-a:1.2.0 drifted:0.0.0 clean-b:1.2.0; do
+            mkdir -p "$tree/plugins/${plugin%%:*}/.claude-plugin"
+            printf '{"name": "control-plugin-%s", "version": "%s", "skills": []}\n' "${plugin%%:*}" "${plugin##*:}" \
+              > "$tree/plugins/${plugin%%:*}/.claude-plugin/plugin.json"
+          done
           # Conforming changelog so G4 stays silent: a missing CHANGELOG.md is
           # its own refusal, and the single-reason grep below would then prove
           # nothing about lockstep. Every sibling control plants the same way.
           printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
-          grep -q '"version": "0.0.0"' "$tree/.claude-plugin/marketplace.json" \
+          grep -q '"version": "0.0.0"' "$tree/plugins/drifted/.claude-plugin/plugin.json" \
             || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
           if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
             echo "::error::a drifted manifest version was ACCEPTED - the gate no longer refuses a stale surface"
@@ -1245,7 +1250,9 @@ jobs:
           rm -rf "$tree"
           mkdir -p "$tree/.claude-plugin" "$tree/.changeset"
           printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
-          printf '{"plugins": [{"name": "control-plugin", "skills": [], "version": "1.2.0"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+          mkdir -p "$tree/plugin/.claude-plugin"
+          printf '{"plugins": [{"name": "control-plugin", "source": "./plugin"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+          printf '{"name": "control-plugin", "version": "1.2.0", "skills": []}\n' > "$tree/plugin/.claude-plugin/plugin.json"
           printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
           printf -- '---\n"@mrbinnacle/skills": patch\n---\n\nPoison control.\n' > "$tree/.changeset/zzz-poison-plan.md"
           grep -q '@mrbinnacle/skills' "$tree/.changeset/zzz-poison-plan.md" \
@@ -1276,7 +1283,9 @@ jobs:
           rm -rf "$tree"
           mkdir -p "$tree/.claude-plugin" "$tree/.changeset"
           printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
-          printf '{"plugins": [{"name": "control-plugin", "skills": [], "version": "1.2.0"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+          mkdir -p "$tree/plugin/.claude-plugin"
+          printf '{"plugins": [{"name": "control-plugin", "source": "./plugin"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+          printf '{"name": "control-plugin", "version": "1.2.0", "skills": []}\n' > "$tree/plugin/.claude-plugin/plugin.json"
           printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
           printf -- '---\n"mrbinnacle-skills": minor\n---\n\nA change nobody rolled.\n' > "$tree/.changeset/zzz-poison-pending.md"
           if ! python scripts/release_gate.py --root "$tree" | grep -q '^RELEASE GATE: PASS'; then
@@ -1308,7 +1317,9 @@ jobs:
           rm -rf "$tree"
           mkdir -p "$tree/.claude-plugin"
           printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
-          printf '{"plugins": [{"name": "control-plugin", "skills": [], "version": "1.2.0"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+          mkdir -p "$tree/plugin/.claude-plugin"
+          printf '{"plugins": [{"name": "control-plugin", "source": "./plugin"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+          printf '{"name": "control-plugin", "version": "1.2.0", "skills": []}\n' > "$tree/plugin/.claude-plugin/plugin.json"
           printf '# Changelog\n\n## v0.9.0 - 2026-07-01\n\nAn older release.\n' > "$tree/CHANGELOG.md"
           if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
             echo "::error::a release with no changelog section was ACCEPTED - the roll check no longer refuses one"
@@ -1336,12 +1347,15 @@ jobs:
           printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
           {
             printf '{\n  "name": "fixture",\n  "plugins": [\n'
-            printf '    {"name": "fixture", "skills": ["./skills/engineering/alpha-card", "./skills/engineering/ghost-card"], "version": "1.2.0"}\n'
+            printf '    {"name": "fixture", "source": "./skills/engineering"}\n'
             printf '  ]\n}\n'
           } > "$tree/.claude-plugin/marketplace.json"
+          mkdir -p "$tree/skills/engineering/.claude-plugin"
+          printf '{"name": "fixture", "version": "1.2.0", "skills": ["./alpha-card", "./ghost-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
           printf '# a skill\n' > "$tree/skills/engineering/alpha-card/SKILL.md"
           printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
-          grep -q 'ghost-card' "$tree/.claude-plugin/marketplace.json" \
+          grep -q 'ghost-card' "$tree/skills/engineering/.claude-plugin/plugin.json" \
             || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
           if python scripts/release_gate.py --release --root "$tree" > "$log" 2>&1; then
             echo "::error::a manifest disagreeing with the published tree was ACCEPTED - the gate no longer refuses it"
@@ -1374,9 +1388,12 @@ jobs:
           printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
           {
             printf '{\n  "name": "fixture",\n  "plugins": [\n'
-            printf '    {"name": "fixture", "skills": ["./skills/engineering/poison-card"], "version": "1.2.0"}\n'
+            printf '    {"name": "fixture", "source": "./skills/engineering"}\n'
             printf '  ]\n}\n'
           } > "$tree/.claude-plugin/marketplace.json"
+          mkdir -p "$tree/skills/engineering/.claude-plugin"
+          printf '{"name": "fixture", "version": "1.2.0", "skills": ["./poison-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
           printf -- '---\nname: poison-card\ndescription: broken: an unquoted scalar with a colon\n---\n\n# poison-card\n' > "$tree/skills/engineering/poison-card/SKILL.md"
           printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
           git -C "$tree" init -q
@@ -1412,7 +1429,9 @@ jobs:
           rm -rf "$tree"
           mkdir -p "$tree/.claude-plugin" "$tree/.github/workflows"
           printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
-          printf '{"plugins": [{"name": "control-plugin", "skills": [], "version": "1.2.0"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+          mkdir -p "$tree/plugin/.claude-plugin"
+          printf '{"plugins": [{"name": "control-plugin", "source": "./plugin"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+          printf '{"name": "control-plugin", "version": "1.2.0", "skills": []}\n' > "$tree/plugin/.claude-plugin/plugin.json"
           printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
           {
             printf 'name: control\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n'
@@ -1462,7 +1481,9 @@ jobs:
             rm -rf "$tree"
             mkdir -p "$tree/.claude-plugin"
             printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
-            printf '{"plugins": [{"name": "control-plugin", "skills": [], "version": "1.2.0"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+            mkdir -p "$tree/plugin/.claude-plugin"
+            printf '{"plugins": [{"name": "control-plugin", "source": "./plugin"}]}\n' > "$tree/.claude-plugin/marketplace.json"
+            printf '{"name": "control-plugin", "version": "1.2.0", "skills": []}\n' > "$tree/plugin/.claude-plugin/plugin.json"
             printf '# Changelog\n\n## v1.2.0 - 2026-08-25\n\nBase.\n' > "$tree/CHANGELOG.md"
             git -C "$tree" init -q
             git -C "$tree" config user.email fixture@example.invalid
@@ -1472,7 +1493,7 @@ jobs:
             git -C "$tree" branch -f main
             git -C "$tree" checkout -q -b candidate
             printf '{"name": "mrbinnacle-skills", "version": "%s"}\n' "$head_version" > "$tree/package.json"
-            printf '{"plugins": [{"name": "control-plugin", "skills": [], "version": "%s"}]}\n' "$head_version" > "$tree/.claude-plugin/marketplace.json"
+            printf '{"name": "control-plugin", "version": "%s", "skills": []}\n' "$head_version" > "$tree/plugin/.claude-plugin/plugin.json"
             printf '# Changelog\n\n## v%s - 2026-08-25\n\nShipped.\n' "$head_version" > "$tree/CHANGELOG.md"
             mkdir -p "$tree/.changeset"
             printf -- '---\n"mrbinnacle-skills": minor\n---\n\nA pending change.\n' > "$tree/.changeset/zzz-pending.md"

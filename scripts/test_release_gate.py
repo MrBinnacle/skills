@@ -1873,7 +1873,10 @@ def case_ci_control_refuses_a_manifest_disagreeing_with_the_tree() -> None:
     )
     check(
         "the G5 control plants a ghost card the tree does not publish",
-        "./skills/engineering/ghost-card" in step and "alpha-card/SKILL.md" in step,
+        '"source": "./skills/engineering"' in step
+        and '"./ghost-card"' in step
+        and "skills/engineering/.claude-plugin/plugin.json" in step
+        and "alpha-card/SKILL.md" in step,
         step,
     )
     check(
