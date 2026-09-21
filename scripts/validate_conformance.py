@@ -27,8 +27,8 @@ WHAT IS DELEGATED, AND WHY
     and called rather than restated -- one vocabulary, one place to widen it.
     O4's controlled-field names are validate_scoreboard.py's CONTROLLED_FIELDS
     for the same reason. O6 is validate_scoreboard.py's whole run. O7 reads the
-    manifest directly -- it is this repository's own artifact, so there is no
-    other predicate to delegate to.
+    marketplace and each plugin's own plugin.json directly -- they are this
+    repository's own artifacts, so there is no other predicate to delegate to.
 
 SCOPE: CARD VS REPO
     Four obligations are properties of one card and are scored per card.
@@ -494,14 +494,21 @@ def check_scoreboard_lockstep(root: Path) -> Result:
 
 
 MANIFEST_REL: Final[str] = ".claude-plugin/marketplace.json"
+# Each marketplace entry names a plugin and its `source`. The plugin's own
+# manifest sits at this path under that source and carries the name, version
+# and exact skill list. The marketplace entry carries none of those three,
+# because `claude plugin details` measured on 2026-09-21 reported version
+# `unknown` and 0 skills for a root holding only the marketplace file (#314).
+PLUGIN_MANIFEST_REL: Final[str] = ".claude-plugin/plugin.json"
 
 
 PUBLISHED_PREFIX: Final[str] = "skills"
-# A published card sits at exactly skills/<bucket>/<card>, which is the same
-# depth find_cards() globs. Checking the depth rather than only the leading
-# segment closes the gap where an entry resolves to a real SKILL.md at some
-# other depth under skills/: it would contribute a phantom name to `exposed`,
-# match no published card, and be validated by neither direction.
+# A published card sits at exactly skills/<bucket>/<card>, measured from the
+# repository root, which is the same depth find_cards() globs. Checking the
+# depth rather than only the leading segment closes the gap where an entry
+# resolves to a real SKILL.md at some other depth under skills/: it would
+# contribute a phantom name to `exposed`, match no published card, and be
+# validated by neither direction.
 PUBLISHED_DEPTH: Final[int] = 3
 
 
@@ -516,38 +523,59 @@ class ManifestShapeError(ValueError):
     """
 
 
-def normalised_entry(entry: object) -> tuple[str, bool]:
-    """One manifest skill path as posix segments, and whether it escapes root.
+@dataclass(frozen=True)
+class PluginEntry:
+    """One marketplace entry: the plugin name and its source as written."""
 
-    Separators are normalised and `.` segments dropped before any prefix test,
-    because `./skills/x`, `././skills/x` and the backslash-separated
-    spelling all resolve on disk, while only the first matches a raw
-    `startswith`. The code below is the authority on which separators fold.
+    name: str
+    source: str
 
-    Reporting a legitimately published card as "not published" is the most
-    alarming label this check has, and it must not be reachable by spelling.
+
+@dataclass(frozen=True)
+class ManifestReading:
+    """What O7 found, one list per breach category.
+
+    `exposed` holds card names. Every other list holds the offending path or
+    plugin name as written, so the report names it rather than counting it.
+    """
+
+    exposed: list[str]
+    dangling: list[str]
+    off_tree: list[str]
+    escaping_sources: list[str]
+    absent_plugin_manifests: list[str]
+    unreadable_plugin_manifests: list[str]
+    misnamed_plugins: list[str]
+
+
+def resolve_within(base: Path, root: Path, entry: object) -> str | None:
+    """A manifest path resolved against `base`, as posix relative to `root`.
+
+    None when the path leaves `base`. Separators are normalised before
+    resolving, because `./skills/x`, `././skills/x` and the backslash-separated
+    spelling all resolve on disk while only the first matches a raw
+    `startswith`, and a backslash is an ordinary filename character on the
+    Linux CI cell. Reporting a legitimately published card as "not published"
+    is the most alarming label this check has, and it must not be reachable by
+    spelling.
+
+    Containment is tested on the resolved path, not by looking for `..`: a
+    drive-qualified or absolute spelling leaves `base` without a single `..`
+    segment.
     """
     text = str(entry).replace("\\", "/")
-    segments = [s for s in text.split("/") if s not in ("", ".")]
-    return "/".join(segments), ".." in segments
+    resolved = (base / text).resolve()
+    if not resolved.is_relative_to(base.resolve()):
+        return None
+    return resolved.relative_to(root.resolve()).as_posix()
 
 
-def manifest_exposed_cards(root: Path) -> tuple[list[str], list[str], list[str]]:
-    """Every published card the manifest names, and the two ways an entry is bad.
+def marketplace_entries(root: Path) -> list[PluginEntry]:
+    """Every plugin entry in the marketplace, with its name and source.
 
-    Returns (exposed_names, dangling_paths, off_tree_paths).
-
-    A path is DANGLING when no SKILL.md sits at it -- which covers a renamed
-    card and a typo alike, and is the only reading that does not require the
-    checker to guess intent.
-
-    A path is OFF-TREE when a SKILL.md does sit at it but the path is outside
-    `skills/`. This is its own category because it is the one breach that
-    RESOLVES: `_quarantine/` candidates have real SKILL.md files, so a
-    quarantine card named by the manifest is neither dangling nor missing, and
-    a check built only from those two states reports PASS while shipping an
-    unadmitted card to everyone who installs. Demonstrated green on this tree
-    before this category existed.
+    Raises ManifestShapeError on a parseable manifest of the wrong shape, and
+    lets JSON and OS errors through for the caller to label. The release gate
+    reads the entries through this function, so both checks read them one way.
     """
     data = json.loads((root / MANIFEST_REL).read_text(encoding="utf-8"))
     if not isinstance(data, dict):
@@ -555,44 +583,120 @@ def manifest_exposed_cards(root: Path) -> tuple[list[str], list[str], list[str]]
     plugins = data.get("plugins", [])
     if not isinstance(plugins, list):
         raise ManifestShapeError(f"plugins is {type(plugins).__name__}, not an array")
-
-    exposed: list[str] = []
-    dangling: list[str] = []
-    off_tree: list[str] = []
+    entries: list[PluginEntry] = []
     for index, plugin in enumerate(plugins):
         if not isinstance(plugin, dict):
             raise ManifestShapeError(
                 f"plugins[{index}] is {type(plugin).__name__}, not an object"
             )
-        entries = plugin.get("skills", [])
-        if not isinstance(entries, list):
+        source = plugin.get("source")
+        if not isinstance(source, str):
             raise ManifestShapeError(
-                f"plugins[{index}].skills is {type(entries).__name__}, not an array"
+                f"plugins[{index}].source is {type(source).__name__}, not a "
+                "local path string"
             )
-        for entry in entries:
-            rel, escapes = normalised_entry(entry)
-            segments = rel.split("/")
-            if escapes or not (root / rel / "SKILL.md").is_file():
-                dangling.append(str(entry))
-            elif segments[0] != PUBLISHED_PREFIX or len(segments) != PUBLISHED_DEPTH:
-                off_tree.append(str(entry))
-            else:
-                exposed.append(segments[-1])
-    return exposed, dangling, off_tree
+        entries.append(PluginEntry(str(plugin.get("name")), source))
+    return entries
+
+
+def plugin_root(root: Path, entry: PluginEntry) -> Path | None:
+    """The entry's source directory, or None when it leaves the repository.
+
+    A source outside the root is refused rather than followed: the marketplace
+    would install whatever sits there, and nothing in this tree vouches for it.
+    """
+    rel = resolve_within(root, root, entry.source)
+    return None if rel is None else root / rel
+
+
+def read_plugin_manifest(plugin_dir: Path) -> dict[str, object]:
+    """The plugin's own manifest, as an object with a list-valued `skills`.
+
+    A missing `skills` reads as an empty list, which is what the loader does:
+    measured 2026-09-21, a plugin.json with no `skills` field exposed 0 skills.
+    Raises ManifestShapeError on the wrong shape. JSON and OS errors pass
+    through.
+    """
+    data = json.loads((plugin_dir / PLUGIN_MANIFEST_REL).read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ManifestShapeError(f"top level is {type(data).__name__}, not an object")
+    skills = data.setdefault("skills", [])
+    if not isinstance(skills, list):
+        raise ManifestShapeError(f"skills is {type(skills).__name__}, not an array")
+    return data
+
+
+def manifest_exposed_cards(root: Path) -> ManifestReading:
+    """Every published card the plugins name, and every way an entry is bad.
+
+    A path is DANGLING when no SKILL.md sits at it inside its plugin's source,
+    which covers a renamed card and a typo alike, and is the only reading that
+    does not require the checker to guess intent. A path that leaves its
+    plugin's source is dangling too: the install copies the source directory
+    and nothing outside it, so the card would not arrive.
+
+    A path is OFF-TREE when a SKILL.md does sit at it but not at
+    skills/<bucket>/<card>. This is its own category because it is the one
+    breach that RESOLVES: `_quarantine/` candidates have real SKILL.md files,
+    so a quarantine card named by a plugin is neither dangling nor missing, and
+    a check built only from those two states reports PASS while shipping an
+    unadmitted card to everyone who installs. Demonstrated green on this tree
+    before this category existed.
+
+    An entry whose plugin.json is absent or unreadable contributes no cards,
+    and its own category says so. Reporting it only as "published but named by
+    no plugin" would point the reader at the cards rather than the manifest.
+    """
+    reading = ManifestReading([], [], [], [], [], [], [])
+    for entry in marketplace_entries(root):
+        plugin_dir = plugin_root(root, entry)
+        if plugin_dir is None:
+            reading.escaping_sources.append(f"{entry.name} ({entry.source})")
+            continue
+        if not (plugin_dir / PLUGIN_MANIFEST_REL).is_file():
+            reading.absent_plugin_manifests.append(entry.name)
+            continue
+        try:
+            plugin = read_plugin_manifest(plugin_dir)
+        except (ValueError, OSError) as exc:
+            reading.unreadable_plugin_manifests.append(f"{entry.name} ({exc})")
+            continue
+        if plugin.get("name") != entry.name:
+            reading.misnamed_plugins.append(
+                f"{entry.name} (plugin.json says {plugin.get('name')!r})"
+            )
+        for path in plugin["skills"]:
+            classify_skill_path(root, plugin_dir, path, reading)
+    return reading
+
+
+def classify_skill_path(
+    root: Path, plugin_dir: Path, path: object, reading: ManifestReading
+) -> None:
+    """File one plugin.json skill path under exposed, dangling or off-tree."""
+    rel = resolve_within(plugin_dir, root, path)
+    if rel is None or not (root / rel / "SKILL.md").is_file():
+        reading.dangling.append(str(path))
+        return
+    segments = rel.split("/")
+    if segments[0] != PUBLISHED_PREFIX or len(segments) != PUBLISHED_DEPTH:
+        reading.off_tree.append(str(path))
+    else:
+        reading.exposed.append(segments[-1])
 
 
 def check_plugin_manifest(root: Path) -> Result:
-    """O7: the manifest and the published tree name the same cards, both ways.
+    """O7: the plugin manifests and the published tree name the same cards.
 
     Both directions are required, and the repository has the receipt for why.
     The sibling occasions check ran forward-only -- a count could not rise
     without a record -- and an UNDERCOUNT stayed green until August 2026,
     because nothing asked the reverse question. A manifest check that validates
-    only the paths it names has exactly that hole: drop a card from the
-    manifest and every remaining path still resolves.
+    only the paths it names has exactly that hole: drop a card from a plugin's
+    list and every remaining path still resolves.
 
-    Absent or malformed is FAIL, not CANNOT-CHECK. The manifest is this
-    repository's own artifact, so its absence is a breach -- the collection
+    Absent or malformed is FAIL, not CANNOT-CHECK. The manifests are this
+    repository's own artifacts, so their absence is a breach -- the collection
     ships no install path. CANNOT-CHECK is reserved for what this repository
     genuinely cannot see from inside itself, which is O5 and nothing else.
     """
@@ -604,7 +708,7 @@ def check_plugin_manifest(root: Path) -> Result:
             "the native plugin route does not exist",
         )
     try:
-        exposed, dangling, off_tree = manifest_exposed_cards(root)
+        reading = manifest_exposed_cards(root)
     except ManifestShapeError as exc:
         return Result(FAIL, f"{MANIFEST_REL} is not a readable manifest: {exc}")
     except ValueError as exc:  # json.JSONDecodeError subclasses ValueError
@@ -613,20 +717,7 @@ def check_plugin_manifest(root: Path) -> Result:
         return Result(FAIL, f"{MANIFEST_REL} could not be read: {exc}")
 
     published = [c.name for c in find_cards(root)]
-    duplicated = sorted({n for n in exposed if exposed.count(n) > 1})
-    unexposed = sorted(set(published) - set(exposed))
-
-    breaches = []
-    if dangling:
-        breaches.append("named with no card at the path: " + ", ".join(sorted(dangling)))
-    if off_tree:
-        breaches.append(
-            "named but not published -- outside skills/: " + ", ".join(sorted(off_tree))
-        )
-    if unexposed:
-        breaches.append("published but named by no plugin: " + ", ".join(unexposed))
-    if duplicated:
-        breaches.append("named by more than one plugin: " + ", ".join(duplicated))
+    breaches = manifest_breaches(reading, published)
     if breaches:
         return Result(FAIL, "; ".join(breaches))
     if not published:
@@ -641,9 +732,39 @@ def check_plugin_manifest(root: Path) -> Result:
         )
     return Result(
         PASS,
-        f"{len(published)} published card(s), each named exactly once by the "
-        "manifest, and every named path resolves",
+        f"{len(published)} published card(s), each named exactly once by a "
+        "plugin manifest, and every named path resolves",
     )
+
+
+def manifest_breaches(reading: ManifestReading, published: list[str]) -> list[str]:
+    """One labelled line per non-empty breach category, in a fixed order."""
+    exposed = reading.exposed
+    duplicated = sorted({n for n in exposed if exposed.count(n) > 1})
+    unexposed = sorted(set(published) - set(exposed))
+    labelled = (
+        ("plugin source escapes the repository root: ", reading.escaping_sources),
+        (
+            f"plugin entry with no {PLUGIN_MANIFEST_REL} at its source: ",
+            reading.absent_plugin_manifests,
+        ),
+        (
+            f"plugin entry whose {PLUGIN_MANIFEST_REL} is unreadable: ",
+            reading.unreadable_plugin_manifests,
+        ),
+        (
+            f"{PLUGIN_MANIFEST_REL} name differs from the marketplace entry: ",
+            reading.misnamed_plugins,
+        ),
+        ("named with no card at the path: ", sorted(reading.dangling)),
+        (
+            "named but not published -- not at skills/<bucket>/<card>: ",
+            sorted(reading.off_tree),
+        ),
+        ("published but named by no plugin: ", unexposed),
+        ("named by more than one plugin: ", duplicated),
+    )
+    return [label + ", ".join(items) for label, items in labelled if items]
 
 
 REPO_CHECKS = {

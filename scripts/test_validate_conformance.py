@@ -20,6 +20,7 @@ Run directly:  python scripts/test_validate_conformance.py
 """
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -767,40 +768,61 @@ def case_o5_history_link_does_not_mask_a_newer_receipt(root: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# O7: the plugin manifest and the published tree must agree, BOTH directions.
+# O7: the plugin manifests and the published tree must agree, BOTH directions.
 #
 # One direction is not enough, and this repository has the receipt: the sibling
 # occasions check ran forward-only -- a count could not rise without a record --
 # and an UNDERCOUNT stayed green until August 2026, because nothing asked the
 # reverse question. A manifest check that only validates the paths it names has
-# the same hole: delete a card from the manifest and every named path still
+# the same hole: delete a card from a plugin's list and every named path still
 # resolves. So there are two failing directions here, and each has its own case.
 #
-# The manifest is data, so all five classes are cheap to build in isolation.
+# The marketplace entry names a plugin and its source; the plugin.json under
+# that source names the plugin's cards. Both are data, so every class is cheap
+# to build in isolation.
 # ---------------------------------------------------------------------------
 
 MANIFEST_PATH = ".claude-plugin/marketplace.json"
+PLUGIN_MANIFEST_PATH = ".claude-plugin/plugin.json"
+PLUGIN_NAME = "fixture-engineering"
+PLUGIN_SOURCE = "./skills/engineering"
 
 
-def manifest_for(cards: tuple[str, ...]) -> str:
-    """A minimal well-formed manifest exposing exactly the named cards."""
-    entries = ",\n".join(f'        "./skills/engineering/{c}"' for c in cards)
-    return (
-        "{\n"
-        '  "name": "fixture",\n'
-        '  "owner": {"name": "fixture", "url": "https://example.invalid"},\n'
-        '  "plugins": [\n'
-        "    {\n"
-        '      "name": "fixture-engineering",\n'
-        '      "description": "fixture",\n'
-        '      "source": "./",\n'
-        '      "strict": false,\n'
-        '      "skills": [\n' + entries + "\n"
-        "      ]\n"
-        "    }\n"
-        "  ]\n"
-        "}\n"
-    )
+def marketplace_for(entries: tuple[tuple[str, str], ...]) -> str:
+    """A minimal well-formed marketplace listing (name, source) entries."""
+    plugins = [
+        {"name": name, "source": source, "description": "fixture"}
+        for name, source in entries
+    ]
+    return json.dumps(
+        {
+            "name": "fixture",
+            "owner": {"name": "fixture", "url": "https://example.invalid"},
+            "plugins": plugins,
+        },
+        indent=2,
+    ) + "\n"
+
+
+def plugin_json_for(name: str, skills: list[str]) -> str:
+    return json.dumps({"name": name, "version": "1.0.0", "skills": skills}, indent=2) + "\n"
+
+
+def plant_plugin(
+    root: Path,
+    skills: list[str],
+    *,
+    entry_name: str = PLUGIN_NAME,
+    plugin_name: str = PLUGIN_NAME,
+    source: str = PLUGIN_SOURCE,
+) -> None:
+    """One marketplace entry, and its plugin.json naming `skills` under `source`."""
+    write(root / MANIFEST_PATH, marketplace_for(((entry_name, source),)))
+    write(root / source / PLUGIN_MANIFEST_PATH, plugin_json_for(plugin_name, skills))
+
+
+def card_paths(cards: tuple[str, ...]) -> list[str]:
+    return [f"./{c}" for c in cards]
 
 
 def repo_line(stdout: str, oid: str) -> str:
@@ -820,22 +842,22 @@ def repo_cell(stdout: str, oid: str) -> str:
 
 def case_manifest_naming_every_card_passes(root: Path) -> None:
     make_tree(root)
-    write(root / MANIFEST_PATH, manifest_for(CARDS))
+    plant_plugin(root, card_paths(CARDS))
     result = run_checker(root)
     check(
-        "O7 passes when the manifest names every published card exactly once",
+        "O7 passes when the plugin names every published card exactly once",
         repo_cell(result.stdout, "O7") == "PASS",
         result.stdout,
     )
 
 
 def case_manifest_naming_a_missing_card_is_red(root: Path) -> None:
-    """Direction one: the manifest points at a path with no card at it."""
+    """Direction one: the plugin points at a path with no card at it."""
     make_tree(root)
-    write(root / MANIFEST_PATH, manifest_for(CARDS + ("ghost-card",)))
+    plant_plugin(root, card_paths(CARDS + ("ghost-card",)))
     result = run_checker(root)
     check(
-        "O7 is FAIL when the manifest names a path with no card at it",
+        "O7 is FAIL when the plugin names a path with no card at it",
         repo_cell(result.stdout, "O7") == "FAIL",
         result.stdout,
     )
@@ -850,7 +872,7 @@ def case_unexposed_card_is_red(root: Path) -> None:
     """Direction two: a published card no plugin names. The forward-only check
     stays green here, which is the whole reason this case exists."""
     make_tree(root)
-    write(root / MANIFEST_PATH, manifest_for(CARDS[:1]))
+    plant_plugin(root, card_paths(CARDS[:1]))
     result = run_checker(root)
     check(
         "O7 is FAIL when a published card is named by no plugin",
@@ -910,7 +932,7 @@ def case_duplicate_exposure_is_red(root: Path) -> None:
     plugins naming one card is a real state -- it is what a bucket move looks
     like when only half of it lands."""
     make_tree(root)
-    write(root / MANIFEST_PATH, manifest_for(CARDS + (CARDS[0],)))
+    plant_plugin(root, card_paths(CARDS + (CARDS[0],)))
     result = run_checker(root)
     check(
         "O7 is FAIL when one card is named by more than one plugin entry",
@@ -925,7 +947,8 @@ WRONG_SHAPES = (
     ("top-level number", "123\n"),
     ("plugin entry is a string", '{"plugins": ["x"]}\n'),
     ("plugins is an object", '{"plugins": {"a": 1}}\n'),
-    ("skills is a string", '{"plugins": [{"skills": "x"}]}\n'),
+    ("source is missing", '{"plugins": [{"name": "x"}]}\n'),
+    ("source is not a string", '{"plugins": [{"name": "x", "source": {"a": 1}}]}\n'),
 )
 
 
@@ -958,22 +981,13 @@ def case_spelled_paths_are_not_reported_as_unpublished(root: Path) -> None:
 
     `off_tree` carries the most alarming label this check emits -- "named but
     not published". It must not be reachable by spelling a path that resolves
-    to a real published card.
+    to a real published card, and the source is spelled oddly too.
     """
     make_tree(root)
-    entries = ",\n".join(
-        f'        "{spelling}"'
-        for spelling in (
-            f"././skills/engineering/{CARDS[0]}",
-            f"skills\\\\engineering\\\\{CARDS[1]}",
-        )
-    )
-    write(
-        root / MANIFEST_PATH,
-        manifest_for(CARDS).split('"skills": [')[0]
-        + '"skills": [\n'
-        + entries
-        + "\n      ]\n    }\n  ]\n}\n",
+    plant_plugin(
+        root,
+        [f"././{CARDS[0]}", f".\\{CARDS[1]}"],
+        source="././skills/engineering",
     )
     result = run_checker(root)
     check(
@@ -993,12 +1007,7 @@ def case_wrong_depth_under_skills_is_red(root: Path) -> None:
     """
     make_tree(root)
     write(root / "skills" / "engineering" / CARDS[0] / "nested" / "SKILL.md", "# n\n")
-    manifest = manifest_for(CARDS).replace(
-        f'        "./skills/engineering/{CARDS[0]}"',
-        f'        "./skills/engineering/{CARDS[0]}",\n'
-        f'        "./skills/engineering/{CARDS[0]}/nested"',
-    )
-    write(root / MANIFEST_PATH, manifest)
+    plant_plugin(root, card_paths(CARDS) + [f"./{CARDS[0]}/nested"])
     result = run_checker(root)
     check(
         "O7 is FAIL when a named path is under skills/ at the wrong depth",
@@ -1010,22 +1019,30 @@ def case_wrong_depth_under_skills_is_red(root: Path) -> None:
 def case_quarantine_card_in_the_manifest_is_red(root: Path) -> None:
     """The breach that RESOLVES, and the reason off-tree is its own category.
 
-    A `_quarantine/` candidate has a real SKILL.md. Named by the manifest it is
+    A `_quarantine/` candidate has a real SKILL.md. Named by a plugin it is
     neither dangling nor missing, so the two-state version of this check
     reported PASS while shipping an unadmitted card to every installer. That was
-    demonstrated on the live tree before this case existed.
+    demonstrated on the live tree before this case existed. The candidate is
+    named by a second plugin rooted at the repository, which is the one source
+    from which a quarantine path resolves inside its plugin.
     """
     make_tree(root)
     write(root / "_quarantine" / "candidate" / "SKILL.md", "# candidate\n")
-    manifest = manifest_for(CARDS).replace(
-        f'        "./skills/engineering/{CARDS[0]}"',
-        f'        "./skills/engineering/{CARDS[0]}",\n'
-        '        "./_quarantine/candidate"',
+    write(
+        root / MANIFEST_PATH,
+        marketplace_for(((PLUGIN_NAME, PLUGIN_SOURCE), ("fixture-root", "./"))),
     )
-    write(root / MANIFEST_PATH, manifest)
+    write(
+        root / PLUGIN_SOURCE / PLUGIN_MANIFEST_PATH,
+        plugin_json_for(PLUGIN_NAME, card_paths(CARDS)),
+    )
+    write(
+        root / PLUGIN_MANIFEST_PATH,
+        plugin_json_for("fixture-root", ["./_quarantine/candidate"]),
+    )
     result = run_checker(root)
     check(
-        "O7 is FAIL when the manifest names a card outside skills/",
+        "O7 is FAIL when a plugin names a card outside skills/",
         repo_cell(result.stdout, "O7") == "FAIL",
         result.stdout,
     )
@@ -1036,13 +1053,131 @@ def case_quarantine_card_in_the_manifest_is_red(root: Path) -> None:
     )
 
 
+def case_skill_path_leaving_its_plugin_is_red(root: Path) -> None:
+    """A path that climbs out of its plugin's source does not ship with it.
+
+    The install copies the source directory and nothing outside it, so a card
+    in another bucket named with `../` resolves in the repository and is absent
+    from the installed plugin. It must read as dangling, never as exposed.
+    """
+    make_tree(root)
+    write(root / "skills" / "meta" / "other-card" / "SKILL.md", "# other\n")
+    plant_plugin(root, card_paths(CARDS) + ["../meta/other-card"])
+    result = run_checker(root)
+    line = repo_line(result.stdout, "O7")
+    check(
+        "O7 is FAIL when a plugin names a card outside its own source",
+        repo_cell(result.stdout, "O7") == "FAIL",
+        line,
+    )
+    check(
+        "the out-of-plugin path is reported as dangling",
+        "no card at the path: ../meta/other-card" in line,
+        line,
+    )
+
+
+def case_absent_plugin_json_is_red(root: Path) -> None:
+    """An entry whose source holds no plugin.json exposes no cards. The report
+    names the entry, not only the cards it failed to carry."""
+    make_tree(root)
+    write(root / MANIFEST_PATH, marketplace_for(((PLUGIN_NAME, PLUGIN_SOURCE),)))
+    result = run_checker(root)
+    line = repo_line(result.stdout, "O7")
+    check(
+        "O7 is FAIL when a plugin entry's source has no plugin.json",
+        repo_cell(result.stdout, "O7") == "FAIL",
+        line,
+    )
+    check(
+        "the absent-plugin.json failure names the entry",
+        f"no {PLUGIN_MANIFEST_PATH} at its source: {PLUGIN_NAME}" in line,
+        line,
+    )
+
+
+def case_unreadable_plugin_json_is_red(root: Path) -> None:
+    for label, text in (
+        ("not JSON", '{"name": [ nope }\n'),
+        ("skills is a string", json.dumps({"name": PLUGIN_NAME, "skills": "x"})),
+    ):
+        make_tree(root)
+        write(root / MANIFEST_PATH, marketplace_for(((PLUGIN_NAME, PLUGIN_SOURCE),)))
+        write(root / PLUGIN_SOURCE / PLUGIN_MANIFEST_PATH, text)
+        result = run_checker(root)
+        line = repo_line(result.stdout, "O7")
+        check(
+            f"O7 is FAIL when the plugin.json is unreadable: {label}",
+            repo_cell(result.stdout, "O7") == "FAIL",
+            line,
+        )
+        check(
+            f"the unreadable-plugin.json failure says so: {label}",
+            "is unreadable: " + PLUGIN_NAME in line,
+            line,
+        )
+
+
+def case_plugin_name_mismatch_is_red(root: Path) -> None:
+    """The marketplace entry and the plugin.json name the same plugin twice.
+    When they disagree, the install and the listing name different things."""
+    make_tree(root)
+    plant_plugin(root, card_paths(CARDS), plugin_name="fixture-renamed")
+    result = run_checker(root)
+    line = repo_line(result.stdout, "O7")
+    check(
+        "O7 is FAIL when plugin.json names a different plugin than its entry",
+        repo_cell(result.stdout, "O7") == "FAIL",
+        line,
+    )
+    check(
+        "the name-mismatch failure names both spellings",
+        "name differs from the marketplace entry" in line
+        and PLUGIN_NAME in line
+        and "fixture-renamed" in line,
+        line,
+    )
+
+
+def case_source_escaping_the_root_is_red(root: Path) -> None:
+    """A source outside the repository is refused, even when a valid plugin
+    sits there. The repository sits one level down so the planted outside
+    plugin stays inside the temp directory."""
+    repo = root / "repo"
+    make_tree(repo)
+    write(
+        repo / MANIFEST_PATH,
+        marketplace_for(((PLUGIN_NAME, PLUGIN_SOURCE), ("fixture-outside", "../outside"))),
+    )
+    write(
+        repo / PLUGIN_SOURCE / PLUGIN_MANIFEST_PATH,
+        plugin_json_for(PLUGIN_NAME, card_paths(CARDS)),
+    )
+    write(
+        root / "outside" / PLUGIN_MANIFEST_PATH,
+        plugin_json_for("fixture-outside", []),
+    )
+    result = run_checker(repo)
+    line = repo_line(result.stdout, "O7")
+    check(
+        "O7 is FAIL when a plugin source escapes the repository root",
+        repo_cell(result.stdout, "O7") == "FAIL",
+        line,
+    )
+    check(
+        "the escaping-source failure names the entry and says why",
+        "escapes the repository root: fixture-outside (../outside)" in line,
+        line,
+    )
+
+
 def case_live_manifest_covers_the_live_tree() -> None:
     """The live assertion. A fixture-only proof would leave the shipped manifest
     unchecked, which is the state this obligation exists to end."""
     report = conformance.evaluate(REPO_ROOT)
     result = report.repo_wide["O7"]
     check(
-        "the shipped manifest covers the live published tree",
+        "the shipped manifests cover the live published tree",
         result.verdict == "PASS",
         f"{result.verdict}: {result.detail}",
     )
@@ -1183,6 +1318,11 @@ def main() -> None:
         case_parseable_but_wrong_shape_is_red,
         case_spelled_paths_are_not_reported_as_unpublished,
         case_wrong_depth_under_skills_is_red,
+        case_skill_path_leaving_its_plugin_is_red,
+        case_absent_plugin_json_is_red,
+        case_unreadable_plugin_json_is_red,
+        case_plugin_name_mismatch_is_red,
+        case_source_escaping_the_root_is_red,
     ]
     for func in isolated:
         with tempfile.TemporaryDirectory() as tmp:
