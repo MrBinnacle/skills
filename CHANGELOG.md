@@ -1,5 +1,9 @@
 # Changelog
 
+All notable changes to the collection. A release is a delivery event: changed cards reach
+installed users when a version is released, not on every merge to `main`. See
+[ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
+
 ## v3.0.0 - 2026-09-21
 
 ### Major Changes
@@ -21,10 +25,6 @@
   The disposition values are borrowed from the measurement instrument's ratified verdict enum rather than invented, so the board reads in the same terms as the instrument that judges the work.
 
 - [#301](https://github.com/MrBinnacle/skills/pull/301) [`6ce3608`](https://github.com/MrBinnacle/skills/commit/6ce360880c4cf452223a2986a1591ba5f7549b18) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The em dash ban the voice card stated on 2026-07-12 is now enforced. Two Taste rules vendored from skill-harness#530 at ba61b47: Dashes at warning across every tracked markdown file, and Dashes-readme at error on README.md, where the one prose em dash on the front page was recast as a sentence break. Vale counted 709 warning-level hits across the tree at vendoring; they stay warnings until a sweep lands.
-
-All notable changes to the collection. A release is a delivery event: changed cards reach
-installed users when a version is released, not on every merge to `main`. See
-[ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
 ## v2.0.0 - 2026-09-13
 
