@@ -1,0 +1,21 @@
+{
+  "name": "mrbinnacle-engineering",
+  "version": "2.0.0",
+  "description": "Workflow disciplines for shipping software: traps that survive review, and the checks that catch them.",
+  "author": {
+    "name": "MrBinnacle",
+    "url": "https://github.com/MrBinnacle"
+  },
+  "skills": [
+    "./clirunner-env",
+    "./closure-mode",
+    "./halt-as-deliverable",
+    "./im-down",
+    "./im-up",
+    "./mocked-stub",
+    "./pretooluse-prose",
+    "./pull-rebase",
+    "./stale-deploy",
+    "./vacuous-check"
+  ]
+}

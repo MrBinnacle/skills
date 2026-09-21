@@ -1,0 +1,14 @@
+{
+  "name": "mrbinnacle-orchestration",
+  "version": "2.0.0",
+  "description": "Disciplines for multi-agent work - dispatch, joinability, and synthesis across parallel agents.",
+  "author": {
+    "name": "MrBinnacle",
+    "url": "https://github.com/MrBinnacle"
+  },
+  "skills": [
+    "./decision-rights",
+    "./disposition-schema",
+    "./subagent-handback"
+  ]
+}
