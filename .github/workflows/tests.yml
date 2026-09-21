@@ -705,7 +705,7 @@ jobs:
             || { echo "::error::inline-quotation fixture failed for the wrong reason"; cat "$log"; exit 1; }
           echo "control: inline italic quotation rejected as expected"
 
-      # SECURITY.md's "Standing obligations" section (`conformance v2`) states what
+      # SECURITY.md's "Standing obligations" section (`conformance v3`) states what
       # a card owes for as long as it stays published. These steps are the check
       # behind that section. The weekly conformance-schedule.yml runs the same two
       # commands on a clock; this job runs them at merge time, where they are cheap.
@@ -725,7 +725,7 @@ jobs:
           set -euo pipefail
           out="$(python scripts/validate_conformance.py)" || { echo "$out"; exit 1; }
           echo "$out"
-          echo "$out" | grep -q '^PASS: conformance v2' \
+          echo "$out" | grep -q '^PASS: conformance v3' \
             || { echo "::error::conformance sweep emitted no PASS line - it did not run"; exit 1; }
 
       # A sweep that cannot fail guards nothing. This is the historical breach
