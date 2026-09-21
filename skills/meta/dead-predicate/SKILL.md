@@ -47,7 +47,7 @@ done
 Empty output on the suspect prompt means it did not fire — **but only if the control
 fired**. Empty is also what a crashed interpreter prints; a silent control means the harness
 is broken, not the predicate
-([`vacuous-check`](../../engineering/vacuous-check/SKILL.md)
+([`vacuous-check`](https://github.com/MrBinnacle/skills/blob/main/skills/engineering/vacuous-check/SKILL.md)
 → rule 4). Make `session_id` unique per probe — these routers dedupe per session, so a
 reused id makes a firing rule look silent.
 

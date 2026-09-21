@@ -1,0 +1,12 @@
+{
+  "name": "mrbinnacle-meta",
+  "version": "2.0.0",
+  "description": "Skills about the skill system itself: whether a skill should exist, and whether it can be reached.",
+  "author": {
+    "name": "MrBinnacle",
+    "url": "https://github.com/MrBinnacle"
+  },
+  "skills": [
+    "./dead-predicate"
+  ]
+}

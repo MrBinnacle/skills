@@ -82,14 +82,14 @@ them, and commitment 3 says exactly when they are fine.) Installing one:
 Review the diff of any update as you would a pull request — that is the intended trust
 mechanism, not a substitute for it.
 
-## Standing obligations — `conformance v2`
+## Standing obligations — `conformance v3`
 
 The commitments above are what this collection promises. This section is what a card owes for as
 long as it stays published, stated as the list a checker is written against, so that the prose
 and the check cannot drift apart quietly. Admission is a separate contract on a separate cadence:
 `ADMISSION.md` governs getting in, this section governs staying.
 
-**Version.** This edition is `conformance v2`, declared here and nowhere else. A material change
+**Version.** This edition is `conformance v3`, declared here and nowhere else. A material change
 to the obligations, or to what counts as meeting one, bumps the version. Editorial changes —
 wording, ordering, examples — do not.
 
@@ -120,9 +120,10 @@ reported as a pass.
   fix is citable, published receipts, and that work does not live in this repository.
 - **O6 — scoreboard lockstep.** The front-page counts stay derivable from the cards. Checked by
   `scripts/validate_scoreboard.py`.
-- **O7 — plugin manifest and published tree agree.** `.claude-plugin/marketplace.json` is the
-  machine-readable statement of what this collection ships. It must name every published card
-  exactly once, and every path it names must have a card at it. Both directions are checked,
+- **O7 — plugin manifest and published tree agree.** `.claude-plugin/marketplace.json` lists
+  each plugin and its source, and each source's `.claude-plugin/plugin.json` lists that plugin's
+  cards. Together they are the machine-readable statement of what this collection ships. They
+  must name every published card exactly once, and every path they name must have a card at it. Both directions are checked,
   because a one-directional check on the sibling occasions row let an undercount stay green
   until August 2026. An absent or unparseable manifest is `FAIL`, not `CANNOT-CHECK`: the file
   is this repository's own artifact, and without it the collection ships no install path.

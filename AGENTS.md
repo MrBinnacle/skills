@@ -98,8 +98,9 @@ files and makes the double-tracking impossible. It is never a filesystem link.
    delivery event — changed cards reach installed users when a version bump merges to
    `main`, not when a tag is pushed. There is no auto-release CI: the maintainer runs
    `npm run version` to roll pending changesets into a version bump and a `CHANGELOG.md`
-   update, then runs `python scripts/release_gate.py --write` to stamp every plugin
-   version from `package.json` and report release fitness. The gate lists every stale
+   update, then runs `python scripts/release_gate.py --write` to stamp every
+   `skills/<bucket>/.claude-plugin/plugin.json` version from `package.json` and report release
+   fitness. The gate lists every stale
    surface in one run rather than failing at the first. Commit the result and merge
    only when the gate is green. Release immutability is enabled on this repository, and
    a tag name cannot be reused once spent, so a botched release spends a version number
@@ -250,26 +251,44 @@ The top-level `README.md` must list every shipped skill under its bucket. Skills
 
 ## The plugin manifest is the machine-readable source of truth
 
-`.claude-plugin/marketplace.json` states what this collection ships, in the form Claude Code's own
-plugin mechanism reads. It groups the published cards **one plugin per bucket** — `engineering`,
-`orchestration`, `meta` — which makes the membership check a pure derivation from the tree with no
+What this collection ships is stated in two files per plugin, in the form Claude Code's own plugin
+mechanism reads. The published cards form **one plugin per bucket**: `engineering`,
+`orchestration`, `meta`. That makes the membership check a pure derivation from the tree with no
 judgement in it. Any other grouping needs a hand-maintained card-to-plugin mapping, which is a
 second census to keep in sync.
 
-**Two surfaces, two jobs, and the tie-break is fixed.** The manifest is the machine-readable
-statement; the bucket READMEs are the human-readable one. **Where they disagree, the manifest wins
-and the README is reconciled to it** — the manifest is what an installer executes, so a README that
-disagrees is a stale description of something already shipping.
+- **`.claude-plugin/marketplace.json` lists the plugins.** Each entry carries a `name`, a
+  `source` of `./skills/<bucket>`, and a `description`. Nothing else.
+- **`skills/<bucket>/.claude-plugin/plugin.json` states the plugin.** It carries the plugin's
+  `name` (equal to its marketplace entry's), its `version`, and its exact `skills` list as
+  `./<card>` paths relative to the bucket. The loader reads the name, version and skills from
+  here. Measured 2026-09-21: a root holding only the marketplace file exposed 0 skills and
+  reported version `unknown` (#314).
 
-`validate_conformance.py` obligation **O7** checks both directions on every run: a path the
-manifest names with no card at it, and a published card no plugin names. One direction is not
+A bucket is its own plugin root, so a bucket install carries that bucket's cards and nothing
+else. **Link to a card in another bucket by its GitHub URL**, never by a `../../<bucket>` path:
+the relative path dangles in the installed copy.
+
+**Two surfaces, two jobs, and the tie-break is fixed.** The manifests are the machine-readable
+statement; the bucket READMEs are the human-readable one. **Where they disagree, the manifests win
+and the README is reconciled to them** — the manifests are what an installer executes, so a
+README that disagrees is a stale description of something already shipping.
+
+`validate_conformance.py` obligation **O7** checks both directions on every run: a path a
+plugin.json names with no card at it, and a published card no plugin names. One direction is not
 enough, and this repository has the receipt — the occasions check ran forward-only and an
-undercount stayed green until August 2026. **A promotion or a retirement edits the manifest in the
-same commit as the `git mv`,** or O7 reds the pull request.
+undercount stayed green until August 2026. O7 also refuses a `source` that leaves the
+repository, a missing or unreadable `plugin.json`, and a `plugin.json` name that differs from its
+marketplace entry. **A promotion or a retirement edits the bucket's `plugin.json` in the same
+commit as the `git mv`,** or O7 reds the pull request.
 
-**Do not hand-type the `skills` arrays.** Derive them from `git ls-files 'skills/**/SKILL.md'`.
-A hand-typed path that is one character wrong is caught by O7, but a hand-typed list that is merely
-*stale* is the failure this section exists to prevent, and it is cheaper to never author it.
+`release_gate.py` check **G1** asserts every `plugin.json` `version` equals the `package.json`
+version, and `release_gate.py --write` stamps them. Never type a version by hand.
+
+**Derive each `skills` list; never hand-type it.** Take it from
+`git ls-files 'skills/<bucket>/*/SKILL.md'`. A hand-typed path that is one character wrong is
+caught by O7, but a hand-typed list that is merely *stale* is the failure this section exists to
+prevent, and it is cheaper to never author it.
 
 ## An issue you did not create
 

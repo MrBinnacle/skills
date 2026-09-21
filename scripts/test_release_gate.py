@@ -134,14 +134,14 @@ def git_repo_with_base(
     tree.
     """
     write(root / "package.json", package_json(base_version))
-    write(root / ".claude-plugin" / "marketplace.json", manifest_json([base_version]))
+    plant_manifests(root, [base_version])
     write(root / "CHANGELOG.md", changelog_md(base_version))
     git_init(root)
     git_commit(root, "base")
     subprocess.run(["git", "-C", str(root), "branch", "-f", "main"], check=True, capture_output=True)
     subprocess.run(["git", "-C", str(root), "checkout", "-q", "-b", "candidate"], check=True, capture_output=True)
     write(root / "package.json", package_json(head_version))
-    write(root / ".claude-plugin" / "marketplace.json", manifest_json([head_version]))
+    plant_manifests(root, [head_version])
     write(root / "CHANGELOG.md", changelog_md(head_version))
     if pending:
         write(root / ".changeset" / "zzz-pending.md", changeset_md(level="minor"))
@@ -173,31 +173,42 @@ def changelog_md(section_version: str, *, dated: bool = True) -> str:
     return f"# Changelog\n\nAll notable changes.\n\n## v{section_version}{date}\n\nShipped.\n"
 
 
-def manifest_json(versions: Sequence[str | None]) -> str:
-    """A manifest shaped like the shipped one, with one entry per version given.
+MANIFEST_PATH = Path(".claude-plugin") / "marketplace.json"
+PLUGIN_MANIFEST_PATH = Path(".claude-plugin") / "plugin.json"
 
-    ``None`` stamps an entry that declares no version at all -- the second
-    direction of drift.
+
+def plugin_source(index: int) -> str:
+    return f"./plugins/fixture-plugin-{index}"
+
+
+def plant_manifests(root: Path, versions: Sequence[str | None]) -> None:
+    """A marketplace shaped like the shipped one, one entry per version given.
+
+    Each entry names a plugin and its source, and the version lives in that
+    plugin's own plugin.json, where the loader reads it. ``None`` stamps a
+    plugin.json that declares no version at all -- the second direction of
+    drift.
     """
     plugins = []
     for i, version in enumerate(versions):
-        entry = {
-            "name": f"fixture-plugin-{i}",
-            "description": "fixture plugin",
-            "source": "./",
-            "strict": False,
-            "skills": [],
-        }
+        name = f"fixture-plugin-{i}"
+        plugins.append({"name": name, "source": plugin_source(i), "description": "fixture plugin"})
+        plugin: dict[str, object] = {"name": name, "description": "fixture plugin"}
         if version is not None:
-            entry["version"] = version
-        plugins.append(entry)
+            plugin["version"] = version
+        plugin["skills"] = []
+        write(root / plugin_source(i) / PLUGIN_MANIFEST_PATH, json.dumps(plugin, indent=2) + "\n")
     data = {
         "name": "fixture-skills",
         "owner": {"name": "fixture", "url": "https://example.invalid"},
         "metadata": {"description": "fixture"},
         "plugins": plugins,
     }
-    return json.dumps(data, indent=2) + "\n"
+    write(root / MANIFEST_PATH, json.dumps(data, indent=2) + "\n")
+
+
+def plugin_manifest(root: Path, index: int) -> Path:
+    return root / plugin_source(index) / PLUGIN_MANIFEST_PATH
 
 
 def seeded_tree(
@@ -206,10 +217,7 @@ def seeded_tree(
     """The conforming baseline: every declared version equals the package's,
     and the changelog carries a dated section for that version."""
     write(root / "package.json", package_json(package))
-    write(
-        root / ".claude-plugin" / "marketplace.json",
-        manifest_json([package] if versions is None else versions),
-    )
+    plant_manifests(root, [package] if versions is None else versions)
     write(root / "CHANGELOG.md", changelog_md(package))
     return root
 
@@ -251,6 +259,62 @@ def case_declared_but_different_version_is_refused() -> None:
         check(
             "the refusal names both values and the offending plugin",
             "9.9.9" in result.stdout and "1.2.0" in result.stdout and "fixture-plugin-0" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal names the plugin.json that holds the drifted value",
+            "plugins/fixture-plugin-0/.claude-plugin/plugin.json" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_marketplace_version_is_not_read() -> None:
+    """The marketplace entry no longer carries the version. A stale value left
+    there must not satisfy G1 while the plugin.json itself has drifted."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp), versions=["9.9.9"])
+        data = json.loads((root / MANIFEST_PATH).read_text("utf-8"))
+        data["plugins"][0]["version"] = "1.2.0"
+        write(root / MANIFEST_PATH, json.dumps(data, indent=2) + "\n")
+        result = run_gate("--root", str(root))
+        check(
+            "a matching marketplace version does not mask a drifted plugin.json",
+            result.returncode != 0 and "version drift" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_absent_plugin_json_fails_closed() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        plugin_manifest(root, 0).unlink()
+        result = run_gate("--root", str(root))
+        check(
+            "a plugin.json missing under its source is a failure, not a skip",
+            result.returncode != 0
+            and "plugins/fixture-plugin-0/.claude-plugin/plugin.json could not be read"
+            in result.stdout,
+            result.stdout,
+        )
+
+
+def case_source_escaping_the_root_fails_closed() -> None:
+    """A version read from outside the repository vouches for nothing here."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp) / "repo")
+        data = json.loads((root / MANIFEST_PATH).read_text("utf-8"))
+        data["plugins"][0]["source"] = "../outside"
+        write(root / MANIFEST_PATH, json.dumps(data, indent=2) + "\n")
+        write(
+            Path(tmp) / "outside" / PLUGIN_MANIFEST_PATH,
+            json.dumps({"name": "fixture-plugin-0", "version": "1.2.0"}) + "\n",
+        )
+        result = run_gate("--root", str(root))
+        check(
+            "a plugin source outside the repository is refused under G1",
+            result.returncode != 0
+            and "G1:" in result.stdout
+            and "escapes the repository root" in result.stdout,
             result.stdout,
         )
 
@@ -339,7 +403,7 @@ def case_versionless_package_fails_closed() -> None:
 def case_absent_manifest_fails_closed() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = seeded_tree(Path(tmp))
-        (root / ".claude-plugin" / "marketplace.json").unlink()
+        (root / MANIFEST_PATH).unlink()
         result = run_gate("--root", str(root))
         check(
             "an unreadable manifest is a failure, not a skip",
@@ -351,7 +415,7 @@ def case_absent_manifest_fails_closed() -> None:
 def case_unparseable_manifest_fails_closed() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = seeded_tree(Path(tmp))
-        write(root / ".claude-plugin" / "marketplace.json", '{"plugins": [}')
+        write(root / MANIFEST_PATH, '{"plugins": [}')
         result = run_gate("--root", str(root))
         check(
             "an unparseable manifest is a failure, not a skip",
@@ -375,7 +439,7 @@ def case_shape_broken_manifest_fails_closed() -> None:
     ):
         with tempfile.TemporaryDirectory() as tmp:
             root = seeded_tree(Path(tmp))
-            write(root / ".claude-plugin" / "marketplace.json", bad)
+            write(root / MANIFEST_PATH, bad)
             result = run_gate("--root", str(root))
             check(
                 f"a broken-shaped manifest ({why}) fails closed",
@@ -716,24 +780,33 @@ def skill_card(root: Path, name: str, *, description: str = "fixture card") -> P
 
 
 def manifest_with_skills(root: Path, cards: tuple[str, ...], version: str = "1.2.0") -> None:
-    """A manifest naming exactly the given cards, one plugin, in lockstep."""
-    entries = ",\n".join(f'"./skills/{SKILLS_BUCKET}/{c}"' for c in cards)
+    """One plugin rooted at the bucket, naming exactly the given cards, in lockstep."""
+    source = f"./skills/{SKILLS_BUCKET}"
     write(
-        root / ".claude-plugin" / "marketplace.json",
-        "{\n"
-        '  "name": "fixture-skills",\n'
-        '  "owner": {"name": "fixture", "url": "https://example.invalid"},\n'
-        '  "plugins": [\n'
-        "    {\n"
-        '      "name": "fixture-engineering",\n'
-        '      "description": "fixture",\n'
-        '      "source": "./",\n'
-        '      "strict": false,\n'
-        f'      "skills": [{entries}],\n'
-        f'      "version": "{version}"\n'
-        "    }\n"
-        "  ]\n"
-        "}\n",
+        root / MANIFEST_PATH,
+        json.dumps(
+            {
+                "name": "fixture-skills",
+                "owner": {"name": "fixture", "url": "https://example.invalid"},
+                "plugins": [
+                    {"name": "fixture-engineering", "source": source, "description": "fixture"}
+                ],
+            },
+            indent=2,
+        )
+        + "\n",
+    )
+    write(
+        root / source / PLUGIN_MANIFEST_PATH,
+        json.dumps(
+            {
+                "name": "fixture-engineering",
+                "version": version,
+                "skills": [f"./{c}" for c in cards],
+            },
+            indent=2,
+        )
+        + "\n",
     )
 
 
@@ -1413,8 +1486,10 @@ def case_write_derives_every_entry_from_the_package() -> None:
             result.returncode == 0,
             result.stdout + result.stderr,
         )
-        stamped = json.loads((Path(tmp) / ".claude-plugin" / "marketplace.json").read_text("utf-8"))
-        declared = {p["name"]: p.get("version") for p in stamped["plugins"]}
+        declared = {
+            i: json.loads(plugin_manifest(root, i).read_text("utf-8")).get("version")
+            for i in range(2)
+        }
         check(
             "--write derives EVERY entry's version from package.json",
             set(declared.values()) == {"1.2.0"},
@@ -1434,9 +1509,9 @@ def case_write_is_idempotent() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = seeded_tree(Path(tmp), versions=["0.0.1"])
         first = run_gate("--write", "--root", str(root))
-        once = (Path(tmp) / ".claude-plugin" / "marketplace.json").read_bytes()
+        once = plugin_manifest(root, 0).read_bytes()
         second = run_gate("--write", "--root", str(root))
-        twice = (Path(tmp) / ".claude-plugin" / "marketplace.json").read_bytes()
+        twice = plugin_manifest(root, 0).read_bytes()
         check(
             "--write is idempotent: a second run writes identical bytes",
             first.returncode == 0 and second.returncode == 0 and once == twice,
@@ -1445,26 +1520,34 @@ def case_write_is_idempotent() -> None:
 
 
 def case_write_fails_closed_on_unreadable_inputs() -> None:
-    for victim, why in (("package.json", "unreadable source"), ("marketplace.json", "unreadable target")):
+    victims = (
+        (Path("package.json"), "unreadable source"),
+        (MANIFEST_PATH, "unreadable marketplace"),
+        (Path(plugin_source(1)) / PLUGIN_MANIFEST_PATH, "unreadable target"),
+    )
+    for victim, why in victims:
         with tempfile.TemporaryDirectory() as tmp:
-            root = seeded_tree(Path(tmp))
-            if victim == "package.json":
-                (root / "package.json").unlink()
-            else:
-                (root / ".claude-plugin" / "marketplace.json").unlink()
+            root = seeded_tree(Path(tmp), versions=["0.0.1", "0.0.1"])
+            (root / victim).unlink()
             result = run_gate("--write", "--root", str(root))
             check(
                 f"--write fails closed on an {why}, writing nothing",
                 result.returncode != 0 and "RELEASE GATE: PASS" not in result.stdout,
                 result.stdout,
             )
+            if victim != MANIFEST_PATH:
+                check(
+                    f"--write stamped no plugin.json when one input was unreadable ({why})",
+                    '"version": "0.0.1"' in plugin_manifest(root, 0).read_text("utf-8"),
+                    plugin_manifest(root, 0).read_text("utf-8"),
+                )
 
 
 def case_live_tree_in_lockstep() -> None:
     """The shipped tree, checked exactly as a maintainer checks it: no
     arguments. This pins the acceptance criterion against the real artifact --
-    every live plugin entry declares a version, derived by --write from
-    package.json -- rather than only against fixtures built to pass."""
+    every live plugin's plugin.json declares a version, derived by --write
+    from package.json -- rather than only against fixtures built to pass."""
     result = run_gate()
     check(
         "the live tree passes the gate with no arguments",
@@ -1472,14 +1555,17 @@ def case_live_tree_in_lockstep() -> None:
         result.stdout + result.stderr,
     )
     package = json.loads((REPO_ROOT / "package.json").read_text(encoding="utf-8"))
-    manifest = json.loads(
-        (REPO_ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
-    )
+    manifest = json.loads((REPO_ROOT / MANIFEST_PATH).read_text(encoding="utf-8"))
     undeclared = [
-        p["name"] for p in manifest["plugins"] if p.get("version") != package["version"]
+        p["name"]
+        for p in manifest["plugins"]
+        if json.loads(
+            (REPO_ROOT / p["source"] / PLUGIN_MANIFEST_PATH).read_text(encoding="utf-8")
+        ).get("version")
+        != package["version"]
     ]
     check(
-        "every live plugin entry declares the package.json version",
+        "every live plugin's plugin.json declares the package.json version",
         not undeclared,
         f"entries not at {package['version']}: {undeclared}",
     )
@@ -1787,7 +1873,10 @@ def case_ci_control_refuses_a_manifest_disagreeing_with_the_tree() -> None:
     )
     check(
         "the G5 control plants a ghost card the tree does not publish",
-        "./skills/engineering/ghost-card" in step and "alpha-card/SKILL.md" in step,
+        '"source": "./skills/engineering"' in step
+        and '"./ghost-card"' in step
+        and "skills/engineering/.claude-plugin/plugin.json" in step
+        and "alpha-card/SKILL.md" in step,
         step,
     )
     check(
@@ -1981,6 +2070,9 @@ def main() -> None:
         case_declared_but_different_version_is_refused,
         case_missing_declaration_is_refused,
         case_every_failure_reported_in_one_run,
+        case_marketplace_version_is_not_read,
+        case_absent_plugin_json_fails_closed,
+        case_source_escaping_the_root_fails_closed,
         case_absent_package_fails_closed,
         case_unparseable_package_fails_closed,
         case_versionless_package_fails_closed,

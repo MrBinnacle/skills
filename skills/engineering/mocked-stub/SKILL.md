@@ -77,4 +77,4 @@ passed" is not evidence the guard works.
 
 When the return is reviewed by more than one isolated seat at once, give one seat this lens
 explicitly and none of the others, so the finding is attributable. The dispatch shape for that
-fan-out is [`disposition-schema`](../../orchestration/disposition-schema/SKILL.md).
+fan-out is [`disposition-schema`](https://github.com/MrBinnacle/skills/blob/main/skills/orchestration/disposition-schema/SKILL.md).

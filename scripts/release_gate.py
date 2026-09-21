@@ -3,9 +3,11 @@
 
 Why this exists: ADR 0002 (docs/adr/0002-a-release-is-a-delivery-event.md)
 made a version bump's merge the act of delivering changed cards to installed
-users, and obliged `.claude-plugin/marketplace.json` to carry a `version` on
-each plugin entry. That value is GENERATED from `package.json` and asserted
-equal by this script -- never typed twice. A hand-maintained second copy of a
+users, and obliged each plugin to carry a `version`. Since #314 that value
+lives in each plugin's own `.claude-plugin/plugin.json`, under the `source`
+its marketplace entry names, because the loader reads it there and reported
+`unknown` for a version held only in the marketplace. The value is GENERATED
+from `package.json` and asserted equal by this script -- never typed twice. A hand-maintained second copy of a
 derived value is the manual synchronisation this project has already ruled a
 maintenance tax rather than a safeguard.
 
@@ -15,12 +17,14 @@ and a control proving the refusal is real. Later checks join it as siblings.
 
 Checks (all must pass; failures are listed, not first-fail):
 
-  G1  Every plugin entry in .claude-plugin/marketplace.json declares exactly
-      the version package.json declares. Both directions are drift: a declared
-      value that differs, and a declaration missing entirely (the manifest
-      shipped in that second state before #149, with no wrong value anywhere).
-      Zero entries is its own refusal: a run that compared against nothing
-      checked nothing.
+  G1  Every plugin entry in .claude-plugin/marketplace.json resolves to a
+      <source>/.claude-plugin/plugin.json that declares exactly the version
+      package.json declares. Both directions are drift: a declared value that
+      differs, and a declaration missing entirely (the manifest shipped in
+      that second state before #149, with no wrong value anywhere). Zero
+      entries is its own refusal: a run that compared against nothing checked
+      nothing. A source that leaves the repository, or a plugin.json that
+      cannot be read, is a listed failure.
 
   G2  The full pending changeset set assembles into a release plan: every
       .changeset/*.md names a package the workspace contains. This is the
@@ -102,7 +106,7 @@ Mode detection (#153):
 
 Generation (--write) and verification live in this one module because they
 must agree about what the correct value is; two modules cannot. --write stamps
-every entry from package.json, then falls through to the same verification a
+every plugin.json from package.json, then falls through to the same verification a
 plain run performs, so what it produces is verified in the same process that
 produced it.
 
@@ -155,6 +159,8 @@ WORKFLOW_DIR_REL = ".github/workflows"
 # validate_conformance; the external spec validator is its own script run as a
 # subprocess below.
 import validate_conformance as conformance  # noqa: E402
+
+PLUGIN_MANIFEST_REL = conformance.PLUGIN_MANIFEST_REL
 
 
 class ManifestShapeError(ValueError):
@@ -216,7 +222,7 @@ def plugin_entries(data: object) -> list[dict]:
 
 
 def source_version(data: object) -> str:
-    """The single version every manifest entry must declare."""
+    """The single version every plugin.json must declare."""
     if not isinstance(data, dict):
         raise ManifestShapeError(f"top level is {type(data).__name__}, not an object")
     version = data.get("version")
@@ -703,60 +709,110 @@ def gate_clean_tree(root: Path, errors: list[str]) -> None:
         )
 
 
-def gate_manifest_version_lockstep(
-    root: Path,
-    errors: list[str],
-    declared: str | None,
-) -> str | None:
-    """G1: manifest entry versions and package.json agree, both directions.
+def plugin_manifest_paths(root: Path, errors: list[str]) -> list[tuple[str, Path]] | None:
+    """(plugin name, path of its plugin.json) for every marketplace entry.
 
-    `declared` comes from the shared package.json read; None means that read
-    already reported its fault and there is nothing to compare against. Reads
-    the manifest independently so one unreadable file still lets the other
-    side report everything wrong with itself; every finding lands in `errors`
-    because the gate reports EVERY failure in one run. Returns the declared
-    version, or None when nothing derivable was read.
+    The version lives in each plugin's own plugin.json under the entry's
+    `source`, because the loader reads it there: measured 2026-09-21, a root
+    holding only the marketplace reported version `unknown` (#314). The source
+    resolves through validate_conformance so G1 and O7 agree on where a plugin
+    lives. An entry with no local source, or one that leaves the repository,
+    is a listed failure. Returns None when the marketplace itself is unusable,
+    with the fault already listed.
     """
     manifest_data = read_json_or_report(root / MANIFEST_REL, MANIFEST_REL, errors)
     if manifest_data is None:
-        return declared
+        return None
     try:
         entries = plugin_entries(manifest_data)
     except ValueError as exc:
         errors.append(f"G1: {MANIFEST_REL} is not a readable manifest: {exc}")
-        return declared
-
+        return None
     if not entries:
         errors.append(
             f"G1: {MANIFEST_REL} declares no plugin entries - a run that "
             "checked nothing is not a pass"
         )
-        return declared
+        return None
 
+    targets: list[tuple[str, Path]] = []
     for index, entry in enumerate(entries):
-        name = entry.get("name", f"plugins[{index}]")
-        entry_version = entry.get("version")
-        if not isinstance(entry_version, str) or not entry_version.strip():
+        name = str(entry.get("name", f"plugins[{index}]"))
+        source = entry.get("source")
+        if not isinstance(source, str):
             errors.append(
-                f"G1: version drift - {MANIFEST_REL} plugin {name!r} declares "
+                f"G1: {MANIFEST_REL} plugin {name!r} names no local source - "
+                "there is no plugin.json to read its version from"
+            )
+            continue
+        plugin_dir = conformance.plugin_root(root, conformance.PluginEntry(name, source))
+        if plugin_dir is None:
+            errors.append(
+                f"G1: {MANIFEST_REL} plugin {name!r} source {source!r} escapes "
+                "the repository root"
+            )
+            continue
+        targets.append((name, plugin_dir / PLUGIN_MANIFEST_REL))
+    return targets
+
+
+def read_plugin_manifest_or_report(
+    root: Path, path: Path, errors: list[str]
+) -> dict | None:
+    """One plugin.json, fail-closed: unreadable or not an object is listed."""
+    label = path.relative_to(root).as_posix()
+    data = read_json_or_report(path, label, errors)
+    if data is not None and not isinstance(data, dict):
+        errors.append(
+            f"G1: {label} is not a readable manifest: top level is "
+            f"{type(data).__name__}, not an object"
+        )
+        return None
+    return data
+
+
+def gate_manifest_version_lockstep(
+    root: Path,
+    errors: list[str],
+    declared: str | None,
+) -> str | None:
+    """G1: every plugin.json version and package.json agree, both directions.
+
+    `declared` comes from the shared package.json read; None means that read
+    already reported its fault and there is nothing to compare against. Reads
+    the manifests independently so one unreadable file still lets the other
+    side report everything wrong with itself; every finding lands in `errors`
+    because the gate reports EVERY failure in one run. Returns the declared
+    version, or None when nothing derivable was read.
+    """
+    for name, path in plugin_manifest_paths(root, errors) or []:
+        data = read_plugin_manifest_or_report(root, path, errors)
+        if data is None:
+            continue
+        label = path.relative_to(root).as_posix()
+        plugin_version = data.get("version")
+        if not isinstance(plugin_version, str) or not plugin_version.strip():
+            errors.append(
+                f"G1: version drift - {label} plugin {name!r} declares "
                 "no version"
                 + (f" (package.json declares {declared})" if declared else "")
             )
-        elif declared is not None and entry_version != declared:
+        elif declared is not None and plugin_version != declared:
             errors.append(
-                f"G1: version drift - {MANIFEST_REL} plugin {name!r} declares "
-                f"{entry_version} but {PACKAGE_REL} declares {declared}"
+                f"G1: version drift - {label} plugin {name!r} declares "
+                f"{plugin_version} but {PACKAGE_REL} declares {declared}"
             )
     return declared
 
 
 def write_manifest_versions(root: Path, errors: list[str]) -> bool:
-    """--write: stamp every plugin entry with the package.json version.
+    """--write: stamp every plugin's plugin.json with the package.json version.
 
-    Returns True when the manifest on disk now derives from package.json.
+    Returns True when every plugin.json on disk now derives from package.json.
     Nothing is written unless every input read cleanly: a partial write would
     leave the surface half-generated, which is the state this gate exists to
-    refuse.
+    refuse. Files are written with LF endings, the endings git stores them
+    with, so a Windows run does not rewrite every line.
     """
     data = read_json_or_report(root / PACKAGE_REL, PACKAGE_REL, errors)
     if data is None:
@@ -767,36 +823,32 @@ def write_manifest_versions(root: Path, errors: list[str]) -> bool:
         errors.append(f"G1: {PACKAGE_REL} is not usable: {exc}")
         return False
 
-    path = root / MANIFEST_REL
-    manifest_data = read_json_or_report(path, MANIFEST_REL, errors)
-    if manifest_data is None:
+    targets = plugin_manifest_paths(root, errors)
+    if targets is None or errors:
         return False
-    try:
-        entries = plugin_entries(manifest_data)
-    except ValueError as exc:
-        errors.append(f"G1: {MANIFEST_REL} is not a readable manifest: {exc}")
-        return False
-    if not entries:
-        errors.append(
-            f"G1: {MANIFEST_REL} declares no plugin entries - a run that "
-            "checked nothing is not a pass"
-        )
+    plugins = [(path, read_plugin_manifest_or_report(root, path, errors)) for _, path in targets]
+    if errors:
         return False
 
-    stale = [entry for entry in entries if entry.get("version") != version]
+    stale = [(path, plugin) for path, plugin in plugins if plugin.get("version") != version]
     if not stale:
         print(
-            f"RELEASE GATE: WRITE - {MANIFEST_REL} already derives from "
-            f"{PACKAGE_REL}; no change written."
+            f"RELEASE GATE: WRITE - every {PLUGIN_MANIFEST_REL} already derives "
+            f"from {PACKAGE_REL}; no change written."
         )
         return True
 
-    for entry in entries:
-        entry["version"] = version
-    path.write_text(json.dumps(manifest_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    for path, plugin in stale:
+        plugin["version"] = version
+        path.write_text(
+            json.dumps(plugin, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
     print(
-        f"RELEASE GATE: WRITE - set version {version} on {len(stale)} "
-        f"plugin entry/entries in {MANIFEST_REL}."
+        f"RELEASE GATE: WRITE - set version {version} in {len(stale)} "
+        f"{PLUGIN_MANIFEST_REL} file(s): "
+        + ", ".join(path.relative_to(root).as_posix() for path, _ in stale)
     )
     return True
 
@@ -814,7 +866,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--write",
         action="store_true",
-        help=f"generate every {MANIFEST_REL} plugin version from {PACKAGE_REL}, then verify",
+        help=f"generate every plugin's {PLUGIN_MANIFEST_REL} version from {PACKAGE_REL}, then verify",
     )
     parser.add_argument(
         "--release",

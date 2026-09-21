@@ -10,44 +10,18 @@
   "plugins": [
     {
       "name": "mrbinnacle-engineering",
-      "description": "Workflow disciplines for shipping software: traps that survive review, and the checks that catch them.",
-      "source": "./",
-      "strict": false,
-      "skills": [
-        "./skills/engineering/clirunner-env",
-        "./skills/engineering/closure-mode",
-        "./skills/engineering/pull-rebase",
-        "./skills/engineering/stale-deploy",
-        "./skills/engineering/halt-as-deliverable",
-        "./skills/engineering/im-down",
-        "./skills/engineering/im-up",
-        "./skills/engineering/mocked-stub",
-        "./skills/engineering/pretooluse-prose",
-        "./skills/engineering/vacuous-check"
-      ],
-      "version": "2.0.0"
+      "source": "./skills/engineering",
+      "description": "Workflow disciplines for shipping software: traps that survive review, and the checks that catch them."
     },
     {
       "name": "mrbinnacle-orchestration",
-      "description": "Disciplines for multi-agent work - dispatch, joinability, and synthesis across parallel agents.",
-      "source": "./",
-      "strict": false,
-      "skills": [
-        "./skills/orchestration/decision-rights",
-        "./skills/orchestration/disposition-schema",
-        "./skills/orchestration/subagent-handback"
-      ],
-      "version": "2.0.0"
+      "source": "./skills/orchestration",
+      "description": "Disciplines for multi-agent work - dispatch, joinability, and synthesis across parallel agents."
     },
     {
       "name": "mrbinnacle-meta",
-      "description": "Skills about the skill system itself: whether a skill should exist, and whether it can be reached.",
-      "source": "./",
-      "strict": false,
-      "skills": [
-        "./skills/meta/dead-predicate"
-      ],
-      "version": "2.0.0"
+      "source": "./skills/meta",
+      "description": "Skills about the skill system itself: whether a skill should exist, and whether it can be reached."
     }
   ]
 }
