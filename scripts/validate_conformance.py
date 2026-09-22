@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the standing obligations (`conformance v3`) against the published tree.
+"""Run the standing obligations (`conformance v4`) against the published tree.
 
 SECURITY.md declares eight standing obligations a published card owes for as long
 as it stays published. This script is the driver behind that section. It reports
@@ -65,7 +65,7 @@ PASS: Final[str] = "PASS"
 FAIL: Final[str] = "FAIL"
 CANT: Final[str] = "CANNOT-CHECK"
 
-CONFORMANCE_VERSION: Final[str] = "conformance v3"
+CONFORMANCE_VERSION: Final[str] = "conformance v4"
 
 # The SECURITY.md section states this date as the trial's pre-registered exit.
 # It is asserted equal by the suite so the workflow header, the policy section
