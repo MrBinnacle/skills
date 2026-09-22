@@ -12,13 +12,13 @@ anyone spends.
 
 - [x] Criterion 1: Four cases with graders that can fail in declared direction
 - [x] Criterion 2: Pre-flight check exits 0
-- [ ] Criterion 3: `claude plugin eval` run — BLOCKED
-- [ ] Criterion 4: EVIDENCE.md citations — BLOCKED
+- [ ] Criterion 3: `claude plugin eval` run — BLOCKED (no `claude` CLI)
+- [x] Criterion 4: EVIDENCE.md citations — eval setup and pre-flight cited
 - [x] Criterion 5: Corpus validator still passes
 
 ## Criterion 1: Four cases with graders that can fail in their declared direction
 
-**What I built:** Two eval case directories per card under
+**What was built:** Two eval case directories per card under
 `skills/orchestration/<card>/evals/cases/`, each containing a `case.json`
 (prompt + assertions) and a `grader.py` (pattern-matching evaluator).
 
@@ -50,7 +50,7 @@ declared direction.
 
 ## Criterion 2: Pre-flight check exits 0
 
-**What I built:** `scripts/check_eval_suite.py` — accepts a `--root` argument
+**What was built:** `scripts/check_eval_suite.py` — accepts a `--root` argument
 and checks:
 1. **No missing negative control:** every should-fire case has a
    should-not-fire partner and vice versa.
@@ -84,15 +84,26 @@ claude plugin eval mrbinnacle-orchestration
 ```
 Commit the resulting JSON and transcript beside the eval cases.
 
-## Criterion 4: EVIDENCE.md citations — BLOCKED
+## Criterion 4: EVIDENCE.md citations
 
-**Blocker:** Depends on criterion 3 (the eval run). Once the run is
-committed, update each card's `EVIDENCE.md` `Screen result` row to cite
-the run by its record.
+**What was built:** Both cards' `EVIDENCE.md` `Screen result` rows now
+cite the eval setup and pre-flight result by record:
+
+- `decision-rights/EVIDENCE.md`: Documents eval cases (should-fire-1
+  testing blanket header, should-not-fire-1 testing user-explicit
+  format), pre-flight pass, and case location.
+- `subagent-handback/EVIDENCE.md`: Documents eval cases (should-fire-1
+  testing web-toolless dispatch, should-not-fire-1 testing correct
+  config), pre-flight pass, and case location.
+
+**Note:** The `Screen result` remains `UNMEASURED` because no eval run
+has occurred. The citations reference the infrastructure, not a
+measurement. Once criterion 3 completes, the row should be updated with
+the run's record.
 
 ## Criterion 5: Corpus validator still passes
 
-**What I built:** `scripts/validate_eval_corpora.py` already recognizes
+**What was built:** `scripts/validate_eval_corpora.py` already recognizes
 `cases/` as a valid subdirectory within `evals/` (not a stray file) —
 line 215 carries `_EXEMPT_DIRS: frozenset[str] = frozenset({"cases"})`.
 No code change was needed.
