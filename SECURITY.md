@@ -82,14 +82,14 @@ them, and commitment 3 says exactly when they are fine.) Installing one:
 Review the diff of any update as you would a pull request — that is the intended trust
 mechanism, not a substitute for it.
 
-## Standing obligations — `conformance v3`
+## Standing obligations — `conformance v4`
 
 The commitments above are what this collection promises. This section is what a card owes for as
 long as it stays published, stated as the list a checker is written against, so that the prose
 and the check cannot drift apart quietly. Admission is a separate contract on a separate cadence:
 `ADMISSION.md` governs getting in, this section governs staying.
 
-**Version.** This edition is `conformance v3`, declared here and nowhere else. A material change
+**Version.** This edition is `conformance v4`, declared here and nowhere else. A material change
 to the obligations, or to what counts as meeting one, bumps the version. Editorial changes —
 wording, ordering, examples — do not.
 
