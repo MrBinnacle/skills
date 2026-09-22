@@ -1,19 +1,27 @@
 ---
-max_turns: 10
-allowed_tools: [Read, Glob, Grep, Skill]
-tags: [should-fire, decision-rights]
-plugins: ["../.."]
 name: decision-rights-issue-bodies
-description: Writing an issue body for a downstream team with mixed evidence-sensitive and non-negotiable decisions
-expected_outcome: The response includes a framing block acknowledging evidence asymmetry, classifies decisions as revisable or non-negotiable, and attaches specific Revisit if clauses only where evidence can change the outcome.
+description: About to write issue bodies that instruct a downstream agent, with some decisions settled and others open. Seed case 3 of five from 2026-09-12.
+expected_outcome: The agent invokes mrbinnacle-orchestration:decision-rights. Description coverage is PARTIAL and this is pre-registered. The card names "handoffs, plans, ADRs, subagent prompts"; an issue body is not on that list, though it is the same artifact class. A miss here is evidence about the card's description, not about the model.
+tags: [seed, should-fire, mrbinnacle-orchestration, partial-coverage]
+plugins: ["../.."]
+allowed_tools: [Read, Glob, Grep, Skill, TodoWrite]
 ---
 
-I am drafting an issue body for the platform team to implement a new API gateway. The issue mixes decisions I made based on prior research with constraints the security team set. Please write the issue body with these decisions:
+I am writing up three pieces of work as issues. Another agent picks them up
+cold and implements them without me in the loop, so the issue body is the only
+thing it gets.
 
-1. We chose Envoy Proxy over NGINX based on a performance benchmark from last quarter. The benchmark tested throughput under load but did not test WebSocket upgrade latency, which matters for our real-time features.
-2. Rate limiting should use a token-bucket algorithm with a 1000 req/min default per API key. This was agreed with the product team.
-3. All API keys must be stored in Vault, not in environment variables. This is a hard security constraint from the security team.
-4. The migration should use a blue-green deployment pattern to avoid downtime. I chose this based on research into zero-downtime patterns.
-5. Logging should output structured JSON to stdout. This matches our existing observability stack.
+The three:
 
-Write the issue so the platform team knows which decisions they can challenge if their implementation context differs from mine.
+- Replace the hand-rolled CSV parser in the importer with a library.
+- Split the `Account` model, which currently carries both billing and auth.
+- Backfill the `last_seen_at` column, which is null for everyone created before
+  March.
+
+On the second one we already settled that billing moves out and auth stays, and
+I do not want that reopened. On the first one the library choice is genuinely
+open. On the third I am not sure whether a backfill or a lazy default is the
+right shape, and whoever picks it up will know more than I do once they have
+looked at the row counts.
+
+Draft the three issue bodies.

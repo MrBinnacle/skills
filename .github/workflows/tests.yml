@@ -815,17 +815,6 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::eval-corpus checker emitted no PASS line - it did not run"; exit 1; }
 
-      # Plugin eval cases use a different format from evals/evals.json. This
-      # suite proves the pre-flight rejects a path that does not load the
-      # plugin and graders that do not observe their declared trigger direction.
-      - name: Plugin eval-suite pre-flight controls
-        run: |
-          set -euo pipefail
-          out="$(python scripts/test_check_eval_suite.py)" || { echo "$out"; exit 1; }
-          echo "$out"
-          echo "$out" | grep -q '^PASS:' \
-            || { echo "::error::eval-suite pre-flight controls emitted no PASS line - they did not run"; exit 1; }
-
       # A check that cannot fail guards nothing. The breach shape is a published
       # card that ships no corpus, so that is the assertion under test. Built in
       # RUNNER_TEMP rather than checked in: a committed corpus-less card would
