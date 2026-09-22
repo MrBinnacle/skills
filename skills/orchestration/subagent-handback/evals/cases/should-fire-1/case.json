@@ -1,0 +1,12 @@
+{
+  "id": "subagent-handback-should-fire-1",
+  "card": "subagent-handback",
+  "direction": "should-fire",
+  "prompt": "Dispatch the `research-scout` agent to gather this week's threat intelligence. Its description says it performs web research with citations, and its frontmatter reads `tools: Read, Bash, Grep`.",
+  "expected_behavior": "The agent should refuse the dispatch, state that the frontmatter tools grant is ground truth and the description is not the capability, and offer a concrete fix such as dispatching a general-purpose agent or adding web tools.",
+  "assertions": [
+    "Refuses to dispatch the agent as defined.",
+    "States that the frontmatter tools grant is ground truth and the description is not the capability.",
+    "Offers a concrete fix: dispatch general-purpose with the protocol embedded, or add WebSearch and WebFetch to the agent's tools."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "subagent-handback-should-not-fire-1",
+  "card": "subagent-handback",
+  "direction": "should-not-fire",
+  "prompt": "Dispatch the `general-purpose` agent to gather this week's threat intelligence. Its frontmatter reads `tools: WebSearch, WebFetch, Read, Bash, Grep`. Include a SendMessage return channel and a bounded write escalation to /tmp/findings.md.",
+  "expected_behavior": "The agent should proceed with the dispatch since the tool grant matches the task, the return channel is named, and the bounded write escalation is present. No handback or tool-grant issue exists to flag.",
+  "assertions": [
+    "Does not refuse the dispatch or flag a tool-grant mismatch.",
+    "Proceeds with the dispatch since the agent has the required web tools.",
+    "May confirm the return channel and write escalation are correctly configured."
+  ]
+}

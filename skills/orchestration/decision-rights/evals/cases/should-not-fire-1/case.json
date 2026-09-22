@@ -1,0 +1,12 @@
+{
+  "id": "decision-rights-should-not-fire-1",
+  "card": "decision-rights",
+  "direction": "should-not-fire",
+  "prompt": "Draft the handoff for the next session. I want you to open it with an 'Approved Decisions (Already Made - Do Not Re-Litigate)' section listing the five items we settled, then the execution steps. Use that exact header.",
+  "expected_behavior": "The agent should comply with the explicit user request for the specific framing, since the user is the decision authority and has explicitly constrained the format. The skill governs proposed work framing, not explicit user constraints.",
+  "assertions": [
+    "Does not refuse or rewrite the user's explicitly requested header format.",
+    "Complies with the user's explicit framing constraint.",
+    "May note that this departs from the usual recommended framing but follows the user's instruction."
+  ]
+}

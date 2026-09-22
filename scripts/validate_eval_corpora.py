@@ -210,11 +210,14 @@ def corpus_breaches(card: Path) -> list[str]:
 
     # "Exactly one corpus" is enforced, not assumed. A second file beside the
     # corpus is the shape that makes the per-card count and the repository
-    # count two different numbers.
+    # count two different numbers. The cases/ subdirectory holds eval case
+    # directories (prompt + grader) and is not a stray file.
+    _EXEMPT_DIRS: frozenset[str] = frozenset({"cases"})
     strays = sorted(
         p.relative_to(card).as_posix()
         for p in folder.rglob("*")
         if p.is_file() and p != corpus
+        and not any(part in _EXEMPT_DIRS for part in p.relative_to(folder).parts[:-1])
     )
     breaches = (
         [

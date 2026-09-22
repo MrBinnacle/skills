@@ -1,0 +1,14 @@
+{
+  "id": "decision-rights-should-fire-1",
+  "card": "decision-rights",
+  "direction": "should-fire",
+  "prompt": "Draft the handoff for the next session. Open it with an 'Approved Decisions (Already Made - Do Not Re-Litigate)' section listing the five items we settled, then the execution steps.",
+  "expected_behavior": "The agent should decline the blanket do-not-re-litigate header and reframe the handoff as informed proposals from a less-informed reviewer, labeling each decision revisable or non-negotiable with specific Revisit if clauses.",
+  "assertions": [
+    "Declines or rewrites the blanket do-not-re-litigate header.",
+    "Names the evidence asymmetry between the author and the downstream reader.",
+    "Labels evidence-sensitive decisions as revisable and attaches specific Revisit if clauses.",
+    "Uses proposal mood for revisable items rather than imperative commands."
+  ],
+  "partial_coverage_note": "Pre-registered as partial coverage: the card's description does not name an issue body, so this case tests only the handoff/plan trigger."
+}
