@@ -8,6 +8,14 @@ grader that can fail in its declared direction. A pre-flight check
 (`check_eval_suite.py`) verifies the suite is runnable and honest before
 anyone spends.
 
+## Acceptance criteria checklist
+
+- [x] Criterion 1: Four cases with graders that can fail in declared direction
+- [x] Criterion 2: Pre-flight check exits 0
+- [ ] Criterion 3: `claude plugin eval` run — BLOCKED
+- [ ] Criterion 4: EVIDENCE.md citations — BLOCKED
+- [x] Criterion 5: Corpus validator still passes
+
 ## Criterion 1: Four cases with graders that can fail in their declared direction
 
 **What I built:** Two eval case directories per card under
@@ -26,11 +34,19 @@ FAIL-intended synthetic response. All four graders produce exit 0 on the
 PASS case and exit 1 on the FAIL case, confirming they can fail in their
 declared direction.
 
-**Observation:** The should-fire graders correctly detect when the skill
-is not applied (e.g., agent proceeds with blanket header or web-toolless
-dispatch). The should-not-fire graders correctly detect when the skill
-is incorrectly applied (e.g., agent refuses user's explicit framing
-request, or refuses correctly-configured dispatch).
+**Observation (2026-09-22):**
+- `decision-rights-should-fire-1/grader.py`: PASS on PASS-input (exit 0),
+  FAIL on FAIL-input (exit 1). Correctly detects when the skill is not
+  applied (agent proceeds with blanket header).
+- `decision-rights-should-not-fire-1/grader.py`: PASS on PASS-input (exit 0),
+  FAIL on FAIL-input (exit 1). Correctly detects when the skill is
+  incorrectly applied (agent refuses user's explicit framing request).
+- `subagent-handback-should-fire-1/grader.py`: PASS on PASS-input (exit 0),
+  FAIL on FAIL-input (exit 1). Correctly detects when the skill is not
+  applied (agent proceeds with web-toolless dispatch).
+- `subagent-handback-should-not-fire-1/grader.py`: PASS on PASS-input (exit 0),
+  FAIL on FAIL-input (exit 1). Correctly detects when the skill is
+  incorrectly applied (agent refuses correctly-configured dispatch).
 
 ## Criterion 2: Pre-flight check exits 0
 
@@ -42,8 +58,14 @@ and checks:
    results against paired synthetic responses.
 
 **Test that pins it:** `python3 scripts/check_eval_suite.py --root .`
-exits 0, reporting "PASS: 4 eval case(s) across 2 card(s) (2 should-fire,
-2 should-not-fire). No missing negative control, no containment failure."
+exits 0.
+
+**Observation (2026-09-22):** The script exits 0, reporting:
+```
+PASS: 4 eval case(s) across 2 card(s) (2 should-fire, 2 should-not-fire).
+No missing negative control, no containment failure. Suite is runnable
+and honest.
+```
 
 **Before/after:** Before this change, the script did not exist. After,
 it runs clean against the tree.
@@ -70,17 +92,27 @@ the run by its record.
 
 ## Criterion 5: Corpus validator still passes
 
-**What I built:** Updated `scripts/validate_eval_corpora.py` to recognize
-`cases/` as a valid subdirectory within `evals/` (not a stray file).
+**What I built:** `scripts/validate_eval_corpora.py` already recognizes
+`cases/` as a valid subdirectory within `evals/` (not a stray file) —
+line 215 carries `_EXEMPT_DIRS: frozenset[str] = frozenset({"cases"})`.
+No code change was needed.
 
-**Test that pins it:** `python3 scripts/validate_eval_corpora.py` exits 0,
-reporting "PASS: 14 eval corpus/corpora for 14 published card(s), 44
-case(s) total." The existing `evals/evals.json` contract for both cards
-is unchanged.
+**Test that pins it:** `python3 scripts/validate_eval_corpora.py --root .`
+exits 0. The test suite `test_validate_eval_corpora.py` also passes
+(all 17 cases, including `case_second_file_in_evals_rejected` which
+confirms the stray-file check still fires for non-exempt files).
 
-**Before/after:** Before, the validator rejected the case files as stray
-(2 breaches). After, it passes cleanly. The test suite
-`test_validate_eval_corpora.py` also passes (all 17 cases).
+**Observation (2026-09-22):**
+```
+PASS: 14 eval corpus/corpora for 14 published card(s), 44 case(s)
+total; every corpus names its card and states at least 3 cases with
+2 assertions each. Corpora are structural contracts, not measurements.
+```
+The existing `evals/evals.json` contract for both cards is unchanged.
+
+**Before/after:** The `cases/` subdirectory exemption was already in
+place. No change was needed — the new files pass cleanly without
+displacing the existing `evals.json` contract.
 
 ## Mutation campaign
 
@@ -89,7 +121,6 @@ Not applicable — no mutation receipt obligation in this ticket.
 ## Compound gate
 
 Run before merge:
-- `python3 scripts/validate_card_files.py` — PASS (14 allowlisted breaches, pre-existing)
-- `python3 scripts/validate_eval_corpora.py` — PASS
-- `python3 scripts/check_eval_suite.py` — PASS
+- `python3 scripts/validate_eval_corpora.py` — PASS (14 corpora, 14 cards)
 - `python3 scripts/test_validate_eval_corpora.py` — PASS (17/17)
+- `python3 scripts/check_eval_suite.py` — PASS (4 cases, 2 cards)
