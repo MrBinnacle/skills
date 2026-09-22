@@ -1053,6 +1053,53 @@ def case_quarantine_card_in_the_manifest_is_red(root: Path) -> None:
     )
 
 
+def case_quarantine_name_collision_is_red(root: Path) -> None:
+    """O8: a _quarantine/<name>/ matching a published card name is refused.
+
+    The poison control plants a directory in _quarantine/ whose name matches
+    one of the published cards, and asserts O8 reports FAIL.
+    """
+    make_tree(root)
+    write(root / "_quarantine" / CARDS[0] / "PROVENANCE.md", "# staged\n")
+    plant_plugin(root, card_paths(CARDS))
+    result = run_checker(root)
+    check(
+        "O8 is FAIL when a quarantine name matches a published card",
+        repo_cell(result.stdout, "O8") == "FAIL",
+        repo_line(result.stdout, "O8"),
+    )
+    check(
+        "the collision names the offending directory",
+        CARDS[0] in repo_line(result.stdout, "O8"),
+        repo_line(result.stdout, "O8"),
+    )
+
+
+def case_quarantine_no_collision_is_green(root: Path) -> None:
+    """O8: quarantine candidates with distinct names pass silently."""
+    make_tree(root)
+    write(root / "_quarantine" / "unique-candidate" / "PROVENANCE.md", "# staged\n")
+    plant_plugin(root, card_paths(CARDS))
+    result = run_checker(root)
+    check(
+        "O8 is PASS when quarantine names do not collide with published cards",
+        repo_cell(result.stdout, "O8") == "PASS",
+        repo_line(result.stdout, "O8"),
+    )
+
+
+def case_no_quarantine_dir_is_green(root: Path) -> None:
+    """O8: absence of _quarantine/ is a pass, not a refusal."""
+    make_tree(root)
+    plant_plugin(root, card_paths(CARDS))
+    result = run_checker(root)
+    check(
+        "O8 is PASS when no _quarantine/ directory exists",
+        repo_cell(result.stdout, "O8") == "PASS",
+        repo_line(result.stdout, "O8"),
+    )
+
+
 def case_skill_path_leaving_its_plugin_is_red(root: Path) -> None:
     """A path that climbs out of its plugin's source does not ship with it.
 
@@ -1315,6 +1362,9 @@ def main() -> None:
         case_malformed_manifest_is_red,
         case_duplicate_exposure_is_red,
         case_quarantine_card_in_the_manifest_is_red,
+        case_quarantine_name_collision_is_red,
+        case_quarantine_no_collision_is_green,
+        case_no_quarantine_dir_is_green,
         case_parseable_but_wrong_shape_is_red,
         case_spelled_paths_are_not_reported_as_unpublished,
         case_wrong_depth_under_skills_is_red,
