@@ -2,7 +2,7 @@
 max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 tags: [should-not-fire, subagent-handback]
-plugins: [".."]
+plugins: ["../.."]
 name: subagent-handback-celery-worker
 description: Setting up a Celery worker configuration for background task processing
 expected_outcome: The response describes standard worker configuration without any subagent dispatch, return channel naming, or verification patterns. The subagent-handback skill should not fire.

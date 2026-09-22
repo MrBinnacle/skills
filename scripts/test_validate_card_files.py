@@ -555,6 +555,26 @@ def case_plugin_root_is_not_a_card(root: Path) -> None:
     )
 
 
+def case_plugin_eval_directory_is_not_a_card(root: Path) -> None:
+    """Plugin-level evals sit beside cards but owe no card contract."""
+    write_card(root, "shipped-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    case = root / "skills" / "engineering" / "evals" / "fixture-case"
+    case.mkdir(parents=True)
+    (case / "prompt.md").write_text("fixture\n", encoding="utf-8")
+
+    result = run_checker(root)
+    check(
+        "a bucket's evals/ directory is not held to the card contract",
+        result.returncode == 0,
+        f"rc={result.returncode} err={result.stderr.strip()}",
+    )
+    check(
+        "the plugin eval directory is not counted as a published card",
+        "PASS: 1 published card(s)" in result.stdout,
+        result.stdout.strip(),
+    )
+
+
 def case_live_nine_cards_pass() -> None:
     result = run_checker(REPO_ROOT)
     check("the live tree passes", result.returncode == 0, result.stderr.strip())
@@ -1214,6 +1234,7 @@ def main() -> None:
         case_zero_cards_is_red,
         case_unpublished_buckets_owe_nothing,
         case_plugin_root_is_not_a_card,
+        case_plugin_eval_directory_is_not_a_card,
         case_skill_too_small_is_rejected,
         case_skill_too_large_is_rejected,
         case_skill_at_size_bounds_passes,

@@ -24,6 +24,7 @@ except ImportError:
 
 REQUIRED_PROMPT_KEYS = frozenset({"name", "description", "tags", "plugins"})
 GRADER_DIRS = "graders"
+CASE_TYPES = frozenset({"should-fire", "should-not-fire"})
 
 
 def parse_frontmatter(text: str) -> dict:
@@ -64,6 +65,67 @@ def find_cases(suite_root: Path) -> list[Path]:
     return cases
 
 
+def as_list(value: object) -> list[object]:
+    """Normalize a frontmatter scalar or sequence to a sequence."""
+    return [value] if isinstance(value, str) else value if isinstance(value, list) else []
+
+
+def target_skill(tags: list[object]) -> str | None:
+    """Return the one card tag paired with the case type."""
+    skills = [tag for tag in tags if isinstance(tag, str) and tag not in CASE_TYPES]
+    return skills[0] if len(skills) == 1 else None
+
+
+def is_plugin_root(path: Path) -> bool:
+    """A case plugin path must resolve to a directory Claude can load."""
+    return (path / ".claude-plugin" / "plugin.json").is_file() or (path / "plugin.json").is_file()
+
+
+def check_directional_graders(
+    case_dir: Path, tags: list[object], grader_frontmatters: list[dict]
+) -> list[str]:
+    """Require each case to observe its declared trigger direction."""
+    breaches = []
+    case_types = {tag for tag in tags if isinstance(tag, str) and tag in CASE_TYPES}
+    skill = target_skill(tags)
+    if len(case_types) != 1:
+        breaches.append(f"{case_dir.name}: tags must name exactly one case type")
+        return breaches
+    if skill is None:
+        breaches.append(f"{case_dir.name}: tags must name exactly one target skill")
+        return breaches
+
+    def invokes_skill(grader: dict) -> bool:
+        return (
+            grader.get("type") == "tool_used"
+            and grader.get("tool") == "Skill"
+            and skill in str(grader.get("input_match", ""))
+        )
+
+    if "should-fire" in case_types:
+        if not any(grader.get("type") == "llm" for grader in grader_frontmatters):
+            breaches.append(f"{case_dir.name}: should-fire case needs an llm outcome grader")
+        if not any(invokes_skill(grader) for grader in grader_frontmatters):
+            breaches.append(
+                f"{case_dir.name}: should-fire case needs a Skill invocation grader for '{skill}'"
+            )
+    else:
+        containment_grader = any(
+            invokes_skill(grader)
+            and grader.get("min") == 0
+            and grader.get("max") == 0
+            and grader.get("arm") == "both"
+            for grader in grader_frontmatters
+        )
+        if not containment_grader:
+            breaches.append(
+                f"{case_dir.name}: should-not-fire case needs a both-arm Skill containment grader for '{skill}'"
+            )
+        if not any(grader.get("type") == "llm" for grader in grader_frontmatters):
+            breaches.append(f"{case_dir.name}: should-not-fire case needs an llm outcome grader")
+    return breaches
+
+
 def check_case(case_dir: Path) -> list[str]:
     """Check a single case directory for structural correctness."""
     breaches = []
@@ -74,17 +136,18 @@ def check_case(case_dir: Path) -> list[str]:
         if key not in fm:
             breaches.append(f"{case_dir.name}: prompt.md missing frontmatter key '{key}'")
 
-    tags = fm.get("tags", [])
-    if isinstance(tags, str):
-        tags = [tags]
-    if not any(t in ("should-fire", "should-not-fire") for t in tags):
+    tags = as_list(fm.get("tags", []))
+    if not any(tag in CASE_TYPES for tag in tags):
         breaches.append(f"{case_dir.name}: tags must include 'should-fire' or 'should-not-fire'")
 
-    plugins = fm.get("plugins", [])
-    if isinstance(plugins, str):
-        plugins = [plugins]
+    plugins = as_list(fm.get("plugins", []))
     if not plugins:
         breaches.append(f"{case_dir.name}: no plugins path specified")
+    for plugin in plugins:
+        if not isinstance(plugin, str) or not plugin:
+            breaches.append(f"{case_dir.name}: plugins entries must be non-empty relative paths")
+        elif Path(plugin).is_absolute() or not is_plugin_root(case_dir / plugin):
+            breaches.append(f"{case_dir.name}: plugin path '{plugin}' does not resolve to a plugin root")
 
     graders_dir = case_dir / GRADER_DIRS
     if not graders_dir.is_dir():
@@ -93,6 +156,11 @@ def check_case(case_dir: Path) -> list[str]:
         grader_files = list(graders_dir.glob("*.md"))
         if not grader_files:
             breaches.append(f"{case_dir.name}: graders/ directory is empty")
+        else:
+            grader_frontmatters = [
+                parse_frontmatter(path.read_text(encoding="utf-8")) for path in grader_files
+            ]
+            breaches.extend(check_directional_graders(case_dir, tags, grader_frontmatters))
 
     return breaches
 
@@ -105,40 +173,25 @@ def check_negative_controls(cases: list[Path]) -> list[str]:
 
     for case in cases:
         fm = parse_frontmatter((case / "prompt.md").read_text(encoding="utf-8"))
-        tags = fm.get("tags", [])
-        if isinstance(tags, str):
-            tags = [tags]
+        tags = as_list(fm.get("tags", []))
         if "should-fire" in tags:
             fire_cases.append(case)
         elif "should-not-fire" in tags:
             no_fire_cases.append(case)
 
-    # Group by skill: extract skill name from the case name by removing known suffixes
-    KNOWN_SUFFIXES = {
-        "issue-bodies", "dispatch", "celery-worker", "near-miss",
-        "web-research", "false-citation", "empty-handback",
-    }
-
-    def skill_from_case_name(name: str) -> str:
-        parts = name.split("-")
-        for i in range(len(parts)):
-            for suffix in KNOWN_SUFFIXES:
-                suffix_parts = suffix.split("-")
-                if parts[i : i + len(suffix_parts)] == suffix_parts:
-                    return "-".join(parts[:i])
-        return name
-
     fire_skills = set()
     for case in fire_cases:
         fm = parse_frontmatter((case / "prompt.md").read_text(encoding="utf-8"))
-        name = fm.get("name", case.name)
-        fire_skills.add(skill_from_case_name(name))
+        skill = target_skill(as_list(fm.get("tags", [])))
+        if skill:
+            fire_skills.add(skill)
 
     no_fire_skills = set()
     for case in no_fire_cases:
         fm = parse_frontmatter((case / "prompt.md").read_text(encoding="utf-8"))
-        name = fm.get("name", case.name)
-        no_fire_skills.add(skill_from_case_name(name))
+        skill = target_skill(as_list(fm.get("tags", [])))
+        if skill:
+            no_fire_skills.add(skill)
 
     missing = fire_skills - no_fire_skills
     for skill in sorted(missing):

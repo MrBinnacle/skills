@@ -7,7 +7,7 @@ should-not-fire, each with graders that can fail in its declared direction. The 
 live at the plugin root (`skills/orchestration/evals/`) so `claude plugin eval .` finds
 them with no staging. The per-card `evals/evals.json` contracts are untouched.
 
-Also includes `scripts/check_eval_suite.py`, the pre-flight from `skills_research`, which
+Also includes `scripts/check_eval_suite.py`, the research pre-flight, which
 verifies the suite can fail in both directions before anyone spends model calls.
 
 ## Acceptance criteria
@@ -18,27 +18,30 @@ verifies the suite can fail in both directions before anyone spends model calls.
 
 | Case | Type | Skill | Graders |
 |------|------|-------|---------|
-| `decision-rights-issue-bodies` | should-fire | decision-rights | `skill-fires.md` (LLM: checks framing block, evidence asymmetry, decision classification) |
+| `decision-rights-issue-bodies` | should-fire | decision-rights | `skill-fires.md` (LLM: checks framing block, evidence asymmetry, decision classification), `skill-fired.md` (tool_used: Skill invocation) |
 | `decision-rights-near-miss` | should-not-fire | decision-rights | `skill-does-not-fire.md` (tool_used: Skill min=0 max=0), `answered-the-question.md` (LLM: checks no formal framing) |
-| `subagent-handback-dispatch` | should-fire | subagent-handback | `skill-fires.md` (LLM: checks tool-grant detection, return channel naming) |
+| `subagent-handback-dispatch` | should-fire | subagent-handback | `skill-fires.md` (LLM: checks tool-grant detection, two return routes, bounded file write), `skill-fired.md` (tool_used: Skill invocation) |
 | `subagent-handback-celery-worker` | should-not-fire | subagent-handback | `skill-does-not-fire.md` (tool_used: Skill min=0 max=0), `answered-the-question.md` (LLM: checks no subagent patterns) |
 
 Each should-fire case has one LLM grader weighted at 2 that checks the skill's core
-discipline. Each should-not-fire case has a `tool_used` grader (arm: both, min: 0, max: 0)
-proving the skill was not invoked, plus an LLM grader checking the output lacks the skill's
-signature patterns.
+discipline and a `tool_used` grader proving the target skill was invoked. Each should-not-fire
+case has a `tool_used` grader (arm: both, min: 0, max: 0) proving the skill was not invoked,
+plus an LLM grader checking the output lacks the skill's signature patterns.
 
 **Test:** `python scripts/check_eval_suite.py skills/orchestration/evals` exits 0.
 
 **Before/after:** Before this change, no eval cases existed for either card. After, the
 pre-flight reports 4 cases with no missing negative control and no containment failure.
 
-### Criterion 2: skills_research pre-flight exits 0
+### Criterion 2: Eval-suite pre-flight exits 0
 
 **Built:** `scripts/check_eval_suite.py` accepts a suite root as an argument and checks:
 - Every case has `prompt.md` with required frontmatter (name, description, tags, plugins)
 - Tags include `should-fire` or `should-not-fire`
 - Graders directory exists with at least one `.md` file
+- Every case's plugin path resolves to a plugin root
+- Every should-fire case has LLM outcome and target-Skill invocation graders
+- Every should-not-fire case has LLM outcome and both-arm target-Skill containment graders
 - Every should-fire case has a should-not-fire partner (no missing negative control)
 
 **Test:** `python scripts/check_eval_suite.py skills/orchestration/evals` prints:
@@ -108,15 +111,18 @@ PASS: card-file conformance suite, all cases correct
 |------|--------|
 | `skills/orchestration/evals/decision-rights-issue-bodies/prompt.md` | New: should-fire case for decision-rights |
 | `skills/orchestration/evals/decision-rights-issue-bodies/graders/skill-fires.md` | New: LLM grader checking framing discipline |
+| `skills/orchestration/evals/decision-rights-issue-bodies/graders/skill-fired.md` | New: tool_used grader checking decision-rights invocation |
 | `skills/orchestration/evals/decision-rights-near-miss/prompt.md` | New: should-not-fire case for decision-rights |
 | `skills/orchestration/evals/decision-rights-near-miss/graders/skill-does-not-fire.md` | New: tool_used grader (min=0, max=0) |
 | `skills/orchestration/evals/decision-rights-near-miss/graders/answered-the-question.md` | New: LLM grader checking no formal framing |
 | `skills/orchestration/evals/subagent-handback-dispatch/prompt.md` | New: should-fire case for subagent-handback |
 | `skills/orchestration/evals/subagent-handback-dispatch/graders/skill-fires.md` | New: LLM grader checking tool-grant detection |
+| `skills/orchestration/evals/subagent-handback-dispatch/graders/skill-fired.md` | New: tool_used grader checking subagent-handback invocation |
 | `skills/orchestration/evals/subagent-handback-celery-worker/prompt.md` | New: should-not-fire case for subagent-handback |
 | `skills/orchestration/evals/subagent-handback-celery-worker/graders/skill-does-not-fire.md` | New: tool_used grader (min=0, max=0) |
 | `skills/orchestration/evals/subagent-handback-celery-worker/graders/answered-the-question.md` | New: LLM grader checking no subagent patterns |
 | `skills/orchestration/decision-rights/EVIDENCE.md` | Updated: Paired verdict row cites cases directory |
 | `skills/orchestration/subagent-handback/EVIDENCE.md` | Updated: Paired verdict row cites cases directory |
 | `scripts/check_eval_suite.py` | New: pre-flight checker for eval suites |
+| `scripts/test_check_eval_suite.py` | New: pre-flight controls for plugin paths and trigger-direction graders |
 | `scripts/validate_card_files.py` | Updated: `find_cards` excludes `evals/` at card depth |

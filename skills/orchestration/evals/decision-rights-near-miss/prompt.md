@@ -2,7 +2,7 @@
 max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 tags: [should-not-fire, decision-rights]
-plugins: [".."]
+plugins: ["../.."]
 name: decision-rights-near-miss
 description: Writing personal working notes for own later reference with no downstream reader
 expected_outcome: The response is straightforward notes without formal framing blocks, evidence-asymmetry language, or decision classification. The decision-rights skill should not fire because there is no downstream reader.

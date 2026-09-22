@@ -2,7 +2,7 @@
 max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 tags: [should-fire, subagent-handback]
-plugins: [".."]
+plugins: ["../.."]
 name: subagent-handback-dispatch
 description: Dispatching a web research subagent for threat intelligence gathering
 expected_outcome: The response names explicit return channels (SendMessage + file path), verifies the agent's tool grant matches the task, and includes a bounded write escalation for the file route.

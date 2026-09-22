@@ -2,7 +2,7 @@
 max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 tags: [should-fire, decision-rights]
-plugins: [".."]
+plugins: ["../.."]
 name: decision-rights-issue-bodies
 description: Writing an issue body for a downstream team with mixed evidence-sensitive and non-negotiable decisions
 expected_outcome: The response includes a framing block acknowledging evidence asymmetry, classifies decisions as revisable or non-negotiable, and attaches specific Revisit if clauses only where evidence can change the outcome.
