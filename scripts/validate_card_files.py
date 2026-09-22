@@ -205,6 +205,8 @@ def find_cards(root: Path) -> list[Path]:
     A dot-named directory at card depth is not a card. Each bucket is its own
     plugin root and carries `.claude-plugin/plugin.json` beside its cards
     (#314); reading that as a card demanded EVIDENCE.md of a manifest folder.
+    An `evals` directory at card depth is a plugin-level eval suite, not a
+    card (#315).
     """
     skills = root / "skills"
     if not skills.is_dir():
@@ -216,7 +218,9 @@ def find_cards(root: Path) -> list[Path]:
         and not bucket.name.startswith(".")
         and bucket.name not in scoreboard.UNSHIPPED_BUCKETS
         for card in bucket.iterdir()
-        if card.is_dir() and not card.name.startswith(".")
+        if card.is_dir()
+        and not card.name.startswith(".")
+        and card.name != "evals"
     )
 
 
