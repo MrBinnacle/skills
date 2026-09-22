@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the standing obligations (`conformance v3`) against the published tree.
 
-SECURITY.md declares seven standing obligations a published card owes for as long
+SECURITY.md declares eight standing obligations a published card owes for as long
 as it stays published. This script is the driver behind that section. It reports
 PASS / FAIL / CANNOT-CHECK per card per obligation, and CANNOT-CHECK is a
 distinct reported state -- never folded into PASS. An obligation the collection
@@ -32,7 +32,8 @@ WHAT IS DELEGATED, AND WHY
 
 SCOPE: CARD VS REPO
     Four obligations are properties of one card and are scored per card.
-    Three -- O1's walk, O6's scoreboard and O7's manifest -- are repo-wide
+    Four -- O1's walk, O6's scoreboard, O7's manifest and O8's quarantine
+    collision check -- are repo-wide
     predicates whose subject is the tree. They are evaluated ONCE and reported
     in their own block. Copying a single repo verdict into fifteen identical
     cells would multiply one finding by the card count and make the totals lie
@@ -92,6 +93,7 @@ OBLIGATIONS: Final[tuple[Obligation, ...]] = (
     Obligation("O5", "controlled fields do not contradict a published receipt", CARD),
     Obligation("O6", "scoreboard lockstep", REPO),
     Obligation("O7", "plugin manifest and published tree agree", REPO),
+    Obligation("O8", "no quarantine-published name collision", REPO),
 )
 
 CARD_OBLIGATIONS: Final[tuple[Obligation, ...]] = tuple(
@@ -767,10 +769,42 @@ def manifest_breaches(reading: ManifestReading, published: list[str]) -> list[st
     return [label + ", ".join(items) for label, items in labelled if items]
 
 
+QUARANTINE_DIR: Final[str] = "_quarantine"
+
+
+def check_quarantine_no_name_collision(root: Path) -> Result:
+    """O8: no _quarantine/<name>/ directory shares its name with a published card.
+
+    A collision means a promotion (git mv from _quarantine/ to skills/) would
+    overwrite or merge into an existing published card. Nothing in the current
+    gate set refuses it, so this check must.
+    """
+    quarantine = root / QUARANTINE_DIR
+    if not quarantine.is_dir():
+        return Result(PASS, "no _quarantine/ directory present")
+    published = {c.name for c in find_cards(root)}
+    quarantine_names = {
+        d.name for d in quarantine.iterdir() if d.is_dir()
+    }
+    collisions = sorted(published & quarantine_names)
+    if collisions:
+        return Result(
+            FAIL,
+            f"_quarantine/ name(s) collide with published card(s): "
+            + ", ".join(collisions),
+        )
+    return Result(
+        PASS,
+        f"{len(published)} published card(s), {len(quarantine_names)} quarantine "
+        "candidate(s), no name collision",
+    )
+
+
 REPO_CHECKS = {
     "O1": check_declared_formats,
     "O6": check_scoreboard_lockstep,
     "O7": check_plugin_manifest,
+    "O8": check_quarantine_no_name_collision,
 }
 
 

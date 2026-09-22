@@ -93,7 +93,7 @@ and the check cannot drift apart quietly. Admission is a separate contract on a 
 to the obligations, or to what counts as meeting one, bumps the version. Editorial changes —
 wording, ordering, examples — do not.
 
-**Machine-checked.** `scripts/validate_conformance.py` runs these seven over the published tree and
+**Machine-checked.** `scripts/validate_conformance.py` runs these eight over the published tree and
 reports `PASS`, `FAIL` or `CANNOT-CHECK` per card. `CANNOT-CHECK` is a separate count and is never
 reported as a pass.
 
@@ -127,6 +127,9 @@ reported as a pass.
   because a one-directional check on the sibling occasions row let an undercount stay green
   until August 2026. An absent or unparseable manifest is `FAIL`, not `CANNOT-CHECK`: the file
   is this repository's own artifact, and without it the collection ships no install path.
+- **O8 — no quarantine-published name collision.** No `_quarantine/<name>/` directory shares its
+  `<name>` with a published card's directory name. A collision means a promotion would overwrite
+  or merge into an existing published card, and nothing in the current gate set refuses it.
 
 **Attested, not checked.** Two commitments are honest obligations that no repository check can
 decide, and are listed here rather than left to look machine-checked:
