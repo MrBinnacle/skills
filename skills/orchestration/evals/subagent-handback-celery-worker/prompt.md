@@ -8,7 +8,7 @@ description: Setting up a Celery worker configuration for background task proces
 expected_outcome: The response describes standard worker configuration without any subagent dispatch, return channel naming, or verification patterns. The subagent-handback skill should not fire.
 ---
 
-I need to set up a Celery worker configuration for our Django application. The worker should process background tasks like sending emails, generating reports, and syncing data with third-party APIs. 
+I need to set up a Celery worker configuration for our Django application. The worker should process background tasks like sending emails, generating reports, and syncing data with third-party APIs.
 
 Configure the worker with:
 - 4 concurrent worker processes
