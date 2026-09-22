@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the standing obligations (`conformance v3`) against the published tree.
 
-SECURITY.md declares seven standing obligations a published card owes for as long
+SECURITY.md declares eight standing obligations a published card owes for as long
 as it stays published. This script is the driver behind that section. It reports
 PASS / FAIL / CANNOT-CHECK per card per obligation, and CANNOT-CHECK is a
 distinct reported state -- never folded into PASS. An obligation the collection
@@ -32,7 +32,8 @@ WHAT IS DELEGATED, AND WHY
 
 SCOPE: CARD VS REPO
     Four obligations are properties of one card and are scored per card.
-    Three -- O1's walk, O6's scoreboard and O7's manifest -- are repo-wide
+    Four -- O1's walk, O6's scoreboard, O7's manifest and O8's quarantine
+    collision check -- are repo-wide
     predicates whose subject is the tree. They are evaluated ONCE and reported
     in their own block. Copying a single repo verdict into fifteen identical
     cells would multiply one finding by the card count and make the totals lie

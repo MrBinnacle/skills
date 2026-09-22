@@ -1325,6 +1325,11 @@ def case_live_tree_is_checked_and_conforms() -> None:
         "PASS: conformance v3" in result.stdout,
         result.stdout,
     )
+    check(
+        "the live tree has no quarantine-published name collision",
+        repo_cell(result.stdout, "O8") == "PASS",
+        repo_line(result.stdout, "O8"),
+    )
     report = conformance.evaluate(REPO_ROOT)
     check(
         "every published card was actually walked",
