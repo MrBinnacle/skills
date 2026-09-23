@@ -459,6 +459,26 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::README admission-lead suite emitted no PASS line - it did not run"; exit 1; }
 
+      # The standing-cost check: each card's EVIDENCE.md states a calibrated
+      # token count for its description; this verifies it matches the
+      # skill-harness audit (or the committed standing-costs.json when
+      # skill-harness is unavailable).
+      - name: Standing-cost suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_standing_costs.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^All' \
+            || { echo "::error::standing-cost suite emitted no pass line - it did not run"; exit 1; }
+
+      - name: Standing-cost check
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_standing_costs.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::standing-cost check emitted no PASS line - it did not run"; exit 1; }
+
       # The release-model disclosure (ADR 0002): the changelog preamble states
       # the delivery model and the README's Install section states the declared
       # surface, with no count on either. PYTHONUTF8 for the same reason as the
