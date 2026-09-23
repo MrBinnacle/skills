@@ -18,7 +18,7 @@ Claude Code skills for mistakes that report success. Each one comes from a failu
 
 The other plugins are `mrbinnacle-orchestration` and `mrbinnacle-meta`. Or install everything with `npx skills add MrBinnacle/skills`.
 
-Each skill adds one line, about 45 to 65 tokens, to every session. The rest loads only when it is used. The three marked "by hand" cost nothing until you run them.
+Each skill adds one line to every session: about 45 to 65 tokens, measured by `skill-harness skill audit` on 2026-09-22. The rest loads only when it is used. The three marked "by hand" cost nothing until you run them.
 
 ## What's in it
 

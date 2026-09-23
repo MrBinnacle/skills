@@ -2,6 +2,28 @@
 
 The checked detail behind the [README](README.md): how cards are admitted, what form each takes, and what each card's own `EVIDENCE.md` says. CI checks the tables here against the cards and fails on any disagreement.
 
+## About the collection
+
+A skill card is a Markdown file that Claude Code loads as instructions. This repository publishes
+cards in three groups: `engineering`, `orchestration`, and `meta`. The
+[card evidence](#card-evidence) table below names every published card, and CI checks that table
+against the cards themselves and fails on any disagreement, so it is where to read what ships today.
+
+An installed card's `description` is read at startup whether or not the card ever fires, so
+breadth you never use is still paid for on every turn. Both install routes copy files onto your
+machine and start nothing: there is no build step, no package to import, and no service to run.
+Most of what lands is Markdown. Every card also ships an `evals/evals.json`, and the `im-down`
+and `im-up` cards ship the Python scripts their own procedures call. Those scripts run only
+when you run them.
+
+No card here has evidence that it helps. Where a card carries a controlled result, that result is
+`CANT_TELL_YET`. Most carry a dated record of the failure that produced them and no screen, and
+some carry neither. Which card is in which state comes from the cards' own `EVIDENCE.md` records,
+and the [card evidence](#card-evidence) table marks it card by card rather than tallying it. What
+every card does carry is a pre-registered retirement trigger: the specific change that would
+remove the failure the card addresses, named in advance. Membership is governed by the
+[admission policy](ADMISSION.md).
+
 ## Admission method
 
 The [admission policy](ADMISSION.md) governs membership. It asks four questions: whether an
