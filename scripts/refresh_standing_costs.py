@@ -82,7 +82,11 @@ def refresh(root: Path) -> None:
     for skill_dir in cards:
         card = skill_dir.name
         skill_md = skill_dir / "SKILL.md"
-        sha = hashlib.sha256(skill_md.read_bytes()).hexdigest()
+        # CRLF folded to LF: the checker hashes the same way, so a Windows
+        # checkout and a Linux checkout of one file share one hash.
+        sha = hashlib.sha256(
+            skill_md.read_bytes().replace(b"\r\n", b"\n")
+        ).hexdigest()
         tokens = audit_calibrated(command, skill_md)
         data[card] = {
             "standing_cost_tokens": tokens,
@@ -96,7 +100,7 @@ def refresh(root: Path) -> None:
         "calibrated_on": "2026-09-22",
         "cards": data,
     }
-    out.write_text(json.dumps(snapshot, indent=2) + "\n", encoding="utf-8")
+    out.write_text(json.dumps(snapshot, indent=2) + "\n", encoding="utf-8", newline="")
     print(f"\nWrote {out}")
 
 

@@ -134,7 +134,12 @@ def load_standing_costs(root: Path) -> dict:
 
 
 def file_sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """Hash the file with CRLF folded to LF.
+
+    Git checks Markdown out with CRLF on Windows runners and LF elsewhere, so a
+    hash over raw bytes describes one runner's checkout and not the other's.
+    """
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def validate(root: Path, *, use_snapshot: bool = False) -> None:

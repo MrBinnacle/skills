@@ -68,7 +68,7 @@ def write_snapshot(root: Path, *, version: str = "0.3.0") -> None:
     snapshot = dict(STANDING_COSTS)
     snapshot["skill_harness_version"] = version
     (scripts / "standing-costs.json").write_text(
-        json.dumps(snapshot, indent=2) + "\n", encoding="utf-8"
+        json.dumps(snapshot, indent=2) + "\n", encoding="utf-8", newline=""
     )
 
 
@@ -167,6 +167,7 @@ def case_correct_figure_in_temp_tree() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         write_card(root, "clirunner-env", REAL_CLIRUNNER_EVIDENCE_LINE, REAL_CLIRUNNER_SKILL_MD)
+        write_snapshot(root)
         result = run_checker(root)
         check(
             "correct figure in temp tree passes",
