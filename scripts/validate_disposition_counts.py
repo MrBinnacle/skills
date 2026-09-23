@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assert the front page's stated disposition counts agree with the record.
 
-The README's "Admission method" section restates what the S295 disposition
+The CATALOG's "Admission method" section restates what the S295 disposition
 found: how many cards it triaged, how many it stood, how many it called thin,
 and how many it called ceiling-likely. Those counts are hand-maintained prose
 -- a card is re-triaged or the record changes and the page keeps the old
@@ -90,7 +90,7 @@ def disposition_path(root: Path, admission_body: str) -> Path:
     link = DISPOSITION_LINK_RE.search(admission_body)
     if not link:
         fail(
-            "README.md Admission method: does not link a disposition record "
+            "CATALOG.md Admission method: does not link a disposition record "
             "(no ](dispositions/....md) link). The counts the section states "
             "derive from that record, so the link is what ties the check to "
             "the record it counts."
@@ -157,17 +157,17 @@ def stated_counts(readme_body: str) -> dict[str, int]:
         m = pattern.search(readme_body)
         if not m:
             continue
-        stated[name] = parse_count(m.group(1), f"README.md disposition count {name!r}")
+        stated[name] = parse_count(m.group(1), f"CATALOG.md disposition count {name!r}")
     return stated
 
 
 def validate(root: Path) -> None:
-    readme = root / "README.md"
-    if not readme.is_file():
-        fail(f"missing {readme}")
-    admission = section(readme.read_text(encoding="utf-8"), "Admission method")
+    catalog = root / "CATALOG.md"
+    if not catalog.is_file():
+        fail(f"missing {catalog}")
+    admission = section(catalog.read_text(encoding="utf-8"), "Admission method")
     if not admission:
-        fail("README.md: no '## Admission method' section")
+        fail("CATALOG.md: no '## Admission method' section")
     disposition = disposition_path(root, admission)
     derived = derive_disposition_counts(disposition)
     stated = stated_counts(admission)
@@ -176,24 +176,24 @@ def validate(root: Path) -> None:
         # derivation above still ran as the record-conformance discipline, so
         # a malformed record refuses here regardless of what the page says.
         print(
-            f"PASS: README states no disposition count; record "
+            f"PASS: CATALOG states no disposition count; record "
             f"{disposition.relative_to(root)} derives "
             f"{derived['total']} triaged, {derived['stand']} stand, "
             f"{derived['thin']} thin, {derived['ceiling']} ceiling-likely"
         )
         return
     disagreements = [
-        f"{name}: README states {stated[name]}, records read {derived[name]}"
+        f"{name}: CATALOG states {stated[name]}, records read {derived[name]}"
         for name in stated
         if stated[name] != derived[name]
     ]
     if disagreements:
         fail(
-            f"README.md disposition counts disagree with the disposition record "
+            f"CATALOG.md disposition counts disagree with the disposition record "
             f"({disposition.relative_to(root)}) - " + "; ".join(disagreements)
         )
     print(
-        f"PASS: README disposition counts agree with "
+        f"PASS: CATALOG disposition counts agree with "
         f"{disposition.relative_to(root)} - {derived['total']} triaged, "
         f"{derived['stand']} stand, {derived['thin']} thin, "
         f"{derived['ceiling']} ceiling-likely"

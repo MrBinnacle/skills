@@ -275,12 +275,12 @@ def check_controlled_section_restates_nothing(root: Path) -> None:
     a measurement that did not happen -- which is the direction this whole file
     guards.
     """
-    readme = root / "README.md"
-    text = readme.read_text(encoding="utf-8")
+    catalog = root / "CATALOG.md"
+    text = catalog.read_text(encoding="utf-8")
     match = CONTROLLED_SECTION_RE.search(text)
     if match is None:
         fail(
-            "README.md has no '### Controlled results' section. The section is where "
+            "CATALOG.md has no '### Controlled results' section. The section is where "
             "the page states which cards carry a controlled result; if it moved or "
             "was renamed, this check stopped guarding it and must be repointed rather "
             "than left to pass vacuously."
@@ -291,7 +291,7 @@ def check_controlled_section_restates_nothing(root: Path) -> None:
     named = {skill.name for skill in iter_skill_dirs(root) if skill.name in section}
     if named != measured:
         fail(
-            f"README.md 'Controlled results' names {sorted(named)} but the cards' own "
+            f"CATALOG.md 'Controlled results' names {sorted(named)} but the cards' own "
             f"records carry a controlled result for {sorted(measured)}. The page and "
             f"the records disagree about which cards are measured."
         )
@@ -299,7 +299,7 @@ def check_controlled_section_restates_nothing(root: Path) -> None:
     restated = [v for v in MEASURED_VERDICTS if v in section]
     if restated:
         fail(
-            f"README.md 'Controlled results' restates the verdict(s) {restated}. "
+            f"CATALOG.md 'Controlled results' restates the verdict(s) {restated}. "
             f"A verdict belongs in the card's EVIDENCE.md, and the page points at it. "
             f"A copy on the page drifts from the record with nothing going red - which "
             f"is exactly how 'paired verdict: not yet established' outlived the "
@@ -344,10 +344,10 @@ def derive_origin_tiers(root: Path) -> tuple[int, int, int]:
 
 def check_origin_tiers(root: Path) -> None:
     expected = derive_origin_tiers(root)
-    readme = root / "README.md"
-    if not readme.is_file():
-        fail(f"missing {readme}")
-    found = ORIGIN_TIER_RE.findall(readme.read_text(encoding="utf-8"))
+    catalog = root / "CATALOG.md"
+    if not catalog.is_file():
+        fail(f"missing {catalog}")
+    found = ORIGIN_TIER_RE.findall(catalog.read_text(encoding="utf-8"))
     # Stating a tally is optional; stating a wrong one is not. An earlier
     # edition demanded exactly ORIGIN_TIER_SITES statements, which made the
     # page's arithmetic mandatory: a card entering or leaving turned this
@@ -371,7 +371,7 @@ def check_origin_tiers(root: Path) -> None:
             if g != w
         ]
         fail(
-            f"README.md origin-tier statement {i}: disagrees with the cards' Origin "
+            f"CATALOG.md origin-tier statement {i}: disagrees with the cards' Origin "
             f"fields - " + "; ".join(disagreements)
         )
 

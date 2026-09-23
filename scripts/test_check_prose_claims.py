@@ -135,7 +135,7 @@ def case_documented_path_that_does_not_exist_is_refused(tmp: Path) -> None:
     `scripts/` beside a flat directory.
     """
     root = _tree(tmp)
-    readme = root / "README.md"
+    readme = root / "CATALOG.md"
     text = readme.read_text(encoding="utf-8")
     anchor = "templates/         global operating-rules template\n"
     if anchor not in text:
@@ -160,7 +160,7 @@ def case_nested_layout_is_read_with_its_indentation(tmp: Path) -> None:
     parent prefix, which a parser ignoring indentation cannot do.
     """
     root = _tree(tmp)
-    readme = root / "README.md"
+    readme = root / "CATALOG.md"
     text = readme.read_text(encoding="utf-8")
     anchor = "  meta/            skills about the skill system itself\n"
     if anchor not in text:

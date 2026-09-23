@@ -192,7 +192,7 @@ def case_error_level_violation_fails_inside_and_not_outside(hook_regex: str, ci_
     shutil.copy(VALE_INI, tmp / ".vale.ini")
     shutil.copytree(REPO_ROOT / "styles", tmp / "styles")
     inside, outside = "docs/poison.md", "_quarantine/poison/SKILL.md"
-    for rel, text in (("README.md", "# Clean\n"), ("skills/README.md", "# Clean\n"), (inside, POISON_LINE), (outside, POISON_LINE)):
+    for rel, text in (("README.md", "# Clean\n"), ("CATALOG.md", "# Clean\n"), ("skills/README.md", "# Clean\n"), (inside, POISON_LINE), (outside, POISON_LINE)):
         target = tmp / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")

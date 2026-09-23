@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Negative controls for `check_controlled_section_restates_nothing`.
 
-The check this file guards was added because the README carried
+The check this file guards was added because the CATALOG carried
 `paired verdict: not yet established` for three days after the card recorded
 `CANT_TELL_YET` with a dated receipt, while every check in
 `validate_scoreboard.py` passed. A check written in response to a silent drift
@@ -52,7 +52,7 @@ def _tree(tmp: Path) -> Path:
 
 
 def _readme(root: Path) -> Path:
-    return root / "README.md"
+    return root / "CATALOG.md"
 
 
 def _controlled_section(text: str) -> str:

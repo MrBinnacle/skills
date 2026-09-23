@@ -117,17 +117,17 @@ repos:
         pass_filenames: false
         always_run: true
 
-      # SCOPE (#244): README.md, skills/ and docs/ - the same three paths CI
+      # SCOPE (#244): README.md, CATALOG.md, skills/ and docs/ - the same paths CI
       # lints in .github/workflows/vale.yml. `_quarantine/` is NOT linted at
       # either site: it holds frozen documents that must not be rewritten, and a
       # hook that refused what CI accepts was being skipped as routine. Change
       # this regex and the workflow's path list together;
       # scripts/test_vale_scope.py fails when the two sets differ.
       - id: vale-prose
-        name: "Taste prose (error level) on staged markdown under README.md, skills/, docs/"
+        name: "Taste prose (error level) on staged markdown under README.md, CATALOG.md, skills/, docs/"
         language: system
         entry: python scripts/vale_hook.py
-        files: '^(README\.md|skills/.*\.md|docs/.*\.md)$'
+        files: '^(README\.md|CATALOG\.md|skills/.*\.md|docs/.*\.md)$'
 
       - id: vale-commit-msg
         name: "Taste prose (error level) on the commit message"

@@ -41,6 +41,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 ROOT = SCRIPT_DIR.parent
 CHANGELOG = ROOT / "CHANGELOG.md"
 README = ROOT / "README.md"
+CATALOG = ROOT / "CATALOG.md"
 ADR = ROOT / "docs" / "adr" / "0002-a-release-is-a-delivery-event.md"
 ADR_RELATIVE = "(docs/adr/0002-a-release-is-a-delivery-event.md)"
 ADR_NAME = ROOT / "docs" / "adr" / "0003-a-cards-name-is-part-of-the-declared-surface.md"
@@ -132,7 +133,7 @@ def promise_paragraph(install_body: str) -> str:
 
 
 def case_readme_states_the_declared_surface() -> None:
-    body = section(README.read_text(encoding="utf-8"), "Install")
+    body = section(CATALOG.read_text(encoding="utf-8"), "Install")
     check(
         "install section carries the version-promise disclosure",
         PROMISE_LEAD in body,
@@ -155,10 +156,10 @@ def case_readme_states_the_declared_surface() -> None:
 
 def case_readme_states_card_moves_are_minor() -> None:
     collapsed = " ".join(
-        promise_paragraph(section(README.read_text(encoding="utf-8"), "Install")).split()
+        promise_paragraph(section(CATALOG.read_text(encoding="utf-8"), "Install")).split()
     )
     check(
-        "the readme states plainly that admitting or retiring a card is a minor change",
+        "the catalog states plainly that admitting or retiring a card is a minor change",
         bool(re.search(r"[Aa]dmitting or retiring a card is a minor change", collapsed)),
         collapsed,
     )
@@ -173,10 +174,10 @@ def case_readme_states_a_rename_is_major() -> None:
     asserted by nothing.
     """
     collapsed = " ".join(
-        promise_paragraph(section(README.read_text(encoding="utf-8"), "Install")).split()
+        promise_paragraph(section(CATALOG.read_text(encoding="utf-8"), "Install")).split()
     )
     check(
-        "the readme states plainly that renaming a card is a major change",
+        "the catalog states plainly that renaming a card is a major change",
         bool(re.search(r"renaming (a card )?(one )?is a major change", collapsed)),
         collapsed,
     )
@@ -218,8 +219,8 @@ def case_landing_page_states_the_same_promise() -> None:
 def case_disclosed_surfaces_state_no_count() -> None:
     surfaces = {
         "changelog preamble": changelog_preamble(CHANGELOG),
-        "readme version-promise paragraph": promise_paragraph(
-            section(README.read_text(encoding="utf-8"), "Install")
+        "catalog version-promise paragraph": promise_paragraph(
+            section(CATALOG.read_text(encoding="utf-8"), "Install")
         ),
     }
     for label, text in sorted(surfaces.items()):

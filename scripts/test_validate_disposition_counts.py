@@ -13,7 +13,7 @@ THE EXPECTED VALUE IS DERIVED FROM THE TREE, NEVER WRITTEN HERE
     relocated into the checker: this repository already had a test suite pin
     "9 published card(s)" that turned red on every admission and every
     retirement until someone edited a digit a test holds no opinion about. The
-    live cases below read the live disposition record and the live README
+    live cases below read the live disposition record and the live CATALOG
     through the check's own parsers, and every poison case mutates a copy so
     the numbers it asserts come from the fixture it built, not from a digit
     pinned here.
@@ -57,9 +57,9 @@ def run(root: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-def write_tree(root: Path, readme: str, disposition: str) -> Path:
-    """A minimal tree the check can run against: README plus the linked record."""
-    (root / "README.md").write_text(readme, encoding="utf-8")
+def write_tree(root: Path, catalog: str, disposition: str) -> Path:
+    """A minimal tree the check can run against: CATALOG plus the linked record."""
+    (root / "CATALOG.md").write_text(catalog, encoding="utf-8")
     disp_dir = root / "dispositions"
     disp_dir.mkdir(parents=True, exist_ok=True)
     (disp_dir / "2026-08-15-S295-admission-triage.md").write_text(
@@ -87,7 +87,7 @@ def conforming_disposition() -> str:
     )
 
 
-def conforming_readme() -> str:
+def conforming_catalog() -> str:
     # one stand, one thin, one ceiling; three total.
     return (
         "# Title\n\n"
@@ -113,8 +113,8 @@ def case_live_expected_derived_from_tree() -> None:
     # parser; the stated counts come from the live README through its parser.
     # No digit is written here. This proves the derivation is non-vacuous and
     # the page agrees with the record it restates.
-    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    admission = disposition_counts.section(readme, "Admission method")
+    catalog = (REPO_ROOT / "CATALOG.md").read_text(encoding="utf-8")
+    admission = disposition_counts.section(catalog, "Admission method")
     disp = disposition_counts.disposition_path(REPO_ROOT, admission)
     derived = disposition_counts.derive_disposition_counts(disp)
     stated = disposition_counts.stated_counts(admission)
@@ -126,7 +126,7 @@ def case_live_expected_derived_from_tree() -> None:
         str(derived),
     )
     check(
-        "every count the live README states agrees with the live record",
+        "every count the live CATALOG states agrees with the live record",
         stated == {k: derived[k] for k in stated},
         f"stated={stated} derived={ {k: derived[k] for k in stated} }",
     )
@@ -135,7 +135,7 @@ def case_live_expected_derived_from_tree() -> None:
 def case_refuses_missing_disposition_link() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
-        (root / "README.md").write_text(
+        (root / "CATALOG.md").write_text(
             "# T\n\n## Admission method\n\nNo link here.\n", encoding="utf-8"
         )
         result = run(root)
@@ -150,7 +150,7 @@ def case_refuses_unknown_verdict() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         disp = conforming_disposition().replace("STANDS", "MAYBE-SO")
-        write_tree(root, conforming_readme(), disp)
+        write_tree(root, conforming_catalog(), disp)
         result = run(root)
         check(
             "a verdict outside the closed vocabulary is refused",
@@ -162,17 +162,17 @@ def case_refuses_unknown_verdict() -> None:
 def case_mutated_readme_count_refused() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
-        readme = conforming_readme().replace("one card that stand", "two card that stand")
+        catalog = conforming_catalog().replace("one card that stand", "two card that stand")
         # verify the mutation landed before asserting anything about it
         check(
-            "mutated-readme fixture was actually mutated",
-            "two card that stand" in readme,
+            "mutated-catalog fixture was actually mutated",
+            "two card that stand" in catalog,
         )
-        write_tree(root, readme, conforming_disposition())
+        write_tree(root, catalog, conforming_disposition())
         result = run(root)
         msg = result.stderr
         check(
-            "a README count that disagrees with the record is refused",
+            "a CATALOG count that disagrees with the record is refused",
             result.returncode != 0,
             msg.strip(),
         )
@@ -182,8 +182,8 @@ def case_mutated_readme_count_refused() -> None:
             msg.strip(),
         )
         check(
-            "the refusal names both values (README states 2, records read 1)",
-            "README states 2" in msg and "records read 1" in msg,
+            "the refusal names both values (CATALOG states 2, records read 1)",
+            "CATALOG states 2" in msg and "records read 1" in msg,
             msg.strip(),
         )
 
@@ -192,23 +192,23 @@ def case_mutated_disposition_record_refused() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         # Change a verdict so the record reads a different `stand` than the
-        # README states. The README says one stand; the record now has none.
+        # CATALOG states. The CATALOG says one stand; the record now has none.
         disp = conforming_disposition().replace("| engineering/a | STANDS |", "| engineering/a | RECURRENCE-THIN |")
         check(
             "mutated-disposition fixture was actually mutated",
             "STANDS" not in disp.split("## Verdicts")[1],
         )
-        write_tree(root, conforming_readme(), disp)
+        write_tree(root, conforming_catalog(), disp)
         result = run(root)
         msg = result.stderr
         check(
-            "a record that disagrees with the README is refused",
+            "a record that disagrees with the CATALOG is refused",
             result.returncode != 0 and "stand" in msg,
             msg.strip(),
         )
         check(
-            "the refusal names both values (README states 1, records read 0)",
-            "README states 1" in msg and "records read 0" in msg,
+            "the refusal names both values (CATALOG states 1, records read 0)",
+            "CATALOG states 1" in msg and "records read 0" in msg,
             msg.strip(),
         )
 
@@ -216,12 +216,12 @@ def case_mutated_disposition_record_refused() -> None:
 def case_page_stating_no_count_passes() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
-        readme = (
+        catalog = (
             "# T\n\n## Admission method\n\n"
             "The [record](dispositions/2026-08-15-S295-admission-triage.md) "
             "ran. The page states no tally of what it found.\n"
         )
-        write_tree(root, readme, conforming_disposition())
+        write_tree(root, catalog, conforming_disposition())
         result = run(root)
         check(
             "a page that states no count still passes (derivation only)",

@@ -196,7 +196,7 @@ def tracked_readmes(root: Path) -> list[Path]:
     `git ls-files` is the enumeration that matches what a reader can fetch.
     """
     result = subprocess.run(
-        ["git", "-C", str(root), "ls-files", "*README.md"],
+        ["git", "-C", str(root), "ls-files", "*README.md", "CATALOG.md"],
         capture_output=True,
         text=True,
     )
