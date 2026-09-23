@@ -1,58 +1,62 @@
 {
-  "clirunner-env": {
-    "standing_cost_tokens": 56,
-    "skill_md_sha256": "5233d22dd466fa805df586c8006e73e8313349e50f9e2d883683f6d3051a80d0"
-  },
-  "closure-mode": {
-    "standing_cost_tokens": 0,
-    "skill_md_sha256": "1fa98a9716b5e0ccb6f9893700208a1e8e203b022fff7329d462eddc387e6b3a"
-  },
-  "halt-as-deliverable": {
-    "standing_cost_tokens": 50,
-    "skill_md_sha256": "c9fd43a46893a316a2a2878ecf97f4ff28e96855dd27487dc02842addbc29094"
-  },
-  "im-down": {
-    "standing_cost_tokens": 0,
-    "skill_md_sha256": "5eccbd3e99dc7fe90708c8ebb4c9d3bc56f1477953dff75be9b0458871600239"
-  },
-  "im-up": {
-    "standing_cost_tokens": 0,
-    "skill_md_sha256": "1418c528cf37e996613ff6411a406b15b1b542cc52d4f00215d45f5cee429303"
-  },
-  "mocked-stub": {
-    "standing_cost_tokens": 51,
-    "skill_md_sha256": "c0710488da4e4a60e7f3be5b983596ae607cbac6aee6bd36929d46f8f8f9fa7c"
-  },
-  "pretooluse-prose": {
-    "standing_cost_tokens": 51,
-    "skill_md_sha256": "73de290aa8da70dcec5a7195664125614d4ea2f0a9044bad734592d9b5f1b390"
-  },
-  "pull-rebase": {
-    "standing_cost_tokens": 63,
-    "skill_md_sha256": "209f54bb7bcdc7f0ee9c10266b6a7bbc278a34890e96776c23cab482900ffc04"
-  },
-  "stale-deploy": {
-    "standing_cost_tokens": 50,
-    "skill_md_sha256": "cb5fb4d451f9ee7dd0bfce3f123da0cc0f2eea7fd71a5023a2447242bf03f403"
-  },
-  "vacuous-check": {
-    "standing_cost_tokens": 49,
-    "skill_md_sha256": "048a80bf3df2304acf73f21f5865006ca2782af8fbafaee02adaa880469dd4fd"
-  },
-  "dead-predicate": {
-    "standing_cost_tokens": 51,
-    "skill_md_sha256": "f54439ff7e01aac274611c148de43bd8fc073f14de36ccfd7abb532669c597f1"
-  },
-  "decision-rights": {
-    "standing_cost_tokens": 47,
-    "skill_md_sha256": "b6fb5f4ed7c74c67a0a89da7ae011c2f18921abd9ddcf6a7b1020aab9791a262"
-  },
-  "disposition-schema": {
-    "standing_cost_tokens": 44,
-    "skill_md_sha256": "4fe97ff0b40e166ac62d4f87bd43e60bb0ed381a472a81be1c32e5532a488659"
-  },
-  "subagent-handback": {
-    "standing_cost_tokens": 44,
-    "skill_md_sha256": "80d93b99d9d5e8c848695d4b64805b635e6d431daba38e68a97a409f14411c76"
+  "skill_harness_version": "0.3.0",
+  "calibrated_on": "2026-09-22",
+  "cards": {
+    "clirunner-env": {
+      "standing_cost_tokens": 56,
+      "skill_md_sha256": "5233d22dd466fa805df586c8006e73e8313349e50f9e2d883683f6d3051a80d0"
+    },
+    "closure-mode": {
+      "standing_cost_tokens": 0,
+      "skill_md_sha256": "1fa98a9716b5e0ccb6f9893700208a1e8e203b022fff7329d462eddc387e6b3a"
+    },
+    "halt-as-deliverable": {
+      "standing_cost_tokens": 50,
+      "skill_md_sha256": "c9fd43a46893a316a2a2878ecf97f4ff28e96855dd27487dc02842addbc29094"
+    },
+    "im-down": {
+      "standing_cost_tokens": 0,
+      "skill_md_sha256": "5eccbd3e99dc7fe90708c8ebb4c9d3bc56f1477953dff75be9b0458871600239"
+    },
+    "im-up": {
+      "standing_cost_tokens": 0,
+      "skill_md_sha256": "1418c528cf37e996613ff6411a406b15b1b542cc52d4f00215d45f5cee429303"
+    },
+    "mocked-stub": {
+      "standing_cost_tokens": 51,
+      "skill_md_sha256": "c0710488da4e4a60e7f3be5b983596ae607cbac6aee6bd36929d46f8f8f9fa7c"
+    },
+    "pretooluse-prose": {
+      "standing_cost_tokens": 51,
+      "skill_md_sha256": "73de290aa8da70dcec5a7195664125614d4ea2f0a9044bad734592d9b5f1b390"
+    },
+    "pull-rebase": {
+      "standing_cost_tokens": 63,
+      "skill_md_sha256": "209f54bb7bcdc7f0ee9c10266b6a7bbc278a34890e96776c23cab482900ffc04"
+    },
+    "stale-deploy": {
+      "standing_cost_tokens": 50,
+      "skill_md_sha256": "cb5fb4d451f9ee7dd0bfce3f123da0cc0f2eea7fd71a5023a2447242bf03f403"
+    },
+    "vacuous-check": {
+      "standing_cost_tokens": 49,
+      "skill_md_sha256": "048a80bf3df2304acf73f21f5865006ca2782af8fbafaee02adaa880469dd4fd"
+    },
+    "dead-predicate": {
+      "standing_cost_tokens": 51,
+      "skill_md_sha256": "f54439ff7e01aac274611c148de43bd8fc073f14de36ccfd7abb532669c597f1"
+    },
+    "decision-rights": {
+      "standing_cost_tokens": 47,
+      "skill_md_sha256": "b6fb5f4ed7c74c67a0a89da7ae011c2f18921abd9ddcf6a7b1020aab9791a262"
+    },
+    "disposition-schema": {
+      "standing_cost_tokens": 44,
+      "skill_md_sha256": "4fe97ff0b40e166ac62d4f87bd43e60bb0ed381a472a81be1c32e5532a488659"
+    },
+    "subagent-handback": {
+      "standing_cost_tokens": 44,
+      "skill_md_sha256": "80d93b99d9d5e8c848695d4b64805b635e6d431daba38e68a97a409f14411c76"
+    }
   }
 }

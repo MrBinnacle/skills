@@ -8,7 +8,6 @@ conforming baseline runs against the live published tree.
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -32,9 +31,12 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         FAILURES.append(name)
 
 
-def run_checker(root: Path) -> subprocess.CompletedProcess[str]:
+def run_checker(root: Path, *, use_snapshot: bool = False) -> subprocess.CompletedProcess[str]:
+    command = [sys.executable, str(CHECKER), "--root", str(root)]
+    if use_snapshot:
+        command.append("--snapshot")
     return subprocess.run(
-        [sys.executable, str(CHECKER), "--root", str(root)],
+        command,
         capture_output=True,
         text=True,
     )
@@ -60,14 +62,23 @@ def write_card(
     return card
 
 
+def write_snapshot(root: Path, *, version: str = "0.3.0") -> None:
+    scripts = root / "scripts"
+    scripts.mkdir(parents=True, exist_ok=True)
+    snapshot = dict(STANDING_COSTS)
+    snapshot["skill_harness_version"] = version
+    (scripts / "standing-costs.json").write_text(
+        json.dumps(snapshot, indent=2) + "\n", encoding="utf-8"
+    )
+
+
 # --- Load real card data for temp-tree tests ---
 
 REAL_SKILL_MD = REPO_ROOT / "skills" / "engineering" / "clirunner-env" / "SKILL.md"
 STANDING_COSTS = json.loads(
     (SCRIPT_DIR / "standing-costs.json").read_text(encoding="utf-8")
 )
-REAL_CLIRUNNER_TOKENS = STANDING_COSTS["clirunner-env"]["standing_cost_tokens"]
-REAL_CLIRUNNER_SHA = STANDING_COSTS["clirunner-env"]["skill_md_sha256"]
+REAL_CLIRUNNER_TOKENS = STANDING_COSTS["cards"]["clirunner-env"]["standing_cost_tokens"]
 REAL_CLIRUNNER_SKILL_MD = REAL_SKILL_MD.read_text(encoding="utf-8")
 # Extract the real standing cost line from the real card for reconstruction
 REAL_CLIRUNNER_EVIDENCE_LINE = (
@@ -101,11 +112,21 @@ def case_committed_poison_is_red() -> None:
 
 
 def case_conforming_tree_is_green() -> None:
-    """The live published tree passes the check."""
+    """The published tree passes the check."""
     result = run_checker(REPO_ROOT)
     check(
         "live tree passes",
         result.returncode == 0,
+        f"stdout: {result.stdout}, stderr: {result.stderr}",
+    )
+
+
+def case_snapshot_fallback_is_green() -> None:
+    """The CI fallback validates the published tree without skill-harness."""
+    result = run_checker(REPO_ROOT, use_snapshot=True)
+    check(
+        "published tree passes through snapshot fallback",
+        result.returncode == 0 and "via standing-costs.json" in result.stdout,
         f"stdout: {result.stdout}, stderr: {result.stderr}",
     )
 
@@ -121,7 +142,8 @@ def case_wrong_figure_in_temp_tree() -> None:
             f"Body 5,866 B."
         )
         write_card(root, "clirunner-env", wrong_line, REAL_CLIRUNNER_SKILL_MD)
-        result = run_checker(root)
+        write_snapshot(root)
+        result = run_checker(root, use_snapshot=True)
         check(
             "wrong figure in temp tree is rejected",
             result.returncode != 0,
@@ -150,6 +172,21 @@ def case_correct_figure_in_temp_tree() -> None:
             "correct figure in temp tree passes",
             result.returncode == 0,
             f"stdout: {result.stdout}, stderr: {result.stderr}",
+    )
+
+
+def case_snapshot_version_is_pinned() -> None:
+    """A snapshot measured by an unpinned harness version is rejected."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write_card(root, "clirunner-env", REAL_CLIRUNNER_EVIDENCE_LINE, REAL_CLIRUNNER_SKILL_MD)
+        write_snapshot(root, version="0.0.0")
+        result = run_checker(root, use_snapshot=True)
+        check(
+            "unpinned snapshot version is rejected",
+            result.returncode != 0
+            and "expected pinned skill-harness 0.3.0, found '0.0.0'" in result.stderr,
+            result.stderr,
         )
 
 
@@ -157,8 +194,10 @@ def case_correct_figure_in_temp_tree() -> None:
 
 case_committed_poison_is_red()
 case_conforming_tree_is_green()
+case_snapshot_fallback_is_green()
 case_wrong_figure_in_temp_tree()
 case_correct_figure_in_temp_tree()
+case_snapshot_version_is_pinned()
 
 if FAILURES:
     print(f"\nFAILED: {len(FAILURES)} case(s)")

@@ -21,7 +21,8 @@ import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-STANDING_COSTS_JSON = SCRIPT_DIR / "standing-costs.json"
+PINNED_HARNESS_VERSION = "0.3.0"
+VERSION_RE = re.compile(r"version\s+(\d+\.\d+\.\d+)")
 AUDIT_RE = re.compile(
     r"Standing cost \(mechanical\):.*?calibrated\s+(\d+)\s+tokens"
 )
@@ -38,32 +39,51 @@ def iter_skill_dirs(root: Path) -> list[Path]:
     )
 
 
-def audit_calibrated(skill_md: Path) -> int:
-    for cmd in [
-        [sys.executable, "-m", "skill_harness", "skill", "audit", str(skill_md)],
-        ["skill-harness", "skill", "audit", str(skill_md)],
-    ]:
+def installed_harness() -> list[str]:
+    for command in ([sys.executable, "-m", "skill_harness"], ["skill-harness"]):
         try:
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=30
+                [*command, "--version"], capture_output=True, text=True, timeout=30
             )
         except (subprocess.TimeoutExpired, FileNotFoundError):
             continue
-        if result.returncode == 0:
-            m = AUDIT_RE.search(result.stdout)
-            if m:
-                return int(m.group(1))
+        m = VERSION_RE.search(result.stdout)
+        if result.returncode == 0 and m:
+            if m.group(1) != PINNED_HARNESS_VERSION:
+                raise RuntimeError(
+                    "expected pinned skill-harness "
+                    f"{PINNED_HARNESS_VERSION}, found {m.group(1)}"
+                )
+            return command
+    raise RuntimeError("skill-harness is not installed")
+
+
+def audit_calibrated(command: list[str], skill_md: Path) -> int:
+    try:
+        result = subprocess.run(
+            [*command, "skill", "audit", str(skill_md)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    else:
+        m = AUDIT_RE.search(result.stdout)
+        if result.returncode == 0 and m:
+            return int(m.group(1))
     raise RuntimeError(f"skill-harness audit failed for {skill_md}")
 
 
 def refresh(root: Path) -> None:
     cards = iter_skill_dirs(root)
     data = {}
+    command = installed_harness()
     for skill_dir in cards:
         card = skill_dir.name
         skill_md = skill_dir / "SKILL.md"
         sha = hashlib.sha256(skill_md.read_bytes()).hexdigest()
-        tokens = audit_calibrated(skill_md)
+        tokens = audit_calibrated(command, skill_md)
         data[card] = {
             "standing_cost_tokens": tokens,
             "skill_md_sha256": sha,
@@ -71,7 +91,12 @@ def refresh(root: Path) -> None:
         print(f"  {card}: {tokens} tokens")
 
     out = root / "scripts" / "standing-costs.json"
-    out.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    snapshot = {
+        "skill_harness_version": PINNED_HARNESS_VERSION,
+        "calibrated_on": "2026-09-22",
+        "cards": data,
+    }
+    out.write_text(json.dumps(snapshot, indent=2) + "\n", encoding="utf-8")
     print(f"\nWrote {out}")
 
 
