@@ -69,7 +69,10 @@ These cards use three forms:
 ## Card evidence
 
 This table projects each card's own `EVIDENCE.md`. `measured` means a controlled field records a
-result other than `UNMEASURED`. `origin-trace` means the controlled fields are unmeasured and the
+result other than `UNMEASURED` — but that does not necessarily mean the test reached the hazard or
+produced a conclusive answer; for example, `pull-rebase` is measured (its paired screen ran and
+returned `CANT_TELL_YET` because the hazard was not met), not tested-and-answered.
+`origin-trace` means the controlled fields are unmeasured and the
 origin starts with `OBSERVED`. `unmeasured` means neither condition holds. The final column is the
 integer that opens the card's `Occasions counted` row.
 
@@ -92,6 +95,9 @@ integer that opens the card's `Occasions counted` row.
 
 CI checks this table against the records and fails on any disagreement, so the records are the
 place to change a row. Nothing generates it.
+
+Standing-cost figures come from the pinned `skill-harness` audit. After changing a card's
+frontmatter, run `python scripts/refresh_standing_costs.py` and commit the refreshed snapshot.
 
 ## What the cards cover
 

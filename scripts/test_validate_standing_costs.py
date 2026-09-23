@@ -56,9 +56,9 @@ def write_card(
 ) -> Path:
     card = root / "skills" / "engineering" / name
     card.mkdir(parents=True)
-    (card / "SKILL.md").write_text(skill_md_content, encoding="utf-8")
+    (card / "SKILL.md").write_text(skill_md_content, encoding="utf-8", newline="")
     evidence = CONFORMING_EVIDENCE + f"| **Standing cost** | {standing_cost_line} |\n"
-    (card / "EVIDENCE.md").write_text(evidence, encoding="utf-8")
+    (card / "EVIDENCE.md").write_text(evidence, encoding="utf-8", newline="")
     return card
 
 
