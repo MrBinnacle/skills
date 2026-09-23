@@ -2,6 +2,4 @@
 
 <img alt="skills. Each card states the condition that would retire it." src="assets/banner-light.svg" width="620">
 
-The tiering here is 2 `OBSERVED`, 0 `DESIGNED`, 0 `DISTILLED`.
-
-Stated a second time, as the real page does: 2 `OBSERVED`, 0 `DESIGNED`, 0 `DISTILLED`.
+The origin tiering lives in [CATALOG.md](CATALOG.md).

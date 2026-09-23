@@ -31,6 +31,7 @@ import validate_scoreboard as scoreboard  # noqa: E402
 
 ROOT = SCRIPT_DIR.parent
 README = ROOT / "README.md"
+CATALOG = ROOT / "CATALOG.md"
 ADMISSION = ROOT / "ADMISSION.md"
 DISPOSITION = ROOT / "dispositions" / "2026-08-15-S295-admission-triage.md"
 
@@ -128,8 +129,8 @@ def case_admission_method_leads() -> None:
     all three forms, and the disposition record still has to be linked. Retiring
     an order assertion is not a licence to loosen a fact assertion.
     """
-    body = README.read_text(encoding="utf-8")
-    headings = re.findall(r"^## .+$", body, re.MULTILINE)
+    catalog_body = CATALOG.read_text(encoding="utf-8")
+    headings = re.findall(r"^## .+$", catalog_body, re.MULTILINE)
     required = ["## Admission method", "## Card map", "## Card evidence"]
     missing = [heading for heading in required if heading not in headings]
     check(
@@ -137,7 +138,8 @@ def case_admission_method_leads() -> None:
         not missing,
         f"missing {missing}",
     )
-    lead = "\n".join(body.splitlines()[:40])
+    readme_body = README.read_text(encoding="utf-8")
+    lead = "\n".join(readme_body.splitlines()[:40])
     check(
         "the admission policy is linked within the first 40 lines",
         "(ADMISSION.md)" in lead,
@@ -146,7 +148,7 @@ def case_admission_method_leads() -> None:
 
 
 def case_three_instruments_are_referenced() -> None:
-    body = section(README.read_text(encoding="utf-8"), "Admission method")
+    body = section(CATALOG.read_text(encoding="utf-8"), "Admission method")
     check("admission lead links ADMISSION.md", "[admission policy](ADMISSION.md)" in body)
     check(
         "admission lead names the policy and the screen",
@@ -168,7 +170,7 @@ def case_three_instruments_are_referenced() -> None:
 
 
 def case_card_map_names_four_types() -> None:
-    body = section(README.read_text(encoding="utf-8"), "Card map")
+    body = section(CATALOG.read_text(encoding="utf-8"), "Card map")
     check(
         # Three forms, not four. "Gate" was the fourth, and skill-necessity-gate
         # was the only card of that type; both retired on 2026-08-31 (#178).
@@ -179,7 +181,7 @@ def case_card_map_names_four_types() -> None:
 
 
 def case_evidence_table_projects_the_card_rows() -> None:
-    table = readme_table(section(README.read_text(encoding="utf-8"), "Card evidence"))
+    table = readme_table(section(CATALOG.read_text(encoding="utf-8"), "Card evidence"))
     check(
         "the origin-trace posture is keyed to a tier the scoreboard recognises",
         ORIGIN_TRACE_TIER in scoreboard.ORIGIN_TIERS,
@@ -205,20 +207,21 @@ def case_evidence_table_projects_the_card_rows() -> None:
 
 
 def case_disposition_is_linked() -> None:
-    body = README.read_text(encoding="utf-8")
+    body = CATALOG.read_text(encoding="utf-8")
     target = "dispositions/2026-08-15-S295-admission-triage.md"
-    check("README links the S295 disposition record", f"]({target})" in body)
+    check("CATALOG links the S295 disposition record", f"]({target})" in body)
     check("the linked disposition record exists", DISPOSITION.is_file())
 
 
 def case_public_copy_avoids_banned_vocabulary() -> None:
-    body = README.read_text(encoding="utf-8")
-    banned = re.findall(
-        r"\b(?:earned|grandiose|grandiosity|perhaps|possibly|arguably)\b|readers may conclude",
-        body,
-        re.IGNORECASE,
-    )
-    check("README contains no banned vocabulary", not banned, str(sorted(set(banned))))
+    for label, path in (("README", README), ("CATALOG", CATALOG)):
+        body = path.read_text(encoding="utf-8")
+        banned = re.findall(
+            r"\b(?:earned|grandiose|grandiosity|perhaps|possibly|arguably)\b|readers may conclude",
+            body,
+            re.IGNORECASE,
+        )
+        check(f"{label} contains no banned vocabulary", not banned, str(sorted(set(banned))))
 
 
 def main() -> None:
