@@ -37,8 +37,8 @@ labelling or closing a ticket, and for the wayfinder map and blocking convention
 
 ### Triage labels
 
-The five canonical triage roles, each label string equal to its name. See
-[`docs/agents/triage-labels.md`](docs/agents/triage-labels.md).
+The five canonical triage roles plus a disposition axis, each label string equal to its name.
+See [`docs/agents/triage-labels.md`](docs/agents/triage-labels.md).
 
 ### Domain docs
 
