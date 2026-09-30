@@ -4,6 +4,31 @@ All notable changes to the collection. A release is a delivery event: changed ca
 installed users when a version is released, not on every merge to `main`. See
 [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
+## v3.1.0 - 2026-09-30
+
+### Minor Changes
+
+- [`9c06f00`](https://github.com/MrBinnacle/skills/commit/9c06f00d41c8ba41ed3755b09dcece0ed9952297) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Admit `uniform-eol` to `mrbinnacle-engineering`. On Windows, a Python text-mode write turns every LF into CRLF, so a script that edits a few lines converts the whole file and the commit still succeeds; in data another program reads, every line carries a trailing CR. The card was a candidate in `_quarantine/` and moves with its history. Its evidence record counts six occasions between 2026-09-06 and 2026-09-30, one of them this collection's own dispatch-refresh script, fixed in the same release. On promotion the card was rewritten to lead with the rule that covers every occasion (keep the file's ending at the write) rather than the diffstat check, which misses data that never reaches git. It gains an eval corpus, a measured standing cost of 49 tokens, and an admission record answered against `admission-policy v1`. No screen has run: `UNMEASURED`.
+
+### Patch Changes
+
+- [#322](https://github.com/MrBinnacle/skills/pull/322) [`5db554a`](https://github.com/MrBinnacle/skills/commit/5db554af98e3c78e01995494286fb99278af68f5) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Add plugin eval cases for `decision-rights` and `subagent-handback` under `skills/orchestration/evals/`: three moved from the research repo unchanged except for their plugin path, and one new should-not-fire case for `decision-rights`. The card validator no longer reads that `evals/` directory as a card. The cases have not been run.
+
+- [#319](https://github.com/MrBinnacle/skills/pull/319) [`4e80582`](https://github.com/MrBinnacle/skills/commit/4e80582d46f9c4680f82bbf13044661e377549a7) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Remove the stale `_quarantine/subagent-research-reliability/` directory. Its provenance describes
+  the dead-letter patch shipped in `756403a`; the live `subagent-handback` card still contains the
+  three references the provenance names, so no unique copy was lost. Conformance O8 now rejects a
+  quarantine directory whose name matches a published card, preventing promotion residue from
+  returning. The standing obligations move to `conformance v4` because O8 is a new obligation.
+
+- [#325](https://github.com/MrBinnacle/skills/pull/325) [`4f268c3`](https://github.com/MrBinnacle/skills/commit/4f268c3466edce2929707c6aafa4634cb298c378) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Correct every model-invocable card's stated standing cost from the pinned `skill-harness` audit.
+  Add a CI check and poison control that reject stale or mismatched cost records.
+
+- [`1557bac`](https://github.com/MrBinnacle/skills/commit/1557bac7f0988951e4e2734ed090ab8a9e47dee1) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The README, the marketplace description and the Pages site now make only claims the cards' own records support. The README no longer says every skill passed the admission policy (the 2026-08-15 triage found most do not yet meet all four questions) or that every skill came from an incident (`im-down` and `im-up` were designed), and it states the completed `pull-rebase` screen result instead of "under way". The marketplace description names what every card carries: an evidence record, test cases and a retirement condition. The `mrbinnacle-meta` description drops "whether a skill should exist", a subject whose card retired in August. On the site, four links that pointed at README headings moved by [#324](https://github.com/MrBinnacle/skills/issues/324) now point at CATALOG.md, where the three "What this isn't" sections are restored, and the install block adds the `/plugin install` step and names all three plugins. A new check, `scripts/validate_site_links.py`, fails CI when a site link or its anchor does not resolve.
+
+- [`90cb602`](https://github.com/MrBinnacle/skills/commit/90cb602a69596fbfe7fb2c266f73f638bce72eb0) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `pull-rebase`'s paired verdict now reads `CANT_TELL_YET (stale receipt: card_hash_mismatch)`. The receipt was issued against the card's `SKILL.md` before the v2.0.0 rename changed its bytes, so under the rotation pass's currency gate it no longer disposes anything; the link stays as history. The verdict word is unchanged. The conformance check O5, run with the harness root, failed on this row until now.
+
+- [#324](https://github.com/MrBinnacle/skills/pull/324) [`5460176`](https://github.com/MrBinnacle/skills/commit/5460176c2b66f01affd9bd233742bcd051cf6144) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The README now leads with what each skill is for and what ships with it; the checked evidence tables, admission detail, install detail and repository layout moved to CATALOG.md unchanged, and the checks moved with them.
+
 ## v3.0.0 - 2026-09-21
 
 ### Major Changes
