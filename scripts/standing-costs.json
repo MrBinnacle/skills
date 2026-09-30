@@ -38,6 +38,10 @@
       "standing_cost_tokens": 50,
       "skill_md_sha256": "cb5fb4d451f9ee7dd0bfce3f123da0cc0f2eea7fd71a5023a2447242bf03f403"
     },
+    "uniform-eol": {
+      "standing_cost_tokens": 49,
+      "skill_md_sha256": "ecd93bc6d8669823dad16e5536d1bcb43599734d5396297a29626f20cd8f99e4"
+    },
     "vacuous-check": {
       "standing_cost_tokens": 49,
       "skill_md_sha256": "048a80bf3df2304acf73f21f5865006ca2782af8fbafaee02adaa880469dd4fd"

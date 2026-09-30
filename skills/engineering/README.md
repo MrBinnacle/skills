@@ -51,6 +51,12 @@ Ordered by how soon the failure is likely to bite you.
   the very helper that is the stub. Green is evidence the test passed, never evidence the
   production path ran ([the receipt](mocked-stub/EVIDENCE.md)).
 
+- [**uniform-eol**](uniform-eol/SKILL.md) — on Windows, a Python text-mode write turns every
+  LF into CRLF. A script that edits five lines converts the whole file, the commit succeeds, and
+  the real change hides in a whole-file diff; in data another program reads, every line carries
+  a trailing CR. Keep the file's ending at the write, and read the diffstat as the backstop
+  ([the receipt](uniform-eol/EVIDENCE.md)).
+
 - [**pretooluse-prose**](pretooluse-prose/SKILL.md)
   — a `PreToolUse` Bash guard receives the whole command string, so it blocks commit messages,
   heredocs and documentation that only mention what it forbids. Writing about a trap is how

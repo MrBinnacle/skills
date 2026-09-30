@@ -78,3 +78,42 @@ deletions — because a stray CR inside a line is not a line-ending change. A by
 The fix was to stop passing prose through shell escaping layers and write the text as a file.
 That third instance is a symptom of this same occasion, not a separate one, and is not counted
 as one.
+
+## [OBSERVED 2026-09-29] A repair script flipped a guard's own source file
+
+A maintainer session edited a CRLF Python hook with a short script that read the file in text
+mode and wrote it back. The file was the command-trap guard itself. The write converted every
+line to LF, and the diff read 1,695 lines for an edit of a few. The line-ending hook caught it;
+the repair was to read and write bytes. Same mechanism as the 2026-09-06 entry, opposite
+direction (CRLF to LF), separate session.
+
+## [OBSERVED 2026-09-30] This collection's own dispatch-refresh script did it to fourteen records
+
+During a rotation pass, `scripts/refresh_dispatch_counts.py` rewrote one table row in each
+published card's `EVIDENCE.md`. It read with `read_text` and wrote with `write_text`, both in
+text mode, so on Windows each of the fourteen LF files came back CRLF. Each file's real change
+was one line. The script printed `PASS: refreshed dispatch rows in 14/15 card(s)`.
+
+The line-ending hook reported every file. The fix, in commit `ca82030`, opens both sides with
+`newline=""` and changes the row pattern from `\|$` to `\|(?=\r?$)`, because once translation
+is off a CRLF file puts `\r` before the `$` anchor and the pattern silently stops matching.
+That second change is the cost of the fix, and the new test in
+`scripts/test_refresh_dispatch_counts.py` failed on exactly that before the pattern changed.
+
+## [OBSERVED 2026-09-07] A state-file rotation wrote a CRLF file as LF
+
+Recorded late, on promotion, from this card's pre-promotion evidence record. A band rotation
+rebuilt a uniformly-CRLF `checkpoint.md` with `write_bytes` of a `"\n".join(...)`. Writing
+bytes avoided translation, and the join supplied the wrong separator anyway: the diff read 199
+insertions against 199 deletions for a 15-line change. Bytes keep what you give them; they do
+not remember what the file had.
+
+## [OBSERVED 2026-09-08] The rename script for this card normalised four files to LF
+
+Recorded late, on promotion, from this card's pre-promotion evidence record. A pass that renamed
+23 candidate directories repointed one reference in each of several files. Its write step called
+`.replace("\r\n", "\n")` before encoding, written on purpose to stop the opposite error of
+introducing CRLF on Windows. Four files that were uniformly CRLF in the index came back LF,
+three in another candidate and one in a published card's `gotchas.md`. The staged diff read
+1,520 insertions against 1,520 deletions for a 53-line change; restoring CRLF brought it to 53
+against 53. Avoiding the wrong ending is not the same as matching the file's ending.

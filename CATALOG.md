@@ -80,7 +80,7 @@ These cards use three forms:
 
 | Type | What it is | Cards |
 |---|---|---|
-| Trap | A warning and recovery path for a command or platform behavior that can report success after doing the wrong work. | `pull-rebase`, `stale-deploy`, `clirunner-env`, `mocked-stub`, `pretooluse-prose`, `vacuous-check` |
+| Trap | A warning and recovery path for a command or platform behavior that can report success after doing the wrong work. | `pull-rebase`, `stale-deploy`, `clirunner-env`, `mocked-stub`, `pretooluse-prose`, `vacuous-check`, `uniform-eol` |
 | Procedure | An ordered set of actions for a boundary, handoff, or verification task. | `im-down`, `im-up`, `closure-mode`, `subagent-handback`, `decision-rights`, `dead-predicate`, `halt-as-deliverable` |
 | Schema | A fixed output shape for comparable parallel reviews. | `disposition-schema` |
 
@@ -106,6 +106,7 @@ integer that opens the card's `Occasions counted` row.
 | [`mocked-stub`](skills/engineering/mocked-stub/EVIDENCE.md) | origin-trace | 1 |
 | [`pretooluse-prose`](skills/engineering/pretooluse-prose/EVIDENCE.md) | origin-trace | 7 |
 | [`vacuous-check`](skills/engineering/vacuous-check/EVIDENCE.md) | origin-trace | 2 |
+| [`uniform-eol`](skills/engineering/uniform-eol/EVIDENCE.md) | origin-trace | 6 |
 | [`decision-rights`](skills/orchestration/decision-rights/EVIDENCE.md) | origin-trace | 1 |
 | [`disposition-schema`](skills/orchestration/disposition-schema/EVIDENCE.md) | origin-trace | 2 |
 | [`subagent-handback`](skills/orchestration/subagent-handback/EVIDENCE.md) | origin-trace | 5 |
@@ -132,6 +133,7 @@ These are about an operation, a test, or an agent reporting an outcome that did 
 | `vacuous-check` | A success test accepts an error body, because it asks only whether the output is non-empty. |
 | `clirunner-env` | A test's environment override leaves a key in place, the call the test exists to prevent happens, and the assertion still passes. |
 | `dead-predicate` | A router's silence reads as "no prompt needed it" when the cause is a predicate that cannot match. |
+| `uniform-eol` | A text-mode write on Windows converts every line ending, so a five-line edit ships as a whole-file diff and the commit still succeeds. |
 | `pretooluse-prose` | A command guard reads prose that mentions the command it polices, and blocks the text instead of the action. |
 | `subagent-handback` | A subagent returns claims and citations nobody checked, from tools it may not hold. |
 | `im-up` | A session start checks the previous session's stated paths, predicates, and sequence against the repository. |

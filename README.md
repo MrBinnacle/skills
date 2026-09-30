@@ -31,6 +31,7 @@ Each skill adds one line to every session: about 45 to 65 tokens, measured by `s
 | `mocked-stub` | A test mocks a helper that is only a stub in production. |
 | `vacuous-check` | A success check only asks whether the output is non-empty. |
 | `clirunner-env` | A test overrides environment variables to stop a real call. |
+| `uniform-eol` | A script rewrites a file on Windows, or a small edit shows a whole-file diff. |
 | `pretooluse-prose` | A command guard might block prose that mentions the command. |
 | `halt-as-deliverable` | Your own gate stops the work, and the stop is the result. |
 | `closure-mode` (by hand) | You reach a boundary with a checklist to run. |

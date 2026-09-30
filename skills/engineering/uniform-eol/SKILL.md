@@ -1,114 +1,80 @@
 ---
 name: uniform-eol
-description: Use when a small edit produces a diffstat near the file's whole line count, or before writing a file with write_text on Windows. A uniform EOL conversion is invisible to a mixed-endings guard.
-author: Claude Code
-version: 1.1.0
-date: 2026-09-07
+description: Use before a script rewrites a file on Windows, when a small edit's diffstat is near the file's line count, or when every item of a batch read from a written file fails.
 ---
 
-# A uniform EOL rewrite hides the change and passes the mixed-EOL guard
+# uniform-eol: a text-mode write converts every line ending and reports success
 
 ## Problem
 
-A script makes five targeted edits to a document. The commit reports 810 insertions and 788 deletions on a 788-line file. Nothing is wrong with the edits. The write converted every line ending from LF to CRLF, so git sees every line as changed.
+On Windows, Python's text-mode write turns every `\n` into `\r\n`. A script that reads a file, changes five lines and writes it back converts the whole file. Nothing errors. The assertions pass, the hooks pass, the commit succeeds.
 
-Two costs, and the second is worse than the first. The file's line endings are now wrong. And the five real edits are invisible — no reviewer can find them inside a whole-file diff, so the change ships unreviewed while looking reviewed.
+Two things then go wrong. In a repository, git sees every line as changed, so the five real edits hide inside a whole-file diff and ship unreviewed while looking reviewed. In data another program parses, each line now carries a trailing `\r`, and the consumer fails for a reason it cannot name: a URL that never resolves, a token that never matches.
 
-## Context / Trigger conditions
+## Trigger conditions
 
-- A diffstat's insertions and deletions are each near the file's total line count, after an edit you know touched a handful of lines.
-- A Python script wrote the file with `pathlib.Path.write_text(s)` or `open(path, "w").write(s)`. Both default to `newline=None`, which on write translates every `\n` to `os.linesep` — `\r\n` on Windows. Reading with `read_text()` does the reverse, so a read-modify-write round trip converts a whole file with no error and no warning.
-- The repository stores LF, which is the common case, so the conversion is total rather than partial.
-- A mixed-EOL guard is installed and did not fire.
-- The write went into a sibling repository by absolute path, and the hook is scoped to the session's own project directory.
+- A script is about to write a file with `pathlib.Path.write_text(s)` or `open(path, "w")` on Windows. Both default to `newline=None`, which translates `\n` to `os.linesep` on write. `read_text()` does the reverse, so the read-modify-write round trip converts the file under the documented contract.
+- A diffstat's insertions and deletions each sit near the file's line count after an edit that touched a handful of lines.
+- Every item of a batch fails the same way, and the batch was read from a file a script wrote: `curl` returning `000` on every URL, a lookup missing on every key.
+- A line-ending guard is installed and did not fire. See [`guard-design.md`](guard-design.md) for why it usually cannot.
 
 ## Solution
 
-**Write bytes, not text, whenever you are rewriting an existing file.**
+**The rule is the write.** When a script rewrites an existing file, or writes a file another program will parse, keep the file's line ending by construction:
 
 ```python
-# Wrong on Windows: read_text/write_text round trip converts LF -> CRLF
-t = path.read_text(encoding="utf-8")
-path.write_text(t, encoding="utf-8")
+# Converts LF to CRLF on Windows:
+path.write_text(text, encoding="utf-8")
 
-# Right: read_text is fine (universal newlines gives you \n),
-# but write the bytes verbatim so nothing is translated.
-t = path.read_text(encoding="utf-8")
-path.write_bytes(t.encode("utf-8"))
+# Keeps whatever ending the file had:
+with open(path, encoding="utf-8", newline="") as f:
+    text = f.read()
+path.write_text(text, encoding="utf-8", newline="")  # newline= needs Python 3.10+
 
-# Also right, if you want to stay in text mode:
-path.write_text(t, encoding="utf-8", newline="")
+# Or stay in bytes throughout:
+data = path.read_bytes()
+path.write_bytes(data.replace(old, new))
 ```
 
-`newline=""` disables translation on write. `write_bytes` never had it.
+`newline=""` turns translation off in both directions. Reading with `newline=""` matters too: a regex anchored with `$` then sees `\r` before each `\n`, so allow `\r?` in patterns that match at line end.
 
-**Then check the diffstat before you trust the commit.** The commit succeeds either way; only the diffstat tells you what happened.
+**The diffstat is the backstop, for the file that reaches git:**
 
 ```bash
-git diff --stat origin/main...HEAD
+git diff --stat
 ```
 
-If the number is wrong, repair with the same `write_bytes` form above, then `git add` and
-`git commit --amend`.
+If the numbers are wrong, rewrite the file in its original ending with the byte form above. Before a push, amend. After a push, commit the repair on top.
 
-## The installed guard probably will not catch this
-
-A line-ending guard usually asks whether a file carries **both** separators — `crlf > 0 and lone_lf > 0`. That is a sound test for a *stray* separator and it is blind to a *uniform* conversion, where the counts are `crlf = 789, lone_lf = 0`. Not mixed, not a finding, and it is the case where the diff damage is greatest.
-
-A repo-scoped hook adds a second blind spot: rooted at the session's project directory, it returns nothing for a write into a sibling repository reached by absolute path.
-
-Both gaps, and how to close them, are in [`guard-design.md`](guard-design.md). Read it before trusting a guard to cover this.
+**For data that never reaches git, run one control.** Take one item out of the failing batch and use it directly, typed into the command. If it works there, the fault is in the file your script wrote, not in the items.
 
 ## Verification
 
-Confirm the file, not the intention. Count both separators in the working file and in what the repository holds, and check they agree on which one dominates:
+Count both separators in the working file and in what git holds, and check they agree:
 
 ```bash
 eol() { python -c "
 import sys; b=open(sys.argv[1],'rb').read() if len(sys.argv)>1 else sys.stdin.buffer.read()
 crlf=b.count(b'\r\n'); print('CRLF:',crlf,' bare LF:',b.count(b'\n')-crlf)" "$@"; }
 
-eol path/to/file                       # working tree
-git show origin/main:path/to/file | eol   # what git holds
+eol path/to/file
+git show HEAD:path/to/file | eol
 ```
 
 Then confirm the diffstat matches the size of the edit you intended.
 
-## Example
+## Related mechanism
 
-Observed 2026-09-06. A script applied six exact-string replacements to a 788-line `AGENTS.md`, each guarded by an assertion that the pattern occurred exactly once. Every assertion passed. The edits were correct.
-
-The commit reported `2 files changed, 810 insertions(+), 788 deletions(-)`.
-
-Measurement:
-
-```
-working file : CRLF 789, bare LF 0
-origin/main  : CRLF 0,   bare LF 788
-```
-
-The script ended with `p.write_text(t, encoding="utf-8")`. Fixed with `p.write_bytes(t.encode("utf-8"))` and `git commit --amend`. The diffstat became `AGENTS.md | 11 ++++++-----`, which is the real change: five replacements and one insertion.
-
-The installed mixed-EOL guard did not fire, for both reasons above: the conversion was uniform, and the file was in a sibling repository outside the guard's root.
-
-## The other mechanism with this signature
-
-Re-serializing a JSON, YAML or TOML file to change one string reformats the whole document
-under the serializer's own defaults. Same unreviewable diff, different cause, and the
-diffstat separates them: an EOL conversion gives insertions == deletions == the line count,
-while a round-trip moves the line count itself. Read
-[`serializer-round-trip.md`](serializer-round-trip.md) when the two numbers differ.
+Re-serializing a JSON, YAML or TOML file to change one string reformats the whole document. The diffstat separates the two causes: an EOL conversion gives insertions equal to deletions equal to the line count, while a re-serialization moves the line count itself. Read [`serializer-round-trip.md`](serializer-round-trip.md) when the two numbers differ.
 
 ## Notes
 
-- **The diffstat is the detector, and it is free.** One command after every scripted edit catches this class. A commit that succeeds tells you nothing about what it contains.
-- **`.gitattributes` with `* text=auto eol=lf` normalises on commit.** Worth having, and not a substitute for the check: it fixes what lands in git while leaving the working tree converted, and not every repository has it.
-- **Do not "fix" this by telling git to ignore whitespace in diffs.** That hides the symptom and leaves the next reviewer the same unreadable diff.
-- A write-side sibling of the read-side trap where a bounded read establishes a confident absence: both trust an operation's success instead of measuring its effect.
-- See also: `write-site` for the general habit of putting the check where the write happens.
+- `.gitattributes` with `* text=auto eol=lf` normalises what git stores. It leaves the working tree converted and does nothing for data outside git, so the write rule still applies.
+- Keep the diff readable. Telling git to ignore whitespace hides the symptom and leaves the next reviewer the same unreadable diff.
+- Dated occurrences, including one where a repair script caused the failure it was guarding against, are in [`gotchas.md`](gotchas.md); the count and the retirement trigger are in [`EVIDENCE.md`](EVIDENCE.md).
 
 ## References
 
-- Python `open()` and the `newline` parameter, which governs translation in both directions: https://docs.python.org/3/library/functions.html#open
-- `pathlib.Path.write_text` / `read_text`, which pass `newline` through to `open()`: https://docs.python.org/3/library/pathlib.html#pathlib.Path.write_text
-- `gitattributes`, `text` and `eol` for commit-time normalisation: https://git-scm.com/docs/gitattributes
+- Python `open()` and its `newline` parameter: https://docs.python.org/3/library/functions.html#open
+- `pathlib.Path.write_text` and `read_text`, which pass `newline` through to `open()` (`write_text` takes `newline` since Python 3.10; checked against the CPython 3.13.9 docs through Context7 on 2026-09-30): https://docs.python.org/3/library/pathlib.html#pathlib.Path.write_text
+- `gitattributes`, `text` and `eol`: https://git-scm.com/docs/gitattributes

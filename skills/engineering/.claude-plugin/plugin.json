@@ -16,6 +16,7 @@
     "./pretooluse-prose",
     "./pull-rebase",
     "./stale-deploy",
+    "./uniform-eol",
     "./vacuous-check"
   ]
 }

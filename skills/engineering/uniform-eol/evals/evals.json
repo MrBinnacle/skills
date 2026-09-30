@@ -1,0 +1,36 @@
+{
+  "skill_name": "uniform-eol",
+  "note": "Structural contract. Describes what a run against this card should assert. Records no run, no score and no verdict; the card's evidence stays UNMEASURED until paired clean-context runs exist.",
+  "cases": [
+    {
+      "id": 1,
+      "prompt": "On Windows, write a Python script that reads docs/AGENTS.md, replaces the heading 'Old name' with 'New name', and writes the file back with pathlib.",
+      "expected_output": "Writes the file without newline translation: reads with newline='' or as bytes and writes with write_text(..., newline='') or write_bytes. States that a plain write_text on Windows converts every LF to CRLF, and suggests checking the diffstat afterwards.",
+      "assertions": [
+        "The write passes newline='' or uses write_bytes; it is not a bare write_text(text).",
+        "Names the whole-file line-ending conversion as the reason.",
+        "Suggests confirming with git diff --stat that only the intended lines changed."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I changed three lines in config.md with a script and the commit says 412 insertions and 410 deletions. The file is 410 lines. What happened?",
+      "expected_output": "Identifies a uniform line-ending conversion from a text-mode write, shows how to count CRLF and bare LF in the working file against git's copy, and repairs by rewriting in the original ending before amending or committing a fix.",
+      "assertions": [
+        "Diagnoses a whole-file line-ending conversion, not a content change.",
+        "Measures both separators in the working file and in git's copy.",
+        "Repairs by restoring the original ending rather than telling git to ignore whitespace."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "My script wrote 19 URLs to urls.txt with open(path, 'w') on Windows, and a bash loop over the file gets curl status 000 on every one. Is the network down?",
+      "expected_output": "Treats a uniform failure across the batch as an apparatus fault, runs one URL typed directly as a control, and names the trailing carriage return left by the text-mode write as the cause.",
+      "assertions": [
+        "Proposes a single-item control outside the loop before blaming the network.",
+        "Names the trailing CR from the text-mode write as the likely cause.",
+        "Fixes the write (newline='\n' or bytes) or strips the CR before reuse."
+      ]
+    }
+  ]
+}
