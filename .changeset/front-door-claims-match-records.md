@@ -1,0 +1,5 @@
+---
+"mrbinnacle-skills": patch
+---
+
+The README, the marketplace description and the Pages site now make only claims the cards' own records support. The README no longer says every skill passed the admission policy (the 2026-08-15 triage found most do not yet meet all four questions) or that every skill came from an incident (`im-down` and `im-up` were designed), and it states the completed `pull-rebase` screen result instead of "under way". The marketplace description names what every card carries: an evidence record, test cases and a retirement condition. The `mrbinnacle-meta` description drops "whether a skill should exist", a subject whose card retired in August. On the site, four links that pointed at README headings moved by #324 now point at CATALOG.md, where the three "What this isn't" sections are restored, and the install block adds the `/plugin install` step and names all three plugins. A new check, `scripts/validate_site_links.py`, fails CI when a site link or its anchor does not resolve.

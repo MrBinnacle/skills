@@ -479,6 +479,24 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::standing-cost check emitted no PASS line - it did not run"; exit 1; }
 
+      # The Pages site links into README.md and CATALOG.md by heading anchor.
+      # lychee does not check anchors, and #324 broke four of them unnoticed.
+      - name: Site-link suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_site_links.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::site-link suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Site-link check
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_site_links.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::site-link check emitted no PASS line - it did not run"; exit 1; }
+
       # The release-model disclosure (ADR 0002): the changelog preamble states
       # the delivery model and the README's Install section states the declared
       # surface, with no count on either. PYTHONUTF8 for the same reason as the
