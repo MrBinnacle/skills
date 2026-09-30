@@ -311,3 +311,23 @@ class TestEdgeCases:
         assert "states no 'measured <date>'" not in val_result.stderr
         assert "must open with a nonzero integer" not in val_result.stdout
         assert "states no 'measured <date>'" not in val_result.stdout
+
+
+class TestLineEndingsPreserved:
+    """The rewrite keeps each file's line ending; a text-mode write on Windows used to convert LF to CRLF."""
+
+    @pytest.mark.parametrize("eol", [b"\n", b"\r\n"])
+    def test_eol_unchanged(self, repo_copy: Path, eol: bytes) -> None:
+        evidence = repo_copy / "skills/engineering/im-up/EVIDENCE.md"
+        body = evidence.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", eol)
+        evidence.write_bytes(body)
+        log = _make_fixture_log(repo_copy, {"im-up": 7})
+        assert _run_script(log, repo_copy).returncode == 0
+        after = evidence.read_bytes()
+        crlf = after.count(b"\r\n")
+        lone_lf = after.count(b"\n") - crlf
+        if eol == b"\n":
+            assert crlf == 0
+        else:
+            assert lone_lf == 0
+        assert "7 dispatches" in _read_dispatch_row(evidence)
