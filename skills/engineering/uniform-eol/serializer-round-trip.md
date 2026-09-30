@@ -31,8 +31,8 @@ whether every non-ASCII character is stored raw or as `\uXXXX`. Nothing in the r
 it what the file used, so the defaults win. `yaml.safe_dump`, `tomlkit.dumps` used without
 its round-trip API, and any XML pretty-printer behave the same way.
 
-The fix is the same as the EOL fix and for the same reason: **do not re-serialize a document
-in order to change a string inside it.** Operate on the bytes, and assert the match count so
+The fix is the same as the EOL fix and for the same reason: **edit the bytes of a document when
+you change a string inside it, and leave the serializer out of it.** Operate on the bytes, and assert the match count so
 the edit still cannot land silently:
 
 ```python
