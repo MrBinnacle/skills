@@ -24,6 +24,24 @@ every card does carry is a pre-registered retirement trigger: the specific chang
 remove the failure the card addresses, named in advance. Membership is governed by the
 [admission policy](ADMISSION.md).
 
+## What this isn't
+
+### Not a catalog
+
+The repository is not intended to maximize coverage. The admission policy keeps it small. If you
+want breadth, [Matt Pocock's skills collection](https://github.com/mattpocock/skills) is a better
+place to browse.
+
+### Not proof that these skills work
+
+Where a card has a controlled screen, its result is `CANT_TELL_YET`; the rest have no controlled
+result. The [card evidence](#card-evidence) table says which is which.
+
+### Not a runtime
+
+There is nothing to import and no framework to install. The skills are Markdown. You can read one,
+use it, change it, or delete it.
+
 ## Admission method
 
 The [admission policy](ADMISSION.md) governs membership. It asks four questions: whether an
@@ -231,7 +249,7 @@ It tracks `main` rather than a tag, so it installs the current tip of the collec
 
 The same route lists the collection on [skills.sh](https://www.skills.sh/MrBinnacle/skills), the
 directory behind that command, where each card appears by name with its install count. That
-directory ranks by installs only. It carries none of the evidence records described below.
+directory ranks by installs only. It carries none of the evidence records described above.
 
 The marketplace names each plugin and its bucket folder, and each bucket's
 `.claude-plugin/plugin.json` names that plugin's cards and version. Together they are the

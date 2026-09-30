@@ -1,6 +1,6 @@
 {
   "name": "mrbinnacle-engineering",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Workflow disciplines for shipping software: traps that survive review, and the checks that catch them.",
   "author": {
     "name": "MrBinnacle",

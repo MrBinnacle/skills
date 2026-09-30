@@ -5,7 +5,7 @@
     "url": "https://github.com/MrBinnacle/skills"
   },
   "metadata": {
-    "description": "Agent skills that each carry a dated incident, a recurrence count, and a stated screen result."
+    "description": "Agent skills that each carry an evidence record, test cases, and the condition that would retire it."
   },
   "plugins": [
     {
@@ -21,7 +21,7 @@
     {
       "name": "mrbinnacle-meta",
       "source": "./skills/meta",
-      "description": "Skills about the skill system itself: whether a skill should exist, and whether it can be reached."
+      "description": "Skills about the skill system itself: whether a skill can be reached."
     }
   ]
 }

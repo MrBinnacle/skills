@@ -51,7 +51,7 @@ REPO_ROOT = SCRIPT_DIR.parent
 
 # Regex matching the full table row containing the dispatch value.
 _DISPATCH_ROW_RE = re.compile(
-    r"^\| \*\*Dispatches recorded\*\* \|.*\|$", re.MULTILINE
+    r"^\| \*\*Dispatches recorded\*\* \|.*\|(?=\r?$)", re.MULTILINE
 )
 _MEASURED_DATE_RE = re.compile(r"measured 20\d{2}-\d{2}-\d{2}")
 _ZERO_OPEN_RE = re.compile(r"No recorded dispatch\b")
@@ -180,7 +180,7 @@ def rewrite_dispatch_row(evidence: Path, count: int, date: str) -> bool:
     Returns True if the file was changed, False if the row was not found
     or the replacement matched the existing text.
     """
-    text = evidence.read_text(encoding="utf-8")
+    text = evidence.read_text(encoding="utf-8", newline="")
     match = _DISPATCH_ROW_RE.search(text)
     if match is None:
         return False
@@ -189,7 +189,7 @@ def rewrite_dispatch_row(evidence: Path, count: int, date: str) -> bool:
     if new_row == existing:
         return False
     new_text = text[: match.start()] + new_row + text[match.end() :]
-    evidence.write_text(new_text, encoding="utf-8")
+    evidence.write_text(new_text, encoding="utf-8", newline="")
     return True
 
 

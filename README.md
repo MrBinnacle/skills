@@ -7,7 +7,7 @@
 
 # `skills`
 
-Claude Code skills for mistakes that report success. Each one comes from a failure seen in real work: a pull that quietly rewrote commits, a test that passed over code that never ran, a deploy check that confirmed a deploy that had not landed. Any Claude Code user can hit them. Every skill here passed the [admission policy](ADMISSION.md) before it was published.
+Claude Code skills for mistakes that report success. Most come from a failure seen in real work: a pull that quietly rewrote commits, a test that passed over code that never ran, a deploy check that confirmed a deploy that had not landed. Two, `im-down` and `im-up`, were designed on purpose rather than written after an incident. Any Claude Code user can hit these failures. The [admission policy](ADMISSION.md) came after many of the skills were published, and a [triage against it](dispositions/2026-08-15-S295-admission-triage.md) found that most of them do not yet meet all four of its questions on recorded evidence. Each skill's `EVIDENCE.md` says where it stands.
 
 ## Install
 
@@ -58,10 +58,10 @@ You would not ship code that runs on every request without tests. A skill runs i
 - **An evidence record** (`EVIDENCE.md`): the real failure it came from, and what has been measured. So you know why it is there.
 - **A retirement condition**: the change that would make it unnecessary. So you know when to take it out.
 
-Controlled tests, with and without each skill, run in [skill-harness](https://github.com/MrBinnacle/skill-harness). The first is under way, on `pull-rebase`. No skill claims a measured benefit yet.
+Controlled tests, with and without each skill, run in [skill-harness](https://github.com/MrBinnacle/skill-harness). The first, on `pull-rebase`, completed on 2026-09-03 and returned `CANT_TELL_YET`: the failure did not occur in either arm, so the run could not tell whether the skill helps. No second run is funded yet. The [evidence record](skills/engineering/pull-rebase/EVIDENCE.md) has the details. No skill claims a measured benefit yet.
 
 ## How skills get in and out
 
-A skill gets in only if it passes the [admission policy](ADMISSION.md). It leaves when a test finds no benefit, or when a model or Claude Code change makes it unnecessary. [RETIRED.md](RETIRED.md) lists every one that has left, with its evidence. Candidates wait in [`_quarantine/`](_quarantine/README.md).
+A new skill gets in only if it passes the [admission policy](ADMISSION.md). It leaves when a test finds no benefit, or when a model or Claude Code change makes it unnecessary. [RETIRED.md](RETIRED.md) lists every one that has left, with its evidence. Candidates wait in [`_quarantine/`](_quarantine/README.md).
 
 The full evidence table, the card forms and the admission detail are in [CATALOG.md](CATALOG.md). Security commitments are in [SECURITY.md](SECURITY.md).

@@ -133,6 +133,18 @@ not concluded. Each entry below is one observation with the instrument that prod
 | Date | Observation | Instrument | Result |
 |---|---|---|---|
 | 2026-09-08 | Deliberate scratch write into this repository: a tracked, uniformly-CRLF file converted to LF the way occurrence 4's normaliser did. | `git diff --numstat` after the write; the guard run with a real `PostToolUse` payload. | **Caught.** The diffstat read 53 / 53 for a zero-content change, which is occurrence 4's signature. The guard named the file and the direction, `CRLF -> LF`. The file was restored byte-identical and the tree left clean. |
+| ~2026-09-26 | A hygiene pass rewrote the research notebook's CRLF state file in text mode and flattened it to LF. Unplanned. | The line-ending hook; the maintainer's session record. | **Caught**, per the session record: "the text-mode write flattened CRLF and the line-ending hook caught it." Date is the record file's commit date. |
+| ~2026-09-28 | `sed -i` on two CRLF files wrote them as LF. Unplanned. | The line-ending guard; the maintainer's session record. | **Caught**, both, per the session record. Date is the record file's commit date. |
+| 2026-09-29 | A text-mode edit script flipped the CRLF `guard-command-traps.py` to LF, a 1,695-line diff. Unplanned. | The maintainer's session record. | **Instrument not recorded.** The record names the diff size and the repair, not what noticed it. Counted as an occurrence; not scored as caught or missed. |
+| 2026-09-30 | This collection's `scripts/refresh_dispatch_counts.py` rewrote fourteen LF `EVIDENCE.md` files as CRLF during a rotation pass. Unplanned, git-visible. | The line-ending hook, live, with a real `PostToolUse` payload. | **Caught.** The hook named all fourteen files and the direction `LF -> CRLF` on the same tool call. Nothing was committed converted; the script was fixed in `ca82030`. |
+
+**Where these rows leave the branch condition (S498 rotation pass).** Every git-visible conversion
+with a recorded instrument since the guard was built was caught, and none landed with the guard
+live. That leans toward the first branch of step 2: enforcement is the layer, and the card stays
+in `_quarantine/` until two git-invisible occurrences are counted. The git-invisible count is still
+one (2026-09-07). The step-3 retrieval trial has not been run. The rotation pass drafted a
+promotion of this card and withdrew it on reading this record; admission is not decided here, and
+the verdict table above is unchanged.
 
 **One observation is not the branch condition.** The record asks whether the guard catches *every*
 git-visible uniform conversion over the next scripted writes. One deliberate probe in the "caught"
