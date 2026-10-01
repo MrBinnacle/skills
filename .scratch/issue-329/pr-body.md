@@ -4,7 +4,7 @@
 
 This repository pins every GitHub Action by full commit SHA. Those pins never received update PRs, because the tree carried no `.github/dependabot.yml`. Issue #329 asks for that file, covering the github-actions ecosystem, weekly, with updates grouped. The source named on the ticket is `docs/research/stakeholder-coverage-S498.md` (S498 stakeholder sweep). That path does not exist in this container. The ticket text is the tracker of record here.
 
-The ticket also names `skill-harness/.github/dependabot.yml` as the pattern to copy. That file does not exist in this container either, and the container holds no network path to fetch it. The config below is built from the ticket's stated shape rather than copied byte-for-byte. The shape matches what the ticket requires.
+The ticket also names `skill-harness/.github/dependabot.yml` as the pattern to copy. That repository is not checked out in this container. Checked 2026-10-01, its GitHub Actions entry uses the required github-actions ecosystem, weekly schedule, and grouped updates. This focused config keeps those ticketed properties without importing that repository's labels, pull-request limit, or commit-message convention.
 
 ## Criterion 1: config covers github-actions, weekly, with updates grouped
 
