@@ -30,6 +30,9 @@ stress-test signal.)*
   not re-litigate' but it's never an ALWAYS framing." The before/after in SKILL.md's Example is
   that artifact pair verbatim (identifiers genericized). Direct origin of this skill.
 
+  `promoted: hook` — 2026-10-01, `guard-downstream-framing.py` (PreToolUse on Write/Edit).
+  Prevention fires on the tool call, not on a reader opening this file.
+
 - **2026-08-23 / corpus harvest, 1358 files across 28 project directories:** a rotation pass
   searched every reachable session record, handoff, audit and research document for this
   card's origin failure. Each card's search signature was required to locate that card's own

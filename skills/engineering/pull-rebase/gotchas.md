@@ -18,6 +18,8 @@
 
 - **2026-05-25 / a personal production project:** Hit on `git pull origin main --no-commit --no-ff` during a push-divergence incident. `pull.rebase=true` configured globally. Rewrote 22 commits, required 111 SHA substitutions across 5 state files. User authorized "accept rebase + backfill" recovery path. Direct trigger that produced this skill.
 
+  `promoted: hook` — 2026-10-01, `guard-git-pull-rebase.py` (PreToolUse). Prevention fires on the tool call, not on a reader opening this file.
+
 - **2026-08-10 / mention-only false positives:** A private guard matched a `git` token followed later by a `pull` token anywhere in the command string. It repeatedly blocked legitimate commands that only named the skill or guard, including reading the guard's own source; two later reproductions blocked path globs naming this skill's directory. Parse actual shell/Git arguments instead. A guard that trains users to bypass the whole family is worse than no guard.
 
 - **2026-09-13 / the false positive is not only mention-only, and it reproduced four more times:**
