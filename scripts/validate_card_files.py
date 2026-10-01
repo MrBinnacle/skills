@@ -844,7 +844,7 @@ def stale_exemption_breaches(cards: list[Path]) -> list[str]:
 # also carry a when-to-open cue on the same line (writing-for-agents context
 # pointers); naming the file is not saying when to open it.
 _GOTCHAS_LINK_RE: Final[re.Pattern[str]] = re.compile(
-    r"!?\[[^\]]*\]\(\s*<?gotchas\.md>?(?:#[^)\s]*)?(?:\s+[^)]*)?\)"
+    r"(?<!!)\[[^\]]*\]\(\s*<?gotchas\.md>?(?:#[^)\s]*)?(?:\s+[^)]*)?\)"
 )
 _WHEN_TO_OPEN_CUE_RE: Final[re.Pattern[str]] = re.compile(
     r"\b(?:when|before|whenever|prior to|if)\b", re.IGNORECASE

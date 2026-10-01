@@ -1279,6 +1279,29 @@ def case_gotchas_pointer_without_when_cue_is_rejected(root: Path) -> None:
     )
 
 
+def case_gotchas_image_is_not_a_pointer(root: Path) -> None:
+    """An image is not a reader-openable context pointer."""
+    card = write_card(root, "image-pointer-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (card / "SKILL.md").write_text(
+        skill_md("image-pointer-card").replace(
+            "Open [gotchas.md](gotchas.md) when a green result needs the failure record.",
+            "Open ![gotchas.md](gotchas.md) when a green result needs the failure record.",
+        ),
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "a gotchas.md image is rejected as a context pointer",
+        result.returncode != 0 and "no context pointer to gotchas.md" in result.stderr,
+        result.stdout + result.stderr,
+    )
+    check(
+        "the image-pointer breach is reported once, not compounded",
+        "1 card contract breach(es)" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
 def case_gotchas_pointer_with_when_cue_passes(root: Path) -> None:
     """A when-to-open pointer clears the check — green proven, not just red."""
     write_card(root, "pointed-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
@@ -1374,6 +1397,7 @@ def main() -> None:
         case_observed_origin_gotcha_md_path_passes,
         case_gotchas_pointer_missing_is_rejected,
         case_gotchas_pointer_without_when_cue_is_rejected,
+        case_gotchas_image_is_not_a_pointer,
         case_gotchas_pointer_with_when_cue_passes,
     ]
     for func in isolated:
