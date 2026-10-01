@@ -66,14 +66,17 @@ CONFORMING_DESCRIPTION = "A fixture card. Use when testing the card contract."
 
 
 def skill_md(name: str, description: str = CONFORMING_DESCRIPTION) -> str:
-    # AGENTS.md: SKILL.md must be at least 400 bytes, and must link every
-    # reader-facing auxiliary (EVIDENCE.md, gotchas.md).  Pad the body so
-    # every fixture meets the size floor, and include the required links so
-    # the reachability check passes on a conforming card.
+    # AGENTS.md: SKILL.md must be at least 400 bytes, must link every
+    # reader-facing auxiliary (EVIDENCE.md, gotchas.md), and must carry a
+    # when-to-open context pointer to gotchas.md (skills#327). Pad the body so
+    # every fixture meets the size floor, and include the required links plus
+    # the pointer so the reachability and pointer checks pass on a conforming
+    # card.
     body = (
         f"---\nname: {name}\ndescription: {description}\n---\n\n"
         f"# {name}\n\n"
-        f"See [EVIDENCE.md](EVIDENCE.md) and [gotchas.md](gotchas.md).\n"
+        f"See [EVIDENCE.md](EVIDENCE.md). Open [gotchas.md](gotchas.md) when "
+        f"a green result needs the failure record.\n"
     )
     padding = "\n\n" + "x" * max(0, 400 - len(body.encode("utf-8")))
     return body + padding
@@ -723,7 +726,8 @@ def case_quotes_do_not_count_against_the_budget(root: Path) -> None:
     card = write_card(root, "quoted-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
     quoted = (
         '---\nname: quoted-card\ndescription: "' + exactly + '"\n---\n\n'
-        "# quoted-card\n\nSee [EVIDENCE.md](EVIDENCE.md) and [gotchas.md](gotchas.md).\n"
+        "# quoted-card\n\nSee [EVIDENCE.md](EVIDENCE.md). Open "
+        "[gotchas.md](gotchas.md) when a green result needs the failure record.\n"
     )
     # Pad to meet the 400-byte minimum while keeping frontmatter intact.
     quoted += "\n\n" + "x" * max(0, 400 - len(quoted.encode("utf-8")))
@@ -1208,6 +1212,117 @@ def case_observed_origin_gotcha_md_path_passes(root: Path) -> None:
     )
 
 
+# --- gotchas.md context pointer (skills#327) ---
+
+
+def case_gotchas_pointer_missing_is_rejected(root: Path) -> None:
+    """A card that names no gotchas pointer is refused.
+
+    S496 measured 2026-09-30: 4 of 14 published cards named their gotchas.md
+    at all. The pointer is the reach mechanism; gotchas.md is not
+    always-loaded, and no discipline that must fire rests on it. EVIDENCE.md
+    links gotchas.md so reachability stays green transitively; the breach is
+    the missing pointer on SKILL.md alone. Same-length filler keeps the
+    fixture above the size floor.
+    """
+    evidence = CONFORMING_EVIDENCE + "Full entry: [gotchas.md](gotchas.md).\n"
+    card = write_card(root, "no-pointer-card", evidence, CONFORMING_GOTCHAS)
+    (card / "SKILL.md").write_text(
+        skill_md("no-pointer-card").replace(
+            "Open [gotchas.md](gotchas.md) when a green result needs the failure record.",
+            "Read the sibling evidence record when a green result needs checking.",
+        ).replace(
+            "See [EVIDENCE.md](EVIDENCE.md).",
+            "See [EVIDENCE.md](EVIDENCE.md) for the counted occasions.",
+        ),
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "a SKILL.md with no gotchas pointer is rejected",
+        result.returncode != 0 and "no context pointer to gotchas.md" in result.stderr,
+        result.stdout + result.stderr,
+    )
+    check(
+        "the missing-pointer fixture is red for exactly one reason",
+        "1 card contract breach(es)" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_gotchas_pointer_without_when_cue_is_rejected(root: Path) -> None:
+    """A bare link names the file; a context pointer says when to open it.
+
+    writing-for-agents context pointers carry a trigger. The pointer check
+    refuses a link with no when-to-open condition on the same line, so a card
+    cannot satisfy the contract by dropping a filename into the prose. Same
+    length filler keeps the fixture above the size floor.
+    """
+    card = write_card(root, "bare-link-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (card / "SKILL.md").write_text(
+        skill_md("bare-link-card").replace(
+            "Open [gotchas.md](gotchas.md) when a green result needs the failure record.",
+            "See also [gotchas.md](gotchas.md) for more detail on each entry in this file.",
+        ),
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "a gotchas.md link with no when-to-open cue is rejected",
+        result.returncode != 0 and "no link line says a when-to-open" in result.stderr,
+        result.stdout + result.stderr,
+    )
+    check(
+        "the bare-link breach is reported once, not compounded",
+        "1 card contract breach(es)" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_gotchas_pointer_with_when_cue_passes(root: Path) -> None:
+    """A when-to-open pointer clears the check — green proven, not just red."""
+    write_card(root, "pointed-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a SKILL.md carrying a when-to-open gotchas pointer passes",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
+def case_live_cards_carry_gotchas_pointers() -> None:
+    """Every published card names its gotchas.md with a when-to-open pointer.
+
+    The live run above already refuses a missing pointer. This states the
+    external contract against each card's own SKILL.md text, independently of
+    the checker's regex, so a checker that goes soft cannot pass alone.
+    """
+    result = run_checker(REPO_ROOT)
+    check(
+        "the live tree passes the gotchas-pointer check",
+        result.returncode == 0,
+        result.stderr.strip(),
+    )
+    cards = validate_card_files.find_cards(REPO_ROOT)
+    missing: list[str] = []
+    for card in cards:
+        text = (card / "SKILL.md").read_text(encoding="utf-8", errors="replace")
+        has_pointer = False
+        for line in text.splitlines():
+            if not re.search(r"\[[^\]]*\]\(\s*<?gotchas\.md>?", line):
+                continue
+            if re.search(r"\b(?:when|before|whenever|prior to|if)\b", line, re.I):
+                has_pointer = True
+                break
+        if not has_pointer:
+            missing.append(card.relative_to(REPO_ROOT).as_posix())
+    check(
+        "every published SKILL.md names gotchas.md with a when-to-open pointer",
+        not missing,
+        f"missing pointer on: {missing}",
+    )
+
+
 def main() -> None:
     case_committed_poison_is_red()
     case_committed_missing_row_fixture_is_red()
@@ -1257,12 +1372,16 @@ def main() -> None:
         case_observed_origin_valid_path_passes,
         case_observed_origin_external_ref_passes,
         case_observed_origin_gotcha_md_path_passes,
+        case_gotchas_pointer_missing_is_rejected,
+        case_gotchas_pointer_without_when_cue_is_rejected,
+        case_gotchas_pointer_with_when_cue_passes,
     ]
     for func in isolated:
         with tempfile.TemporaryDirectory() as tmp:
             func(Path(tmp))
     case_live_nine_cards_pass()
     case_live_thin_labels_match_the_counts()
+    case_live_cards_carry_gotchas_pointers()
     case_linkcheck_lane_runs_checker()
 
     print("")

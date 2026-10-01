@@ -96,6 +96,8 @@ explicitly came for the result, where meta reads as evasion.
 
 ## Notes
 
+Open [gotchas.md](gotchas.md) when a pre-flight gate refuses to produce your deliverable and you are about to treat the HALT as a setback.
+
 - The pattern requires the discipline to be REAL — falsifiable, recoverable
   from the audit trail, applied uniformly, catching real problems including the
   author's own mistakes. Decorative pre-registrations produce HALTs that do

@@ -69,6 +69,8 @@ code is a stub — not a reason to patch.
 
 ## Why it matters
 
+Open [gotchas.md](gotchas.md) when a returned implementation reports all gates green and the branch's safety helper looks patched in the test.
+
 Green is evidence the *test passed*, never evidence the *production path ran*. The mock that
 makes the test convenient is the same mock that hides the missing implementation. A
 fresh-context re-review that reads the blocking tests for unpatched-ness — rather than trusting

@@ -830,6 +830,69 @@ def stale_exemption_breaches(cards: list[Path]) -> list[str]:
     ]
 
 
+# AGENTS.md (2026-10-01): every published SKILL.md carries one context pointer
+# to its gotchas.md that says when to open it. gotchas.md is the append-only
+# ledger, opened on a pointer — not always-loaded — and no discipline that must
+# fire rests on it. Measured 2026-09-30: 4 of 14 published cards named their
+# gotchas.md at all. The S496 read classification over 1,141 transcripts
+# (2026-08-30 to 2026-09-30) found zero model-emitted reads of any published
+# card's gotchas.md followed a Skill invocation of that card in the same
+# transcript (docs/rule-screens.md, 2026-10-01).
+#
+# The pointer is a markdown link, not a bare filename mention: reachability is
+# the point, and a backticked name is not a path a reader can open. It must
+# also carry a when-to-open cue on the same line (writing-for-agents context
+# pointers); naming the file is not saying when to open it.
+_GOTCHAS_LINK_RE: Final[re.Pattern[str]] = re.compile(
+    r"!?\[[^\]]*\]\(\s*<?gotchas\.md>?(?:#[^)\s]*)?(?:\s+[^)]*)?\)"
+)
+_WHEN_TO_OPEN_CUE_RE: Final[re.Pattern[str]] = re.compile(
+    r"\b(?:when|before|whenever|prior to|if)\b", re.IGNORECASE
+)
+
+
+def gotchas_pointer_breaches(card: Path) -> list[str]:
+    """SKILL.md must carry a when-to-open context pointer to gotchas.md.
+
+    Pointers are reader-facing body prose, not frontmatter: a description is a
+    retrieval router and does not tell a loaded card when to open a sibling.
+    A missing gotchas.md is already reported as a missing required file;
+    saying the pointer is missing too would inflate one defect into two.
+    """
+    skill = card / "SKILL.md"
+    if not skill.is_file():
+        return []
+    if not (card / "gotchas.md").is_file():
+        return []
+    text = skill.read_text(encoding="utf-8", errors="replace")
+    body = text
+    fm = FRONTMATTER_RE.match(text)
+    if fm:
+        body = text[fm.end():]
+    # Scan every line: a card may carry several mentions and one proper
+    # pointer. Returning on the first bare link would red-flag a card whose
+    # later line says when to open the file.
+    linked = False
+    for line in body.splitlines():
+        if not _GOTCHAS_LINK_RE.search(line):
+            continue
+        linked = True
+        if _WHEN_TO_OPEN_CUE_RE.search(line):
+            return []
+    if linked:
+        return [
+            "SKILL.md links gotchas.md but no link line says a when-to-open "
+            "condition. gotchas.md is opened on a pointer, not always-loaded; "
+            "the pointer must say when to open it"
+        ]
+    return [
+        "SKILL.md carries no context pointer to gotchas.md. Every published "
+        "card names its gotchas.md with a when-to-open pointer (AGENTS.md, "
+        "2026-10-01); S496 measured zero in-use opens of any published "
+        "card's gotchas.md across 1,141 transcripts"
+    ]
+
+
 def validate(root: Path) -> None:
     cards = find_cards(root)
     if not cards:
@@ -854,6 +917,7 @@ def validate(root: Path) -> None:
             ("size", size_breaches(card)),
             ("link", link_breaches(card)),
             ("reachability", reachability_breach(card)),
+            ("gotchas_pointer", gotchas_pointer_breaches(card)),
         ):
             for detail in details:
                 found.append((rel, kind, detail))
@@ -912,6 +976,7 @@ def validate(root: Path) -> None:
         + f"; every SKILL.md is between {SKILL_SIZE_MIN} and {SKILL_SIZE_MAX} bytes"
         + "; every local link resolves with case matching"
         + "; every reader-facing auxiliary reachable from SKILL.md"
+        + "; every SKILL.md carries a when-to-open pointer to gotchas.md"
         # A PASS line that claims "every SKILL.md is within bounds" while 14 breaches
         # sit on the allowlist is a false statement in the gate's own output. Say what
         # was actually established.

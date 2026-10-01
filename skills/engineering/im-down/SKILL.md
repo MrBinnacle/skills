@@ -96,6 +96,8 @@ Use `close_session.py` unless the project's close needs that control.
 
 ## Boundary limits
 
+Open [gotchas.md](gotchas.md) when a close was skipped, a packet went missing, or the receiver rejects a packet this producer just wrote.
+
 The operator runs `/clear`. The producer owes them a **safe-to-clear** verdict, computed from five checks and never asserted. `/clear` is the one action at a session boundary whose cost is one-way, so an `ACCEPTED` receipt is not the verdict; it is the first check.
 
 1. The packet re-validates `ACCEPTED` at the current `HEAD`, not the `HEAD` it was minted against.

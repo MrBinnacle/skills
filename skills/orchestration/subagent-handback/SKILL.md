@@ -142,6 +142,8 @@ Only claims that survive become actionable.
 
 ## Verification
 
+Open [gotchas.md](gotchas.md) when a research handback arrives empty, or when a claim survives citation-check but fails a re-run.
+
 - Pre-dispatch: the prompt names both return routes, and the write escalation names one absolute
   path. Re-read the prompt for the words `SendMessage` and the path before sending it.
 - Pre-dispatch: the dispatched agent type's `tools:` includes the needed web tool, OR you used

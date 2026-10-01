@@ -47,6 +47,8 @@ Proceed only when the receipt verdict is `ACCEPTED`.
 
 ## Rejection rules
 
+Open [gotchas.md](gotchas.md) when a packet arrives and you are about to trust its claims without re-deriving them.
+
 Reject when one condition is true:
 
 - A required manifest field is absent.
