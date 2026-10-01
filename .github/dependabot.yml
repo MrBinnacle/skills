@@ -1,0 +1,27 @@
+# Dependabot — keep pinned GitHub Actions current (#329).
+#
+# Every workflow in this repository pins actions by full commit SHA with the
+# version in a trailing comment. A pin that never receives an update PR is a
+# pin that silently ages. This config opens weekly grouped update PRs for the
+# github-actions ecosystem so each pin gets a reviewed bump instead of
+# decaying unnoticed.
+#
+# Grouped on purpose: one PR per weekly run that touches the action set, not
+# one PR per action. The workflows here share a small pinned vocabulary
+# (checkout, setup-python, setup-node, pre-commit/action, and their kin), and
+# separate PRs per action would multiply review load without adding signal.
+#
+# Revisit if this repository gains a package manifest (a runtime dependency
+# set beyond the changesets tooling in package.json). Add that ecosystem then;
+# package.json today carries only release tooling, which npm audit already
+# covers in .github/workflows/dependency-audit.yml.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
