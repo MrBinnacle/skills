@@ -25,7 +25,6 @@ Run directly:  python scripts/test_dependabot_config.py
 """
 from __future__ import annotations
 
-import shutil
 import subprocess
 import sys
 import tempfile
