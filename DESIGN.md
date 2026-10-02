@@ -109,18 +109,19 @@ from a file in the tree. Two facts about the platform follow, and neither is neg
 **Decision: the renderer stays out of CI.** The SVG is authored and checked in as the text source
 of truth; the PNG is exported by hand at the moment of upload. CI gains no rendering dependency.
 
-CI covers the text instead, reusing what already runs: `validate_scoreboard.py:121-126` extracts
-`<text>` nodes from the two banners with a stdlib regex. Point the same extraction at
-`social-preview.svg`, assert no `copy.words_to_avoid` entry appears, and pair it with a hash
-record so an SVG edit that was never re-exported is visible. This is the check that would have
-caught the retired tagline surviving on the card.
+CI covers the text instead. `validate_scoreboard.py:450-452` extracts `<text>` nodes from the
+two banners with a stdlib regex. The social-preview SVG is already covered:
+`validate_brand_kit.py` runs `svg_copy` over `assets/*.svg` (which includes
+`assets/social-preview.svg`) against `copy.words_to_avoid`, and `asset_pairs` records the sha256
+of the SVG and its PNG export so an SVG edit that was never re-exported is refused. That pair of
+checks is what would have caught the retired tagline surviving on the card.
 
 *Revisit if:* a rendered-output regression actually occurs — clipped text, wrong crop,
 overlapping elements. That class is uncovered here by choice; catching it needs visual regression
 tooling, which costs a second toolchain. Also revisit if GitHub changes the accepted formats.
 
-Re-dereference those line numbers before citing them. They were exact when written; line
-references rot.
+Re-dereference line numbers before citing them. The scoreboard extraction above was
+re-dereferenced on 2026-10-02 for issue #334; line references rot.
 
 ---
 

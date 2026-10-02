@@ -10,10 +10,13 @@ questions were answered from this repository with verbatim citations, in the own
 repo. Q2 and Q3 come from a compiled answer pack; Q1 was derived from the shipped cards'
 EVIDENCE.md Origin rows by two independent agent passes.
 
-⛔ This file states NO counts. Every count here tracks repository state and goes stale between
-writes -- three separate figures rotted between an answer pack compiled 2026-08-25 and this file
-written the same day. AGENTS.md:315 records the owner ruling against restating tallies. Where a
-count matters, the derivation command is given instead of the number.
+⛔ This file does not restate inventory tallies. Every such count tracks repository state and goes
+stale between writes -- three separate figures rotted between an answer pack compiled 2026-08-25
+and this file written the same day. Where a tally matters, the derivation command is given instead
+of the number. AGENTS.md:434 records the owner ruling against restating tallies. The few counts
+that appear below are fixed properties of published artifacts (the banned-word list size, the
+scoreboard assertion sites, the screened-out candidates recorded in RETIRED.md), not inventory
+tallies that go false when a card moves.
 
 ⛔ Per BRAND.md:21-23 an agent may not approve copy onto a public surface. No line in this file is
 new public copy. Every quoted line is quoted from a surface the owner already approved.
@@ -30,8 +33,8 @@ repository.**
 
 **Status: derived design hypothesis. Not observed, not measured, not claimable in public copy.**
 
-No adoption receipts exist. README.md's honest ceilings state the rule this repository already
-lives by: *"No verified adoption metrics (installs, stars, external users); do not claim any."* An
+No adoption receipts exist. This file states the rule the repository already lives by: *"No
+verified adoption metrics (installs, stars, external users); do not claim any."* An
 audience noun is a claim about who the users are, so **naming one publicly would be the same
 defect as printing an unmeasured figure.** Owner ruling, 2026-08-25: *"I can't very well say
 something like 'real engineers' cuz how would I know."*
@@ -55,9 +58,10 @@ any person:
 2. **Pre-build** — the reader is about to write a hook, guard, router predicate, retry loop,
    parallel dispatch or handoff packet, and wants the known silent-failure modes first.
 
-**Explicit anti-trigger.** The "is there a skill for X?" browsing moment. README.md:226-230
-refuses it in the repository's own words: *"The repository is not intended to maximize coverage.
-If you want breadth, [Matt Pocock's skills collection] is a better place to browse."*
+**Explicit anti-trigger.** The "is there a skill for X?" browsing moment. CATALOG.md:31
+refuses it in the repository's own words: *"The repository is not intended to maximize
+coverage. The admission policy keeps it small. If you want breadth, [Matt Pocock's skills
+collection] is a better place to browse."*
 
 **Job.**
 
@@ -83,18 +87,21 @@ sentence on a public page. That would want the T3 rung, an external human respon
 
 ⚠ **Undecided, and the record points both ways.** Whether the intended primary user is anyone
 other than the author. Toward the author: every card origin and every counted occasion is his;
-README.md:14 says *"the skills I have found useful enough to keep developing and maintaining"*;
-BRAND.md:72 says the account starts with his question, *"not with a market."* Toward other people:
-two install routes, a plugin marketplace manifest, an admission policy written to be read by
-strangers, and README.md:87-88 costing out context for the installer — *"breadth you do not use is
-still paid for."* **This is a product-direction decision and it is the owner's. Recorded undecided
-rather than invented.**
+the retired front-page drafts said *"the skills I have found useful enough to keep developing and
+maintaining"* (docs/design/variants/front-page/variant-1.md:20); BRAND.md:75-76 says the account
+starts with his question, *"not with a market."* Toward other people: two
+install routes, a plugin marketplace manifest, an admission policy written to be read by
+strangers, and a design draft costing out context for the installer — *"breadth you do not use is
+still paid for"* (docs/design/variants/front-page/variant-5.md:38). The current front page says
+something else: README:10 now states *"Any Claude Code user can hit these failures."* **This is a
+product-direction decision and it is the owner's. Recorded undecided rather than invented.**
 
 ## Product Purpose
 
-A small collection of Claude Code skill cards, each carrying a dated origin incident, a recurrence
-count and a stated screen result, published so the record can be checked by someone who did not
-write it.
+A small collection of Claude Code skill cards, each carrying an evidence record that states its
+origin — most a dated incident, while `im-down` and `im-up` were designed on purpose (README:10)
+— a recurrence count and a stated screen result, published so the record can be checked by
+someone who did not write it.
 
 The purpose is not coverage. It is that **admission is governed and the governance is visible.**
 ADMISSION.md's four-question test, verbatim: *"1. An unaided failure exists... 2. The failure
@@ -102,11 +109,11 @@ recurs independently... 3. A skill is the correct control surface for it... 4. E
 admission and later retirement... Default answer: not admitted."*
 
 **Success** is that a stranger can open the repository and verify what it claims without trusting
-the author. BRAND.md:45-54: *"That you can see where each card came from, what it does when it
+the author. BRAND.md:47-54: *"That you can see where each card came from, what it does when it
 runs, and what has and has not been tested about it. Nothing beyond that... It competes on whether
 the record holds up when someone opens it."*
 
-⛔ **Publication is not validation.** Stated in both BRAND.md and README.md. A card being kept is
+⛔ **Publication is not validation.** Stated in BRAND.md. A card being kept is
 an inventory fact, not evidence that it works.
 
 ## Positioning
@@ -115,13 +122,13 @@ The mechanism a neighbouring collection could not truthfully copy: **this collec
 candidates away, including its own author's, and publishes the refusals with the measurement plan
 filed before the runs.**
 
-RETIRED.md:1, 18-20: *"Most collections only ever grow. This one also turns skills away —
+RETIRED.md:3, 26: *"Most collections only ever grow. This one also turns skills away —
 including its own... Turning away your own work costs something: it makes the collection look
 smaller. That cost is the point."*
 
-RETIRED.md:48-78: *"In July 2026, four of the author's own candidate skills were screened before
-admission... All four candidates hit the ceiling: three passes out of three with no skill
-present... including skills the author was personally convinced were valuable."*
+RETIRED.md:93-102: *"In July 2026, four of the author's own candidate skills were screened before
+admission... All four returned three passes out of three with no skill present... including
+skills the author was personally convinced were valuable."*
 
 One skill, `claude-code-stop-hook-envelope`, was retired against a trigger registered before the
 platform change that fired it.
@@ -143,15 +150,18 @@ not reproduced here, because doing so would launder a candidate line into a prod
 
 ## Operating Context
 
-- **Distribution** is GitHub plus a plugin marketplace manifest. The installer tracks `main`, so a
-  merge to `main` changes what installs.
-- **A release is a delivery event**, per the collection's own ADR: changed cards reach installed
-  users when a version is released, not on every merge to `main`.
+- **Distribution** is GitHub plus a plugin marketplace manifest. The plugin version is stamped
+  from `package.json` at release; a consumer receives a version bump, not every merge to `main`.
+- **A release is a delivery event**, per ADR 0002
+  (docs/adr/0002-a-release-is-a-delivery-event.md): changed cards reach installed users when a
+  version bump merges to `main`. site/index.html:164 states what a version promises — the install
+  path, a card's name and the card format.
 - **The reader's environment** is Claude Code across multiple sessions and parallel subagents,
   against real repositories. A card is consumed by an agent at runtime and by a human deciding
   whether to install.
-- **Context is a cost the reader pays.** README.md:87-88: *"breadth you do not use is still paid
-  for."* Every published card's description is capped at 200 characters, CI-checked.
+- **Context is a cost the reader pays.** A design draft costing out that cost:
+  *"breadth you do not use is still paid for"* (docs/design/variants/front-page/variant-5.md:38).
+  Every published card's description is capped at 200 characters, CI-checked.
 - **Every shipped card carries three files**: `SKILL.md`, `EVIDENCE.md`, `gotchas.md`. A card
   missing from its bucket README or the top-level listing is by definition not shipped.
 - **Cards under `_quarantine/`** are candidates. They are not shipped and not installable.
@@ -171,8 +181,8 @@ git ls-files 'skills/**/SKILL.md' | wc -l        # shipped cards
 git ls-files '_quarantine/**/SKILL.md' | wc -l   # candidates
 ```
 
-**Provenance categories are not quality scores.** README.md:120 states this of OBSERVED /
-DESIGNED / DISTILLED. The distinction must survive any presentation change.
+**Provenance categories are not quality scores.** CATALOG.md:158-160 and AGENTS.md:429-430 state
+this of OBSERVED / DESIGNED / DISTILLED. The distinction must survive any presentation change.
 
 **Terminology is fixed.** `CONTEXT.md` is the glossary of record and fixes the meaning of *Card*,
 *Occasion*, *Dispatch*, *Admitted*, *Admissible*, *Release* and *Declared surface* on every
@@ -182,10 +192,13 @@ surface. ⚠ It deliberately defines no term for the user; see `## Users`.
 the repository:
 
 - The social card's primary line, deliberately unset.
-- Whether a public project page should exist, and what it would say.
 - Which of the GitHub About text and `package.json`'s description is authoritative where they
   diverge. They currently do.
 - Whether the intended user is anyone other than the author (see `## Users`).
+
+One formerly undecided fact is settled and is not repeated above: a public project page exists.
+`site/index.html` deploys to https://mrbinnacle.github.io/skills/ (the pages workflow; homepage
+set 2026-09-06).
 
 ## Brand Commitments
 
@@ -197,7 +210,7 @@ onto a public surface is outside your authority."*
 removed rather than kept. Roughness — double spaces, missing apostrophes, hedges — is provenance
 and is preserved deliberately.
 
-**Polish is a failure mode here.** BRAND.md:32-42: *"a draft that reads smoother than the README
+**Polish is a failure mode here.** BRAND.md:35-41: *"a draft that reads smoother than the README
 is off-voice regardless of how good it is... Polish is the verbal form of dressing... both make a
 limitation look like a claim."*
 
@@ -217,10 +230,11 @@ A skill being kept is an inventory fact. A skill having been measured is an evid
 move that makes the first look like the second is dressing, and it breaks the only claim the
 repository makes."* The sibling instrument's palette is banned here for exactly this reason.
 
-⚠ **A live cautionary precedent.** The retired tagline, quoted in full at `tokens.json >
-copy.words_to_avoid_notes`, was cleared from three text surfaces and survived on
-`assets/social-preview.png`. A word ban that
-holds in text can still fail in a raster asset.
+⚠ **A cautionary precedent, closed on 2026-09-06.** The retired tagline, quoted in full at
+`tokens.json > copy.words_to_avoid_notes`, was cleared from three text surfaces and survived on
+`assets/social-preview.png`. The raster is now an export of `assets/social-preview.svg`, checked
+by `validate_brand_kit.py` as part of the `assets/*.svg` banned-copy surface, with the SVG and
+PNG recorded as a hash pair. A word ban that holds in text can still fail in a raster asset.
 
 ## Evidence on Hand
 
@@ -238,8 +252,8 @@ holds in text can still fail in a raster asset.
 
 ⛔ **Absences future work must not fabricate.** Stated so they cannot be filled by inference:
 
-- **No verified adoption metrics.** No installs, stars, external users or downloads. README.md's
-  honest ceilings forbid claiming any.
+- **No verified adoption metrics.** No installs, stars, external users or downloads. This file
+  forbids claiming any; the rule is stated in `## Users` and here.
 - **No efficacy claim for any shipped card.** Screening establishes that an unaided failure
   existed. It does not establish that the card fixes it.
 - **No testimonials, case studies, press, customers or usage data.** None exist.
