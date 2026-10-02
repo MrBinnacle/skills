@@ -101,6 +101,8 @@ Minimum test matrix for any Bash guard:
 
 ## Notes
 
+Open [gotchas.md](gotchas.md) when a Bash guard blocks its own install, a commit message, or a heredoc body. It records every observed block, including one where the input was not prose at all.
+
 - **`git commit -F-` is the highest-risk input.** Commit messages describe commands and quote
   forbidden strings by design. If a guard is going to false-positive, it will be here.
 - **Duplicating regexes across two guards is deliberate when they enforce one discipline** —

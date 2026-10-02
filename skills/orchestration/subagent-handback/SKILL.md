@@ -140,6 +140,8 @@ check. Three classes fail here and each has its own re-run:
 
 Only claims that survive become actionable.
 
+Open [gotchas.md](gotchas.md) when a handback arrives empty or a verifier's verdict looks wrong. It records both failure kinds.
+
 ## Verification
 
 - Pre-dispatch: the prompt names both return routes, and the write escalation names one absolute
