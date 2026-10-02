@@ -97,6 +97,8 @@ Synthesis then groups by enum value, not by re-reading prose.
 
 ## Notes
 
+Open [gotchas.md](gotchas.md) when consolidator renumbering drops a seat-local finding ID, or before choosing a namespace strategy. It records the observed ID collision with its mitigations, and the anticipated schema failures.
+
 - The synthesis is only ever as clean as the input schema. Spend the care in the dispatch prompts.
 - Isolation stays the anti-cascade feature — the schema is what makes isolated outputs JOINABLE
   without letting agents see each other.

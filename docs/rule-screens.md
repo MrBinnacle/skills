@@ -68,6 +68,7 @@ A screen is not due merely because a model was released. A release that changes 
 | Local links resolve, including case | **Gated** by `scripts/validate_card_files.py` (skills#246). |
 | Required files present, required evidence rows present | **Gated** by `scripts/validate_card_files.py`. |
 | `description` at or under 200 characters | **Gated.** |
+| Every published `SKILL.md` carries a when-to-open pointer to its `gotchas.md` | **Gated** by `scripts/validate_card_files.py` (skills#327). |
 | The opening names the incident's evidentiary role | Partly syntax-checkable; the honesty of the classification is not. Judgement. |
 | Size disposition recorded above the target | Judgement. |
 | Plain writing | Judgement. A word-count test cannot establish it. |
@@ -102,3 +103,38 @@ Two cards did exactly that. `halt-as-deliverable` asserted that a gate catching 
 **`gotchas.md` — `REVISE`, on internal contradiction.** The rule said to "replace or supplement" anticipated entries and, in the same sentence, never to delete them. Replacement is deletion. Class: `repository-integrity`.
 
 **Next screen due:** 2027-03-05 by lease, or earlier on trigger 1, 2 or 3.
+
+## 2026-10-01 — `gotchas.md` is read during use: `REVISE`, on a measured zero
+
+**The rule under screen.** The `gotchas.md is required` rule in `AGENTS.md` read as though the
+ledger rode with the card — required on every published card, named in the layout line, and
+never stated to be anything other than present. That reading implied the file was available
+whenever the card was, which is the always-load shape.
+
+**The measurement.** The S496 read classification, run over 1,141 transcripts from 2026-08-30
+to 2026-09-30 in the maintainer's research repository
+(`docs/audit/gotchas-readrate-S495/read-classification-S496.md`): **zero model-emitted reads of
+any published card's `gotchas.md` followed a Skill invocation of that card in the same
+transcript.** Measured, not `UNMEASURED`. Measured the same date on the pointer surface: 4 of
+14 published `SKILL.md` files named their `gotchas.md` at all.
+
+**The disposition.** `REVISE`. The rule now states that `gotchas.md` is the append-only ledger
+and promotion history of a card's failure knowledge, opened on a pointer, and that no
+discipline that must fire rests on it. Every published `SKILL.md` carries one context pointer
+that says when to open the file; `scripts/validate_card_files.py` refuses a card without one.
+A dated status line (`promoted: description` / `promoted: body` / `promoted: hook` /
+`retired`) may be appended under an entry under the existing append-only rule; entries already
+carried by a guard get `promoted: hook` now. Class: `model-execution`, `repository-integrity`.
+The cross-family adjudication that named this minimal fix is recorded at
+`docs/research/gotchas-convention-adjudication-S496.md` in that same repository, with its
+cross-family receipt at `docs/audit/t1-gotchas-S496/`.
+
+**What the zero does not establish.** The classification counts reads after a Skill invocation
+of the same card in the same transcript. It does not measure whether an agent that opened the
+file followed what it found, and it does not measure lift. The paired with-vs-without
+measurement of any entry is out of scope here and pre-registered separately.
+
+**Next screen due:** rerun `classify_reads.py` on the next hundred transcripts. If that rerun
+still shows zero in-use opens on invoked cards, the pointer requirement is falsified and this
+convention narrows to the label fix alone. Otherwise 180 days by lease, or earlier on trigger
+1, 2 or 3.
