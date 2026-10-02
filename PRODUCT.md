@@ -13,7 +13,7 @@ EVIDENCE.md Origin rows by two independent agent passes.
 ⛔ This file does not restate inventory tallies. Every such count tracks repository state and goes
 stale between writes -- three separate figures rotted between an answer pack compiled 2026-08-25
 and this file written the same day. Where a tally matters, the derivation command is given instead
-of the number. AGENTS.md:434 records the owner ruling against restating tallies. The few counts
+of the number. AGENTS.md:440 records the owner ruling against restating tallies. The few counts
 that appear below are fixed properties of published artifacts (the banned-word list size, the
 scoreboard assertion sites, the screened-out candidates recorded in RETIRED.md), not inventory
 tallies that go false when a card moves.
@@ -181,7 +181,7 @@ git ls-files 'skills/**/SKILL.md' | wc -l        # shipped cards
 git ls-files '_quarantine/**/SKILL.md' | wc -l   # candidates
 ```
 
-**Provenance categories are not quality scores.** CATALOG.md:158-160 and AGENTS.md:429-430 state
+**Provenance categories are not quality scores.** CATALOG.md:158-160 and AGENTS.md:435-436 state
 this of OBSERVED / DESIGNED / DISTILLED. The distinction must survive any presentation change.
 
 **Terminology is fixed.** `CONTEXT.md` is the glossary of record and fixes the meaning of *Card*,

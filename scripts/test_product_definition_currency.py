@@ -63,7 +63,7 @@ def _lines(path: Path, start: int, end: int) -> str:
 
 
 def _resolve(cited: str, needle: str, label: str) -> None:
-    """cited is 'AGENTS.md:434' or 'RETIRED.md:93-102'. needle must appear there."""
+    """cited is 'AGENTS.md:440' or 'RETIRED.md:93-102'. needle must appear there."""
     if ":" not in cited:
         check(label, False, f"citation has no line number: {cited}")
         return
@@ -109,7 +109,7 @@ def case_product_no_counts_claim_narrowed() -> None:
 
 
 def case_product_agents_citation_points_at_tally_rule() -> None:
-    """The owner ruling against restating tallies lives at AGENTS.md:434, not :315."""
+    """The owner ruling against restating tallies lives at AGENTS.md:440, not :315."""
     text = _read(PRODUCT)
     check(
         "PRODUCT.md no longer cites AGENTS.md:315 for the tally ruling",
@@ -117,11 +117,11 @@ def case_product_agents_citation_points_at_tally_rule() -> None:
         "PRODUCT.md still points the tally ruling at AGENTS.md:315",
     )
     check(
-        "PRODUCT.md cites AGENTS.md:434 for the tally ruling",
-        "AGENTS.md:434" in text,
-        "PRODUCT.md does not cite AGENTS.md:434",
+        "PRODUCT.md cites AGENTS.md:440 for the tally ruling",
+        "AGENTS.md:440" in text,
+        "PRODUCT.md does not cite AGENTS.md:440",
     )
-    _resolve("AGENTS.md:434", "The page states no tally", "AGENTS.md:434 holds the tally ruling")
+    _resolve("AGENTS.md:440", "The page states no tally", "AGENTS.md:440 holds the tally ruling")
 
 
 def case_product_readme_honest_ceilings_attribution_removed() -> None:
@@ -703,7 +703,7 @@ def case_citations_resolve_at_pr_head() -> None:
 def case_corrected_citations_match_needles() -> None:
     """The corrected citations named in this suite's STALE-row cases, re-asserted."""
     pairs = [
-        ("AGENTS.md:434", "The page states no tally"),
+        ("AGENTS.md:440", "The page states no tally"),
         ("CATALOG.md:31", "not intended to maximize coverage"),
         ("RETIRED.md:3", "Most collections only ever grow"),
         ("RETIRED.md:26", "Turning away your own work costs something"),
