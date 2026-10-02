@@ -1,6 +1,6 @@
 # Issue #334 — S498 currency audit: correct STALE facts in PRODUCT.md, BRAND.md, DESIGN.md
 
-Source audit: `docs/audit/product-definitions-currency-S498.md` in the research repo (not present
+Source audit: `docs/audit/product-definitions-currency-S498.md` in a separate research repository (not present
 in this worktree; the STALE rows are copied verbatim in the ticket, standing order 3). Branch:
 `agent/issue-334`. Base: `origin/main` at `246ac5c`.
 

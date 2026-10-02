@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Suite for S498 / issue #334 currency of PRODUCT.md, BRAND.md, DESIGN.md.
 
-A currency audit (skills_research, docs/audit/product-definitions-currency-S498.md)
+A currency audit (a separate research repository, docs/audit/product-definitions-currency-S498.md)
 checked every factual line of these three files against origin/main and marked
 rows STALE where a citation, attribution, line number or tense had drifted.
 Issue #334 corrects those rows and leaves INTENT lines alone: the Users
