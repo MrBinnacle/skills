@@ -31,7 +31,7 @@ Verified forms, Claude Code 2.1.287, 2026-10-02, from a clean `CLAUDE_CONFIG_DIR
 
 - interactive `/plugin marketplace add https://github.com/MrBinnacle/skills.git`
 - shell `claude plugin marketplace add https://github.com/MrBinnacle/skills.git`
-- shell `claude plugin install` of all three plugins — 3.0.1, 14 cards
+- shell `claude plugin install` of all three plugins, at 3.0.1
 
 The cold-install transcript is in the pull request that changed this section (#333).
 
