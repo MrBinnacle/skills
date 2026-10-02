@@ -1,6 +1,6 @@
 ---
 ---
 
-docs: run the issue #334 product-definition currency suite in CI and correct stale product, brand, and design references.
+docs: correct stale product, brand, and design references (issue #334), with an on-demand script that checks the corrections at this pull request's head.
 
-This changes repository documentation and its verification coverage only. No card or package behaviour changes, so this changeset is empty and the release version does not change.
+This changes repository documentation only. No card or package behaviour changes, so this changeset is empty and the release version does not change.

@@ -87,13 +87,12 @@ sentence on a public page. That would want the T3 rung, an external human respon
 
 ⚠ **Undecided, and the record points both ways.** Whether the intended primary user is anyone
 other than the author. Toward the author: every card origin and every counted occasion is his;
-the retired front-page drafts said *"the skills I have found useful enough to keep developing and
+an unselected front-page draft said *"the skills I have found useful enough to keep developing and
 maintaining"* (docs/design/variants/front-page/variant-1.md:20); BRAND.md:75-76 says the account
 starts with his question, *"not with a market."* Toward other people: two
 install routes, a plugin marketplace manifest, an admission policy written to be read by
 strangers, and a design draft costing out context for the installer — *"breadth you do not use is
-still paid for"* (docs/design/variants/front-page/variant-5.md:38). The current front page says
-something else: README:10 now states *"Any Claude Code user can hit these failures."* **This is a
+still paid for"* (docs/design/variants/front-page/variant-5.md:38). **This is a
 product-direction decision and it is the owner's. Recorded undecided rather than invented.**
 
 ## Product Purpose
@@ -126,7 +125,7 @@ RETIRED.md:3, 26: *"Most collections only ever grow. This one also turns skills 
 including its own... Turning away your own work costs something: it makes the collection look
 smaller. That cost is the point."*
 
-RETIRED.md:93-102: *"In July 2026, four of the author's own candidate skills were screened before
+RETIRED.md:93-107: *"In July 2026, four of the author's own candidate skills were screened before
 admission... All four returned three passes out of three with no skill present... including
 skills the author was personally convinced were valuable."*
 
@@ -181,8 +180,9 @@ git ls-files 'skills/**/SKILL.md' | wc -l        # shipped cards
 git ls-files '_quarantine/**/SKILL.md' | wc -l   # candidates
 ```
 
-**Provenance categories are not quality scores.** CATALOG.md:158-160 and AGENTS.md:435-436 state
-this of OBSERVED / DESIGNED / DISTILLED. The distinction must survive any presentation change.
+**Provenance categories are not quality scores.** CATALOG.md:158-160 and AGENTS.md:435-436 define
+OBSERVED / DESIGNED / DISTILLED as where a card came from, and CATALOG.md:151-152 keeps that axis
+separate from what has been measured. The distinction must survive any presentation change.
 
 **Terminology is fixed.** `CONTEXT.md` is the glossary of record and fixes the meaning of *Card*,
 *Occasion*, *Dispatch*, *Admitted*, *Admissible*, *Release* and *Declared surface* on every
@@ -197,8 +197,8 @@ the repository:
 - Whether the intended user is anyone other than the author (see `## Users`).
 
 One formerly undecided fact is settled and is not repeated above: a public project page exists.
-`site/index.html` deploys to https://mrbinnacle.github.io/skills/ (the pages workflow; homepage
-set 2026-09-06).
+`site/index.html` deploys to https://mrbinnacle.github.io/skills/ (the pages workflow; the
+homepage was measured as set on 2026-09-06).
 
 ## Brand Commitments
 

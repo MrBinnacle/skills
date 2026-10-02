@@ -926,14 +926,6 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::DESIGN.md enforcement-claim suite emitted no PASS line - it did not run"; exit 1; }
 
-      - name: Product-definition currency suite
-        run: |
-          set -euo pipefail
-          out="$(python scripts/test_product_definition_currency.py)" || { echo "$out"; exit 1; }
-          echo "$out"
-          echo "$out" | grep -q '^PASS:' \
-            || { echo "::error::product-definition currency suite emitted no PASS line - it did not run"; exit 1; }
-
       # A check that cannot fail guards nothing. The copy half: a banned word in
       # a README HEADING must be refused, and the message must name the word and
       # the file. Built in RUNNER_TEMP rather than checked in -- a committed

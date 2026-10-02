@@ -202,8 +202,8 @@ The owner's, carried so they do not lapse.
   selects one, at which point it lands here as the recorded line.
 
 One formerly open question is settled and is not carried above: a public project page exists.
-`site/index.html` deploys to https://mrbinnacle.github.io/skills/ (the pages workflow; homepage
-set 2026-09-06).
+`site/index.html` deploys to https://mrbinnacle.github.io/skills/ (the pages workflow; the
+homepage was measured as set on 2026-09-06).
 
 ---
 

@@ -15,6 +15,13 @@ fails the suite. Intent cases pin the sentences that must survive every fix, so
 a green suite cannot mean "the STALE rows were removed by deleting the product
 record with them".
 
+Two limits. The suite is pinned to line numbers, so any edit above a cited line
+in AGENTS.md, CATALOG.md, RETIRED.md or BRAND.md turns it red although the three
+product files are unchanged. It is evidence for the issue #334 pull request, run
+on demand, and is deliberately left out of CI. And the intent cases assert that
+named phrases are present; they do not show that an INTENT section is
+unchanged. A diff against main is the evidence for that.
+
 Run: python scripts/test_product_definition_currency.py
 """
 from __future__ import annotations
@@ -299,7 +306,7 @@ def case_product_retired_line_refs_corrected() -> None:
 
 
 def case_product_screened_out_quote_current() -> None:
-    """The July 2026 screen quote lives at RETIRED.md:93-102 with current wording."""
+    """The July 2026 screen quote lives at RETIRED.md:93-107 with current wording."""
     text = _read(PRODUCT)
     check(
         "PRODUCT.md no longer cites RETIRED.md:48-78",
@@ -307,9 +314,9 @@ def case_product_screened_out_quote_current() -> None:
         "PRODUCT.md still points the screened-out quote at RETIRED.md:48-78",
     )
     check(
-        "PRODUCT.md cites RETIRED.md:93-102",
-        "RETIRED.md:93-102" in text,
-        "PRODUCT.md does not cite RETIRED.md:93-102",
+        "PRODUCT.md cites RETIRED.md:93-107",
+        "RETIRED.md:93-107" in text,
+        "PRODUCT.md does not cite RETIRED.md:93-107",
     )
     check(
         "PRODUCT.md quote matches current RETIRED wording",
@@ -317,18 +324,24 @@ def case_product_screened_out_quote_current() -> None:
         "PRODUCT.md still quotes the old 'hit the ceiling: three passes out of three' wording",
     )
     _resolve(
-        "RETIRED.md:93-102",
+        "RETIRED.md:93-107",
         "All four returned three passes out of three",
-        "RETIRED.md:93-102 holds the current screen wording",
+        "RETIRED.md:93-107 holds the current screen wording",
+    )
+    _resolve(
+        "RETIRED.md:93-107",
+        "personally convinced were valuable",
+        "RETIRED.md:93-107 holds the last part of the screen quote",
     )
 
 
 def case_product_distribution_matches_adr_0002() -> None:
     """Delivery is a version-bump merge, not every merge to main (ADR 0002)."""
     flat = _flat(PRODUCT)
+    # The stale sentence wrote `main` in backticks; match it with them removed.
     check(
         "PRODUCT.md no longer claims a merge to main changes what installs",
-        "a merge to main changes what installs" not in flat,
+        "a merge to main changes what installs" not in flat.replace("`", ""),
         "PRODUCT.md still states the pre-ADR-0002 delivery model",
     )
     check(
@@ -353,14 +366,29 @@ def case_product_provenance_categories_citation_corrected() -> None:
         "PRODUCT.md still points the origin-category claim at README.md:120",
     )
     check(
-        "PRODUCT.md cites CATALOG.md or AGENTS.md for the origin categories",
-        "CATALOG.md" in text and "OBSERVED" in text,
-        "PRODUCT.md does not cite a live surface for OBSERVED/DESIGNED/DISTILLED",
+        "PRODUCT.md cites CATALOG.md:158-160 and AGENTS.md:435-436 for the origin categories",
+        "CATALOG.md:158-160" in text and "AGENTS.md:435-436" in text and "OBSERVED" in text,
+        "PRODUCT.md does not cite the live definitions of OBSERVED/DESIGNED/DISTILLED",
+    )
+    check(
+        "PRODUCT.md cites CATALOG.md:151-152 for the two separate axes",
+        "CATALOG.md:151-152" in text,
+        "PRODUCT.md does not cite CATALOG.md:151-152",
     )
     _resolve(
         "CATALOG.md:158-160",
         "OBSERVED",
         "CATALOG.md:158-160 holds the origin-category table",
+    )
+    _resolve(
+        "AGENTS.md:435-436",
+        "OBSERVED",
+        "AGENTS.md:435-436 holds the origin vocabulary",
+    )
+    _resolve(
+        "CATALOG.md:151-152",
+        "two separate axes",
+        "CATALOG.md:151-152 holds the two-axes sentence",
     )
     readme = _read(REPO_ROOT / "README.md")
     check(
@@ -647,6 +675,7 @@ def case_intent_design_open_card_line_preserved() -> None:
 # ==========================================================================
 _CITATION = re.compile(
     r"(?P<file>(?:AGENTS|README|CATALOG|BRAND|PRODUCT|DESIGN|RETIRED|CHANGELOG|CONTEXT|ADMISSION)\.md"
+    r"|README(?=:)"
     r"|validate_[a-z_]+\.py"
     r"|site/index\.html"
     r"|docs/[A-Za-z0-9_./-]+\.md):(?P<span>\d+(?:-\d+)?(?:,\s*\d+(?:-\d+)?)*)"
@@ -658,6 +687,8 @@ def _citation_target(name: str) -> Path:
     direct = REPO_ROOT / name
     if direct.is_file():
         return direct
+    if name == "README":
+        return REPO_ROOT / "README.md"
     if name.startswith("validate_") or name.startswith("check_") or name.startswith("test_"):
         return REPO_ROOT / "scripts" / name
     return direct
@@ -707,9 +738,12 @@ def case_corrected_citations_match_needles() -> None:
         ("CATALOG.md:31", "not intended to maximize coverage"),
         ("RETIRED.md:3", "Most collections only ever grow"),
         ("RETIRED.md:26", "Turning away your own work costs something"),
-        ("RETIRED.md:93-102", "All four returned three passes out of three"),
+        ("RETIRED.md:93-107", "All four returned three passes out of three"),
+        ("RETIRED.md:93-107", "personally convinced were valuable"),
         ("BRAND.md:75-76", "not with a market"),
         ("CATALOG.md:158-160", "OBSERVED"),
+        ("AGENTS.md:435-436", "OBSERVED"),
+        ("CATALOG.md:151-152", "two separate axes"),
         ("docs/design/variants/front-page/variant-1.md:20", "useful enough to keep developing"),
         ("docs/design/variants/front-page/variant-5.md:38", "breadth you do not use is still paid for"),
         ("scripts/validate_scoreboard.py:450-452", "re.findall"),
@@ -782,7 +816,7 @@ def main() -> int:
         return 1
     print(
         "\nPASS: PRODUCT.md, BRAND.md and DESIGN.md match the S498 audit's current "
-        "truth; INTENT sections preserved; citations resolve at the PR head."
+        "truth; pinned INTENT phrases present; citations resolve at the PR head."
     )
     return 0
 
