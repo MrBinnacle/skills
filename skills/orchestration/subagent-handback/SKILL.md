@@ -140,9 +140,9 @@ check. Three classes fail here and each has its own re-run:
 
 Only claims that survive become actionable.
 
-## Verification
+Open [gotchas.md](gotchas.md) when a handback arrives empty or a verifier's verdict looks wrong. It records both failure kinds.
 
-Open [gotchas.md](gotchas.md) when a research handback arrives empty, or when a claim survives citation-check but fails a re-run.
+## Verification
 
 - Pre-dispatch: the prompt names both return routes, and the write escalation names one absolute
   path. Re-read the prompt for the words `SendMessage` and the path before sending it.

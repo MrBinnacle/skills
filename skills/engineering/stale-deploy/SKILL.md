@@ -145,7 +145,7 @@ Loop waited ~30 seconds, then exited on real new content. Verified.
 
 ## Notes
 
-Open [gotchas.md](gotchas.md) when a deploy poll exits instantly on content that pre-dated the deploy, or a `sleep && curl` chain is blocked.
+Open [gotchas.md](gotchas.md) when a deploy poll exits instantly on content that pre-dated the deploy, or a `sleep && curl` chain is blocked. It records both observed failures and the anticipated ones: regional edges, rewritten markers, compressed responses, a cached 404.
 
 - The `gh api repos/.../pages/builds/latest` endpoint is informational, not authoritative. It
   can read `building` after the site is live, and `built` before the CDN catches up. Always

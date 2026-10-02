@@ -152,7 +152,7 @@ actual codebase changes the framing, surface the change and let the user re-deci
 
 ## Notes
 
-Open [gotchas.md](gotchas.md) when a handoff carries blanket "do not re-litigate" framing, or when a hook catch needs classifying as a known negative.
+Open [gotchas.md](gotchas.md) when a handoff says "do not re-litigate" wholesale, or a hook catch needs classifying. It records catches and rulings.
 
 - **Subagent prompts are riskiest.** Agents read dispatches as near-system-tier and rarely push
   back; make their framing block explicit.

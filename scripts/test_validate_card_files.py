@@ -1214,6 +1214,12 @@ def case_observed_origin_gotcha_md_path_passes(root: Path) -> None:
 
 # --- gotchas.md context pointer (skills#327) ---
 
+# closure-mode/SKILL.md line 88 at a01f5fd, verbatim: a ship criterion that
+# names the file and carries the word `before` without saying when to open it.
+CLOSURE_MODE_LINE_88 = (
+    "- (d) At least one trial closure run completed and the team can recognize "
+    "the failure modes in [gotchas.md](gotchas.md) before they happen."
+)
 
 def case_gotchas_pointer_missing_is_rejected(root: Path) -> None:
     """A card that names no gotchas pointer is refused.
@@ -1302,6 +1308,35 @@ def case_gotchas_image_is_not_a_pointer(root: Path) -> None:
     )
 
 
+def case_gotchas_mention_in_another_sentence_is_rejected(root: Path) -> None:
+    """A sentence about something else that names the file is not a pointer.
+
+    The replacement line is closure-mode/SKILL.md line 88 at a01f5fd, verbatim.
+    It is a ship criterion: "before they happen" describes the failure modes,
+    not when to open the file. The first pointer check accepted it because the
+    word `before` sat on the link's line (skills#336 verdict).
+    """
+    card = write_card(root, "mention-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    (card / "SKILL.md").write_text(
+        skill_md("mention-card").replace(
+            "Open [gotchas.md](gotchas.md) when a green result needs the failure record.",
+            CLOSURE_MODE_LINE_88,
+        ),
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "a gotchas.md mention inside a sentence about something else is rejected",
+        result.returncode != 0 and "no link line says a when-to-open" in result.stderr,
+        result.stdout + result.stderr,
+    )
+    check(
+        "the mention-only breach is reported once, not compounded",
+        "1 card contract breach(es)" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
 def case_gotchas_pointer_with_when_cue_passes(root: Path) -> None:
     """A when-to-open pointer clears the check — green proven, not just red."""
     write_card(root, "pointed-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
@@ -1313,12 +1348,52 @@ def case_gotchas_pointer_with_when_cue_passes(root: Path) -> None:
     )
 
 
-def case_live_cards_carry_gotchas_pointers() -> None:
-    """Every published card names its gotchas.md with a when-to-open pointer.
+HOUSE_POINTER_OPENING = "Open [gotchas.md](gotchas.md) "
 
-    The live run above already refuses a missing pointer. This states the
-    external contract against each card's own SKILL.md text, independently of
-    the checker's regex, so a checker that goes soft cannot pass alone.
+
+def house_pointer_lines(text: str) -> list[str]:
+    """Lines that open with the house pointer form and go on to say something.
+
+    Deliberately not the checker's rule: no regex and no list of condition
+    words. A line counts when, past any indent or list marker, it starts with
+    the literal house opening and at least four words follow before the first
+    full stop. The checker reads the grammar around the link; this reads the
+    position of the link in the line. Each can be wrong, but not in the same
+    way.
+    """
+    found: list[str] = []
+    for line in text.splitlines():
+        stripped = line.lstrip(" -*>")
+        if not stripped.startswith(HOUSE_POINTER_OPENING):
+            continue
+        clause = stripped[len(HOUSE_POINTER_OPENING):].split(". ")[0]
+        if len(clause.split()) >= 4:
+            found.append(line)
+    return found
+
+
+def case_house_pointer_reader_refuses_a_mention() -> None:
+    """The suite's own reader is checked against the case that fooled the gate."""
+    check(
+        "the suite's pointer reader refuses the closure-mode line 88 mention",
+        house_pointer_lines(CLOSURE_MODE_LINE_88) == [],
+        CLOSURE_MODE_LINE_88,
+    )
+    check(
+        "the suite's pointer reader accepts the house form",
+        len(house_pointer_lines(
+            "Open [gotchas.md](gotchas.md) when a green result needs the failure record."
+        )) == 1,
+        "the house form was not recognised",
+    )
+
+
+def case_live_cards_carry_gotchas_pointers() -> None:
+    """Every published card carries exactly one house-form gotchas pointer.
+
+    The live run refuses a card with no pointer. This states the contract
+    against each card's own SKILL.md text with a different reader
+    (`house_pointer_lines`), so a checker that goes soft cannot pass alone.
     """
     result = run_checker(REPO_ROOT)
     check(
@@ -1327,22 +1402,16 @@ def case_live_cards_carry_gotchas_pointers() -> None:
         result.stderr.strip(),
     )
     cards = validate_card_files.find_cards(REPO_ROOT)
-    missing: list[str] = []
+    wrong: list[str] = []
     for card in cards:
         text = (card / "SKILL.md").read_text(encoding="utf-8", errors="replace")
-        has_pointer = False
-        for line in text.splitlines():
-            if not re.search(r"\[[^\]]*\]\(\s*<?gotchas\.md>?", line):
-                continue
-            if re.search(r"\b(?:when|before|whenever|prior to|if)\b", line, re.I):
-                has_pointer = True
-                break
-        if not has_pointer:
-            missing.append(card.relative_to(REPO_ROOT).as_posix())
+        count = len(house_pointer_lines(text))
+        if count != 1:
+            wrong.append(f"{card.relative_to(REPO_ROOT).as_posix()} ({count})")
     check(
-        "every published SKILL.md names gotchas.md with a when-to-open pointer",
-        not missing,
-        f"missing pointer on: {missing}",
+        "every published SKILL.md carries exactly one house-form gotchas pointer",
+        not wrong,
+        f"pointer count is not one on: {wrong}",
     )
 
 
@@ -1398,6 +1467,7 @@ def main() -> None:
         case_gotchas_pointer_missing_is_rejected,
         case_gotchas_pointer_without_when_cue_is_rejected,
         case_gotchas_image_is_not_a_pointer,
+        case_gotchas_mention_in_another_sentence_is_rejected,
         case_gotchas_pointer_with_when_cue_passes,
     ]
     for func in isolated:
@@ -1405,6 +1475,7 @@ def main() -> None:
             func(Path(tmp))
     case_live_nine_cards_pass()
     case_live_thin_labels_match_the_counts()
+    case_house_pointer_reader_refuses_a_mention()
     case_live_cards_carry_gotchas_pointers()
     case_linkcheck_lane_runs_checker()
 

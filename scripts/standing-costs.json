@@ -4,59 +4,59 @@
   "cards": {
     "clirunner-env": {
       "standing_cost_tokens": 56,
-      "skill_md_sha256": "b1d85ea0e2ab2f0a58bb69d6b8670c6dc0ee06cb0028f0eb13966e47c12c575e"
+      "skill_md_sha256": "25c51a2b27a35fc49c57eb8175ba25404eb526ef49b0e3f2b162ea498f1985bf"
     },
     "closure-mode": {
       "standing_cost_tokens": 0,
-      "skill_md_sha256": "1fa98a9716b5e0ccb6f9893700208a1e8e203b022fff7329d462eddc387e6b3a"
+      "skill_md_sha256": "0d9cd2bdd75929f7d1a22d53e9043d8f8d1745329e8cd0fc5caa165d6a6b48e6"
     },
     "halt-as-deliverable": {
       "standing_cost_tokens": 50,
-      "skill_md_sha256": "c4728bfbb220e553f673a797c478ab28aed16bc5f0de2b3531c461c784a249ae"
+      "skill_md_sha256": "b79edde5b75dd6cf32571f02c87ada4602c51b2c492bb8d3a02bcdcf73e2a6f0"
     },
     "im-down": {
       "standing_cost_tokens": 0,
-      "skill_md_sha256": "aa8400e1f12384993fcfbde5f822c9687b653f6b645dccbe90d2b5ecee6b8c02"
+      "skill_md_sha256": "08664e873bf3e240d09800fce8ed9fa9448cfa0023873c908c60b02c942df650"
     },
     "im-up": {
       "standing_cost_tokens": 0,
-      "skill_md_sha256": "d70e0c1280e88700beb5fd9d944a249bc7af12f68ba805af08751ce8f85a6e2c"
+      "skill_md_sha256": "03e89a8334e986ee23646b275d75e90c070aa3acf8f7bc43ce1e1296bfa943bd"
     },
     "mocked-stub": {
       "standing_cost_tokens": 51,
-      "skill_md_sha256": "8bc803bc8e4909646c7fcc7b5607301e58c5215ce013da2b606f8d2ffb897b70"
+      "skill_md_sha256": "02b6bef961c1809fc15da92b4e9eb28b2cb26aa84cba11947edfdd2b865c1dfd"
     },
     "pretooluse-prose": {
       "standing_cost_tokens": 51,
-      "skill_md_sha256": "d7a494f3118762cb6e91f70db7cd57cab4dadf35a70b4dcfcf98dc543b06ecba"
+      "skill_md_sha256": "e1e13c5e78ec79c8f50080fbbf93de16db74112568390bf462861d9fe56135e4"
     },
     "pull-rebase": {
       "standing_cost_tokens": 63,
-      "skill_md_sha256": "d9440a6caf783e4dcaf29772079ffa9b50ebc7a9005312ceadcc4d3604c0857e"
+      "skill_md_sha256": "825f5eb757acfee3256f4d6b5d33e1db746730a77f65ef4ae8a2d4f5d981d511"
     },
     "stale-deploy": {
       "standing_cost_tokens": 50,
-      "skill_md_sha256": "fd6e26498b35e85b862a48ee4dadddb22844eebeee185deed7de0753f638c542"
+      "skill_md_sha256": "54e35bb416166b1c6751f295fc58ea0c9380ae936724512ab67a0a72fd6dfe10"
     },
     "vacuous-check": {
       "standing_cost_tokens": 49,
-      "skill_md_sha256": "7a84cca7ea204b6da2b43c447d2cc574e66bbca739fd86efd75ee055d73786db"
+      "skill_md_sha256": "99c02e78aba62acb48fe4763136a579fe8b399d53c76545a248b99c15521b5ec"
     },
     "dead-predicate": {
       "standing_cost_tokens": 51,
-      "skill_md_sha256": "46288a1a02ac41067e9f863f51f4d8252cfd43dd830e0b9b4f7ead8f9989e891"
+      "skill_md_sha256": "984ecdfa828710f69d72fb218629414211bb9afacb0d2debfa32017c0a3f23b3"
     },
     "decision-rights": {
       "standing_cost_tokens": 47,
-      "skill_md_sha256": "8c6876a5d85a388fd8b6ac1c9a249cd7f3e4f63220cf2b9dbca508ed0fa91b48"
+      "skill_md_sha256": "2d7de62b850dfecc7a8ed5452edbb1d5141c1e439a6231bdf0d1d968eb4325af"
     },
     "disposition-schema": {
       "standing_cost_tokens": 44,
-      "skill_md_sha256": "c69e7113a6180e9d0a10a14bb43db0bb09034788bce4e0b3e033ce6ec0a4247a"
+      "skill_md_sha256": "18bf7970180dbf41839145420937db4a57493080525450ba494f1cfa3016d130"
     },
     "subagent-handback": {
       "standing_cost_tokens": 44,
-      "skill_md_sha256": "ff4d5227d9ceb3eab04d1923cbb0f769826d2200ff26748473e40fb453fb80b3"
+      "skill_md_sha256": "cb3884ab765f02024d52ac1018d4bb551123376b422a8a9e22d4b4ae20853045"
     }
   }
 }

@@ -840,14 +840,33 @@ def stale_exemption_breaches(cards: list[Path]) -> list[str]:
 # transcript (docs/rule-screens.md, 2026-10-01).
 #
 # The pointer is a markdown link, not a bare filename mention: reachability is
-# the point, and a backticked name is not a path a reader can open. It must
-# also carry a when-to-open cue on the same line (writing-for-agents context
-# pointers); naming the file is not saying when to open it.
-_GOTCHAS_LINK_RE: Final[re.Pattern[str]] = re.compile(
+# the point, and a backticked name is not a path a reader can open.
+#
+# A pointer tells the reader to open the file and says when (writing-for-agents:
+# a context pointer "encodes the condition for reaching it"). The link must be
+# the object of an opening verb, and the condition must attach to that verb:
+# either straight after the link (`Open [gotchas.md](gotchas.md) when ...`) or
+# leading the same sentence (`When ..., open [gotchas.md](gotchas.md)`).
+#
+# A condition word elsewhere on the link's line is not enough. Until skills#336
+# the rule was "any of when|before|whenever|prior to|if on the line", and it
+# passed closure-mode's ship criterion "the team can recognize the failure
+# modes in [gotchas.md](gotchas.md) before they happen", where `before`
+# describes the failure modes and nothing says when to open the file.
+_GOTCHAS_LINK: Final[str] = (
     r"(?<!!)\[[^\]]*\]\(\s*<?gotchas\.md>?(?:#[^)\s]*)?(?:\s+[^)]*)?\)"
 )
-_WHEN_TO_OPEN_CUE_RE: Final[re.Pattern[str]] = re.compile(
-    r"\b(?:when|before|whenever|prior to|if)\b", re.IGNORECASE
+_GOTCHAS_LINK_RE: Final[re.Pattern[str]] = re.compile(_GOTCHAS_LINK)
+_OPENING_VERB: Final[str] = r"(?:open|read|consult)"
+_CONDITION_WORD: Final[str] = (
+    r"(?:when|whenever|before|after|once|if|as soon as|prior to)"
+)
+_GOTCHAS_POINTER_RE: Final[re.Pattern[str]] = re.compile(
+    # verb, link, condition
+    rf"\b{_OPENING_VERB}\s+{_GOTCHAS_LINK}\s*,?\s+{_CONDITION_WORD}\s+\S"
+    # condition, verb, link, inside one sentence
+    rf"|\b{_CONDITION_WORD}\s[^.;:!?]*?,\s*{_OPENING_VERB}\s+{_GOTCHAS_LINK}",
+    re.IGNORECASE,
 )
 
 
@@ -871,19 +890,22 @@ def gotchas_pointer_breaches(card: Path) -> list[str]:
         body = text[fm.end():]
     # Scan every line: a card may carry several mentions and one proper
     # pointer. Returning on the first bare link would red-flag a card whose
-    # later line says when to open the file.
+    # later line says when to open the file. The pointer sits on one line, so
+    # a pointer wrapped across two lines is read as a mention.
     linked = False
     for line in body.splitlines():
         if not _GOTCHAS_LINK_RE.search(line):
             continue
         linked = True
-        if _WHEN_TO_OPEN_CUE_RE.search(line):
+        if _GOTCHAS_POINTER_RE.search(line):
             return []
     if linked:
         return [
             "SKILL.md links gotchas.md but no link line says a when-to-open "
-            "condition. gotchas.md is opened on a pointer, not always-loaded; "
-            "the pointer must say when to open it"
+            "condition. A mention inside a sentence about something else is "
+            "not a pointer. Write one line that tells the reader to open the "
+            "file and when: `Open [gotchas.md](gotchas.md) when <condition>. "
+            "It records <what the file supplies>.`"
         ]
     return [
         "SKILL.md carries no context pointer to gotchas.md. Every published "

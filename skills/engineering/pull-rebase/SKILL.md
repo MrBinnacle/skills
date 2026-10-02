@@ -50,6 +50,8 @@ A reactive hook surfaces this card after an error or bad pull; it helps recovery
 
 Install an adopter-owned guard using [the runtime recipes and required case table](preventive-recipes.md). Claude Code can block the Bash tool call with `PreToolUse`; a shell wrapper covers interactive and automated shells without an agent harness. Native Git hooks do not provide a pre-pull interception point, so `pre-rebase` is too late for this policy.
 
+Open [gotchas.md](gotchas.md) when a guard you installed blocks a command that merely names this skill, or the pre-flight reads clean and a pull still rebases. It records the guard's observed false positives and the config scopes and values the pre-flight can miss.
+
 ## Recovery (if you already pulled and triggered a rebase)
 
 1. **Identify SHAs that need backfilling.** Grep state files / gate ledgers / release notes for the OLD SHAs. The reflog has both:
@@ -68,8 +70,6 @@ Install an adopter-owned guard using [the runtime recipes and required case tabl
 - The blast radius (22 SHA rewrites + 5 state-file backfills + force-push pressure) is visible only after the fact.
 
 ## Anti-patterns
-
-Open [gotchas.md](gotchas.md) when `git config pull.rebase` may be `true`, or when a guard you installed blocks a command that merely names this skill.
 
 - `git pull --no-ff` as a "safe default" — only safe if you've verified `pull.rebase` is unset or `false`.
 - Running `git pull` to "investigate divergence." Use `git fetch` + `git log HEAD..origin/<branch>` for read-only divergence inspection.

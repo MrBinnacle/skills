@@ -75,7 +75,7 @@ After the fix, verify the test actually exercises the intended branch:
 
 ## Notes
 
-Open [gotchas.md](gotchas.md) when a CLI test silently passed on a branch that never ran the absent-env path.
+Open [gotchas.md](gotchas.md) when a CLI test silently passed on a branch that never ran the absent-env path. It records the origin incident and how this card's own references rotted.
 
 - Most dangerous in tests of API-key-dependent code: the missing `{key: None}` can let a test silently make a live network call, burning real money and producing flaky results.
 - The behavior is documented — [the env parameter on CliRunner.invoke](https://click.palletsprojects.com/en/stable/api/#click.testing.CliRunner.invoke) — but phrased as "added/overridden," not as "absence does nothing." Easy to miss.

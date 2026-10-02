@@ -96,8 +96,6 @@ Use `close_session.py` unless the project's close needs that control.
 
 ## Boundary limits
 
-Open [gotchas.md](gotchas.md) when a close was skipped, a packet went missing, or the receiver rejects a packet this producer just wrote.
-
 The operator runs `/clear`. The producer owes them a **safe-to-clear** verdict, computed from five checks and never asserted. `/clear` is the one action at a session boundary whose cost is one-way, so an `ACCEPTED` receipt is not the verdict; it is the first check.
 
 1. The packet re-validates `ACCEPTED` at the current `HEAD`, not the `HEAD` it was minted against.
@@ -111,6 +109,8 @@ Report residual risk beside the verdict even when it is yes: an unpushed branch,
 Produce the packet after the session's final commit. A later commit moves HEAD and the receiver rejects the packet as stale. Keep the packet directory out of version control.
 
 `close_commit` checks that the close happened, not that nothing follows it. A commit made after an accepted packet still invalidates it, and the stale-HEAD check is what catches that.
+
+Open [gotchas.md](gotchas.md) when the receiver rejects a packet this producer just wrote, or a close was skipped. It records what went wrong at past closes: packets missing after a skipped close, a commit that moved `HEAD` after the packet, a receiver check that cannot fail.
 
 Do not install a Stop hook in this version. A Stop hook fires after ordinary responses and misses interrupts.
 

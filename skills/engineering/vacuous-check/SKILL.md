@@ -142,9 +142,8 @@ held at 52 and 73 with zero failures — behaviour-preserving, not merely green.
   whose product detects false-green reporting. Verification code is written
   once, read never, and tested by nobody: audit it first, not last. Confirmed
   a third time 2026-08-23, when a throwaway probe harness built *to audit a
-  router* produced the false finding itself. Open
-  [gotchas.md](gotchas.md) when a success check accepted failure output, or a
-  probe harness produced the false finding itself.
+  router* produced the false finding itself.
+  Open [gotchas.md](gotchas.md) when a check accepts failure output or a probe misreports. It records all three instances.
 - **Rule 4 is the one this card was missing.** The 2026-08-17 instances were
   false positives. A false *negative* reads as diligence, which is why it
   survives longer: nobody re-examines a probe that found a problem.

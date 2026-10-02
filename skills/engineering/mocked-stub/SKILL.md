@@ -55,6 +55,8 @@ in two consecutive tracks in one session).
    implementer's. (Observed: an agent ran `ruff check src/` and reported clean; the repo gate
    is `src/ tests/`, which had failures.)
 
+Open [gotchas.md](gotchas.md) when a helper passes this check and still looks hollow, or you are about to forbid patching outright. It records how the trap survives a weak assertion and a coverage gate, and which patches are correct.
+
 ## What good looks like
 
 The falsifying test seeds real state and calls the production function with **no patch on it**:
@@ -68,8 +70,6 @@ If you cannot write such a test without patching the unit, that is the signal th
 code is a stub — not a reason to patch.
 
 ## Why it matters
-
-Open [gotchas.md](gotchas.md) when a returned implementation reports all gates green and the branch's safety helper looks patched in the test.
 
 Green is evidence the *test passed*, never evidence the *production path ran*. The mock that
 makes the test convenient is the same mock that hides the missing implementation. A

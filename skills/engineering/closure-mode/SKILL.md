@@ -35,7 +35,9 @@ Closure mode does NOT apply mid-implementation, mid-debugging, when working a si
 
 ## Workflow
 
-Two halves: a parallel SME swarm (the closure run), then a transition step that executes the swarm's output. Both required. Running only the swarm and forwarding its output as a menu IS the failure mode — see [gotchas.md](gotchas.md).
+Two halves: a parallel SME swarm (the closure run), then a transition step that executes the swarm's output. Both required. Running only the swarm and forwarding its output as a menu IS the failure mode.
+
+Open [gotchas.md](gotchas.md) when you are about to present the swarm's output, or closure mode is invoked before a clean lock. It records the observed failures with their recognition cues, and the anticipated ones with their rules.
 
 Before the first invocation, confirm your runtime and project surfaces — see [prerequisites.md](prerequisites.md).
 

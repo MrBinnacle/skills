@@ -130,7 +130,7 @@ record and the 2026-08-23 second occurrence live in `gotchas.md`.
 
 ## Notes
 
-Open [gotchas.md](gotchas.md) when a router rule matches nothing you type, or when a per-rule suite is green and you suspect a dead pattern.
+Open [gotchas.md](gotchas.md) when a router rule matches nothing you type, or a green per-rule suite hides a dead pattern. It records the occurrence that refuted this card's first remedy.
 
 - **A passing read is not evidence.** The gap is invisible in the rule file and
   `settings.json`; only piping a prompt into the live hook finds it.
