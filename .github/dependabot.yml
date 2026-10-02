@@ -15,12 +15,23 @@
 # set beyond the changesets tooling in package.json). Add that ecosystem then;
 # package.json today carries only release tooling, which npm audit already
 # covers in .github/workflows/dependency-audit.yml.
+#
+# No `labels` key on purpose. Dependabot then applies its default labels. The
+# pattern this file follows names `dependencies` and `github-actions`, and
+# neither label exists in this repository (checked 2026-10-01).
 version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci(deps)"
+      include: "scope"
     groups:
       github-actions:
         patterns:

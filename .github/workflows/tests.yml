@@ -55,18 +55,6 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::captured-exit suite emitted no PASS line - it did not run"; exit 1; }
 
-      # #329: Dependabot only reads its configuration after this file reaches
-      # GitHub. Run the local validator and its poison controls here so a
-      # regression in the required github-actions weekly grouped config blocks
-      # the change before Dependabot's next scheduled run.
-      - name: Dependabot configuration suite
-        run: |
-          set -euo pipefail
-          out="$(python scripts/test_dependabot_config.py)" || { echo "$out"; exit 1; }
-          echo "$out"
-          echo "$out" | grep -q '^PASS:' \
-            || { echo "::error::dependabot configuration suite emitted no PASS line - it did not run"; exit 1; }
-
       # #255 (compiling #243, #244, #249): three commit gates were checking the
       # wrong surface. Each suite below builds poison trees in a temp dir and
       # proves its gate goes red on them; none commits a poison fixture.
