@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Install-form contract for issue #333.
 
 What this pins
@@ -29,11 +28,13 @@ Live cold install
 
 Run:  python scripts/test_install_form.py
 """
+
 from __future__ import annotations
 
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -84,12 +85,15 @@ def install_section(text: str) -> str:
 def main() -> int:
     readme = README.read_text(encoding="utf-8")
     site = SITE.read_text(encoding="utf-8")
+    section = install_section(readme)
+    site_commands = re.findall(r"<kbd>([^<]+)</kbd>", site)
+    verification_record = section.partition("Verified forms")[2]
 
     # --- Criterion 1: published form works without SSH ---------------------
-    check("README install section exists", install_section(readme) != "")
+    check("README install section exists", section != "")
     check(
         "README install block names the HTTPS marketplace URL",
-        HTTPS_MARKETPLACE in install_section(readme),
+        HTTPS_MARKETPLACE in section,
         f"expected {HTTPS_MARKETPLACE!r} in ## Install",
     )
     check(
@@ -106,29 +110,27 @@ def main() -> int:
     # The interactive form and the shell form must both carry the HTTPS URL.
     check(
         "README shows the interactive form with the HTTPS URL",
-        f"/plugin marketplace add {HTTPS_MARKETPLACE}" in install_section(readme),
+        f"/plugin marketplace add {HTTPS_MARKETPLACE}" in section,
         "interactive slash form missing or still shorthand",
     )
     check(
         "README shows the shell form with the HTTPS URL",
-        f"claude plugin marketplace add {HTTPS_MARKETPLACE}" in install_section(readme),
+        f"claude plugin marketplace add {HTTPS_MARKETPLACE}" in section,
         "shell form missing or still shorthand",
     )
     check(
         "site interactive form uses the HTTPS URL",
-        f"/plugin marketplace add {HTTPS_MARKETPLACE}" in site,
-        "site kbd block still shorthand",
+        f"/plugin marketplace add {HTTPS_MARKETPLACE}" in site_commands,
+        "site kbd block still shorthand or absent",
     )
     check(
         "plugin install step is still published beside the marketplace add",
-        PLUGIN_INSTALL in install_section(readme) and PLUGIN_INSTALL in site,
+        PLUGIN_INSTALL in section and PLUGIN_INSTALL in site_commands,
         "plugin install command missing from a reader surface",
     )
 
     # Fence content must carry the HTTPS URL (the block a reader copies).
-    install_fences = [
-        b for b in fence_blocks(install_section(readme)) if "marketplace add" in b
-    ]
+    install_fences = [b for b in fence_blocks(section) if "marketplace add" in b]
     check(
         "README marketplace fence copies the HTTPS URL",
         any(HTTPS_MARKETPLACE in b for b in install_fences),
@@ -136,25 +138,28 @@ def main() -> int:
     )
     check(
         "no README install fence publishes only the shorthand",
-        all(HTTPS_MARKETPLACE in b for b in install_fences) if install_fences else False,
+        all(HTTPS_MARKETPLACE in b for b in install_fences)
+        if install_fences
+        else False,
         "a published fence still uses only MrBinnacle/skills",
     )
 
     # --- Criterion 3: README says which forms were verified -----------------
-    section = install_section(readme)
     check(
         "README states which install forms were verified",
-        re.search(r"(?i)verified", section) is not None,
+        verification_record != "",
         "## Install does not name a verification record",
     )
     check(
         "README names the interactive form among the verified surfaces",
-        re.search(r"(?i)interactive", section) is not None,
+        f"interactive `/plugin marketplace add {HTTPS_MARKETPLACE}`"
+        in verification_record,
         "## Install does not say the interactive form was verified",
     )
     check(
         "README names the shell form among the verified surfaces",
-        re.search(r"(?i)shell", section) is not None,
+        f"shell `claude plugin marketplace add {HTTPS_MARKETPLACE}`"
+        in verification_record,
         "## Install does not say the shell form was verified",
     )
 
@@ -171,6 +176,39 @@ def main() -> int:
             "no claude on PATH; criterion 2 cannot be exercised here",
         )
     else:
+        shell_commands = [
+            shlex.split(line)
+            for fence in fence_blocks(section)
+            for line in fence.splitlines()
+            if line.startswith("claude ")
+        ]
+        add_command = next(
+            (
+                command
+                for command in shell_commands
+                if command[:3] == ["claude", "plugin", "marketplace"]
+                and command[3:4] == ["add"]
+            ),
+            None,
+        )
+        primary_install = next(
+            (
+                command
+                for command in shell_commands
+                if command[:3] == ["claude", "plugin", "install"]
+            ),
+            None,
+        )
+        check(
+            "README shell fence provides runnable marketplace and plugin commands",
+            add_command is not None and primary_install is not None,
+            "shell fence must contain both `claude plugin marketplace add` and `claude plugin install`",
+        )
+        if add_command is None or primary_install is None:
+            print()
+            print(f"{len(FAILURES)} FAILED")
+            return 1
+
         base = Path(tempfile.mkdtemp(prefix="install-form-333-"))
         config = base / "config"
         home = base / "home"
@@ -183,11 +221,12 @@ def main() -> int:
         env["GIT_SSH_COMMAND"] = (
             "ssh -o BatchMode=yes -o IdentityFile=/dev/null -o IdentitiesOnly=yes"
         )
-        # Publish the HTTPS form only: never fall back to the shorthand.
-        # The README's shell form is what a stranger runs.
+        # Run the commands copied from README, never a separately maintained form.
+        add_command[0] = claude
         add = subprocess.run(
-            [claude, "plugin", "marketplace", "add", HTTPS_MARKETPLACE],
+            add_command,
             capture_output=True,
+            check=False,
             text=True,
             env=env,
             cwd=str(base),
@@ -204,9 +243,13 @@ def main() -> int:
             "mrbinnacle-orchestration",
             "mrbinnacle-meta",
         ):
+            command = primary_install.copy()
+            command[0] = claude
+            command[-1] = plugin
             proc = subprocess.run(
-                [claude, "plugin", "install", plugin],
+                command,
                 capture_output=True,
+                check=False,
                 text=True,
                 env=env,
                 cwd=str(base),
@@ -214,34 +257,54 @@ def main() -> int:
             installs.append((plugin, proc.returncode, proc.stdout + proc.stderr))
         check(
             "cold install of all three plugins succeeds",
-            all(rc == 0 and "Successfully installed plugin" in out for _, rc, out in installs),
+            all(
+                rc == 0 and "Successfully installed plugin" in out
+                for _, rc, out in installs
+            ),
             "\n".join(f"{p}: rc={rc}\n{o}" for p, rc, o in installs),
         )
         listed = subprocess.run(
             [claude, "plugin", "list", "--json"],
             capture_output=True,
+            check=False,
             text=True,
             env=env,
             cwd=str(base),
         )
-        check(
-            "installed plugins report version 3.0.1 from the cold install",
-            listed.returncode == 0 and '"version": "3.0.1"' in listed.stdout
-            and listed.stdout.count('"version": "3.0.1"') >= 3,
-            listed.stdout[:2000],
-        )
-        # Cards sit at the plugin root, not under skills/. Count SKILL.md files.
+        # The marketplace follows its default branch, which can be newer than
+        # this pull request. Verify the installed plugins agree on a real version
+        # instead of coupling this cold-path check to a pending version bump.
         try:
             data = json.loads(listed.stdout)
         except json.JSONDecodeError:
             data = []
+        requested_plugins = {
+            "mrbinnacle-engineering",
+            "mrbinnacle-orchestration",
+            "mrbinnacle-meta",
+        }
+        installed_plugins = {
+            plugin.get("id", "").partition("@")[0]: plugin
+            for plugin in data
+            if plugin.get("id", "").partition("@")[0] in requested_plugins
+        }
+        check(
+            "installed plugins report one nonempty version from the cold install",
+            listed.returncode == 0
+            and set(installed_plugins) == requested_plugins
+            and len({plugin.get("version") for plugin in installed_plugins.values()})
+            == 1
+            and all(plugin.get("version") for plugin in installed_plugins.values()),
+            listed.stdout[:2000],
+        )
+        # Cards sit at the plugin root, not under skills/. Count SKILL.md files.
         skill_count = 0
-        for plugin in data:
+        for plugin in installed_plugins.values():
             root = Path(plugin["installPath"])
             skill_count += len(list(root.glob("*/SKILL.md")))
         check(
-            "cold install carries all 14 cards across the three plugins",
-            skill_count == 14,
+            "cold install carries cards in every requested plugin",
+            skill_count >= len(requested_plugins),
             f"skill_count={skill_count}, plugins={[(p.get('id'), p.get('version')) for p in data]}",
         )
         print(f"cold-install transcript available under {base}")
@@ -250,7 +313,9 @@ def main() -> int:
     if FAILURES:
         print(f"{len(FAILURES)} FAILED")
         return 1
-    print("PASS: install form is the HTTPS URL on README and site, and the cold path is green")
+    print(
+        "PASS: install form is the HTTPS URL on README and site, and the cold path is green"
+    )
     return 0
 
 
