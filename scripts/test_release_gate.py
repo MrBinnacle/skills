@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -138,7 +139,12 @@ def git_repo_with_base(
     write(root / "CHANGELOG.md", changelog_md(base_version))
     git_init(root)
     git_commit(root, "base")
-    subprocess.run(["git", "-C", str(root), "branch", "-f", "main"], check=True, capture_output=True)
+    # `branch -M`, not `branch -f` (#272). `git init` names the first branch from
+    # the host's init.defaultBranch. Where that is already `main`, `branch -f main`
+    # refuses to force-update the branch that is checked out and exits 128, which
+    # killed the whole run with a traceback. Renaming the current branch to `main`
+    # gives the same base ref whatever the host calls its default branch.
+    subprocess.run(["git", "-C", str(root), "branch", "-M", "main"], check=True, capture_output=True)
     subprocess.run(["git", "-C", str(root), "checkout", "-q", "-b", "candidate"], check=True, capture_output=True)
     write(root / "package.json", package_json(head_version))
     plant_manifests(root, [head_version])
@@ -971,6 +977,37 @@ def case_live_manifest_and_tree_agree() -> None:
 NO_NPX_PATH = "/usr/bin:/bin"
 
 
+def no_npx_env() -> dict[str, str] | None:
+    """An environment in which `git` resolves and `npx` does not, or None when
+    this host cannot provide one (#272).
+
+    On POSIX the fixed `NO_NPX_PATH` does it, as before. On Windows that PATH
+    names no directory at all, so `git` was not found either: the gate died with
+    a traceback instead of refusing, and three assertions about the refusal's
+    text then failed on a host where the gate itself was correct. There the PATH
+    is the one directory `git` lives in, plus SYSTEMROOT, which a Windows child
+    process needs to start.
+
+    None means `npx` sits in the same directory as `git`, so no PATH can keep
+    one and drop the other. The caller skips by name; it never passes silently.
+    """
+    env = {"PYTHONUTF8": "1"}
+    if os.name != "nt":
+        env["PATH"] = NO_NPX_PATH
+        return env
+    git = shutil.which("git")
+    if git is None:
+        return None
+    git_dir = str(Path(git).parent)
+    if shutil.which("npx", path=git_dir) is not None:
+        return None
+    env["PATH"] = git_dir
+    for name in ("SYSTEMROOT", "SystemRoot"):
+        if name in os.environ:
+            env[name] = os.environ[name]
+    return env
+
+
 def case_g6_reds_when_the_spec_validator_cannot_run() -> None:
     """G6 wraps the external spec validator as a subprocess and reports its
     verdict. Driven down the validator's own `npx`-absent path so the suite needs
@@ -979,19 +1016,30 @@ def case_g6_reds_when_the_spec_validator_cannot_run() -> None:
     is not a release the gate may pass. The tree is a git tree with a published
     card and a manifest in lockstep, so G1/G5 are silent and G6 is the only
     finding."""
+    env = no_npx_env()
+    if env is None:
+        note(
+            "G6 refusal path not run -- this host has no PATH that keeps `git` "
+            "and drops `npx` (git is absent, or npx sits in git's directory). "
+            "Four checks skipped: the release is refused, the refusal is under "
+            "G6, it carries the validator's reason, and it is the only fault."
+        )
+        return
     with tempfile.TemporaryDirectory() as tmp:
         root = release_tree_with_skills(Path(tmp), ("alpha-card",))
         git_init(root)
         result = run_gate_with_env(
-            {"PATH": NO_NPX_PATH, "PYTHONUTF8": "1"},
+            env,
             "--release",
             "--root",
             str(root),
         )
+        # A non-zero exit alone does not show a refusal: a gate that crashed
+        # exits non-zero too, and that is what this case used to accept (#272).
         check(
             "a release whose external spec validator could not run is refused",
-            result.returncode != 0,
-            result.stdout,
+            result.returncode != 0 and "Traceback" not in result.stderr,
+            result.stdout + result.stderr,
         )
         check(
             "the refusal is reported under G6",
