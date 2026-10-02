@@ -179,7 +179,7 @@ Repository tooling, after the change (`PYTHONUTF8=1`):
 | `scripts/test_release_gate.py` | PASS |
 | im-down / im-up parity suites | PASS, each prints `, no-drift` |
 | im-down poison control (`fixture-stale.md --mode produce`) | REJECTED, non-zero exit |
-| `scripts/test_link_skills_guard.py` | FAIL — no `pwsh` on PATH in this container. Pre-existing environment gap; the suite refuses to skip. Not caused by this change. |
+| `scripts/test_link_skills_guard.py` | PASS after PowerShell 7.4.6 was installed in this container. First run failed with `no pwsh or powershell on PATH`; the suite refuses to skip. Re-run green once `pwsh` was on PATH. |
 | De-personalization residue patterns | Clean on README, site, test, and changeset. Path-residue checker PASS. |
 
 ## Mutation campaign
