@@ -110,6 +110,8 @@ Produce the packet after the session's final commit. A later commit moves HEAD a
 
 `close_commit` checks that the close happened, not that nothing follows it. A commit made after an accepted packet still invalidates it, and the stale-HEAD check is what catches that.
 
+Open [gotchas.md](gotchas.md) when the receiver rejects a packet this producer just wrote, or a close was skipped. It records what went wrong at past closes: packets missing after a skipped close, a commit that moved `HEAD` after the packet, a receiver check that cannot fail.
+
 Do not install a Stop hook in this version. A Stop hook fires after ordinary responses and misses interrupts.
 
 Native Claude Code transcripts remain the abnormal-exit recovery path. This packet is an audited execution bootstrap.

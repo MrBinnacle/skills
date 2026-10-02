@@ -55,6 +55,8 @@ in two consecutive tracks in one session).
    implementer's. (Observed: an agent ran `ruff check src/` and reported clean; the repo gate
    is `src/ tests/`, which had failures.)
 
+Open [gotchas.md](gotchas.md) when a helper passes this check and still looks hollow, or you are about to forbid patching outright. It records how the trap survives a weak assertion and a coverage gate, and which patches are correct.
+
 ## What good looks like
 
 The falsifying test seeds real state and calls the production function with **no patch on it**:
