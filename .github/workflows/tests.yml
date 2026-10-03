@@ -1779,3 +1779,23 @@ jobs:
           fi
           grep -q 'which is not in the workspace' "$RUNNER_TEMP/unscoped.log" || { echo "::error::the unscoped control failed for the WRONG reason"; exit 1; }
           echo "control: scoped blind (exit 0), unscoped rejected it for the right reason"
+
+  install-form:
+    name: Install form
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # Issue #333 is a CLI resolution failure. The contract must run with the
+      # release whose interactive and shell forms the README records.
+      - name: Install Claude Code 2.1.287
+        run: |
+          set -euo pipefail
+          npm install --global @anthropic-ai/claude-code@2.1.287
+          claude --version
+
+      - name: Cold install the README shell form without SSH
+        run: |
+          set -euo pipefail
+          python scripts/test_install_form.py
