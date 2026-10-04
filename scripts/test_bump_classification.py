@@ -13,6 +13,11 @@ set is outside the declared surface. A changeset declares its own bump type and
 nothing used to check that declaration against the diff. A wrong bump spends the
 wrong version number permanently (ADR 0002), so the gate must block.
 
+Cases 1-3 judge only the changesets THIS BRANCH adds (new .changeset/*.md in
+merge-base..HEAD), never every pending file on disk. Case 4, at release,
+compares the version delta against the changesets the release CONSUMES --
+read at the merge-base, because `changeset version` deletes them at HEAD.
+
 Each control plants one shape of the defect into a temporary git tree and runs
 the SHIPPED gate as a subprocess -- never module internals -- and requires the
 refusal to name G10 and the specific fault. Asserting only a non-zero exit is
@@ -29,7 +34,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -189,6 +193,7 @@ def make_tree(
     base_version: str = BASE_VERSION,
     head_version: str | None = None,
     release: bool = False,
+    consumed: str | list[str] | None = None,
 ) -> Path:
     """A git tree whose branch diff and pending changeset the gate can classify.
 
@@ -207,7 +212,14 @@ def make_tree(
       missing          - no docs/adr/ files
 
     release=True sets head_version (default minor bump) so the tree is a release
-    ref, and leaves .changeset/ empty so G3 is not the fault under test.
+    ref. `consumed` names the bump(s) the release plan held at the base commit;
+    those .changeset files are deleted on the release commit, the way
+    `changeset version` consumes them. G3 stays silent because HEAD holds no
+    pending file.
+
+    Cases 1-3 see only changesets this branch ADDS (written on the candidate
+    after the base commit). A consumed plan is planted BEFORE the base commit
+    so the release diff carries the deletions.
     """
     root = tmp / "repo"
     head = head_version or (None if not release else "1.3.0")
@@ -241,6 +253,13 @@ def make_tree(
 
     # Base manifests name the base cards at the base version.
     manifest_lockstep(root, base_cards, base_version)
+
+    # A release plan lives at the base commit: `changeset version` consumes
+    # what main already held, then deletes the files in the release PR.
+    if release and consumed is not None:
+        levels = [consumed] if isinstance(consumed, str) else list(consumed)
+        for index, level in enumerate(levels):
+            write(root / ".changeset" / f"zzz-consumed-{index}.md", changeset_md(level))
 
     git(root, "init", "-q")
     git(root, "add", "-A")
@@ -279,11 +298,14 @@ def make_tree(
     if not release:
         write(root / ".changeset" / "zzz-classify.md", changeset_md(declared))
     else:
-        # Consumed plan: no pending files, so G3 stays silent and G10 alone
-        # answers whether the version delta matches the release diff.
+        # Consumed plan: no pending files at HEAD, so G3 stays silent and G10
+        # case 4 alone answers whether the version delta matches the plan the
+        # release consumed at the merge-base.
         changeset_dir = root / ".changeset"
         if changeset_dir.is_dir():
-            shutil.rmtree(changeset_dir)
+            for path in changeset_dir.glob("*.md"):
+                if path.name != "README.md":
+                    path.unlink()
 
     git(root, "add", "-A")
     git(root, "commit", "-q", "-m", "candidate")
@@ -315,6 +337,24 @@ def expect_g10_refusal(case: str, root: Path, *needles: str, release: bool = Fal
         check(case, False, f"refusal missed {missing!r}\n{output}")
         return
     check(case, True)
+
+
+def init_base_repo(root: Path, *, base_version: str = BASE_VERSION) -> None:
+    """A conforming main tip: one card, lockstep manifests, ADRs, no changesets."""
+    write(root / "package.json", package_json(base_version))
+    write(root / "CHANGELOG.md", changelog_md(base_version))
+    plant_adrs(root)
+    skill_card(root, "old-card")
+    manifest_lockstep(root, ["old-card"], base_version)
+    git(root, "init", "-q")
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "base")
+    git(root, "branch", "-M", "main")
+
+
+def set_origin_main(root: Path) -> None:
+    """Point refs/remotes/origin/main at HEAD -- the state after a push to main."""
+    git(root, "update-ref", "refs/remotes/origin/main", "HEAD")
 
 
 # --------------------------------------------------------------------- controls
@@ -431,8 +471,11 @@ def case_higher_classification_governs_rename_plus_add(tmp: Path) -> None:
     """A rename and an addition in one changeset resolve to major.
 
     The fixture renames old-card and adds new-card on the same branch, with one
-    changeset declaring patch. The higher class (major, from the rename)
-    governs, so patch is refused."""
+    changeset declaring MINOR -- the price an addition alone would cost. The
+    higher class (major, from the rename) governs, so minor is refused. A
+    mutant that took the lower price, or that priced only the addition, would
+    accept this fixture; declaring minor is what kills it.
+    """
     root = tmp / "repo"
     write(root / "package.json", package_json(BASE_VERSION))
     write(root / "CHANGELOG.md", changelog_md(BASE_VERSION))
@@ -451,72 +494,243 @@ def case_higher_classification_governs_rename_plus_add(tmp: Path) -> None:
     )
     skill_card(root, "added-card")
     manifest_lockstep(root, ["new-card", "added-card"], BASE_VERSION)
-    write(root / ".changeset" / "zzz-classify.md", changeset_md("patch"))
+    write(root / ".changeset" / "zzz-classify.md", changeset_md("minor"))
     git(root, "add", "-A")
     git(root, "commit", "-q", "-m", "candidate")
     expect_g10_refusal(
-        "rename + add in one changeset resolves to major (patch refused)",
+        "rename + add in one changeset resolves to major (minor refused)",
         root,
         "G10:",
         "major",
     )
 
 
-def case_case4_release_delta_under_required_is_refused(tmp: Path) -> None:
-    """Case 4: version bumped minor while the release diff only edits scripts.
+def case_case4_consumed_major_with_major_delta_passes(tmp: Path) -> None:
+    """Case 4 positive half: the version delta matches the consumed plan.
 
-    The release is real (version changed, manifests in lockstep, no pending
-    changesets) but the tree's declared surface did not move, so a minor delta
-    spends the wrong number."""
+    A release tree shaped like a real roll: the plan at the base commit prices
+    major (plus patches), `changeset version` consumed those files, and the
+    release PR wrote 2.0.0. The gate must stay silent."""
+    root = make_tree(
+        tmp,
+        declared=None,
+        branch_change="none",
+        base_version="2.0.0",
+        head_version="3.0.0",
+        release=True,
+        consumed=["major", "patch", "patch"],
+    )
+    expect_pass(
+        "case 4: a major delta over a consumed-major plan stays silent",
+        root,
+        "--release",
+    )
+
+
+def case_case4_consumed_major_with_minor_delta_is_refused(tmp: Path) -> None:
+    """Case 4 refuse half: minor written where the consumed plan prices major.
+
+    The tree is the v3.0.0 shape -- same consumed plan, same release PR shape --
+    with the version number dialed back to a minor bump. A wrong bump spends
+    the wrong number permanently (ADR 0002), so G10 blocks."""
+    root = make_tree(
+        tmp,
+        declared=None,
+        branch_change="none",
+        base_version="2.0.0",
+        head_version="2.1.0",
+        release=True,
+        consumed=["major", "patch", "patch"],
+    )
+    expect_g10_refusal(
+        "case 4: a minor delta over a consumed-major plan is REFUSED",
+        root,
+        "G10:",
+        "2.0.0",
+        "2.1.0",
+        "major",
+        release=True,
+    )
+
+
+def case_case4_consumed_patch_with_minor_delta_is_refused(tmp: Path) -> None:
+    """Case 4 prices the plan, not only a lower bound: patch plan, minor written."""
+    root = make_tree(
+        tmp,
+        declared=None,
+        branch_change="scripts_only",
+        base_version="1.2.0",
+        head_version="1.3.0",
+        release=True,
+        consumed="patch",
+    )
+    expect_g10_refusal(
+        "case 4: a minor delta over a consumed-patch plan is REFUSED",
+        root,
+        "G10:",
+        "1.2.0",
+        "1.3.0",
+        "patch",
+        release=True,
+    )
+
+
+def case_case4_no_consumed_plan_with_delta_is_refused(tmp: Path) -> None:
+    """A version number with no consumed plan behind it has nothing to justify it."""
     root = make_tree(
         tmp,
         declared=None,
         branch_change="scripts_only",
         head_version="1.3.0",
         release=True,
+        consumed=None,
     )
     expect_g10_refusal(
-        "case 4: a minor version delta over a scripts-only release is refused",
+        "case 4: a version delta with no consumed changeset is REFUSED",
         root,
         "G10:",
         "1.2.0",
         "1.3.0",
+        "no changeset consumed",
         release=True,
     )
 
 
-def case_case4_release_delta_matches_rename_is_silent(tmp: Path) -> None:
-    """Case 4 positive half: a major delta over a rename release is correct."""
+def case_b2a_push_to_main_after_admission_passes(tmp: Path) -> None:
+    """B2(a): a push to main after an admission merged with minor must PASS.
+
+    The admission's changeset sits on main and declares minor correctly. Once
+    the merge lands, origin/main == HEAD and the branch diff is empty. G10
+    must not re-judge main's pending file against an empty diff -- that was
+    the defect: a correct minor declaration refused as case 3."""
+    root = tmp / "repo"
+    init_base_repo(root)
+    git(root, "checkout", "-q", "-b", "candidate")
+    skill_card(root, "new-card")
+    manifest_lockstep(root, ["old-card", "new-card"], BASE_VERSION)
+    write(root / ".changeset" / "zzz-admit.md", changeset_md("minor"))
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "admit")
+    git(root, "checkout", "-q", "main")
+    git(root, "merge", "-q", "--no-ff", "candidate", "-m", "merge admit")
+    set_origin_main(root)
+    expect_pass(
+        "B2(a): push to main after a correctly declared minor admission PASSES",
+        root,
+    )
+
+
+def case_b2b_next_scripts_only_pr_passes(tmp: Path) -> None:
+    """B2(b): the next scripts-only PR after that admission must PASS.
+
+    main still holds the admission's pending minor changeset. The new PR adds
+    only a scripts file and a patch changeset. Cases 1-3 must judge the
+    branch-added patch file, not main's leftover minor -- otherwise every
+    ordinary PR after an admission goes red."""
+    root = tmp / "repo"
+    init_base_repo(root)
+    git(root, "checkout", "-q", "-b", "candidate")
+    skill_card(root, "new-card")
+    manifest_lockstep(root, ["old-card", "new-card"], BASE_VERSION)
+    write(root / ".changeset" / "zzz-admit.md", changeset_md("minor"))
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "admit")
+    git(root, "checkout", "-q", "main")
+    git(root, "merge", "-q", "--no-ff", "candidate", "-m", "merge admit")
+    set_origin_main(root)
+    git(root, "checkout", "-q", "-b", "scripts-pr")
+    write(root / "scripts" / "only-outside-surface.py", "print('hello')\n")
+    write(root / ".changeset" / "zzz-scripts.md", changeset_md("patch"))
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "scripts")
+    expect_pass(
+        "B2(b): the next scripts-only PR after that admission PASSES",
+        root,
+    )
+
+
+def case_b2c_replay_push_to_main_at_316_passes(tmp: Path) -> None:
+    """B2(c): a replay of the push to main at #316 (correct major) must PASS.
+
+    #316 added a major changeset and re-shaped packaging, then landed on main.
+    After the push, origin/main == HEAD and the branch diff is empty. The
+    pending major on disk is correct for work already in history; G10 must
+    not refuse it as case 3."""
+    root = tmp / "repo"
+    init_base_repo(root)
+    write(root / ".changeset" / "zzz-older-patch.md", changeset_md("patch"))
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "older pending")
+    git(root, "checkout", "-q", "-b", "candidate")
+    # #316 shape: major changeset + bucket plugin.json + a SKILL.md touch.
+    write(root / ".changeset" / "plugin-is-its-own-root.md", changeset_md("major"))
+    write(
+        root / "skills" / SKILLS_BUCKET / ".claude-plugin" / "plugin.json",
+        json.dumps(
+            {
+                "name": "fixture-engineering",
+                "version": BASE_VERSION,
+                "skills": ["./old-card"],
+            },
+            indent=2,
+        )
+        + "\n",
+    )
+    write(
+        root / "skills" / SKILLS_BUCKET / "old-card" / "SKILL.md",
+        "---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n\ntouched\n",
+    )
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "plugin roots")
+    git(root, "checkout", "-q", "main")
+    git(root, "merge", "-q", "--no-ff", "candidate", "-m", "merge 316")
+    set_origin_main(root)
+    expect_pass(
+        "B2(c): replay of the push to main at #316 (major) PASSES",
+        root,
+    )
+
+
+def case_b3_v300_shaped_release_passes(tmp: Path) -> None:
+    """B3 positive: a tree shaped like the real v3.0.0 release PASSES.
+
+    The real release (4c00b0e) consumed a major changeset plus several patch
+    ones and wrote 2.0.0 -> 3.0.0. This fixture mirrors that shape: consumed
+    plan at the base, files deleted at HEAD, version major, changelog dated."""
     root = make_tree(
         tmp,
         declared=None,
-        branch_change="rename",
-        head_version="2.0.0",
+        branch_change="none",
+        base_version="2.0.0",
+        head_version="3.0.0",
         release=True,
+        consumed=["major", "patch", "patch", "patch"],
     )
     expect_pass(
-        "case 4: a major version delta over a rename release stays silent",
+        "B3: a v3.0.0-shaped release (consumed major, delta major) PASSES",
         root,
         "--release",
     )
 
 
-def case_case4_release_delta_overstates_card_correction_is_refused(tmp: Path) -> None:
-    """Case 4 compares the exact price, not only the lower bound."""
+def case_b3_v300_shaped_release_minor_delta_refused(tmp: Path) -> None:
+    """B3 refuse: the same tree with a minor bump where the plan prices major."""
     root = make_tree(
         tmp,
         declared=None,
-        branch_change="modify_card",
-        head_version="1.3.0",
+        branch_change="none",
+        base_version="2.0.0",
+        head_version="2.1.0",
         release=True,
+        consumed=["major", "patch", "patch", "patch"],
     )
     expect_g10_refusal(
-        "case 4: a minor version delta over a card correction is refused",
+        "B3: the v3.0.0-shaped tree with a minor delta is REFUSED",
         root,
         "G10:",
-        "1.2.0",
-        "1.3.0",
-        "requires patch",
+        "2.0.0",
+        "2.1.0",
+        "major",
         release=True,
     )
 
@@ -645,8 +859,8 @@ def case_ci_carries_case1_to_case4_poison_controls(tmp: Path) -> None:
             ("G10:", "skills/", "minor"),
         ),
         (
-            "Poison control - a release version delta that overstates the surface must be rejected",
-            ("G10:", "1.2.0", "1.3.0"),
+            "Poison control - a release version delta that disagrees with the consumed plan",
+            ("G10:", "2.0.0", "2.1.0", "major"),
         ),
     ):
         step = _named_step(job, step_name)
@@ -658,6 +872,33 @@ def case_ci_carries_case1_to_case4_poison_controls(tmp: Path) -> None:
         missing = [n for n in needles if n not in step]
         check(
             f"the control {step_name!r} plants the defect and names G10",
+            not missing,
+            f"missing {missing!r} in step" if missing else "",
+        )
+
+
+def case_ci_carries_b2_and_b3_controls(tmp: Path) -> None:
+    """B2 and B3 each need a CI control, not only a suite case."""
+    job = _workflow_job("release-gate")
+    for step_name, needles in (
+        (
+            "Poison control - a push to main must not re-judge main's pending changesets",
+            ("RELEASE GATE: PASS",),
+        ),
+        (
+            "Poison control - a v3.0.0-shaped release must pass and a minor delta must be refused",
+            ("RELEASE GATE: PASS", "G10:", "2.0.0", "2.1.0"),
+        ),
+    ):
+        step = _named_step(job, step_name)
+        check(
+            f"CI carries the control {step_name!r}",
+            bool(step),
+            "no such step under the release-gate job",
+        )
+        missing = [n for n in needles if n not in step]
+        check(
+            f"the control {step_name!r} carries the required assertions",
             not missing,
             f"missing {missing!r} in step" if missing else "",
         )
@@ -675,9 +916,15 @@ CASES = (
     case_case3_no_surface_declared_major_is_refused,
     case_case3_non_card_directory_declared_minor_is_refused,
     case_higher_classification_governs_rename_plus_add,
-    case_case4_release_delta_under_required_is_refused,
-    case_case4_release_delta_matches_rename_is_silent,
-    case_case4_release_delta_overstates_card_correction_is_refused,
+    case_case4_consumed_major_with_major_delta_passes,
+    case_case4_consumed_major_with_minor_delta_is_refused,
+    case_case4_consumed_patch_with_minor_delta_is_refused,
+    case_case4_no_consumed_plan_with_delta_is_refused,
+    case_b2a_push_to_main_after_admission_passes,
+    case_b2b_next_scripts_only_pr_passes,
+    case_b2c_replay_push_to_main_at_316_passes,
+    case_b3_v300_shaped_release_passes,
+    case_b3_v300_shaped_release_minor_delta_refused,
     case_ard_text_is_read_not_hardcoded,
     case_missing_ard_fails_closed_when_classification_needed,
     case_empty_changeset_is_not_a_classification_fault,
@@ -685,6 +932,7 @@ CASES = (
     case_ci_runs_the_bump_classification_suite,
     case_ci_carries_the_inversion_poison_control,
     case_ci_carries_case1_to_case4_poison_controls,
+    case_ci_carries_b2_and_b3_controls,
 )
 
 
@@ -698,7 +946,9 @@ def main() -> int:
         return 1
     print(
         f"\nPASS: {len(CASES)} controls verified; each planted defect is refused "
-        "by G10, the inversion is pinned, and the ADR text on disk drives classification"
+        "by G10, the inversion is pinned, cases 1-3 judge only branch-added "
+        "changesets, case 4 prices the consumed plan, and the ADR text on disk "
+        "drives classification"
     )
     return 0
 

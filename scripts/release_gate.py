@@ -95,26 +95,36 @@ Checks (all must pass; failures are listed, not first-fail):
       prices corrections within a card as a patch and keeps the card set
       outside the surface. Cases, each a listed failure:
 
-        1. A diff that renames a card directory under ``skills/*/*/`` and a
-           changeset declaring anything less than the rename price (major).
-        2. A diff that adds or removes a directory under ``skills/*/*/`` and a
-           changeset declaring the patch price.
-        3. A diff that touches no file under ``skills/*/*/`` and a changeset
-           declaring minor or major -- nothing outside the cards changes the
-           declared surface.
-        4. (--release only) A version delta that disagrees with what the release
-           diff requires under the same ADR prices. A botched release spends a
-           version number permanently (ADR 0002), so this blocks rather than
-           reports.
+        1. A branch-added changeset whose diff renames a card directory under
+           ``skills/*/*/`` and declares anything less than the rename price
+           (major).
+        2. A branch-added changeset whose diff adds or removes a directory
+           under ``skills/*/*/`` and declares the patch price.
+        3. A branch-added changeset whose diff touches no file under
+           ``skills/*/*/`` and declares minor or major -- nothing outside the
+           cards changes the declared surface.
+        4. (--release only) A version delta that disagrees with the bump the
+           changesets this release CONSUMED declare. A release PR runs
+           ``npm run version``, which deletes the consumed ``.changeset/*.md``
+           files and writes the new number; the gate reads those files at the
+           merge-base, prices them under the same ADR rules, and requires the
+           version delta to match. A botched release spends a version number
+           permanently (ADR 0002), so this blocks rather than reports.
+
+      Cases 1-3 judge only the changesets THIS BRANCH adds -- new
+      ``.changeset/*.md`` in ``merge-base..HEAD`` -- never every pending file
+      on disk. Pending changesets that main already holds were classified when
+      their own branch ran this gate; a later PR must not be refused for them.
 
       A rename and an addition in one changeset resolve to major: the higher
       classification governs a changeset that contains both. Classification is
       skipped only when the tree publishes no card (vacuous surface), when no
-      pending changeset declares a bump, or when the git diff cannot be
+      branch-added changeset declares a bump, or when the git diff cannot be
       established -- the house pattern G5 and G6 already use. When
       classification is needed and an ADR cannot be read or parsed, the run
       fails closed: an input this gate cannot trust is a listed failure, never
-      a skip and never a pass.
+      a skip and never a pass. When git itself cannot run, G10 refuses in its
+      own words rather than dying with a traceback (#342 / #347).
 
 Mode detection (#153):
   A release ref is one whose ``package.json`` version CHANGED relative to its
@@ -1052,38 +1062,141 @@ def version_delta_price(base_version: str, current_version: str) -> str | None:
     return "patch"
 
 
-def _pending_declared_bumps(root: Path, errors: list[str]) -> dict[str, str]:
-    """filename -> highest declared bump among that file's packages.
+def _changeset_names_at(root: Path, rev: str) -> set[str]:
+    """Changeset filenames at `rev`, excluding the README and non-md files."""
+    ok, output = _git_ok(
+        root, ["ls-tree", "-r", "--name-only", rev, "--", f"{CHANGESET_DIR_REL}/"]
+    )
+    if not ok:
+        return set()
+    names: set[str] = set()
+    for line in output.splitlines():
+        path = line.strip()
+        if not path.startswith(f"{CHANGESET_DIR_REL}/"):
+            continue
+        name = Path(path).name
+        if name == CHANGESET_README or not name.endswith(".md"):
+            continue
+        names.add(name)
+    return names
 
-    Unreadable or unassemblable frontmatter is already G2's refusal; this
-    helper skips those files so G10 does not double-report the same fault.
+
+def _branch_added_changeset_names(root: Path, merge_base: str) -> list[str]:
+    """Changeset files THIS branch adds: present at HEAD, absent at merge_base.
+
+    Cases 1-3 classify only these. A changeset main already held was
+    classified when its own branch ran the gate; judging it again here would
+    refuse a later scripts-only PR for an admission that already merged.
     """
-    changeset_dir = root / CHANGESET_DIR_REL
+    added = _changeset_names_at(root, "HEAD") - _changeset_names_at(root, merge_base)
+    return sorted(added)
+
+
+def _consumed_changeset_names(root: Path, merge_base: str) -> list[str]:
+    """Changesets this release consumed: present at merge_base, gone at HEAD.
+
+    ``changeset version`` deletes every pending file when it rolls, so a
+    release PR's diff carries those deletions. The declared bumps still live
+    at the merge-base; that is the plan the version number must match.
+    """
+    consumed = _changeset_names_at(root, merge_base) - _changeset_names_at(root, "HEAD")
+    return sorted(consumed)
+
+
+def _bumps_from_declared(
+    declared: dict[str, str], label: str, errors: list[str]
+) -> str | None:
+    """Highest bump among one changeset's package declarations, or None if empty."""
+    if not declared:
+        return None
+    highest = "patch"
+    for level in declared.values():
+        if level in BUMP_RANK:
+            highest = _higher(highest, level)
+        else:
+            errors.append(
+                f"G10: {label} declares {level!r}, which is not a changesets "
+                f"bump type (expected one of {sorted(BUMP_RANK)})"
+            )
+            highest = _higher(highest, "patch")
+    return highest
+
+
+def _read_declared_bumps(path: Path, errors: list[str]) -> dict[str, str]:
+    """Declared bumps from a changeset on disk. Unreadable frontmatter is G2's."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {}
+    try:
+        return changeset_declared_bumps(text)
+    except ValueError:
+        return {}
+
+
+def _branch_declared_bumps(
+    root: Path, merge_base: str, errors: list[str]
+) -> dict[str, str]:
+    """filename -> highest declared bump among branch-added changeset packages."""
     bumps: dict[str, str] = {}
-    if not changeset_dir.is_dir():
-        return bumps
-    for path in sorted(p for p in changeset_dir.glob("*.md") if p.name != CHANGESET_README):
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
+    for name in _branch_added_changeset_names(root, merge_base):
+        declared = _read_declared_bumps(root / CHANGESET_DIR_REL / name, errors)
+        highest = _bumps_from_declared(declared, name, errors)
+        if highest is not None:
+            bumps[name] = highest
+    return bumps
+
+
+def _consumed_declared_bumps(
+    root: Path, merge_base: str, errors: list[str]
+) -> dict[str, str]:
+    """filename -> highest declared bump among changesets the release consumed.
+
+    Read at the merge-base with ``git show``: at HEAD the files are already
+    deleted, which is the whole point of a release PR.
+    """
+    bumps: dict[str, str] = {}
+    for name in _consumed_changeset_names(root, merge_base):
+        ok, text = _git_ok(root, ["show", f"{merge_base}:{CHANGESET_DIR_REL}/{name}"])
+        if not ok:
             continue
         try:
             declared = changeset_declared_bumps(text)
         except ValueError:
             continue
-        if not declared:
-            continue
-        highest = "patch"
-        for level in declared.values():
-            if level in BUMP_RANK:
-                highest = _higher(highest, level)
-            else:
-                errors.append(
-                    f"G10: {path.name} declares {level!r}, which is not a changesets "
-                    f"bump type (expected one of {sorted(BUMP_RANK)})"
-                )
-                highest = _higher(highest, "patch")
-        bumps[path.name] = highest
+        highest = _bumps_from_declared(declared, name, errors)
+        if highest is not None:
+            bumps[name] = highest
+    return bumps
+
+
+def _highest_bump(bumps: dict[str, str]) -> str | None:
+    if not bumps:
+        return None
+    highest = "patch"
+    for level in bumps.values():
+        highest = _higher(highest, level)
+    return highest
+
+
+def _disk_declared_bumps(root: Path) -> dict[str, str]:
+    """Pending changesets on disk that declare a bump -- no git required.
+
+    Used only when git itself cannot run: a tree that still carries a
+    declared bump has something G10 would have classified, so the gate
+    refuses in its own words. A tree with none has nothing for G10 to say.
+    """
+    changeset_dir = root / CHANGESET_DIR_REL
+    bumps: dict[str, str] = {}
+    if not changeset_dir.is_dir():
+        return bumps
+    for path in sorted(
+        p for p in changeset_dir.glob("*.md") if p.name != CHANGESET_README
+    ):
+        declared = _read_declared_bumps(path, [])
+        highest = _bumps_from_declared(declared, path.name, [])
+        if highest is not None:
+            bumps[path.name] = highest
     return bumps
 
 
@@ -1094,19 +1207,46 @@ def gate_bump_classification(
     release_mode: bool,
     declared_version: str | None,
 ) -> None:
-    """G10: every pending changeset's declared bump must match its surface diff.
+    """G10: every branch-added changeset's declared bump must match its diff.
 
-    Release mode additionally checks the version delta against the same prices
-    (case 4). Both directions of disagreement are listed failures: spending a
-    higher number than the surface change warrants spends it permanently too.
+    Cases 1-3 classify only the changesets this branch adds (new
+    ``.changeset/*.md`` in merge-base..HEAD), never every pending file on
+    disk. Case 4, in release mode, compares the version delta against the
+    changesets the release CONSUMED -- read at the merge-base, because
+    ``changeset version`` deletes them at HEAD.
 
     Skip reasons follow the house pattern (G5 vacuum, G6 non-git): when the
-    tree publishes no card, no pending changeset declares a bump, or the git
-    diff cannot be established, there is nothing to classify. When
+    tree publishes no card, no branch-added changeset declares a bump, or the
+    git diff cannot be established, there is nothing to classify. When
     classification IS needed and an ADR cannot be read, this fails closed.
+    When git itself cannot run, this refuses under G10 in its own words
+    rather than raising (#342).
     """
-    pending_bumps = _pending_declared_bumps(root, errors)
+    try:
+        _gate_bump_classification_inner(
+            root,
+            errors,
+            release_mode=release_mode,
+            declared_version=declared_version,
+        )
+    except GitUnavailableError as exc:
+        pending = _disk_declared_bumps(root)
+        if pending:
+            names = ", ".join(sorted(pending))
+            errors.append(
+                f"G10: git could not be run - the declared bump in {names} "
+                f"cannot be checked against the branch diff: {exc}"
+            )
+        return
 
+
+def _gate_bump_classification_inner(
+    root: Path,
+    errors: list[str],
+    *,
+    release_mode: bool,
+    declared_version: str | None,
+) -> None:
     git_ready = _is_git_work_tree(root)
     merge_base: str | None = None
     if git_ready:
@@ -1124,15 +1264,17 @@ def gate_bump_classification(
                 merge_base = mb.strip()
 
     publishes_cards = False
+    branch_bumps: dict[str, str] = {}
     if merge_base is not None:
         # Base OR head: a change that retires the last card still reaches the
         # declared surface, and skipping on an empty HEAD would let it through.
         publishes_cards = bool(
             _list_card_dirs(root, "HEAD") or _list_card_dirs(root, merge_base)
         )
+        branch_bumps = _branch_declared_bumps(root, merge_base, errors)
 
     # What must be classified right now?
-    need_changesets = bool(pending_bumps) and merge_base is not None and publishes_cards
+    need_changesets = bool(branch_bumps) and merge_base is not None and publishes_cards
     need_delta = (
         release_mode
         and declared_version is not None
@@ -1154,7 +1296,7 @@ def gate_bump_classification(
     required = required_price_for_diff(diff, prices)
 
     if need_changesets:
-        for filename, declared in sorted(pending_bumps.items()):
+        for filename, declared in sorted(branch_bumps.items()):
             if not diff["touched"]:
                 # Case 3: nothing under skills/*/*/, so the declared surface is
                 # untouched. Only the patch price (or an empty plan) may stand.
@@ -1195,14 +1337,15 @@ def gate_bump_classification(
         actual = version_delta_price(base_version, declared_version or "")
         if actual is None:
             return
+        consumed = _consumed_declared_bumps(root, merge_base, errors)
+        required_bump = _highest_bump(consumed)
         _refuse_delta_mismatch(
             errors,
             base_version=base_version,
             current_version=declared_version or "",
             actual=actual,
-            required=required,
-            diff=diff,
-            prices=prices,
+            required_bump=required_bump,
+            consumed=consumed,
         )
 
 
@@ -1236,28 +1379,34 @@ def _refuse_delta_mismatch(
     base_version: str,
     current_version: str,
     actual: str,
-    required: str | None,
-    diff: dict,
-    prices: dict[str, str],
+    required_bump: str | None,
+    consumed: dict[str, str],
 ) -> None:
-    """Case 4: the version delta must match what the release diff requires."""
-    if required is None:
-        # Surface untouched: a delta above the patch price over-classifies the
-        # release, and a spent version number cannot be unspent.
-        if _rank(actual) > _rank(prices["patch"]):
-            errors.append(
-                f"G10: release version delta {base_version} -> {current_version} is "
-                f"{actual}, but the release diff touches no file under skills/*/*/, "
-                f"so it cannot change the declared surface (ADR 0002 prices work "
-                f"that reaches no card as {prices['patch']})"
-            )
-        return
-    if actual != required:
+    """Case 4: the version delta must match what the consumed changesets price.
+
+    A release PR runs ``npm run version``, which deletes the consumed
+    ``.changeset/*.md`` files and writes the new number from their declared
+    bumps. The gate reads those files at the merge-base. A delta with no
+    consumed plan behind it, or one that disagrees with the plan, spends a
+    version number permanently (ADR 0002) and is refused.
+    """
+    if required_bump is None:
         errors.append(
             f"G10: release version delta {base_version} -> {current_version} is "
-            f"{actual}, but the release diff requires {required} under the ADR "
-            f"prices: {diff['detail']}. A botched release spends a version number "
-            "permanently (ADR 0002), so the gate blocks rather than reports."
+            f"{actual}, but no changeset consumed by this release declares a "
+            "bump, so the delta has no plan behind it. A botched release spends "
+            "a version number permanently (ADR 0002), so the gate blocks "
+            "rather than reports."
+        )
+        return
+    if actual != required_bump:
+        plan = ", ".join(f"{name}={bump}" for name, bump in sorted(consumed.items()))
+        errors.append(
+            f"G10: release version delta {base_version} -> {current_version} is "
+            f"{actual}, but the changesets this release consumed price "
+            f"{required_bump} ({plan}). A botched release spends a version "
+            "number permanently (ADR 0002), so the gate blocks rather than "
+            "reports."
         )
 
 
@@ -1472,8 +1621,9 @@ def main(argv: list[str] | None = None) -> int:
         gate_workflow_pins(root, errors)
         gate_tag_normal_form(root, errors, declared)
         gate_clean_tree(root, errors)
-    # G10 runs in both modes: cases 1-3 classify pending changesets against the
-    # surface diff on every run; case 4 prices the version delta at release.
+    # G10 runs in both modes: cases 1-3 classify branch-added changesets
+    # against the surface diff on every run; case 4 prices the version delta
+    # against the changesets the release consumes.
     gate_bump_classification(
         root,
         errors,
