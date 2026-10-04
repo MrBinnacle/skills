@@ -184,7 +184,7 @@ git ls-files '_quarantine/**/SKILL.md' | wc -l   # candidates
 OBSERVED / DESIGNED / DISTILLED as where a card came from, and CATALOG.md:151-152 keeps that axis
 separate from what has been measured. The distinction must survive any presentation change.
 
-**Terminology is fixed.** `CONTEXT.md` is the glossary of record and fixes the meaning of *Card*,
+**Terminology is fixed.** `GLOSSARY.md` is the glossary of record and fixes the meaning of *Card*,
 *Occasion*, *Dispatch*, *Admitted*, *Admissible*, *Release* and *Declared surface* on every
 surface. ⚠ It deliberately defines no term for the user; see `## Users`.
 

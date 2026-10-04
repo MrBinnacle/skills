@@ -1,4 +1,4 @@
-# MrBinnacle / skills
+# GLOSSARY.md — vocabulary of record
 
 A small collection of agent skills, kept only while evidence supports keeping them. This
 glossary fixes what each term means, on every surface — public copy, governance files, skill
