@@ -457,7 +457,7 @@ SPEC_SCRIPT = SCRIPT_DIR / "validate_spec_conformance.py"
 
 
 class GitUnavailableError(Exception):
-    """git is not on PATH, or cannot be executed.
+    """git cannot be found on PATH.
 
     A missing dependency, not a property of the tree: `_is_git_work_tree`
     False means "not a git repository", while this means "git could not run
@@ -470,7 +470,7 @@ class GitUnavailableError(Exception):
 def _run_git(root: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
     """Run git under root.
 
-    Raises GitUnavailableError when git is not on PATH -- a missing
+    Raises GitUnavailableError when git is absent from PATH -- a missing
     dependency the caller must refuse on, never treat as "not a work tree".
     """
     try:
@@ -538,9 +538,10 @@ def detect_release_ref(root: Path, current_version: str | None) -> bool:
     ordinary ref skips the release-only checks, and ``--release`` remains the
     explicit override for fixtures and deliberate release runs.
 
-    Raises GitUnavailableError when git cannot run. Missing git is NOT proof
-    the ref is ordinary: treating it as one would skip every release-only
-    check on a host where they cannot run. The caller fails closed instead.
+    Raises GitUnavailableError when git is absent from PATH. Missing git is
+    NOT proof the ref is ordinary: treating it as one would skip every
+    release-only check on a host where they cannot run. The caller fails
+    closed instead.
     """
     if current_version is None:
         return False
