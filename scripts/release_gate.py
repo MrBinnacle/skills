@@ -88,6 +88,34 @@ Checks (all must pass; failures are listed, not first-fail):
       fixture with only ``git init`` has no committed state to dirty, and the
       live checkout is always clean by construction in CI.
 
+  G10 A changeset's declared bump type (major / minor / patch) must agree with
+      what its diff does to the declared surface. The surface and its prices
+      are read from the ADRs on disk, never hardcoded here: ADR 0003 rules that
+      renaming a card is major and admitting or retiring one is minor; ADR 0002
+      prices corrections within a card as a patch and keeps the card set
+      outside the surface. Cases, each a listed failure:
+
+        1. A diff that renames any directory under ``skills/*/*/`` and a
+           changeset declaring anything less than the rename price (major).
+        2. A diff that adds or removes a directory under ``skills/*/*/`` and a
+           changeset declaring the patch price.
+        3. A diff that touches no file under ``skills/*/*/`` and a changeset
+           declaring minor or major -- nothing outside the cards changes the
+           declared surface.
+        4. (--release only) A version delta that disagrees with what the release
+           diff requires under the same ADR prices. A botched release spends a
+           version number permanently (ADR 0002), so this blocks rather than
+           reports.
+
+      A rename and an addition in one changeset resolve to major: the higher
+      classification governs a changeset that contains both. Classification is
+      skipped only when the tree publishes no card (vacuous surface), when no
+      pending changeset declares a bump, or when the git diff cannot be
+      established -- the house pattern G5 and G6 already use. When
+      classification is needed and an ADR cannot be read or parsed, the run
+      fails closed: an input this gate cannot trust is a listed failure, never
+      a skip and never a pass.
+
 Mode detection (#153):
   A release ref is one whose ``package.json`` version CHANGED relative to its
   merge-base with the default branch. The release-only checks (G3, G5, G6, G7,
@@ -709,6 +737,469 @@ def gate_clean_tree(root: Path, errors: list[str]) -> None:
         )
 
 
+# --------------------------------------------------------------------- G10 bump
+#
+# The declared surface and its prices live in the ADRs, not in this file. A
+# constant written here would be a cache of ADR 0003 and would go stale the
+# same way a line-number citation of README.md did. The parsers below read the
+# decision sentences from disk on every run.
+
+ADR_0003_REL = Path("docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md")
+ADR_0002_REL = Path("docs/adr/0002-a-release-is-a-delivery-event.md")
+
+# Decision sentences, as the ADRs write them (line breaks allowed inside).
+_RENAME_PRICE_RE = re.compile(
+    r"Renaming a card\s+is a\s+(\w+)\s+change", re.IGNORECASE
+)
+_ADMIT_PRICE_RE = re.compile(
+    r"Admitting or retiring one\s+remains a\s+(\w+)\s+change", re.IGNORECASE
+)
+_PATCH_PRICE_RE = re.compile(
+    r"Corrections within a card\s+are a\s+(\w+)", re.IGNORECASE
+)
+
+# The changesets vocabulary, used only to RANK words the ADRs supply. The rule
+# "rename -> major" is never written here; only how to order the words once
+# they have been read.
+BUMP_RANK = {"patch": 0, "minor": 1, "major": 2}
+
+
+def _read_text_or_raise(path: Path, label: str) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ValueError(f"{label} could not be read: {exc}") from exc
+
+
+def derive_bump_prices(root: Path) -> dict[str, str]:
+    """The bump word each surface action costs, read from the ADRs on disk.
+
+    Returns {"rename": ..., "admit_retire": ..., "patch": ...}. Raises ValueError
+    when an ADR is missing, unreadable, or no longer carries the decision
+    sentence -- callers fail closed rather than guessing a price.
+    """
+    adr3_path = root / ADR_0003_REL
+    adr2_path = root / ADR_0002_REL
+    adr3 = _read_text_or_raise(adr3_path, ADR_0003_REL.as_posix())
+    adr2 = _read_text_or_raise(adr2_path, ADR_0002_REL.as_posix())
+    rename = _RENAME_PRICE_RE.search(adr3)
+    admit = _ADMIT_PRICE_RE.search(adr3)
+    patch = _PATCH_PRICE_RE.search(adr2)
+    if rename is None:
+        raise ValueError(
+            f"{ADR_0003_REL.as_posix()} carries no 'Renaming a card ... change' "
+            "decision sentence, so the rename price cannot be derived"
+        )
+    if admit is None:
+        raise ValueError(
+            f"{ADR_0003_REL.as_posix()} carries no 'Admitting or retiring one ... "
+            "change' decision sentence, so the admit/retire price cannot be derived"
+        )
+    if patch is None:
+        raise ValueError(
+            f"{ADR_0002_REL.as_posix()} carries no 'Corrections within a card are a ...' "
+            "sentence, so the patch price cannot be derived"
+        )
+    prices = {
+        "rename": rename.group(1).lower(),
+        "admit_retire": admit.group(1).lower(),
+        "patch": patch.group(1).lower(),
+    }
+    for action, word in prices.items():
+        if word not in BUMP_RANK:
+            raise ValueError(
+                f"the ADRs price {action!r} as {word!r}, which is not a changesets "
+                f"bump type (expected one of {sorted(BUMP_RANK)})"
+            )
+    return prices
+
+
+def _rank(level: str) -> int:
+    return BUMP_RANK[level]
+
+
+def _higher(a: str, b: str) -> str:
+    return a if _rank(a) >= _rank(b) else b
+
+
+def changeset_declared_bumps(text: str) -> dict[str, str]:
+    """package -> bump level from one changeset's frontmatter.
+
+    An empty changeset (``---\\n---\\n``) declares nothing and returns {}. A
+    frontmatter that opens and closes but names a package with no level is the
+    same shape G2 already treats as unassemblable upstream; this function
+    simply omits that package rather than inventing a price.
+    """
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        raise ChangesetHeaderError("frontmatter does not open with ---")
+    closing = next(
+        (i for i in range(1, len(lines)) if lines[i].strip() == "---"),
+        None,
+    )
+    if closing is None:
+        raise ChangesetHeaderError("frontmatter does not close with ---")
+    bumps: dict[str, str] = {}
+    for line in lines[1:closing]:
+        match = re.match(r'^\s*("?)([^":]+?)\1\s*:\s*(\w+)\s*$', line)
+        if match:
+            bumps[match.group(2)] = match.group(3).lower()
+    return bumps
+
+
+def _card_dir(path: str) -> str | None:
+    """``skills/<bucket>/<card>`` for a path under the card surface, else None.
+
+    A non-card directory under skills/*/*/ (``.claude-plugin``, ``evals``) is
+    packaging, not a card: ADR 0003 prices a card's NAME, and a plugin manifest
+    is not one. Those paths are ignored here so a version-bump write to
+    plugin.json cannot masquerade as a declared-surface change.
+    """
+    parts = path.split("/")
+    if len(parts) >= 3 and parts[0] == "skills" and parts[2] not in {".claude-plugin", "evals"}:
+        return "/".join(parts[:3])
+    return None
+
+
+def _list_card_dirs(root: Path, rev: str) -> set[str]:
+    """Card directories published at `rev`: skills/*/*/ that carry a SKILL.md.
+
+    Enumerated with git rather than a filesystem walk, matching the house rule
+    check_prose_claims.py states. A directory under skills/*/*/ with no
+    SKILL.md is not a card and is not part of the declared surface.
+    """
+    ok, output = _git_ok(root, ["ls-tree", "-r", "--name-only", rev])
+    if not ok:
+        return set()
+    dirs: set[str] = set()
+    for line in output.splitlines():
+        parts = line.strip().split("/")
+        if (
+            len(parts) >= 4
+            and parts[0] == "skills"
+            and parts[-1] == "SKILL.md"
+            and parts[2] not in {".claude-plugin", "evals"}
+        ):
+            dirs.add("/".join(parts[:3]))
+    return dirs
+
+
+def classify_surface_diff(root: Path, base_rev: str) -> dict:
+    """What the branch diff does to the declared surface under skills/*/*/.
+
+    Returns a dict:
+      touched          bool -- any path under skills/*/*/ appears in the diff
+      rename           bool -- a card directory was renamed
+      admit_or_retire  bool -- a card directory was added or removed
+      required         str | None -- highest ADR price the diff reaches;
+                                     None when the surface is untouched
+      detail           str -- short phrase naming what was found
+    """
+    ok, output = _git_ok(root, ["diff", "--name-status", "-M", base_rev, "HEAD"])
+    if not ok:
+        raise ValueError(f"git diff {base_rev}..HEAD could not be read")
+    touched = False
+    rename = False
+    admit_or_retire = False
+    details: list[str] = []
+    added_files: list[str] = []
+    deleted_files: list[str] = []
+    renamed: list[tuple[str, str]] = []
+    for line in output.splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("\t")
+        status = parts[0][:1]
+        if status == "R" and len(parts) >= 3:
+            old, new = parts[1], parts[2]
+            renamed.append((old, new))
+            if _card_dir(old) is not None or _card_dir(new) is not None:
+                touched = True
+        elif status in ("A", "D") and len(parts) >= 2:
+            path = parts[1]
+            if _card_dir(path) is not None:
+                touched = True
+                if status == "A":
+                    added_files.append(path)
+                else:
+                    deleted_files.append(path)
+        elif status in ("M", "C") and len(parts) >= 2:
+            if _card_dir(parts[1]) is not None:
+                touched = True
+        # T (typechange) and other statuses under the surface still count as touch
+        elif len(parts) >= 2 and _card_dir(parts[1]) is not None:
+            touched = True
+    for old, new in renamed:
+        old_dir, new_dir = _card_dir(old), _card_dir(new)
+        if old_dir is not None and new_dir is not None and old_dir != new_dir:
+            rename = True
+            details.append(f"renamed {old_dir} -> {new_dir}")
+    base_dirs = _list_card_dirs(root, base_rev)
+    head_dirs = _list_card_dirs(root, "HEAD")
+    for path in added_files:
+        card = _card_dir(path)
+        if card is not None and card not in base_dirs:
+            admit_or_retire = True
+            details.append(f"added {card}")
+    for path in deleted_files:
+        card = _card_dir(path)
+        if card is not None and card not in head_dirs:
+            admit_or_retire = True
+            details.append(f"removed {card}")
+    return {
+        "touched": touched,
+        "rename": rename,
+        "admit_or_retire": admit_or_retire,
+        "detail": "; ".join(details) if details else "no card directory rename or set change",
+    }
+
+
+def required_price_for_diff(diff: dict, prices: dict[str, str]) -> str | None:
+    """The highest ADR price the diff reaches, or None when the surface is untouched.
+
+    A rename and an addition in one diff resolve to the higher price -- the
+    ticket and ADR 0003 both say the higher classification governs.
+    """
+    if not diff["touched"]:
+        return None
+    required = prices["patch"]
+    if diff["admit_or_retire"]:
+        required = _higher(required, prices["admit_retire"])
+    if diff["rename"]:
+        required = _higher(required, prices["rename"])
+    return required
+
+
+def version_delta_price(base_version: str, current_version: str) -> str | None:
+    """Which SemVer field moved between two versions, as a bump price.
+
+    Returns None when the versions are equal or either is not X.Y.Z normal form
+    (G8 owns the normal-form refusal; this function just cannot rank the delta).
+    """
+    base = SEMVER_RE.match(base_version)
+    head = SEMVER_RE.match(current_version)
+    if base is None or head is None:
+        return None
+    b = tuple(int(x) for x in base.groups())
+    h = tuple(int(x) for x in head.groups())
+    if b == h:
+        return None
+    if h[0] != b[0]:
+        return "major"
+    if h[1] != b[1]:
+        return "minor"
+    return "patch"
+
+
+def _pending_declared_bumps(root: Path, errors: list[str]) -> dict[str, str]:
+    """filename -> highest declared bump among that file's packages.
+
+    Unreadable or unassemblable frontmatter is already G2's refusal; this
+    helper skips those files so G10 does not double-report the same fault.
+    """
+    changeset_dir = root / CHANGESET_DIR_REL
+    bumps: dict[str, str] = {}
+    if not changeset_dir.is_dir():
+        return bumps
+    for path in sorted(p for p in changeset_dir.glob("*.md") if p.name != CHANGESET_README):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        try:
+            declared = changeset_declared_bumps(text)
+        except ValueError:
+            continue
+        if not declared:
+            continue
+        highest = "patch"
+        for level in declared.values():
+            if level in BUMP_RANK:
+                highest = _higher(highest, level)
+            else:
+                errors.append(
+                    f"G10: {path.name} declares {level!r}, which is not a changesets "
+                    f"bump type (expected one of {sorted(BUMP_RANK)})"
+                )
+                highest = _higher(highest, "patch")
+        bumps[path.name] = highest
+    return bumps
+
+
+def gate_bump_classification(
+    root: Path,
+    errors: list[str],
+    *,
+    release_mode: bool,
+    declared_version: str | None,
+) -> None:
+    """G10: every pending changeset's declared bump must match its surface diff.
+
+    Release mode additionally checks the version delta against the same prices
+    (case 4). Both directions of disagreement are listed failures: spending a
+    higher number than the surface change warrants spends it permanently too.
+
+    Skip reasons follow the house pattern (G5 vacuum, G6 non-git): when the
+    tree publishes no card, no pending changeset declares a bump, or the git
+    diff cannot be established, there is nothing to classify. When
+    classification IS needed and an ADR cannot be read, this fails closed.
+    """
+    pending_bumps = _pending_declared_bumps(root, errors)
+
+    git_ready = _is_git_work_tree(root)
+    merge_base: str | None = None
+    if git_ready:
+        head_ok, _ = _git_ok(root, ["rev-parse", "--verify", "HEAD"])
+        base_ref = None
+        if head_ok:
+            for candidate in BASE_REF_CANDIDATES:
+                ok, _ = _git_ok(root, ["rev-parse", "--verify", candidate])
+                if ok:
+                    base_ref = candidate
+                    break
+        if head_ok and base_ref is not None:
+            mb_ok, mb = _git_ok(root, ["merge-base", "HEAD", base_ref])
+            if mb_ok and mb.strip():
+                merge_base = mb.strip()
+
+    publishes_cards = False
+    if merge_base is not None:
+        # Base OR head: a change that retires the last card still reaches the
+        # declared surface, and skipping on an empty HEAD would let it through.
+        publishes_cards = bool(
+            _list_card_dirs(root, "HEAD") or _list_card_dirs(root, merge_base)
+        )
+
+    # What must be classified right now?
+    need_changesets = bool(pending_bumps) and merge_base is not None and publishes_cards
+    need_delta = (
+        release_mode
+        and declared_version is not None
+        and merge_base is not None
+        and publishes_cards
+    )
+    if not need_changesets and not need_delta:
+        return
+
+    prices = _load_prices_or_refuse(root, errors)
+    if prices is None:
+        return
+    assert merge_base is not None
+    try:
+        diff = classify_surface_diff(root, merge_base)
+    except ValueError as exc:
+        errors.append(f"G10: {exc}")
+        return
+    required = required_price_for_diff(diff, prices)
+
+    if need_changesets:
+        for filename, declared in sorted(pending_bumps.items()):
+            if not diff["touched"]:
+                # Case 3: nothing under skills/*/*/, so the declared surface is
+                # untouched. Only the patch price (or an empty plan) may stand.
+                if _rank(declared) > _rank(prices["patch"]):
+                    errors.append(
+                        f"G10: {filename} declares {declared}, but the change touches "
+                        f"no file under skills/*/*/, so it cannot change the declared "
+                        f"surface (ADR 0002 prices work that reaches no card as "
+                        f"{prices['patch']})"
+                    )
+                continue
+            assert required is not None
+            if _rank(declared) < _rank(required):
+                if diff["rename"]:
+                    errors.append(
+                        f"G10: {filename} declares {declared}, but the diff renames a "
+                        f"card directory under skills/*/*/, which "
+                        f"{ADR_0003_REL.as_posix()} prices as {prices['rename']}: "
+                        f"{diff['detail']}"
+                    )
+                elif diff["admit_or_retire"]:
+                    errors.append(
+                        f"G10: {filename} declares {declared}, but the diff adds or "
+                        f"retires a card directory under skills/*/*/, which "
+                        f"{ADR_0003_REL.as_posix()} prices as "
+                        f"{prices['admit_retire']}: {diff['detail']}"
+                    )
+                else:
+                    errors.append(
+                        f"G10: {filename} declares {declared}, but the diff requires "
+                        f"at least {required} under the ADR prices: {diff['detail']}"
+                    )
+
+    if need_delta:
+        base_version = _base_version_at(root, merge_base)
+        if base_version is None:
+            return
+        actual = version_delta_price(base_version, declared_version or "")
+        if actual is None:
+            return
+        _refuse_delta_mismatch(
+            errors,
+            base_version=base_version,
+            current_version=declared_version or "",
+            actual=actual,
+            required=required,
+            diff=diff,
+            prices=prices,
+        )
+
+
+def _load_prices_or_refuse(root: Path, errors: list[str]) -> dict[str, str] | None:
+    try:
+        return derive_bump_prices(root)
+    except ValueError as exc:
+        errors.append(f"G10: cannot derive bump classification from the ADRs: {exc}")
+        return None
+
+
+def _base_version_at(root: Path, merge_base: str) -> str | None:
+    ok, blob = _git_ok(root, ["show", f"{merge_base}:{PACKAGE_REL}"])
+    if not ok:
+        return None
+    try:
+        data = json.loads(blob)
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    version = data.get("version")
+    if not isinstance(version, str) or not version.strip():
+        return None
+    return version
+
+
+def _refuse_delta_mismatch(
+    errors: list[str],
+    *,
+    base_version: str,
+    current_version: str,
+    actual: str,
+    required: str | None,
+    diff: dict,
+    prices: dict[str, str],
+) -> None:
+    """Case 4: the version delta must match what the release diff requires."""
+    if required is None:
+        # Surface untouched: a delta above the patch price over-classifies the
+        # release, and a spent version number cannot be unspent.
+        if _rank(actual) > _rank(prices["patch"]):
+            errors.append(
+                f"G10: release version delta {base_version} -> {current_version} is "
+                f"{actual}, but the release diff touches no file under skills/*/*/, "
+                f"so it cannot change the declared surface (ADR 0002 prices work "
+                f"that reaches no card as {prices['patch']})"
+            )
+        return
+    if _rank(actual) < _rank(required):
+        errors.append(
+            f"G10: release version delta {base_version} -> {current_version} is "
+            f"{actual}, but the release diff requires {required} under the ADR "
+            f"prices: {diff['detail']}. A botched release spends a version number "
+            "permanently (ADR 0002), so the gate blocks rather than reports."
+        )
+
+
 def plugin_manifest_paths(root: Path, errors: list[str]) -> list[tuple[str, Path]] | None:
     """(plugin name, path of its plugin.json) for every marketplace entry.
 
@@ -910,6 +1401,14 @@ def main(argv: list[str] | None = None) -> int:
         gate_workflow_pins(root, errors)
         gate_tag_normal_form(root, errors, declared)
         gate_clean_tree(root, errors)
+    # G10 runs in both modes: cases 1-3 classify pending changesets against the
+    # surface diff on every run; case 4 prices the version delta at release.
+    gate_bump_classification(
+        root,
+        errors,
+        release_mode=release_mode,
+        declared_version=declared,
+    )
 
     if errors:
         print(f"RELEASE GATE: BLOCKED - {len(errors)} stale surface(s) at version {version}:")
@@ -923,13 +1422,14 @@ def main(argv: list[str] | None = None) -> int:
             "changelog section dated, no unconsumed changesets, manifest and "
             "published tree agree, external spec validator clean, workflow "
             "actions pinned, release tag is SemVer normal form, working tree "
-            "clean."
+            "clean, changeset bump types match the declared surface."
         )
     else:
         print(
             f"RELEASE GATE: PASS - surfaces healthy at version {version}: "
             f"plugin versions in lockstep with {PACKAGE_REL}, release plan "
-            "assembles, changelog section dated."
+            "assembles, changelog section dated, changeset bump types match "
+            "the declared surface."
         )
     return 0
 
