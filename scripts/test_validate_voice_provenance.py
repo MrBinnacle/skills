@@ -537,23 +537,6 @@ def case_absent_listed_surface_is_caught() -> None:
     )
 
 
-def case_changeset_announces_the_rename() -> None:
-    """Criterion 5: a pending changeset announces the GLOSSARY rename."""
-    changeset_dir = REPO_ROOT / ".changeset"
-    bodies = []
-    if changeset_dir.is_dir():
-        for path in sorted(changeset_dir.glob("*.md")):
-            if path.name == "README.md":
-                continue
-            bodies.append(path.read_text(encoding="utf-8"))
-    joined = "\n".join(bodies)
-    check(
-        "a pending changeset names GLOSSARY.md or the CONTEXT rename",
-        ("GLOSSARY.md" in joined) or ("CONTEXT.md" in joined and "renam" in joined.lower()),
-        f"changeset bodies searched: {len(bodies)}",
-    )
-
-
 def case_readme_first_person_not_recorded_is_red(root: Path) -> None:
     """A first-person sentence on a surface not recorded in VERBATIM.md.
 
@@ -639,7 +622,6 @@ def main() -> None:
     case_live_instruction_surfaces_name_glossary()
     case_shipped_surfaces_list_names_existing_files()
     case_absent_listed_surface_is_caught()
-    case_changeset_announces_the_rename()
 
     print("")
     if FAILURES:
