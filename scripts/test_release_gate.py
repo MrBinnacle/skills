@@ -1999,10 +1999,19 @@ def case_ci_control_refuses_a_mutable_workflow_ref() -> None:
         "actions/setup-python@v5" in step,
         step,
     )
+    pinned_in_step = set(re.findall(r"actions/checkout@([0-9a-f]{40})\b", step))
     check(
         "the G7 control keeps one line pinned so the control is not vacuous",
-        "actions/checkout@11d5960a326750d5838078e36cf38b85af677262" in step,
+        bool(pinned_in_step),
         step,
+    )
+    pinned_elsewhere = set(
+        re.findall(r"uses: actions/checkout@([0-9a-f]{40})\b", WORKFLOW.read_text("utf-8").replace(step, ""))
+    )
+    check(
+        "the G7 control pins checkout to the SHA the workflow itself checks out with",
+        bool(pinned_in_step) and pinned_in_step <= pinned_elsewhere,
+        f"in the control: {sorted(pinned_in_step)}; elsewhere in tests.yml: {sorted(pinned_elsewhere)}",
     )
     check(
         "the G7 control runs the SHIPPED gate at release against the planted tree",
