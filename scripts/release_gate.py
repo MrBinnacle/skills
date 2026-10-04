@@ -95,7 +95,7 @@ Checks (all must pass; failures are listed, not first-fail):
       prices corrections within a card as a patch and keeps the card set
       outside the surface. Cases, each a listed failure:
 
-        1. A diff that renames any directory under ``skills/*/*/`` and a
+        1. A diff that renames a card directory under ``skills/*/*/`` and a
            changeset declaring anything less than the rename price (major).
         2. A diff that adds or removes a directory under ``skills/*/*/`` and a
            changeset declaring the patch price.
@@ -847,17 +847,19 @@ def changeset_declared_bumps(text: str) -> dict[str, str]:
     return bumps
 
 
-def _card_dir(path: str) -> str | None:
-    """``skills/<bucket>/<card>`` for a path under the card surface, else None.
+def _card_dir(path: str, cards: set[str]) -> str | None:
+    """The card containing `path` at one revision, or None when it is not a card.
 
-    A non-card directory under skills/*/*/ (``.claude-plugin``, ``evals``) is
-    packaging, not a card: ADR 0003 prices a card's NAME, and a plugin manifest
-    is not one. Those paths are ignored here so a version-bump write to
-    plugin.json cannot masquerade as a declared-surface change.
+    A path below ``skills/<bucket>/`` is not necessarily a card. The name is in
+    the declared surface only when that directory carries a ``SKILL.md`` in the
+    revision being inspected; plugin packaging and stray directories must not
+    change a release's price.
     """
     parts = path.split("/")
-    if len(parts) >= 3 and parts[0] == "skills" and parts[2] not in {".claude-plugin", "evals"}:
-        return "/".join(parts[:3])
+    if len(parts) >= 3:
+        candidate = "/".join(parts[:3])
+        if candidate in cards:
+            return candidate
     return None
 
 
@@ -888,7 +890,7 @@ def classify_surface_diff(root: Path, base_rev: str) -> dict:
     """What the branch diff does to the declared surface under skills/*/*/.
 
     Returns a dict:
-      touched          bool -- any path under skills/*/*/ appears in the diff
+      touched          bool -- a path belonging to a card appears in the diff
       rename           bool -- a card directory was renamed
       admit_or_retire  bool -- a card directory was added or removed
       required         str | None -- highest ADR price the diff reaches;
@@ -898,13 +900,13 @@ def classify_surface_diff(root: Path, base_rev: str) -> dict:
     ok, output = _git_ok(root, ["diff", "--name-status", "-M", base_rev, "HEAD"])
     if not ok:
         raise ValueError(f"git diff {base_rev}..HEAD could not be read")
+    base_dirs = _list_card_dirs(root, base_rev)
+    head_dirs = _list_card_dirs(root, "HEAD")
     touched = False
     rename = False
-    admit_or_retire = False
+    renamed_from: set[str] = set()
+    renamed_to: set[str] = set()
     details: list[str] = []
-    added_files: list[str] = []
-    deleted_files: list[str] = []
-    renamed: list[tuple[str, str]] = []
     for line in output.splitlines():
         if not line.strip():
             continue
@@ -912,40 +914,37 @@ def classify_surface_diff(root: Path, base_rev: str) -> dict:
         status = parts[0][:1]
         if status == "R" and len(parts) >= 3:
             old, new = parts[1], parts[2]
-            renamed.append((old, new))
-            if _card_dir(old) is not None or _card_dir(new) is not None:
+            old_dir = _card_dir(old, base_dirs)
+            new_dir = _card_dir(new, head_dirs)
+            if old_dir is not None or new_dir is not None:
                 touched = True
+            if old_dir is not None and new_dir is not None and old_dir != new_dir:
+                rename = True
+                renamed_from.add(old_dir)
+                renamed_to.add(new_dir)
+                details.append(f"renamed {old_dir} -> {new_dir}")
         elif status in ("A", "D") and len(parts) >= 2:
             path = parts[1]
-            if _card_dir(path) is not None:
+            cards = head_dirs if status == "A" else base_dirs
+            if _card_dir(path, cards) is not None:
                 touched = True
-                if status == "A":
-                    added_files.append(path)
-                else:
-                    deleted_files.append(path)
         elif status in ("M", "C") and len(parts) >= 2:
-            if _card_dir(parts[1]) is not None:
+            if (
+                _card_dir(parts[1], base_dirs) is not None
+                or _card_dir(parts[1], head_dirs) is not None
+            ):
                 touched = True
-        # T (typechange) and other statuses under the surface still count as touch
-        elif len(parts) >= 2 and _card_dir(parts[1]) is not None:
+        # T (typechange) and other statuses in a card still count as a touch.
+        elif len(parts) >= 2 and (
+            _card_dir(parts[1], base_dirs) is not None
+            or _card_dir(parts[1], head_dirs) is not None
+        ):
             touched = True
-    for old, new in renamed:
-        old_dir, new_dir = _card_dir(old), _card_dir(new)
-        if old_dir is not None and new_dir is not None and old_dir != new_dir:
-            rename = True
-            details.append(f"renamed {old_dir} -> {new_dir}")
-    base_dirs = _list_card_dirs(root, base_rev)
-    head_dirs = _list_card_dirs(root, "HEAD")
-    for path in added_files:
-        card = _card_dir(path)
-        if card is not None and card not in base_dirs:
-            admit_or_retire = True
-            details.append(f"added {card}")
-    for path in deleted_files:
-        card = _card_dir(path)
-        if card is not None and card not in head_dirs:
-            admit_or_retire = True
-            details.append(f"removed {card}")
+    added = sorted((head_dirs - base_dirs) - renamed_to)
+    removed = sorted((base_dirs - head_dirs) - renamed_from)
+    admit_or_retire = bool(added or removed)
+    details.extend(f"added {card}" for card in added)
+    details.extend(f"removed {card}" for card in removed)
     return {
         "touched": touched,
         "rename": rename,
@@ -1191,7 +1190,7 @@ def _refuse_delta_mismatch(
                 f"that reaches no card as {prices['patch']})"
             )
         return
-    if _rank(actual) < _rank(required):
+    if actual != required:
         errors.append(
             f"G10: release version delta {base_version} -> {current_version} is "
             f"{actual}, but the release diff requires {required} under the ADR "

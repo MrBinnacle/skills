@@ -198,6 +198,7 @@ def make_tree(
       add_card     - a new card directory appears under skills/engineering/
       remove_card  - skills/engineering/old-card is deleted
       scripts_only - a file outside skills/*/*/ changes
+      non_card     - a file under skills/*/*/ but outside any card changes
       modify_card  - a file inside an existing card changes (no rename/add)
 
     adr:
@@ -259,6 +260,8 @@ def make_tree(
         git(root, "rm", "-r", "-q", f"skills/{SKILLS_BUCKET}/old-card")
     elif branch_change == "scripts_only":
         write(root / "scripts" / "only-outside-surface.py", "print('hello')\n")
+    elif branch_change == "non_card":
+        write(root / "skills" / SKILLS_BUCKET / "notes" / "note.md", "Not a card.\n")
     elif branch_change == "modify_card":
         write(
             root / "skills" / SKILLS_BUCKET / "old-card" / "gotchas.md",
@@ -412,6 +415,18 @@ def case_case3_no_surface_declared_major_is_refused(tmp: Path) -> None:
     )
 
 
+def case_case3_non_card_directory_declared_minor_is_refused(tmp: Path) -> None:
+    """A directory below a bucket is not a card unless it carries SKILL.md."""
+    root = make_tree(tmp, declared="minor", branch_change="non_card")
+    expect_g10_refusal(
+        "case 3: a non-card directory declared minor is refused",
+        root,
+        "G10:",
+        "no file under skills/*/*/",
+        "minor",
+    )
+
+
 def case_higher_classification_governs_rename_plus_add(tmp: Path) -> None:
     """A rename and an addition in one changeset resolve to major.
 
@@ -483,6 +498,26 @@ def case_case4_release_delta_matches_rename_is_silent(tmp: Path) -> None:
         "case 4: a major version delta over a rename release stays silent",
         root,
         "--release",
+    )
+
+
+def case_case4_release_delta_overstates_card_correction_is_refused(tmp: Path) -> None:
+    """Case 4 compares the exact price, not only the lower bound."""
+    root = make_tree(
+        tmp,
+        declared=None,
+        branch_change="modify_card",
+        head_version="1.3.0",
+        release=True,
+    )
+    expect_g10_refusal(
+        "case 4: a minor version delta over a card correction is refused",
+        root,
+        "G10:",
+        "1.2.0",
+        "1.3.0",
+        "requires patch",
+        release=True,
     )
 
 
@@ -638,9 +673,11 @@ CASES = (
     case_case2_remove_declared_patch_is_refused,
     case_case3_no_surface_declared_minor_is_refused,
     case_case3_no_surface_declared_major_is_refused,
+    case_case3_non_card_directory_declared_minor_is_refused,
     case_higher_classification_governs_rename_plus_add,
     case_case4_release_delta_under_required_is_refused,
     case_case4_release_delta_matches_rename_is_silent,
+    case_case4_release_delta_overstates_card_correction_is_refused,
     case_ard_text_is_read_not_hardcoded,
     case_missing_ard_fails_closed_when_classification_needed,
     case_empty_changeset_is_not_a_classification_fault,
