@@ -2121,6 +2121,131 @@ def case_ci_control_ordinary_and_release_refs_receive_different_check_sets() -> 
     )
 
 
+# ----------------------------------------------------- #342 git missing, fail closed
+#
+# Measured 2026-10-02 on a Windows host: running the gate with --release under
+# PATH=/usr/bin:/bin (which names no directory on Windows) gave exit 1, empty
+# stdout, and FileNotFoundError on stderr -- a stack trace instead of the
+# gate's own refusal. PR #341 fixed the test fixture that reached this state
+# by accident and left the gate alone. The gate must refuse in its own words
+# when git is unreachable, naming git and the check that could not run, in
+# the same form as every other fail-closed input.
+
+
+def no_git_env(empty_path: Path) -> dict[str, str]:
+    """An environment in which `git` does not resolve.
+
+    On POSIX ``empty_path`` holds no git. On Windows
+    PATH=/usr/bin:/bin names no directory at all -- the measured #342 failure
+    path -- so git is not found there either. SYSTEMROOT is carried through
+    because a Windows child process needs it to start. python runs through
+    sys.executable's absolute path and does not need PATH.
+    """
+    env = {"PYTHONUTF8": "1"}
+    if os.name == "nt":
+        env["PATH"] = "/usr/bin:/bin"
+        for name in ("SYSTEMROOT", "SystemRoot"):
+            if name in os.environ:
+                env[name] = os.environ[name]
+        return env
+    env["PATH"] = str(empty_path)
+    return env
+
+
+def case_missing_git_refuses_in_its_own_words() -> None:
+    """#342: with git unreachable the gate refuses in its own words, naming
+    git as the missing dependency and the check that could not run, and no
+    traceback reaches the reader. The tree is the seeded lockstep fixture the
+    other refusal cases use, so G9 is the only check that needs git on this
+    path -- --release short-circuits mode detection, G6 skips a tree with no
+    skills/, and every everyday check passes."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = no_git_env(Path(tmp))
+        root = seeded_tree(Path(tmp))
+        result = run_gate_with_env(env, "--release", "--root", str(root))
+        # A non-zero exit alone does not show a refusal: a gate that crashed
+        # exits non-zero too, and that is what this path used to produce.
+        check(
+            "a release run with no git on PATH is refused",
+            result.returncode != 0,
+            result.stdout + result.stderr,
+        )
+        check(
+            "the refusal names git as the missing dependency",
+            "git" in result.stdout and "could not be run" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal names the check that could not run",
+            "G9:" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the git-unavailable refusal is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "no traceback reaches the reader",
+            "Traceback" not in result.stdout + result.stderr,
+            result.stdout + result.stderr,
+        )
+
+
+def case_missing_git_also_refuses_the_mode_detection_path() -> None:
+    """Ordinary mode (no --release) reaches git through release-mode
+    detection before any G-check does. The gate must not treat a missing git
+    as proof the ref is ordinary -- that would skip the release-only checks
+    on a host where they cannot run. Fail closed: detection cannot prove the
+    ref is ordinary, so release checks run and G9 reports the missing
+    dependency in its own words."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = no_git_env(Path(tmp))
+        root = seeded_tree(Path(tmp))
+        result = run_gate_with_env(env, "--root", str(root))
+        check(
+            "an ordinary-mode run with no git on PATH is refused",
+            result.returncode != 0,
+            result.stdout + result.stderr,
+        )
+        check(
+            "the ordinary-mode refusal still names git and G9",
+            "git" in result.stdout and "could not be run" in result.stdout and "G9:" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "no traceback reaches the reader on the mode-detection path",
+            "Traceback" not in result.stdout + result.stderr,
+            result.stdout + result.stderr,
+        )
+
+
+def case_missing_git_refuses_spec_conformance_in_its_own_words() -> None:
+    """A published-tree release reaches G6 before G9. Missing git must make
+    G6 report its unavailable dependency instead of treating it as a non-git
+    fixture and silently skipping external specification conformance."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = no_git_env(Path(tmp))
+        root = seeded_tree(Path(tmp))
+        (root / "skills").mkdir()
+        result = run_gate_with_env(env, "--release", "--root", str(root))
+        check(
+            "a published-tree release with no git on PATH is refused",
+            result.returncode != 0,
+            result.stdout + result.stderr,
+        )
+        check(
+            "the spec-conformance refusal names git and G6",
+            "G6: git could not be run" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "no traceback reaches the reader on the spec-conformance path",
+            "Traceback" not in result.stdout + result.stderr,
+            result.stdout + result.stderr,
+        )
+
+
 def main() -> None:
     cases = (
         case_lockstep_passes,
@@ -2189,6 +2314,9 @@ def main() -> None:
         case_dirty_tree_is_refused_at_release,
         case_clean_release_tree_passes_g9,
         case_g9_skips_a_fixture_with_no_head_commit,
+        case_missing_git_refuses_in_its_own_words,
+        case_missing_git_also_refuses_the_mode_detection_path,
+        case_missing_git_refuses_spec_conformance_in_its_own_words,
     )
     for case in cases:
         case()
