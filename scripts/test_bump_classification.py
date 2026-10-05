@@ -18,6 +18,10 @@ merge-base..HEAD), never every pending file on disk. Case 4, at release,
 compares the version delta against the changesets the release CONSUMES --
 read at the merge-base, because `changeset version` deletes them at HEAD.
 
+When git is absent from PATH, G10 catches GitUnavailableError and refuses in
+its own words when a declared bump is pending on disk (#347 / B1). Without a
+pending bump G10 is silent; the other git-dependent checks still refuse.
+
 Each control plants one shape of the defect into a temporary git tree and runs
 the SHIPPED gate as a subprocess -- never module internals -- and requires the
 refusal to name G10 and the specific fault. Asserting only a non-zero exit is
@@ -82,6 +86,19 @@ def run_gate(*args: str) -> subprocess.CompletedProcess[str]:
         encoding="utf-8",
         errors="replace",
         check=False,
+    )
+
+
+def run_gate_env(env: dict[str, str], *args: str) -> subprocess.CompletedProcess[str]:
+    """Run the shipped gate under a controlled environment (e.g. git absent)."""
+    return subprocess.run(
+        [sys.executable, str(GATE), *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        env=env,
     )
 
 
@@ -840,6 +857,19 @@ def case_ci_carries_the_inversion_poison_control(tmp: Path) -> None:
         "major" in step and "RELEASE GATE: PASS" in step,
         step,
     )
+    # F1 (S512): half two must recreate `.changeset/` after `git checkout
+    # main` removes the empty directory half one left behind. Without this the
+    # step dies under `set -e` before the major half runs, and steps 18-23
+    # never execute in CI.
+    major_half = step.split("Half two")[-1] if "Half two" in step else step
+    check(
+        "half two recreates .changeset before writing the major changeset",
+        'mkdir -p "$tree/.changeset"' in major_half
+        and 'zzz-rename.md' in major_half
+        and "major" in major_half,
+        "half two writes zzz-rename.md without mkdir -p $tree/.changeset "
+        "(the empty dir is removed by git checkout main; CI dies under set -e)",
+    )
 
 
 def case_ci_carries_case1_to_case4_poison_controls(tmp: Path) -> None:
@@ -880,28 +910,114 @@ def case_ci_carries_case1_to_case4_poison_controls(tmp: Path) -> None:
 def case_ci_carries_b2_and_b3_controls(tmp: Path) -> None:
     """B2 and B3 each need a CI control, not only a suite case."""
     job = _workflow_job("release-gate")
-    for step_name, needles in (
-        (
-            "Poison control - a push to main must not re-judge main's pending changesets",
-            ("RELEASE GATE: PASS",),
-        ),
-        (
-            "Poison control - a v3.0.0-shaped release must pass and a minor delta must be refused",
-            ("RELEASE GATE: PASS", "G10:", "2.0.0", "2.1.0"),
-        ),
+    step_b2 = _named_step(
+        job,
+        "Poison control - a push to main must not re-judge main's pending changesets",
+    )
+    check(
+        "CI carries the control 'Poison control - a push to main must not re-judge main's pending changesets'",
+        bool(step_b2),
+        "no such step under the release-gate job",
+    )
+    for needle in (
+        "RELEASE GATE: PASS",
+        "316",
+        "major",
+        "plugin-is-its-own-root.md",
     ):
-        step = _named_step(job, step_name)
         check(
-            f"CI carries the control {step_name!r}",
-            bool(step),
-            "no such step under the release-gate job",
+            f"the B2 control carries the required assertion {needle!r}",
+            needle in step_b2,
+            f"missing {needle!r} in B2 step" if needle not in step_b2 else "",
         )
-        missing = [n for n in needles if n not in step]
+    step_b3 = _named_step(
+        job,
+        "Poison control - a v3.0.0-shaped release must pass and a minor delta must be refused",
+    )
+    check(
+        "CI carries the control 'Poison control - a v3.0.0-shaped release must pass and a minor delta must be refused'",
+        bool(step_b3),
+        "no such step under the release-gate job",
+    )
+    for needle in ("RELEASE GATE: PASS", "G10:", "2.0.0", "2.1.0"):
         check(
-            f"the control {step_name!r} carries the required assertions",
-            not missing,
-            f"missing {missing!r} in step" if missing else "",
+            f"the B3 control carries the required assertion {needle!r}",
+            needle in step_b3,
+            f"missing {needle!r} in B3 step" if needle not in step_b3 else "",
         )
+
+
+def case_g10_refuses_in_its_own_words_when_git_is_absent(tmp: Path) -> None:
+    """B1: when git is not on PATH, G10 refuses in its own words, no traceback.
+
+    Since #347, `_is_git_work_tree` and `_git_ok` raise GitUnavailableError
+    when git is missing. G10 must catch that and refuse under its own check
+    ID -- naming git and the pending changeset -- rather than dying with a
+    FileNotFoundError traceback. The tree carries a declared pending bump on
+    disk so G10 has something to refuse; without that file G10 has nothing to
+    say and is silent, which is also correct.
+    """
+    root = make_tree(tmp, declared="minor", branch_change="add_card")
+    empty = tmp / "empty-path"
+    empty.mkdir()
+    env = {"PYTHONUTF8": "1", "PATH": str(empty)}
+    result = run_gate_env(env, "--root", str(root))
+    output = result.stdout + result.stderr
+    check(
+        "G10 with git absent exits non-zero",
+        result.returncode != 0,
+        output,
+    )
+    check(
+        "the git-unavailable refusal names G10",
+        "G10:" in output,
+        output,
+    )
+    check(
+        "the refusal names git as the missing dependency",
+        "git" in output and "could not be run" in output,
+        output,
+    )
+    check(
+        "the refusal names the pending changeset that cannot be checked",
+        "zzz-classify.md" in output,
+        output,
+    )
+    check(
+        "no traceback reaches the reader",
+        "Traceback" not in output,
+        output,
+    )
+
+
+def case_g10_is_silent_when_git_absent_and_no_declared_bump(tmp: Path) -> None:
+    """With no pending declared bump on disk, G10 has nothing to refuse.
+
+    Cases 1-3 judge only branch-added changesets that declare a bump. An empty
+    changeset tree with git absent must not invent a G10 fault; G9 and the
+    other git-dependent checks still refuse, under their own IDs.
+    """
+    root = make_tree(tmp, declared=None, branch_change="none")
+    empty = tmp / "empty-path-2"
+    empty.mkdir()
+    env = {"PYTHONUTF8": "1", "PATH": str(empty)}
+    result = run_gate_env(env, "--root", str(root))
+    output = result.stdout + result.stderr
+    check(
+        "G10 is absent from the refusal when no declared bump is pending",
+        "G10:" not in output,
+        output,
+    )
+    check(
+        "the run still refuses under another check (git is a missing dependency)",
+        result.returncode != 0 and "git" in output and "could not be run" in output,
+        output,
+    )
+    check(
+        "no traceback reaches the reader",
+        "Traceback" not in output,
+        output,
+    )
 
 
 CASES = (
@@ -929,6 +1045,8 @@ CASES = (
     case_missing_ard_fails_closed_when_classification_needed,
     case_empty_changeset_is_not_a_classification_fault,
     case_live_tree_gate_stays_green,
+    case_g10_refuses_in_its_own_words_when_git_is_absent,
+    case_g10_is_silent_when_git_absent_and_no_declared_bump,
     case_ci_runs_the_bump_classification_suite,
     case_ci_carries_the_inversion_poison_control,
     case_ci_carries_case1_to_case4_poison_controls,
@@ -947,8 +1065,10 @@ def main() -> int:
     print(
         f"\nPASS: {len(CASES)} controls verified; each planted defect is refused "
         "by G10, the inversion is pinned, cases 1-3 judge only branch-added "
-        "changesets, case 4 prices the consumed plan, and the ADR text on disk "
-        "drives classification"
+        "changesets, case 4 prices the consumed plan, the ADR text on disk "
+        "drives classification, G10 refuses in its own words when git is "
+        "absent and a declared bump is pending, and the CI poison controls "
+        "carry the inversion, cases 1-4, B2(a-c) and B3"
     )
     return 0
 

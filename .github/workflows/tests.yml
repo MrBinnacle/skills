@@ -1642,6 +1642,10 @@ jobs:
           grep -q 'major' "$log" \
             || { echo "::error::the refusal does not name the major price"; cat "$log"; exit 1; }
           # Half two: the same rename declared major must PASS.
+          # `git checkout main` removes the empty `.changeset/` directory left
+          # when half one's file was committed only on `candidate`; recreate it
+          # before writing half two's changeset, or the write fails under `set
+          # -e` and steps 18 to 23 never run.
           git -C "$tree" checkout -q main
           git -C "$tree" checkout -q -b candidate-major
           git -C "$tree" mv skills/engineering/old-card skills/engineering/new-card
@@ -1649,6 +1653,7 @@ jobs:
             > "$tree/skills/engineering/new-card/SKILL.md"
           printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./new-card"]}\n' \
             > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          mkdir -p "$tree/.changeset"
           printf -- '---\n"mrbinnacle-skills": major\n---\n\nA rename declared major.\n' \
             > "$tree/.changeset/zzz-rename.md"
           git -C "$tree" add -A
@@ -1943,7 +1948,25 @@ jobs:
           fi
           grep -q '^RELEASE GATE: PASS' "$log" \
             || { echo "::error::the scripts-only PR did not print PASS"; cat "$log"; exit 1; }
-          echo "control: push to main after a minor admission PASSes; the next scripts-only PR PASSes"
+          # B2(c): a replay of the push to main at #316 (correct major) must
+          # also PASS. Main holds a major changeset already in history; the
+          # branch diff is empty; G10 must not re-judge main's pending file.
+          git -C "$tree" checkout -q main
+          git -C "$tree" update-ref refs/remotes/origin/main HEAD
+          mkdir -p "$tree/.changeset"
+          printf -- '---\n"mrbinnacle-skills": major\n---\n\nPlugin roots (#316 shape).\n' \
+            > "$tree/.changeset/plugin-is-its-own-root.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "major pending on main"
+          git -C "$tree" update-ref refs/remotes/origin/main HEAD
+          if ! python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a push to main after a correct major changeset (#316 replay) was REFUSED"
+            cat "$log"
+            exit 1
+          fi
+          grep -q '^RELEASE GATE: PASS' "$log" \
+            || { echo "::error::the #316 replay did not print PASS"; cat "$log"; exit 1; }
+          echo "control: push to main after a minor admission PASSes; the next scripts-only PR PASSes; the #316 major replay PASSes"
 
       # B3: a tree shaped like the real v3.0.0 release (4c00b0e) run with
       # --release must PASS; the same tree with a minor bump where the consumed
