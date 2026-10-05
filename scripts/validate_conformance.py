@@ -82,14 +82,15 @@ REPO = "repo"
 # card's Receipt: clause. Four sentences cover the closed set; nothing else is
 # a valid Evidence scope value on a published card.
 #
-# SCOPE_LINE_TEMPLATE and SCOPE_LINE_CARRIED_TEMPLATE are the skill-harness
-# SERS render of a KEEP receipt that carries verdict_scope (standard form and
-# carried-forward form). Source: MrBinnacle/skill-harness, SERS >= 1.6.0
-# evidence-scope render, quoted in skills#353. The drift test
-# (test_validate_conformance.py) compares these constants with the harness
-# render when a skill-harness checkout is available (SKILL_HARNESS_ROOT) and
-# skips with a named reason when it is not. One word of a constant is a red
-# drift, not a style preference: the constant is what the row must state.
+# SCOPE_LINE_TEMPLATE and SCOPE_LINE_CARRIED_TEMPLATE are skill-harness's own
+# KEEP scope-line wording, filled field by field. Source:
+# skill_harness/sitegen/render.py::_scope_line (inline f-strings; no named
+# constant there). The row value is that function's text with the HTML wrapper
+# `<p class="scope-line">…</p>` removed and without HTML escaping. The drift
+# test (test_validate_conformance.py) renders the R2 KEEP fixtures through the
+# harness _scope_line when SKILL_HARNESS_ROOT names a checkout and skips with
+# a named reason when it does not. One word of a constant is a red drift, not
+# a style preference: the constant is what the row must state.
 SCOPE_NO_RECEIPT: Final[str] = "UNMEASURED — no receipt."
 SCOPE_NOT_DEMONSTRATED_FMT: Final[str] = (
     "NOT DEMONSTRATED — receipt verdict {verdict}; no effect is shown."
@@ -97,8 +98,28 @@ SCOPE_NOT_DEMONSTRATED_FMT: Final[str] = (
 SCOPE_UNSCOPED: Final[str] = (
     "UNSCOPED — the KEEP receipt carries no verdict_scope (SERS before 1.6.0)."
 )
-SCOPE_LINE_TEMPLATE: Final[str] = "DEMONSTRATED — {scope}."
-SCOPE_LINE_CARRIED_TEMPLATE: Final[str] = "DEMONSTRATED — {scope} (carried forward)."
+# skill_harness/sitegen/render.py::_scope_line standard form, unescaped:
+# Shown here: effect on {task_family}, {model}, {delivery}, measured {tested_at}.
+# Not shown: other task families, models, environments, or real-world incidence.
+# Field defaults mirror the harness's _string_field: a missing or non-string
+# field reads as its placeholder, never as an empty cell and never as the
+# verdict_scope object itself.
+SCOPE_LINE_TEMPLATE: Final[str] = (
+    "Shown here: effect on {task_family}, {model}, {delivery}, "
+    "measured {tested_at}. Not shown: other task families, models, "
+    "environments, or real-world incidence."
+)
+# skill_harness/sitegen/render.py::_scope_line carried-forward form, used when
+# currentness.state == "CARRIED_FORWARD" (SERS receipts carry no
+# scope_carried_forward key):
+# demonstrated on {model}; carried forward to {current_model} under the
+# sentinel rule; not re-validated on {current_model}.
+# {current_model} is subject_identity.subject_model, or "current model" when
+# subject_identity is absent or non-object.
+SCOPE_LINE_CARRIED_TEMPLATE: Final[str] = (
+    "demonstrated on {model}; carried forward to {current_model} "
+    "under the sentinel rule; not re-validated on {current_model}."
+)
 
 
 @dataclass(frozen=True)
@@ -483,15 +504,34 @@ RECEIPT_CLAUSE_RE: Final[re.Pattern[str]] = re.compile(
 )
 
 
+def _string_field(node: object, key: str, default: str) -> str:
+    """Mirror skill_harness/sitegen/render.py::_string_field.
+
+    A missing key, a non-string value, or a non-object node reads as
+    `default`. The harness never prints a non-string field into the scope
+    line, and this derivation must not either.
+    """
+    if not isinstance(node, dict):
+        return default
+    value = node.get(key)
+    return value if isinstance(value, str) else default
+
+
 def expected_evidence_scope(receipts: list[dict]) -> str:
     """Derive the Evidence scope row from the card's linked receipts.
 
-    Closed set (#353): no receipt -> UNMEASURED; a KEEP receipt without
-    verdict_scope -> UNSCOPED; a KEEP receipt with verdict_scope -> the
-    harness scope line (standard or carried-forward); any other verdict ->
-    NOT DEMONSTRATED naming that verdict. History (not-current) receipts still
-    count here: the row describes what a linked receipt SHOWS, and a currency
-    gate that retires a receipt from disposal does not erase its verdict.
+    Closed set (#353, R1): no receipt -> UNMEASURED; a KEEP receipt without a
+    usable verdict_scope object -> UNSCOPED; a KEEP receipt with a
+    verdict_scope object -> skill-harness's scope line (standard form, or the
+    carried-forward form when currentness.state == "CARRIED_FORWARD");
+    any other verdict -> NOT DEMONSTRATED naming that verdict.
+
+    Carried-forward is decided from currentness.state only. SERS receipts
+    carry no scope_carried_forward key. The verdict_scope object itself is
+    never printed: fields are filled one by one, with the harness's own
+    missing-field defaults. History (not-current) receipts still count here:
+    the row describes what a linked receipt SHOWS, and a currency gate that
+    retires a receipt from disposal does not erase its verdict.
     """
     if not receipts:
         return SCOPE_NO_RECEIPT
@@ -500,10 +540,29 @@ def expected_evidence_scope(receipts: list[dict]) -> str:
     ]
     for receipt in keeps:
         scope = receipt.get("verdict_scope")
-        if scope:
-            if receipt.get("scope_carried_forward") or receipt.get("carried_forward"):
-                return SCOPE_LINE_CARRIED_TEMPLATE.format(scope=scope)
-            return SCOPE_LINE_TEMPLATE.format(scope=scope)
+        if not isinstance(scope, dict):
+            continue
+        model = _string_field(scope, "model_id", "unknown model")
+        currentness = receipt.get("currentness")
+        if (
+            isinstance(currentness, dict)
+            and currentness.get("state") == "CARRIED_FORWARD"
+        ):
+            current_model = _string_field(
+                receipt.get("subject_identity"), "subject_model", "current model"
+            )
+            return SCOPE_LINE_CARRIED_TEMPLATE.format(
+                model=model, current_model=current_model
+            )
+        task_family = _string_field(scope, "task_family", "unknown task family")
+        delivery = _string_field(scope, "delivery_mechanism", "unknown delivery")
+        tested_at = _string_field(scope, "tested_at", "unknown date")
+        return SCOPE_LINE_TEMPLATE.format(
+            task_family=task_family,
+            model=model,
+            delivery=delivery,
+            tested_at=tested_at,
+        )
     if keeps:
         return SCOPE_UNSCOPED
     verdict = str(receipts[0].get("verdict") or "").strip().upper()

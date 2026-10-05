@@ -364,15 +364,15 @@ def receipt_json(
     harness_version: str = "0.2.3",
     extra: dict | None = None,
 ) -> str:
-    """A minimal SERS 1.1.0 receipt as a JSON string.
+    """A minimal SERS receipt as a JSON string.
 
-    `extra` overlays fields the evidence-scope check reads: verdict_scope and
-    scope_carried_forward.
+    `extra` overlays fields the evidence-scope check reads: verdict_scope
+    (object), currentness (object or null), subject_identity (object or null).
     """
     import json as _json
 
     data: dict = {
-        "sers_version": "1.1.0",
+        "sers_version": "1.6.0",
         "skill_name": skill_name,
         "verdict": verdict,
         "cut_sub_reason": None,
@@ -400,28 +400,108 @@ def receipt_json(
             "implementation_hash": "a" * 64,
             "arms": ["null", "full"],
         },
+        "currentness": None,
     }
     if extra:
         data.update(extra)
     return _json.dumps(data, indent=2)
 
 
+def sers_keep_scope_fixture(
+    *,
+    delivery_mechanism: str | None = "hook-blocked",
+    carried_forward: bool = False,
+    skill_id: str | None = None,
+    task_family: str = "trap-discipline",
+) -> dict:
+    """R2-shaped SERS 1.6.0 KEEP receipt for evidence-scope cases.
+
+    Models skill-harness tests/fixtures/sers/poison_keep_*.json: top-level
+    verdict, verdict_scope as an object with model_id / task_family /
+    tested_at (and delivery_mechanism in the standard case), currentness as
+    an object or null, subject_identity as an object or null, sers_version
+    1.6.0. `delivery_mechanism=None` omits the field so the derivation must
+    read `unknown delivery`. Carried-forward sets currentness.state and
+    subject_identity.subject_model; SERS receipts carry no
+    scope_carried_forward key.
+    """
+    scope = {
+        "model_id": "claude-sonnet-5",
+        "harness_version": "0.3.0",
+        "fixture_version": "abc123",
+        "task_id": "test-task",
+        "tested_at": "2026-09-22T00:00:00Z",
+        "task_family": task_family,
+        "estimand": "treatment-policy",
+    }
+    if delivery_mechanism is not None:
+        scope["delivery_mechanism"] = delivery_mechanism
+    receipt: dict = {
+        "sers_version": "1.6.0",
+        "skill_name": "alpha-card",
+        "verdict": "KEEP",
+        "cut_sub_reason": None,
+        "unmeasured_sub_reason": None,
+        "value_class": "transformative-lift",
+        "evidence_admissibility": {"status": "not_applicable"},
+        "cost": {
+            "standing_tokens": {"refusal": "not_applicable"},
+            "fired_tokens": {"refusal": "not_applicable"},
+            "aux_tokens": {"refusal": "not_applicable"},
+        },
+        "instrument_identity": {
+            "extractor_model": {"refusal": "not_applicable"},
+            "prompt_fingerprint": "a",
+            "schema_fingerprint": "b",
+        },
+        "source": {"prose_path": "README.md"},
+        "summary": "SERS 1.6.0 KEEP fixture for evidence-scope derivation.",
+        "verdict_scope": scope,
+        "currentness": None,
+        "subject_identity": None,
+    }
+    if carried_forward:
+        receipt["currentness"] = {
+            "state": "CARRIED_FORWARD",
+            "basis": "SENTINEL_PASS",
+        }
+        receipt["subject_identity"] = {
+            "skill_id": skill_id or "b" * 64,
+            "harness_version": "0.3.0",
+            "metric_version": "0.3.0",
+            "implementation_hash": "c" * 64,
+            "arms": ["null", "full"],
+            "subject_model": "claude-sonnet-6",
+        }
+    elif skill_id is not None:
+        receipt["subject_identity"] = {
+            "skill_id": skill_id,
+            "harness_version": "0.3.0",
+            "metric_version": "0.3.0",
+            "implementation_hash": "c" * 64,
+            "arms": ["null", "full"],
+        }
+    return receipt
+
+
 def expected_scope_for_receipt(verdict: str, extra: dict | None = None) -> str:
-    """The Evidence scope sentence the closed set derives from one receipt."""
-    extra = extra or {}
-    upper = verdict.strip().upper()
-    if upper == "KEEP":
-        scope = extra.get("verdict_scope")
-        if not scope:
-            return "UNSCOPED — the KEEP receipt carries no verdict_scope (SERS before 1.6.0)."
-        if extra.get("scope_carried_forward") or extra.get("carried_forward"):
-            return f"DEMONSTRATED — {scope} (carried forward)."
-        return f"DEMONSTRATED — {scope}."
-    return f"NOT DEMONSTRATED — receipt verdict {upper}; no effect is shown."
+    """The Evidence scope sentence the closed set derives from one receipt.
+
+    Delegates to conformance.expected_evidence_scope so the suite cannot
+    drift from the checker it grades.
+    """
+    receipt: dict = {"verdict": verdict}
+    if extra:
+        receipt.update(extra)
+    return conformance.expected_evidence_scope([receipt])
 
 
 def write_evidence_scope(folder: Path, value: str) -> None:
-    """Set or replace the card's Evidence scope row, keeping other rows."""
+    """Set or replace the card's Evidence scope row, keeping other rows.
+
+    An empty `value` writes an empty cell (`| **Evidence scope** |  |`),
+    which the checker refuses with its own empty-row message.
+    """
     evidence = folder / "EVIDENCE.md"
     text = evidence.read_text(encoding="utf-8")
     row = f"| **Evidence scope** | {value} |\n"
@@ -457,12 +537,14 @@ def make_receipt_tree(
     skill_id_override: str | None = None,
     extra: dict | None = None,
     scope_override: str | None = None,
+    receipt_data: dict | None = None,
 ) -> Path:
     """Build a tree with one card carrying a Receipt clause and a harness root.
 
     Returns the harness root path. By default the card's Evidence scope row is
     written to the sentence the closed set derives from this receipt, so a case
-    that wants a WRONG scope uses `scope_override`.
+    that wants a WRONG scope uses `scope_override`. `receipt_data` writes a
+    full receipt object (R2 SERS shape) instead of the minimal JSON.
     """
     folder = root / "skills" / "engineering" / card_name
     skill_id = skill_id_override or skill_id_for(folder)
@@ -470,10 +552,39 @@ def make_receipt_tree(
     harness_root = root / "harness"
     receipt_dir = harness_root / "docs" / "sers" / "receipts"
     receipt_dir.mkdir(parents=True, exist_ok=True)
-    (receipt_dir / fname).write_text(
-        receipt_json(card_name, skill_id, verdict, source_date, harness_version, extra),
-        encoding="utf-8",
-    )
+    if receipt_data is not None:
+        import json as _json
+
+        data = dict(receipt_data)
+        si = data.get("subject_identity")
+        if not isinstance(si, dict):
+            # R2 lets subject_identity be null on a pure scope-line fixture;
+            # O5 still requires a skill_id on any receipt a card links, so
+            # the tree writer injects one. The drift test never goes through
+            # this path -- it renders the fixture through the harness alone.
+            data["subject_identity"] = {
+                "skill_id": skill_id,
+                "harness_version": harness_version,
+                "metric_version": "0.3.0",
+                "implementation_hash": "c" * 64,
+                "arms": ["null", "full"],
+            }
+        elif skill_id_override is None:
+            si = dict(si)
+            si["skill_id"] = skill_id
+            data["subject_identity"] = si
+        (receipt_dir / fname).write_text(
+            _json.dumps(data, indent=2), encoding="utf-8"
+        )
+        derived_receipt = data
+    else:
+        (receipt_dir / fname).write_text(
+            receipt_json(card_name, skill_id, verdict, source_date, harness_version, extra),
+            encoding="utf-8",
+        )
+        derived_receipt = {"verdict": verdict}
+        if extra:
+            derived_receipt.update(extra)
     evidence = folder / "EVIDENCE.md"
     evidence.write_text(
         f"# EVIDENCE - {card_name}\n\n"
@@ -485,7 +596,9 @@ def make_receipt_tree(
     if scope_override is not None:
         write_evidence_scope(folder, scope_override)
     else:
-        write_evidence_scope(folder, expected_scope_for_receipt(verdict, extra))
+        write_evidence_scope(
+            folder, conformance.expected_evidence_scope([derived_receipt])
+        )
     return harness_root
 
 
@@ -829,7 +942,8 @@ def case_o5_history_link_does_not_mask_a_newer_receipt(root: Path) -> None:
 # ---------------------------------------------------------------------------
 # Evidence scope (#354): the closed set the row must state, derived from the
 # receipt O5 resolves. Each fixture runs the real entrypoint; each refusal
-# names the card and the row.
+# names the card and the row. KEEP fixtures use the SERS 1.6.0 shape (R2) and
+# the skill-harness _scope_line wording (R1).
 # ---------------------------------------------------------------------------
 
 import os
@@ -916,14 +1030,21 @@ def case_evidence_scope_cant_tell_yet_shown_here_is_fail(root: Path) -> None:
 
 
 def case_evidence_scope_keep_with_scope_exact_passes(root: Path) -> None:
-    """KEEP receipt with verdict_scope: the exact scope line passes."""
-    scope = "stock agents run the pre-flight config check unprompted"
+    """KEEP receipt with verdict_scope (SERS object): the exact scope line passes."""
     make_tree(root)
+    receipt = sers_keep_scope_fixture()
+    expected = conformance.expected_evidence_scope([receipt])
+    check(
+        "the standard KEEP derivation is the harness _scope_line sentence",
+        expected.startswith("Shown here: effect on trap-discipline, claude-sonnet-5")
+        and "Not shown: other task families" in expected,
+        expected,
+    )
     harness_root = make_receipt_tree(
         root,
         CARDS[0],
         verdict="KEEP",
-        extra={"verdict_scope": scope},
+        receipt_data=receipt,
     )
     result = run_checker(root, "--harness-root", str(harness_root))
     check(
@@ -935,14 +1056,21 @@ def case_evidence_scope_keep_with_scope_exact_passes(root: Path) -> None:
 
 def case_evidence_scope_keep_one_word_change_is_fail(root: Path) -> None:
     """The same receipt, one word of the scope line changed: refused."""
-    scope = "stock agents run the pre-flight config check unprompted"
     make_tree(root)
+    receipt = sers_keep_scope_fixture()
+    expected = conformance.expected_evidence_scope([receipt])
+    bad_row = expected.replace("trap-discipline", "trap discipline")
+    check(
+        "the one-word mutant differs from the exact sentence",
+        bad_row != expected and "trap discipline" in bad_row,
+        f"expected={expected!r} bad={bad_row!r}",
+    )
     harness_root = make_receipt_tree(
         root,
         CARDS[0],
         verdict="KEEP",
-        extra={"verdict_scope": scope},
-        scope_override=f"DEMONSTRATED — {scope.replace('pre-flight', 'preflight')}.",
+        receipt_data=receipt,
+        scope_override=bad_row,
     )
     result = run_checker(root, "--harness-root", str(harness_root))
     check(
@@ -953,13 +1081,39 @@ def case_evidence_scope_keep_one_word_change_is_fail(root: Path) -> None:
     detail = o5_detail(result.stdout, CARDS[0])
     check(
         "the one-word refusal names Evidence scope and both sentences",
-        "Evidence scope" in detail and "DEMONSTRATED" in detail,
+        "Evidence scope" in detail
+        and "Shown here" in detail
+        and "trap-discipline" in detail,
         detail,
     )
 
 
+def case_evidence_scope_keep_without_delivery_is_unknown_delivery(root: Path) -> None:
+    """A KEEP fixture with delivery_mechanism absent yields `unknown delivery`."""
+    make_tree(root)
+    receipt = sers_keep_scope_fixture(delivery_mechanism=None)
+    expected = conformance.expected_evidence_scope([receipt])
+    check(
+        "a KEEP receipt without delivery_mechanism reads unknown delivery",
+        "unknown delivery" in expected and "hook-blocked" not in expected,
+        expected,
+    )
+    harness_root = make_receipt_tree(
+        root,
+        CARDS[0],
+        verdict="KEEP",
+        receipt_data=receipt,
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "KEEP + missing delivery_mechanism with the unknown delivery sentence passes O5",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+
+
 def case_evidence_scope_keep_without_scope_is_unscoped(root: Path) -> None:
-    """KEEP receipt with no verdict_scope -> the UNSCOPED sentence."""
+    """KEEP receipt with no verdict_scope object -> the UNSCOPED sentence."""
     make_tree(root)
     harness_root = make_receipt_tree(root, CARDS[0], verdict="KEEP")
     result = run_checker(root, "--harness-root", str(harness_root))
@@ -969,10 +1123,13 @@ def case_evidence_scope_keep_without_scope_is_unscoped(root: Path) -> None:
         result.stdout,
     )
     folder = root / "skills" / "engineering" / CARDS[0]
-    write_evidence_scope(folder, "DEMONSTRATED — invented scope.")
+    write_evidence_scope(
+        folder,
+        "Shown here: effect on invented, invented, invented, measured invented.",
+    )
     bad = run_checker(root, "--harness-root", str(harness_root))
     check(
-        "KEEP without verdict_scope with a DEMONSTRATED sentence is FAIL",
+        "KEEP without verdict_scope with a Shown here: sentence is FAIL",
         cell(bad.stdout, CARDS[0], "O5") == "FAIL",
         bad.stdout,
     )
@@ -985,15 +1142,32 @@ def case_evidence_scope_keep_without_scope_is_unscoped(root: Path) -> None:
 
 
 def case_evidence_scope_carried_forward_beats_standard(root: Path) -> None:
-    """Carried-forward KEEP: the carried-forward sentence passes, the standard
-    sentence is refused."""
-    scope = "trap-discipline cards that block the hazardous command"
+    """Carried-forward KEEP (currentness.state): the carried-forward sentence
+    passes, the standard sentence is refused. SERS carries no
+    scope_carried_forward key; currentness.state decides."""
     make_tree(root)
+    receipt = sers_keep_scope_fixture(carried_forward=True)
+    carried = conformance.expected_evidence_scope([receipt])
+    standard = conformance.expected_evidence_scope(
+        [{**receipt, "currentness": None}]
+    )
+    check(
+        "the carried-forward derivation is the harness sentinel-rule sentence",
+        carried.startswith("demonstrated on claude-sonnet-5")
+        and "carried forward to claude-sonnet-6 under the sentinel rule" in carried
+        and "not re-validated on claude-sonnet-6" in carried,
+        carried,
+    )
+    check(
+        "the standard sentence differs from the carried-forward sentence",
+        standard.startswith("Shown here:") and standard != carried,
+        f"standard={standard!r} carried={carried!r}",
+    )
     harness_root = make_receipt_tree(
         root,
         CARDS[0],
         verdict="KEEP",
-        extra={"verdict_scope": scope, "scope_carried_forward": True},
+        receipt_data=receipt,
     )
     result = run_checker(root, "--harness-root", str(harness_root))
     check(
@@ -1002,7 +1176,7 @@ def case_evidence_scope_carried_forward_beats_standard(root: Path) -> None:
         result.stdout,
     )
     folder = root / "skills" / "engineering" / CARDS[0]
-    write_evidence_scope(folder, f"DEMONSTRATED — {scope}.")
+    write_evidence_scope(folder, standard)
     bad = run_checker(root, "--harness-root", str(harness_root))
     check(
         "carried-forward KEEP with the standard sentence is FAIL",
@@ -1012,16 +1186,45 @@ def case_evidence_scope_carried_forward_beats_standard(root: Path) -> None:
     detail = o5_detail(bad.stdout, CARDS[0])
     check(
         "the refusal names Evidence scope and both sentence shapes",
-        "Evidence scope" in detail and "carried forward" in detail and "DEMONSTRATED" in detail,
+        "Evidence scope" in detail
+        and "carried forward" in detail
+        and "Shown here" in detail,
+        detail,
+    )
+
+
+def case_evidence_scope_empty_row_is_refused_with_its_own_message(root: Path) -> None:
+    """R4: an empty Evidence scope row is refused with its own message.
+
+    Deleting the `if not stated:` branch in evidence_scope_breaches leaves
+    this case red: the checker then reports the mismatch sentence instead of
+    the empty-row refusal.
+    """
+    make_tree(root)
+    folder = root / "skills" / "engineering" / CARDS[0]
+    write_evidence_scope(folder, "")
+    result = run_checker(root)
+    check(
+        "an empty Evidence scope row is FAIL on O5",
+        cell(result.stdout, CARDS[0], "O5") == "FAIL",
+        result.stdout,
+    )
+    detail = o5_detail(result.stdout, CARDS[0])
+    check(
+        "the empty-row refusal names the card and uses the empty-row message",
+        CARDS[0] in detail
+        and "EVIDENCE.md states no Evidence scope row" in detail
+        and "empty row is the same refusal" in detail,
         detail,
     )
 
 
 def case_evidence_scope_constants_are_the_closed_set() -> None:
-    """The constants equal the closed-set sentences #353 quotes.
+    """The constants equal the closed-set sentences #353 and R1 quote.
 
     One word of a constant is a red drift. This case pins the three fixed
-    sentences and the two KEEP templates without needing a harness checkout.
+    sentences and the two KEEP templates without needing a harness checkout;
+    the render-based drift test below covers the harness comparison.
     """
     check(
         "SCOPE_NO_RECEIPT is the closed-set no-receipt sentence",
@@ -1041,14 +1244,18 @@ def case_evidence_scope_constants_are_the_closed_set() -> None:
         conformance.SCOPE_UNSCOPED,
     )
     check(
-        "SCOPE_LINE_TEMPLATE is the standard KEEP render",
-        conformance.SCOPE_LINE_TEMPLATE == "DEMONSTRATED — {scope}.",
+        "SCOPE_LINE_TEMPLATE is the harness standard KEEP scope line",
+        conformance.SCOPE_LINE_TEMPLATE
+        == "Shown here: effect on {task_family}, {model}, {delivery}, "
+        "measured {tested_at}. Not shown: other task families, models, "
+        "environments, or real-world incidence.",
         conformance.SCOPE_LINE_TEMPLATE,
     )
     check(
-        "SCOPE_LINE_CARRIED_TEMPLATE is the carried-forward KEEP render",
+        "SCOPE_LINE_CARRIED_TEMPLATE is the harness carried-forward KEEP scope line",
         conformance.SCOPE_LINE_CARRIED_TEMPLATE
-        == "DEMONSTRATED — {scope} (carried forward).",
+        == "demonstrated on {model}; carried forward to {current_model} "
+        "under the sentinel rule; not re-validated on {current_model}.",
         conformance.SCOPE_LINE_CARRIED_TEMPLATE,
     )
     check(
@@ -1058,122 +1265,77 @@ def case_evidence_scope_constants_are_the_closed_set() -> None:
     )
 
 
-def harness_rendered_scope_templates(harness_root: Path) -> dict[str, str]:
-    """Scope-line templates from the harness package, never its test fixtures."""
-    found: dict[str, str] = {}
-    names = (
-        "SCOPE_LINE_TEMPLATE",
-        "SCOPE_LINE_CARRIED_TEMPLATE",
-        "SCOPE_NO_RECEIPT",
-        "SCOPE_UNSCOPED",
-        "SCOPE_NOT_DEMONSTRATED",
-        "SCOPE_NOT_DEMONSTRATED_FMT",
-    )
-    for base in (harness_root / "src" / "skill_harness", harness_root / "skill_harness"):
-        if not base.is_dir():
-            continue
-        for py in base.rglob("*.py"):
-            try:
-                text = py.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                continue
-            for name in names:
-                if name in found:
-                    continue
-                match = re.search(
-                    rf"^{name}\s*[:=]\s*(?:Final\[str\]\s*)?[\"'](.+?)[\"']",
-                    text,
-                    re.MULTILINE,
-                )
-                if match:
-                    found[name] = match.group(1)
-    return found
+def strip_scope_line(html: str) -> str:
+    """The harness scope-line text with the HTML wrapper removed and unescaped.
 
+    skill-harness _scope_line returns
+    `<p class="scope-line">…</p>`. The row value is that text with the wrapper
+    removed and without HTML escaping (R1).
+    """
+    import html as _html
 
-HARNESS_SCOPE_TEMPLATES = {
-    "SCOPE_LINE_TEMPLATE": conformance.SCOPE_LINE_TEMPLATE,
-    "SCOPE_LINE_CARRIED_TEMPLATE": conformance.SCOPE_LINE_CARRIED_TEMPLATE,
-    "SCOPE_NO_RECEIPT": conformance.SCOPE_NO_RECEIPT,
-    "SCOPE_NOT_DEMONSTRATED_FMT": conformance.SCOPE_NOT_DEMONSTRATED_FMT,
-    "SCOPE_UNSCOPED": conformance.SCOPE_UNSCOPED,
-}
-
-
-def scope_template_drift_breaches(rendered: dict[str, str]) -> list[str]:
-    """Report every template the configured harness cannot substantiate."""
-    breaches = []
-    for name, ours in HARNESS_SCOPE_TEMPLATES.items():
-        theirs = rendered.get(name)
-        if theirs is None:
-            breaches.append(f"harness defines no {name}")
-        elif theirs != ours:
-            breaches.append(f"{name}: ours={ours!r} harness={theirs!r}")
-    return breaches
-
-
-def case_scope_line_drift_requires_every_harness_template() -> None:
-    """A configured harness must expose the complete closed set, not a subset."""
-    rendered = {
-        "SCOPE_LINE_TEMPLATE": "DEMONSTRATED — {scope}.",
-        "SCOPE_LINE_CARRIED_TEMPLATE": "DEMONSTRATED — {scope} (carried forward).",
-        "SCOPE_NO_RECEIPT": "UNMEASURED — no receipt.",
-        "SCOPE_NOT_DEMONSTRATED_FMT": (
-            "NOT DEMONSTRATED — receipt verdict {verdict}; no effect is shown."
-        ),
-        "SCOPE_UNSCOPED": (
-            "UNSCOPED — the KEEP receipt carries no verdict_scope (SERS before 1.6.0)."
-        ),
-    }
-    check(
-        "a complete harness render agrees with the closed set",
-        not scope_template_drift_breaches(rendered),
-        scope_template_drift_breaches(rendered),
-    )
-    del rendered["SCOPE_NOT_DEMONSTRATED_FMT"]
-    check(
-        "a harness render missing one Evidence scope template is refused",
-        scope_template_drift_breaches(rendered)
-        == ["harness defines no SCOPE_NOT_DEMONSTRATED_FMT"],
-        scope_template_drift_breaches(rendered),
-    )
-
-
-def case_scope_line_drift_ignores_harness_tests(root: Path) -> None:
-    """A copied expectation in the harness tests is not its rendered contract."""
-    test_only = root / "tests" / "test_evidence_scope.py"
-    write(
-        test_only,
-        'SCOPE_LINE_TEMPLATE = "DEMONSTRATED — {scope}."\n'
-        'SCOPE_LINE_CARRIED_TEMPLATE = "DEMONSTRATED — {scope} (carried forward)."\n'
-        'SCOPE_NO_RECEIPT = "UNMEASURED — no receipt."\n'
-        'SCOPE_NOT_DEMONSTRATED_FMT = "NOT DEMONSTRATED — receipt verdict {verdict}; no effect is shown."\n'
-        'SCOPE_UNSCOPED = "UNSCOPED — the KEEP receipt carries no verdict_scope (SERS before 1.6.0)."\n',
-    )
-    check(
-        "harness-test expectations do not count as rendered scope templates",
-        harness_rendered_scope_templates(root) == {},
-        harness_rendered_scope_templates(root),
-    )
+    match = re.search(r'<p class="scope-line">(.*?)</p>', html, re.DOTALL)
+    if not match:
+        return ""
+    return _html.unescape(match.group(1))
 
 
 def case_scope_line_drift_vs_harness_render() -> None:
-    """Drift test: the constants must equal the harness render when a
-    skill-harness checkout is available; skip with a named reason when not."""
+    """R3 drift test: the constants must equal the harness render when a
+    skill-harness checkout is available; skip with a named reason when not.
+
+    Imports skill_harness.sitegen.render._scope_line from <root>/src and
+    renders the R2 KEEP fixtures through it. It does not look for named
+    constants in the harness.
+    """
     harness_root = os.environ.get("SKILL_HARNESS_ROOT")
     if not harness_root or not Path(harness_root).is_dir():
         note(
-            "scope-line drift skipped: no skill-harness checkout "
-            "(set SKILL_HARNESS_ROOT to a skill-harness clone to compare "
-            "SCOPE_LINE_TEMPLATE against the harness render)"
+            "scope-line drift skipped: SKILL_HARNESS_ROOT is not set to a "
+            "skill-harness checkout; the drift test imports "
+            "skill_harness.sitegen.render._scope_line from that root and "
+            "renders the R2 KEEP fixtures through it"
         )
         return
-    rendered = harness_rendered_scope_templates(Path(harness_root))
-    breaches = scope_template_drift_breaches(rendered)
-    check(
-        "the configured harness renders every Evidence scope template exactly",
-        not breaches,
-        "; ".join(breaches),
+    render_py = Path(harness_root) / "src" / "skill_harness" / "sitegen" / "render.py"
+    if not render_py.is_file():
+        note(
+            f"scope-line drift skipped: {render_py} not found under "
+            "SKILL_HARNESS_ROOT"
+        )
+        return
+    src = str(Path(harness_root) / "src")
+    if src not in sys.path:
+        sys.path.insert(0, src)
+    try:
+        from skill_harness.sitegen import render as harness_render
+    except Exception as exc:  # pragma: no cover - environment-dependent
+        check(
+            "skill-harness render.py imports under SKILL_HARNESS_ROOT",
+            False,
+            str(exc),
+        )
+        return
+    if not hasattr(harness_render, "_scope_line"):
+        check("skill-harness exposes _scope_line", False, "attribute missing")
+        return
+    fixtures = (
+        ("standard KEEP with delivery_mechanism", sers_keep_scope_fixture()),
+        (
+            "standard KEEP without delivery_mechanism",
+            sers_keep_scope_fixture(delivery_mechanism=None),
+        ),
+        ("carried-forward KEEP", sers_keep_scope_fixture(carried_forward=True)),
     )
+    for label, receipt in fixtures:
+        html = harness_render._scope_line(receipt)
+        rendered = strip_scope_line(html)
+        ours = conformance.expected_evidence_scope([receipt])
+        check(
+            f"skills derivation equals harness _scope_line for {label}",
+            ours == rendered,
+            f"ours={ours!r} harness={rendered!r} html={html!r}",
+        )
 
 
 def case_evidence_scope_quarantine_card_with_no_row_passes(root: Path) -> None:
@@ -1841,8 +2003,10 @@ def main() -> None:
         case_evidence_scope_cant_tell_yet_shown_here_is_fail,
         case_evidence_scope_keep_with_scope_exact_passes,
         case_evidence_scope_keep_one_word_change_is_fail,
+        case_evidence_scope_keep_without_delivery_is_unknown_delivery,
         case_evidence_scope_keep_without_scope_is_unscoped,
         case_evidence_scope_carried_forward_beats_standard,
+        case_evidence_scope_empty_row_is_refused_with_its_own_message,
         case_evidence_scope_quarantine_card_with_no_row_passes,
         case_manifest_naming_every_card_passes,
         case_manifest_naming_a_missing_card_is_red,
@@ -1876,9 +2040,6 @@ def main() -> None:
     case_live_manifest_covers_the_live_tree()
     case_live_tree_is_checked_and_conforms()
     case_evidence_scope_constants_are_the_closed_set()
-    case_scope_line_drift_requires_every_harness_template()
-    with tempfile.TemporaryDirectory() as tmp:
-        case_scope_line_drift_ignores_harness_tests(Path(tmp))
     case_scope_line_drift_vs_harness_render()
     case_evidence_scope_live_tree_rows_match_the_closed_set()
 
