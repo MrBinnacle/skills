@@ -61,7 +61,7 @@ No test monkeypatches the function it claims to mutate; each mutant is a real ed
 
 ### 4. Full suite and release gate, LF and CRLF
 
-At head `d0f5b8e`, `PYTHONUTF8=1`:
+At code head `d0f5b8e` (the last commit that changes the PR diff; `cfde1f1` adds only this evidence body under `.scratch/`, which the runner drops before the push), `PYTHONUTF8=1`:
 
 | Command | LF | CRLF (`git archive` + `sed` to CRLF) |
 |---|---|---|
