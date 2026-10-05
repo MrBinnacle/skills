@@ -666,11 +666,21 @@ def _path_exists_case_exact(path: Path) -> bool:
 
 
 def size_breaches(card: Path) -> list[str]:
-    """AGENTS.md: SKILL.md within 400–7,168 bytes."""
+    """AGENTS.md: SKILL.md within 400–7,168 bytes.
+
+    Measured on the file's CONTENT with CRLF collapsed to LF. A Windows
+    checkout (`core.autocrlf=true`) stores `\r\n` for every newline, which
+    inflates the byte count without changing what a reader holds. Measuring
+    raw on-disk bytes reds two published cards that sit under the ceiling on
+    LF (vacuous-check 7108 B, dead-predicate 7141 B) purely for their line
+    endings — #354's CRLF acceptance run caught that. The bound is about the
+    card's content, not the checkout's EOL convention.
+    """
     skill = card / "SKILL.md"
     if not skill.is_file():
         return []
-    size = skill.stat().st_size
+    raw = skill.read_bytes()
+    size = len(raw.replace(b"\r\n", b"\n"))
     if size < SKILL_SIZE_MIN:
         return [
             f"SKILL.md is {size} bytes, below the minimum of {SKILL_SIZE_MIN}. "
