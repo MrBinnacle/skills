@@ -541,17 +541,18 @@ def case_domain_md_is_v131_template() -> None:
     if not path.is_file():
         check("domain.md exists", False, str(path))
         return
-    body = path.read_text(encoding="utf-8")
+    body = path.read_bytes()
+    template = V131_DOMAIN_TEMPLATE.encode("utf-8")
     check("domain.md exists", True)
     check(
         "domain.md is byte-identical to the v1.3.1 template",
-        body == V131_DOMAIN_TEMPLATE,
+        body == template,
         "content differs from the inlined v1.3.1 fixture",
     )
-    if body != V131_DOMAIN_TEMPLATE:
+    if body != template:
         # Name the first differing line so a failure is actionable.
-        body_lines = body.splitlines(keepends=True)
-        tmpl_lines = V131_DOMAIN_TEMPLATE.splitlines(keepends=True)
+        body_lines = body.decode("utf-8").splitlines(keepends=True)
+        tmpl_lines = template.decode("utf-8").splitlines(keepends=True)
         for i, (b, t) in enumerate(zip(body_lines, tmpl_lines), start=1):
             if b != t:
                 check(
