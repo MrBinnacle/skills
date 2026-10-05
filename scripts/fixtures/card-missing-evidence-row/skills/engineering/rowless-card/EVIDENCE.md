@@ -7,5 +7,6 @@
 | **Dispatches recorded** | No recorded dispatch, fixture counter, measured 2026-01-01. |
 | **Screen result** | UNMEASURED. |
 | **Paired verdict** | UNMEASURED. |
+| **Evidence scope** | UNMEASURED — no receipt. |
 
 The deliberately absent `Re-screen trigger` row is the poison under test.

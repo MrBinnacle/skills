@@ -60,6 +60,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 import validate_scoreboard as scoreboard  # noqa: E402
 import validate_skill_formats as formats  # noqa: E402
+from validate_card_files import EVIDENCE_SCOPE_ROW  # noqa: E402
 
 PASS: Final[str] = "PASS"
 FAIL: Final[str] = "FAIL"
@@ -74,6 +75,30 @@ TRIAL_EXIT_DATE: Final[str] = "2026-11-07"
 
 CARD = "card"
 REPO = "repo"
+
+# --- Evidence-scope closed set (#353, consumed by #354) --------------------
+#
+# The row's value is derived from the receipt O5 already resolves from the
+# card's Receipt: clause. Four sentences cover the closed set; nothing else is
+# a valid Evidence scope value on a published card.
+#
+# SCOPE_LINE_TEMPLATE and SCOPE_LINE_CARRIED_TEMPLATE are the skill-harness
+# SERS render of a KEEP receipt that carries verdict_scope (standard form and
+# carried-forward form). Source: MrBinnacle/skill-harness, SERS >= 1.6.0
+# evidence-scope render, quoted in skills#353. The drift test
+# (test_validate_conformance.py) compares these constants with the harness
+# render when a skill-harness checkout is available (SKILL_HARNESS_ROOT) and
+# skips with a named reason when it is not. One word of a constant is a red
+# drift, not a style preference: the constant is what the row must state.
+SCOPE_NO_RECEIPT: Final[str] = "UNMEASURED — no receipt."
+SCOPE_NOT_DEMONSTRATED_FMT: Final[str] = (
+    "NOT DEMONSTRATED — receipt verdict {verdict}; no effect is shown."
+)
+SCOPE_UNSCOPED: Final[str] = (
+    "UNSCOPED — the KEEP receipt carries no verdict_scope (SERS before 1.6.0)."
+)
+SCOPE_LINE_TEMPLATE: Final[str] = "DEMONSTRATED — {scope}."
+SCOPE_LINE_CARRIED_TEMPLATE: Final[str] = "DEMONSTRATED — {scope} (carried forward)."
 
 
 @dataclass(frozen=True)
@@ -233,9 +258,11 @@ def check_evidence_fields(card: Card) -> Result:
 def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Result:
     """O5: controlled fields must not contradict a published harness receipt.
 
-    Without --harness-root, returns CANNOT-CHECK as before: the measurement
-    sibling's evidence store is private and single-copy, so there is nothing
-    here to compare a controlled field against.
+    Without --harness-root, returns CANNOT-CHECK as before for the receipt
+    comparison itself: the measurement sibling's evidence store is private and
+    single-copy, so there is nothing here to compare a controlled field against.
+    The Evidence-scope row is checked in both modes when its expected sentence
+    is derivable -- the no-receipt case needs no harness (#354).
 
     With --harness-root, reads the receipt file the card's controlled row links
     in its Receipt clause and fails on four conditions:
@@ -252,8 +279,17 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
     contradiction of it. It still counts as linked for condition 4. A receipt
     that fails those conditions in a field making no such declaration stays a
     FAIL, which is the case the check exists for.
+
+    Evidence scope is checked after the receipt comparison when that comparison
+    does not already FAIL, and before a CANNOT-CHECK verdict: a wrong scope
+    sentence is a breach this run can see, and reporting CANT while the card
+    contradicts its own receipts would bury the finding.
     """
+    scope_breaches = evidence_scope_breaches(card, harness_root)
+
     if harness_root is None:
+        if scope_breaches:
+            return Result(FAIL, "; ".join(scope_breaches))
         return Result(
             CANT,
             "no citable published receipt to compare against from inside this "
@@ -323,6 +359,8 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
         linked_skill_ids.append(expected_skill_id)
 
     if not linked_receipts:
+        if scope_breaches:
+            return Result(FAIL, "; ".join(scope_breaches))
         if history_names:
             return Result(
                 PASS,
@@ -367,6 +405,8 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
                     f"(linked receipt dated {lr_date})",
                 )
 
+    if scope_breaches:
+        return Result(FAIL, "; ".join(scope_breaches))
     return Result(PASS, "controlled fields agree with the linked receipt(s)")
 
 
@@ -441,6 +481,108 @@ RECEIPT_CLAUSE_RE: Final[re.Pattern[str]] = re.compile(
     r"[`\"']([^`\"']+?\.json)[`\"']"
     r")"
 )
+
+
+def expected_evidence_scope(receipts: list[dict]) -> str:
+    """Derive the Evidence scope row from the card's linked receipts.
+
+    Closed set (#353): no receipt -> UNMEASURED; a KEEP receipt without
+    verdict_scope -> UNSCOPED; a KEEP receipt with verdict_scope -> the
+    harness scope line (standard or carried-forward); any other verdict ->
+    NOT DEMONSTRATED naming that verdict. History (not-current) receipts still
+    count here: the row describes what a linked receipt SHOWS, and a currency
+    gate that retires a receipt from disposal does not erase its verdict.
+    """
+    if not receipts:
+        return SCOPE_NO_RECEIPT
+    keeps = [
+        r for r in receipts if str(r.get("verdict") or "").strip().upper() == "KEEP"
+    ]
+    for receipt in keeps:
+        scope = receipt.get("verdict_scope")
+        if scope:
+            if receipt.get("scope_carried_forward") or receipt.get("carried_forward"):
+                return SCOPE_LINE_CARRIED_TEMPLATE.format(scope=scope)
+            return SCOPE_LINE_TEMPLATE.format(scope=scope)
+    if keeps:
+        return SCOPE_UNSCOPED
+    verdict = str(receipts[0].get("verdict") or "").strip().upper()
+    return SCOPE_NOT_DEMONSTRATED_FMT.format(verdict=verdict)
+
+
+def _linked_receipt_dicts(
+    card: Card, harness_root: Path | None
+) -> tuple[list[dict], bool]:
+    """Receipts O5 can resolve from the card's controlled-field Receipt clauses.
+
+    Returns (receipts, unresolvable). `unresolvable` is True when a clause
+    names a receipt this run cannot load (no harness root, missing file, or
+    unreadable JSON). A caller that needs the derived scope skips the value
+    check when unresolvable is True and nothing loaded -- the expected sentence
+    is then unknown, and inventing one would refuse a card for a run that
+    could not see its receipt.
+    """
+    evidence = card.folder / "EVIDENCE.md"
+    if not evidence.exists():
+        return [], True
+    fields = scoreboard.evidence_fields(evidence, scoreboard.CONTROLLED_FIELDS)
+    linked: list[dict] = []
+    unresolvable = False
+    for field_name in scoreboard.CONTROLLED_FIELDS:
+        value = fields.get(field_name, "")
+        receipt_filename = _receipt_filename(value)
+        if receipt_filename is None:
+            continue
+        if harness_root is None:
+            unresolvable = True
+            continue
+        receipt_path = _find_receipt(harness_root, receipt_filename)
+        if receipt_path is None:
+            unresolvable = True
+            continue
+        try:
+            linked.append(json.loads(receipt_path.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            unresolvable = True
+    return linked, unresolvable
+
+
+def evidence_scope_breaches(card: Card, harness_root: Path | None) -> list[str]:
+    """The card's Evidence scope row must equal what its receipts show.
+
+    The no-receipt case is checked even without --harness-root: no Receipt
+    clause means the expected sentence is UNMEASURED — no receipt., which this
+    repository can derive from the card alone. O5 used to return CANNOT-CHECK
+    for that case by construction; #354 closes it. A card whose controlled
+    fields name a receipt this run cannot load is left to the receipt check
+    rather than failed here -- the scope sentence depends on a file the run
+    never saw.
+    """
+    evidence = card.folder / "EVIDENCE.md"
+    if not evidence.exists():
+        return []
+    rows = scoreboard.evidence_fields(evidence, (EVIDENCE_SCOPE_ROW,))
+    stated = rows.get(EVIDENCE_SCOPE_ROW, "").strip("* `")
+    linked, unresolvable = _linked_receipt_dicts(card, harness_root)
+    if unresolvable and not linked:
+        fields = scoreboard.evidence_fields(evidence, scoreboard.CONTROLLED_FIELDS)
+        has_clause = any(
+            _receipt_filename(fields.get(name, "")) for name in scoreboard.CONTROLLED_FIELDS
+        )
+        if has_clause:
+            return []
+    expected = expected_evidence_scope(linked)
+    if not stated:
+        return [
+            f"{card.name}: EVIDENCE.md states no {EVIDENCE_SCOPE_ROW} row "
+            "(an empty row is the same refusal: the card has not said)"
+        ]
+    if stated != expected:
+        return [
+            f"{card.name}: {EVIDENCE_SCOPE_ROW} is {stated!r} but the card's "
+            f"linked receipt(s) show {expected!r}"
+        ]
+    return []
 
 
 CARD_CHECKS = {
