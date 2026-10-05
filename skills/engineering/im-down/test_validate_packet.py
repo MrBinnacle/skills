@@ -775,11 +775,14 @@ def cache_expand_cases():
         repo = Path(tmp) / "repo"
         repo.mkdir()
         _init_repo(repo)
-        home_file = Path.home() / ".im-up-cache-expand-probe.txt"
-        home_file.write_text("home-probe\n", encoding="utf-8")
+        with tempfile.NamedTemporaryFile(
+            dir=Path.home(), prefix=".im-up-cache-expand-probe-", delete=False
+        ) as probe:
+            probe.write(b"home-probe\n")
+            home_file = Path(probe.name)
         try:
             key_home = validator.check_cache_key(
-                {"command": "true", "cache_inputs": ["~/.im-up-cache-expand-probe.txt"]},
+                {"command": "true", "cache_inputs": [f"~/{home_file.name}"]},
                 repo,
             )
             key_home_other = validator.check_cache_key(
@@ -790,6 +793,8 @@ def cache_expand_cases():
             assert key_home == key_home_other, "~ must expand to the same file"
         finally:
             home_file.unlink(missing_ok=True)
+
+        assert validator.weekly_full_due({"last_full_run_at": "2026-10-01T00:00:00"})
 
         (repo / "inputs").mkdir()
         (repo / "inputs" / "a.txt").write_text("a\n", encoding="utf-8")

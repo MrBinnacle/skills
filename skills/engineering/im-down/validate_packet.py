@@ -371,8 +371,8 @@ def validate_repository(
 def default_cache_path() -> Path:
     """Machine-level cache location, outside any repository tree.
 
-    The open and the close on one machine share this file. It is never
-    committed, never per-repo, and never under the worktree.
+    It persists across opens on one machine. It is never committed, never
+    per-repo, and never under the worktree.
     """
     return Path.home() / ".cache" / "mrbinnacle-skills" / "receiver-check-cache.json"
 
@@ -459,6 +459,8 @@ def weekly_full_due(cache: dict) -> bool:
     try:
         last_dt = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
     except ValueError:
+        return True
+    if last_dt.tzinfo is None:
         return True
     return datetime.now(timezone.utc) - last_dt >= timedelta(days=CACHE_WEEKLY_DAYS)
 

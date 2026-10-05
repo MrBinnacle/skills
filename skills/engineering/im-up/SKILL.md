@@ -51,7 +51,7 @@ Proceed only when the receipt verdict is `ACCEPTED`.
 
 Every check in the receipt carries `status` and `duration_ms`. `status` is `passed`, `cached`, or `failed`.
 
-`cached` promises this and nothing more: the check was not re-executed on this open. Its verdict is the last passing run under the same cache key — the blob hashes of the check's `cache_inputs`, the Python version, `git --version`, and the command string. The receipt also carries that `cache_key` and the `cached_at` time of the run that produced it. Only passing runs are cached; a failing check always re-executes. A check with no `cache_inputs` always runs. Once a week every check runs uncached and is compared with its cached verdict; a disagreement fails the open and clears that check's cache entry. The cache file lives outside the tree, shared by the open and the close on one machine.
+`cached` promises this and nothing more: the check was not re-executed on this open. Its verdict is the last passing run under the same cache key — the blob hashes of the check's `cache_inputs`, the Python version, `git --version`, and the command string. The receipt also carries that `cache_key` and the `cached_at` time of the run that produced it. Only passing runs are cached; a failing check always re-executes. A check with no `cache_inputs` always runs. Once a week every check runs uncached and is compared with its cached verdict; a disagreement fails the open and clears that check's cache entry. The cache file lives outside the tree and persists across opens on one machine.
 
 A `cached` verdict still gates the packet exactly as a `passed` one does. The weekly full run is what keeps a stale cache from admitting a tree that has moved.
 

@@ -106,8 +106,8 @@ Once a week, at an open, every check runs uncached and is compared with its
 cached verdict. A disagreement fails the open and clears that check's cache
 entry.
 
-The cache file lives outside the tree, so the open and the close on one machine
-share it. Config key `receiver_check_cache` names an explicit path; otherwise
+The cache file lives outside the tree, so it persists across opens on one
+machine. Config key `receiver_check_cache` names an explicit path; otherwise
 the default is `~/.cache/mrbinnacle-skills/receiver-check-cache.json`.
 
 What `cached` promises: the check was not re-executed on this open, and its
