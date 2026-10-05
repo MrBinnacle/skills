@@ -1059,7 +1059,7 @@ def case_evidence_scope_constants_are_the_closed_set() -> None:
 
 
 def harness_rendered_scope_templates(harness_root: Path) -> dict[str, str]:
-    """Scope-line templates the harness checkout itself renders."""
+    """Scope-line templates from the harness package, never its test fixtures."""
     found: dict[str, str] = {}
     names = (
         "SCOPE_LINE_TEMPLATE",
@@ -1069,12 +1069,10 @@ def harness_rendered_scope_templates(harness_root: Path) -> dict[str, str]:
         "SCOPE_NOT_DEMONSTRATED",
         "SCOPE_NOT_DEMONSTRATED_FMT",
     )
-    for base in (harness_root / "src", harness_root):
+    for base in (harness_root / "src" / "skill_harness", harness_root / "skill_harness"):
         if not base.is_dir():
             continue
         for py in base.rglob("*.py"):
-            if base == harness_root / "src" and "skill_harness" not in py.parts:
-                continue
             try:
                 text = py.read_text(encoding="utf-8", errors="replace")
             except OSError:
@@ -1092,6 +1090,72 @@ def harness_rendered_scope_templates(harness_root: Path) -> dict[str, str]:
     return found
 
 
+HARNESS_SCOPE_TEMPLATES = {
+    "SCOPE_LINE_TEMPLATE": conformance.SCOPE_LINE_TEMPLATE,
+    "SCOPE_LINE_CARRIED_TEMPLATE": conformance.SCOPE_LINE_CARRIED_TEMPLATE,
+    "SCOPE_NO_RECEIPT": conformance.SCOPE_NO_RECEIPT,
+    "SCOPE_NOT_DEMONSTRATED_FMT": conformance.SCOPE_NOT_DEMONSTRATED_FMT,
+    "SCOPE_UNSCOPED": conformance.SCOPE_UNSCOPED,
+}
+
+
+def scope_template_drift_breaches(rendered: dict[str, str]) -> list[str]:
+    """Report every template the configured harness cannot substantiate."""
+    breaches = []
+    for name, ours in HARNESS_SCOPE_TEMPLATES.items():
+        theirs = rendered.get(name)
+        if theirs is None:
+            breaches.append(f"harness defines no {name}")
+        elif theirs != ours:
+            breaches.append(f"{name}: ours={ours!r} harness={theirs!r}")
+    return breaches
+
+
+def case_scope_line_drift_requires_every_harness_template() -> None:
+    """A configured harness must expose the complete closed set, not a subset."""
+    rendered = {
+        "SCOPE_LINE_TEMPLATE": "DEMONSTRATED — {scope}.",
+        "SCOPE_LINE_CARRIED_TEMPLATE": "DEMONSTRATED — {scope} (carried forward).",
+        "SCOPE_NO_RECEIPT": "UNMEASURED — no receipt.",
+        "SCOPE_NOT_DEMONSTRATED_FMT": (
+            "NOT DEMONSTRATED — receipt verdict {verdict}; no effect is shown."
+        ),
+        "SCOPE_UNSCOPED": (
+            "UNSCOPED — the KEEP receipt carries no verdict_scope (SERS before 1.6.0)."
+        ),
+    }
+    check(
+        "a complete harness render agrees with the closed set",
+        not scope_template_drift_breaches(rendered),
+        scope_template_drift_breaches(rendered),
+    )
+    del rendered["SCOPE_NOT_DEMONSTRATED_FMT"]
+    check(
+        "a harness render missing one Evidence scope template is refused",
+        scope_template_drift_breaches(rendered)
+        == ["harness defines no SCOPE_NOT_DEMONSTRATED_FMT"],
+        scope_template_drift_breaches(rendered),
+    )
+
+
+def case_scope_line_drift_ignores_harness_tests(root: Path) -> None:
+    """A copied expectation in the harness tests is not its rendered contract."""
+    test_only = root / "tests" / "test_evidence_scope.py"
+    write(
+        test_only,
+        'SCOPE_LINE_TEMPLATE = "DEMONSTRATED — {scope}."\n'
+        'SCOPE_LINE_CARRIED_TEMPLATE = "DEMONSTRATED — {scope} (carried forward)."\n'
+        'SCOPE_NO_RECEIPT = "UNMEASURED — no receipt."\n'
+        'SCOPE_NOT_DEMONSTRATED_FMT = "NOT DEMONSTRATED — receipt verdict {verdict}; no effect is shown."\n'
+        'SCOPE_UNSCOPED = "UNSCOPED — the KEEP receipt carries no verdict_scope (SERS before 1.6.0)."\n',
+    )
+    check(
+        "harness-test expectations do not count as rendered scope templates",
+        harness_rendered_scope_templates(root) == {},
+        harness_rendered_scope_templates(root),
+    )
+
+
 def case_scope_line_drift_vs_harness_render() -> None:
     """Drift test: the constants must equal the harness render when a
     skill-harness checkout is available; skip with a named reason when not."""
@@ -1104,28 +1168,12 @@ def case_scope_line_drift_vs_harness_render() -> None:
         )
         return
     rendered = harness_rendered_scope_templates(Path(harness_root))
-    if not rendered:
-        note(
-            "scope-line drift skipped: harness checkout at "
-            f"{harness_root} defines none of the evidence-scope template names"
-        )
-        return
-    pairs = (
-        ("SCOPE_LINE_TEMPLATE", conformance.SCOPE_LINE_TEMPLATE),
-        ("SCOPE_LINE_CARRIED_TEMPLATE", conformance.SCOPE_LINE_CARRIED_TEMPLATE),
-        ("SCOPE_NO_RECEIPT", conformance.SCOPE_NO_RECEIPT),
-        ("SCOPE_UNSCOPED", conformance.SCOPE_UNSCOPED),
+    breaches = scope_template_drift_breaches(rendered)
+    check(
+        "the configured harness renders every Evidence scope template exactly",
+        not breaches,
+        "; ".join(breaches),
     )
-    for name, ours in pairs:
-        theirs = rendered.get(name)
-        if theirs is None:
-            note(f"scope-line drift: harness defines no {name}")
-            continue
-        check(
-            f"{name} matches the harness render",
-            theirs == ours,
-            f"ours={ours!r} harness={theirs!r}",
-        )
 
 
 def case_evidence_scope_quarantine_card_with_no_row_passes(root: Path) -> None:
@@ -1828,6 +1876,9 @@ def main() -> None:
     case_live_manifest_covers_the_live_tree()
     case_live_tree_is_checked_and_conforms()
     case_evidence_scope_constants_are_the_closed_set()
+    case_scope_line_drift_requires_every_harness_template()
+    with tempfile.TemporaryDirectory() as tmp:
+        case_scope_line_drift_ignores_harness_tests(Path(tmp))
     case_scope_line_drift_vs_harness_render()
     case_evidence_scope_live_tree_rows_match_the_closed_set()
 

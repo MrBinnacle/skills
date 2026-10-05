@@ -190,6 +190,27 @@ def case_evidence_scope_row_present_clears_it(root: Path) -> None:
     )
 
 
+def case_skill_size_uses_normalized_line_endings(root: Path) -> None:
+    """A CRLF checkout cannot make an at-limit card exceed its content limit."""
+    card = write_card(root, "crlf-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    skill = card / "SKILL.md"
+    lf = skill.read_text(encoding="utf-8")
+    lf += "x" * (validate_card_files.SKILL_SIZE_MAX - len(lf.encode("utf-8")))
+    skill.write_bytes(lf.replace("\n", "\r\n").encode("utf-8"))
+    result = run_checker(root)
+    check(
+        "an at-limit card with CRLF line endings passes the real validator",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+    check(
+        "the CRLF fixture exceeds the raw byte limit but not the content limit",
+        skill.stat().st_size > validate_card_files.SKILL_SIZE_MAX
+        and not validate_card_files.size_breaches(card),
+        f"raw={skill.stat().st_size} breaches={validate_card_files.size_breaches(card)}",
+    )
+
+
 def case_quarantine_card_with_no_row_is_exempt(root: Path) -> None:
     """Quarantine candidates owe no Evidence scope row.
 
@@ -1521,6 +1542,7 @@ def main() -> None:
         case_stating_the_rows_clears_it,
         case_missing_evidence_scope_row_is_rejected,
         case_evidence_scope_row_present_clears_it,
+        case_skill_size_uses_normalized_line_endings,
         case_quarantine_card_with_no_row_is_exempt,
         case_scoreboard_passes_a_card_carrying_evidence_scope,
         case_count_must_match_the_dated_references,
