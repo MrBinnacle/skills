@@ -103,12 +103,14 @@ Checks (all must pass; failures are listed, not first-fail):
         3. A branch-added changeset whose diff touches no file under
            ``skills/*/*/`` and declares minor or major -- nothing outside the
            cards changes the declared surface.
-        4. (--release only) A version delta that disagrees with the bump the
-           changesets this release CONSUMED declare. A release PR runs
+        4. (--release only) A release version that differs from the exact
+           SemVer result the changesets this release CONSUMED declare. A
+           release PR runs
            ``npm run version``, which deletes the consumed ``.changeset/*.md``
            files and writes the new number; the gate reads those files at the
            merge-base, prices them under the same ADR rules, and requires the
-           version delta to match. A botched release spends a version number
+           version to match the result changesets would write. A botched release
+           spends a version number
            permanently (ADR 0002), so this blocks rather than reports.
 
       Cases 1-3 judge only the changesets THIS BRANCH adds -- new
@@ -1041,25 +1043,25 @@ def required_price_for_diff(diff: dict, prices: dict[str, str]) -> str | None:
     return required
 
 
-def version_delta_price(base_version: str, current_version: str) -> str | None:
-    """Which SemVer field moved between two versions, as a bump price.
+def next_version_for_bump(base_version: str, bump: str) -> str | None:
+    """The exact normal-form version changesets produces for one bump.
 
-    Returns None when the versions are equal or either is not X.Y.Z normal form
-    (G8 owns the normal-form refusal; this function just cannot rank the delta).
+    A release cannot merely change the field named by its highest changeset.
+    ``changeset version`` increments that field and resets less-significant
+    fields. Return None when the base version is not normal form; G10 cannot
+    check a release plan against an unreadable starting point.
     """
     base = SEMVER_RE.match(base_version)
-    head = SEMVER_RE.match(current_version)
-    if base is None or head is None:
+    if base is None:
         return None
     b = tuple(int(x) for x in base.groups())
-    h = tuple(int(x) for x in head.groups())
-    if b == h:
-        return None
-    if h[0] != b[0]:
-        return "major"
-    if h[1] != b[1]:
-        return "minor"
-    return "patch"
+    if bump == "major":
+        return f"{b[0] + 1}.0.0"
+    if bump == "minor":
+        return f"{b[0]}.{b[1] + 1}.0"
+    if bump == "patch":
+        return f"{b[0]}.{b[1]}.{b[2] + 1}"
+    return None
 
 
 def _changeset_names_at(root: Path, rev: str) -> set[str]:
@@ -1334,16 +1336,12 @@ def _gate_bump_classification_inner(
         base_version = _base_version_at(root, merge_base)
         if base_version is None:
             return
-        actual = version_delta_price(base_version, declared_version or "")
-        if actual is None:
-            return
         consumed = _consumed_declared_bumps(root, merge_base, errors)
         required_bump = _highest_bump(consumed)
         _refuse_delta_mismatch(
             errors,
             base_version=base_version,
             current_version=declared_version or "",
-            actual=actual,
             required_bump=required_bump,
             consumed=consumed,
         )
@@ -1378,11 +1376,10 @@ def _refuse_delta_mismatch(
     *,
     base_version: str,
     current_version: str,
-    actual: str,
     required_bump: str | None,
     consumed: dict[str, str],
 ) -> None:
-    """Case 4: the version delta must match what the consumed changesets price.
+    """Case 4: the release version must equal what its consumed plan produces.
 
     A release PR runs ``npm run version``, which deletes the consumed
     ``.changeset/*.md`` files and writes the new number from their declared
@@ -1392,21 +1389,28 @@ def _refuse_delta_mismatch(
     """
     if required_bump is None:
         errors.append(
-            f"G10: release version delta {base_version} -> {current_version} is "
-            f"{actual}, but no changeset consumed by this release declares a "
+            f"G10: release version changed from {base_version} to {current_version}, "
+            "but no changeset consumed by this release declares a "
             "bump, so the delta has no plan behind it. A botched release spends "
             "a version number permanently (ADR 0002), so the gate blocks "
             "rather than reports."
         )
         return
-    if actual != required_bump:
+    expected_version = next_version_for_bump(base_version, required_bump)
+    if expected_version is None:
+        errors.append(
+            f"G10: the base release version {base_version} is not Semantic "
+            "Versioning normal form, so the consumed plan cannot be priced"
+        )
+        return
+    if current_version != expected_version:
         plan = ", ".join(f"{name}={bump}" for name, bump in sorted(consumed.items()))
         errors.append(
-            f"G10: release version delta {base_version} -> {current_version} is "
-            f"{actual}, but the changesets this release consumed price "
-            f"{required_bump} ({plan}). A botched release spends a version "
-            "number permanently (ADR 0002), so the gate blocks rather than "
-            "reports."
+            f"G10: release version changed from {base_version} to {current_version}, "
+            f"but the changesets this release consumed price {required_bump} "
+            f"and require {expected_version} ({plan}). A botched release spends "
+            "a version number permanently (ADR 0002), so the gate blocks rather "
+            "than reports."
         )
 
 

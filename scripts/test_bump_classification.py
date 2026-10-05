@@ -592,6 +592,50 @@ def case_case4_consumed_patch_with_minor_delta_is_refused(tmp: Path) -> None:
     )
 
 
+def case_case4_consumed_patch_with_no_delta_is_refused(tmp: Path) -> None:
+    """A consumed plan cannot pass unchanged as a release version."""
+    root = make_tree(
+        tmp,
+        declared=None,
+        branch_change="scripts_only",
+        base_version="1.2.0",
+        head_version="1.2.0",
+        release=True,
+        consumed="patch",
+    )
+    expect_g10_refusal(
+        "case 4: a consumed patch plan with no version increment is REFUSED",
+        root,
+        "G10:",
+        "1.2.0",
+        "1.2.1",
+        "patch",
+        release=True,
+    )
+
+
+def case_case4_requires_the_exact_changesets_version(tmp: Path) -> None:
+    """Matching a field is insufficient when changesets would write another version."""
+    root = make_tree(
+        tmp,
+        declared=None,
+        branch_change="scripts_only",
+        base_version="1.2.0",
+        head_version="1.2.9",
+        release=True,
+        consumed="patch",
+    )
+    expect_g10_refusal(
+        "case 4: a patch plan must produce exactly the next patch version",
+        root,
+        "G10:",
+        "1.2.9",
+        "1.2.1",
+        "patch",
+        release=True,
+    )
+
+
 def case_case4_no_consumed_plan_with_delta_is_refused(tmp: Path) -> None:
     """A version number with no consumed plan behind it has nothing to justify it."""
     root = make_tree(
@@ -1035,6 +1079,8 @@ CASES = (
     case_case4_consumed_major_with_major_delta_passes,
     case_case4_consumed_major_with_minor_delta_is_refused,
     case_case4_consumed_patch_with_minor_delta_is_refused,
+    case_case4_consumed_patch_with_no_delta_is_refused,
+    case_case4_requires_the_exact_changesets_version,
     case_case4_no_consumed_plan_with_delta_is_refused,
     case_b2a_push_to_main_after_admission_passes,
     case_b2b_next_scripts_only_pr_passes,
