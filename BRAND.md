@@ -47,7 +47,8 @@ look like a claim. Hunt for it first.
 That you can see where each card came from, what it does when it runs, and what has and has not
 been tested about it. Nothing beyond that.
 
-What it declines to claim, in the README's own words: *"Publication is not validation."*
+What it declines to claim: *"Publication is not validation."* This sentence is BRAND.md's own;
+the current README does not carry it.
 
 It competes on whether the record holds up when someone opens it. Skill marketplaces and prompt
 packs compete on quantity and reach — **a comparison that makes this collection sound larger is
@@ -199,8 +200,10 @@ The owner's, carried so they do not lapse.
 - **The social card's primary line.** Candidates exist and were independently reviewed. None is
   recorded here — writing one in would make it the default by inertia. *Revisit if:* the owner
   selects one, at which point it lands here as the recorded line.
-- **Whether a public project page should exist**, and what it would say. *Revisit if:* the owner
-  opens it.
+
+One formerly open question is settled and is not carried above: a public project page exists.
+`site/index.html` deploys to https://mrbinnacle.github.io/skills/ (the pages workflow; the
+homepage was measured as set on 2026-09-06).
 
 ---
 

@@ -456,6 +456,33 @@ def gate_manifest_tree_agreement(root: Path, errors: list[str]) -> None:
 SPEC_SCRIPT = SCRIPT_DIR / "validate_spec_conformance.py"
 
 
+class GitUnavailableError(Exception):
+    """git cannot be found on PATH.
+
+    A missing dependency, not a property of the tree: `_is_git_work_tree`
+    False means "not a git repository", while this means "git could not run
+    at all". Conflating them would turn a missing dependency into a skip --
+    the gate would silently omit every check that needs git. Callers refuse
+    in their own words, naming git and the check that could not run (#342).
+    """
+
+
+def _run_git(root: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
+    """Run git under root.
+
+    Raises GitUnavailableError when git is absent from PATH -- a missing
+    dependency the caller must refuse on, never treat as "not a work tree".
+    """
+    try:
+        return subprocess.run(
+            ["git", "-C", str(root), *args],
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        raise GitUnavailableError(f"git could not be run: {exc}") from exc
+
+
 def _is_git_work_tree(root: Path) -> bool:
     """True when `git ls-files` can enumerate under `root`.
 
@@ -465,12 +492,11 @@ def _is_git_work_tree(root: Path) -> bool:
     the validator cannot enumerate, so G6 cannot re-assert it. The live checkout
     is always a git tree; a fixture under RUNNER_TEMP is not, and G6 skipping it
     is what keeps the sibling poison controls single-reason.
+
+    Raises GitUnavailableError when git itself cannot run -- that is a missing
+    dependency, not a non-git tree, and the caller refuses rather than skips.
     """
-    probe = subprocess.run(
-        ["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
-        capture_output=True,
-        text=True,
-    )
+    probe = _run_git(root, ["rev-parse", "--is-inside-work-tree"])
     return probe.returncode == 0
 
 
@@ -486,12 +512,12 @@ BASE_REF_CANDIDATES = ("origin/main", "origin/master", "main", "master")
 
 
 def _git_ok(root: Path, args: list[str]) -> tuple[bool, str]:
-    """Run a git command in `root`, returning (ok, stdout-trimmed)."""
-    proc = subprocess.run(
-        ["git", "-C", str(root), *args],
-        capture_output=True,
-        text=True,
-    )
+    """Run a git command in `root`, returning (ok, stdout).
+
+    Raises GitUnavailableError when git is not on PATH -- a missing
+    dependency the caller must refuse on, never a false "not a work tree".
+    """
+    proc = _run_git(root, args)
     return proc.returncode == 0, proc.stdout
 
 
@@ -511,6 +537,11 @@ def detect_release_ref(root: Path, current_version: str | None) -> bool:
     readable package.json version. False here is the safe default: an
     ordinary ref skips the release-only checks, and ``--release`` remains the
     explicit override for fixtures and deliberate release runs.
+
+    Raises GitUnavailableError when git is absent from PATH. Missing git is
+    NOT proof the ref is ordinary: treating it as one would skip every
+    release-only check on a host where they cannot run. The caller fails
+    closed instead.
     """
     if current_version is None:
         return False
@@ -559,10 +590,23 @@ def gate_spec_conformance(root: Path, errors: list[str]) -> None:
     nothing is published, and when the tree is not a git repository the
     validator cannot enumerate -- the live run is a git checkout, so the skip
     only ever applies to fixtures.
+
+    When git itself cannot run the gate refuses under G6 rather than skipping:
+    a missing dependency is not a non-git tree, and a release the external
+    validator never had the chance to verify is not a release the gate may
+    pass (#342).
     """
     if not (root / "skills").is_dir():
         return
-    if not _is_git_work_tree(root):
+    try:
+        is_work_tree = _is_git_work_tree(root)
+    except GitUnavailableError as exc:
+        errors.append(
+            "G6: git could not be run - the external spec validator cannot "
+            f"enumerate the published tree: {exc}"
+        )
+        return
+    if not is_work_tree:
         return
     if not SPEC_SCRIPT.is_file():
         errors.append(
@@ -690,11 +734,29 @@ def gate_clean_tree(root: Path, errors: list[str]) -> None:
     state to dirty, and the live checkout is always clean by construction in
     CI. The skip is what keeps the seeded-tree and G6-fixture cases
     single-reason.
+
+    When git itself cannot run the gate refuses under G9 rather than skipping:
+    a missing dependency is not a fixture with no HEAD, and the gate cannot
+    assert a tree is clean when it cannot inspect it (#342).
     """
-    head_ok, _ = _git_ok(root, ["rev-parse", "--verify", "HEAD"])
+    try:
+        head_ok, _ = _git_ok(root, ["rev-parse", "--verify", "HEAD"])
+    except GitUnavailableError as exc:
+        errors.append(
+            "G9: git could not be run - the working tree cannot be checked "
+            f"for cleanliness: {exc}"
+        )
+        return
     if not head_ok:
         return
-    status_ok, status = _git_ok(root, ["status", "--porcelain"])
+    try:
+        status_ok, status = _git_ok(root, ["status", "--porcelain"])
+    except GitUnavailableError as exc:
+        errors.append(
+            "G9: git could not be run - the working tree cannot be checked "
+            f"for cleanliness: {exc}"
+        )
+        return
     if not status_ok:
         # A git tree whose status cannot be read is a fail-closed input, not a
         # skip -- the gate cannot assert the tree is clean it cannot inspect.
@@ -902,7 +964,17 @@ def main(argv: list[str] | None = None) -> int:
     # default branch as a release ref. Release-only checks false on an
     # ordinary PR that adds a changeset, which is most PRs -- running them
     # unconditionally would deadlock the repository.
-    release_mode = args.release or detect_release_ref(root, declared)
+    #
+    # When git cannot run, detection cannot prove this ref is ordinary. Fail
+    # closed: treat it as a release ref so G6/G9 report the missing
+    # dependency under their own check IDs, rather than skipping every
+    # release-only check on a host where they cannot run (#342).
+    release_mode = args.release
+    if not release_mode:
+        try:
+            release_mode = detect_release_ref(root, declared)
+        except GitUnavailableError:
+            release_mode = True
     if release_mode:
         gate_unconsumed_changesets(root, errors)
         gate_manifest_tree_agreement(root, errors)

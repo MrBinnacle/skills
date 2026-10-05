@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -138,7 +139,12 @@ def git_repo_with_base(
     write(root / "CHANGELOG.md", changelog_md(base_version))
     git_init(root)
     git_commit(root, "base")
-    subprocess.run(["git", "-C", str(root), "branch", "-f", "main"], check=True, capture_output=True)
+    # `branch -M`, not `branch -f` (#272). `git init` names the first branch from
+    # the host's init.defaultBranch. Where that is already `main`, `branch -f main`
+    # refuses to force-update the branch that is checked out and exits 128, which
+    # killed the whole run with a traceback. Renaming the current branch to `main`
+    # gives the same base ref whatever the host calls its default branch.
+    subprocess.run(["git", "-C", str(root), "branch", "-M", "main"], check=True, capture_output=True)
     subprocess.run(["git", "-C", str(root), "checkout", "-q", "-b", "candidate"], check=True, capture_output=True)
     write(root / "package.json", package_json(head_version))
     plant_manifests(root, [head_version])
@@ -971,6 +977,37 @@ def case_live_manifest_and_tree_agree() -> None:
 NO_NPX_PATH = "/usr/bin:/bin"
 
 
+def no_npx_env() -> dict[str, str] | None:
+    """An environment in which `git` resolves and `npx` does not, or None when
+    this host cannot provide one (#272).
+
+    On POSIX the fixed `NO_NPX_PATH` does it, as before. On Windows that PATH
+    names no directory at all, so `git` was not found either: the gate died with
+    a traceback instead of refusing, and three assertions about the refusal's
+    text then failed on a host where the gate itself was correct. There the PATH
+    is the one directory `git` lives in, plus SYSTEMROOT, which a Windows child
+    process needs to start.
+
+    None means `npx` sits in the same directory as `git`, so no PATH can keep
+    one and drop the other. The caller skips by name; it never passes silently.
+    """
+    env = {"PYTHONUTF8": "1"}
+    if os.name != "nt":
+        env["PATH"] = NO_NPX_PATH
+        return env
+    git = shutil.which("git")
+    if git is None:
+        return None
+    git_dir = str(Path(git).parent)
+    if shutil.which("npx", path=git_dir) is not None:
+        return None
+    env["PATH"] = git_dir
+    for name in ("SYSTEMROOT", "SystemRoot"):
+        if name in os.environ:
+            env[name] = os.environ[name]
+    return env
+
+
 def case_g6_reds_when_the_spec_validator_cannot_run() -> None:
     """G6 wraps the external spec validator as a subprocess and reports its
     verdict. Driven down the validator's own `npx`-absent path so the suite needs
@@ -979,19 +1016,30 @@ def case_g6_reds_when_the_spec_validator_cannot_run() -> None:
     is not a release the gate may pass. The tree is a git tree with a published
     card and a manifest in lockstep, so G1/G5 are silent and G6 is the only
     finding."""
+    env = no_npx_env()
+    if env is None:
+        note(
+            "G6 refusal path not run -- this host has no PATH that keeps `git` "
+            "and drops `npx` (git is absent, or npx sits in git's directory). "
+            "Four checks skipped: the release is refused, the refusal is under "
+            "G6, it carries the validator's reason, and it is the only fault."
+        )
+        return
     with tempfile.TemporaryDirectory() as tmp:
         root = release_tree_with_skills(Path(tmp), ("alpha-card",))
         git_init(root)
         result = run_gate_with_env(
-            {"PATH": NO_NPX_PATH, "PYTHONUTF8": "1"},
+            env,
             "--release",
             "--root",
             str(root),
         )
+        # A non-zero exit alone does not show a refusal: a gate that crashed
+        # exits non-zero too, and that is what this case used to accept (#272).
         check(
             "a release whose external spec validator could not run is refused",
-            result.returncode != 0,
-            result.stdout,
+            result.returncode != 0 and "Traceback" not in result.stderr,
+            result.stdout + result.stderr,
         )
         check(
             "the refusal is reported under G6",
@@ -1951,10 +1999,19 @@ def case_ci_control_refuses_a_mutable_workflow_ref() -> None:
         "actions/setup-python@v5" in step,
         step,
     )
+    pinned_in_step = set(re.findall(r"actions/checkout@([0-9a-f]{40})\b", step))
     check(
         "the G7 control keeps one line pinned so the control is not vacuous",
-        "actions/checkout@11d5960a326750d5838078e36cf38b85af677262" in step,
+        bool(pinned_in_step),
         step,
+    )
+    pinned_elsewhere = set(
+        re.findall(r"uses: actions/checkout@([0-9a-f]{40})\b", WORKFLOW.read_text("utf-8").replace(step, ""))
+    )
+    check(
+        "the G7 control pins checkout to the SHA the workflow itself checks out with",
+        bool(pinned_in_step) and pinned_in_step <= pinned_elsewhere,
+        f"in the control: {sorted(pinned_in_step)}; elsewhere in tests.yml: {sorted(pinned_elsewhere)}",
     )
     check(
         "the G7 control runs the SHIPPED gate at release against the planted tree",
@@ -2064,6 +2121,131 @@ def case_ci_control_ordinary_and_release_refs_receive_different_check_sets() -> 
     )
 
 
+# ----------------------------------------------------- #342 git missing, fail closed
+#
+# Measured 2026-10-02 on a Windows host: running the gate with --release under
+# PATH=/usr/bin:/bin (which names no directory on Windows) gave exit 1, empty
+# stdout, and FileNotFoundError on stderr -- a stack trace instead of the
+# gate's own refusal. PR #341 fixed the test fixture that reached this state
+# by accident and left the gate alone. The gate must refuse in its own words
+# when git is unreachable, naming git and the check that could not run, in
+# the same form as every other fail-closed input.
+
+
+def no_git_env(empty_path: Path) -> dict[str, str]:
+    """An environment in which `git` does not resolve.
+
+    On POSIX ``empty_path`` holds no git. On Windows
+    PATH=/usr/bin:/bin names no directory at all -- the measured #342 failure
+    path -- so git is not found there either. SYSTEMROOT is carried through
+    because a Windows child process needs it to start. python runs through
+    sys.executable's absolute path and does not need PATH.
+    """
+    env = {"PYTHONUTF8": "1"}
+    if os.name == "nt":
+        env["PATH"] = "/usr/bin:/bin"
+        for name in ("SYSTEMROOT", "SystemRoot"):
+            if name in os.environ:
+                env[name] = os.environ[name]
+        return env
+    env["PATH"] = str(empty_path)
+    return env
+
+
+def case_missing_git_refuses_in_its_own_words() -> None:
+    """#342: with git unreachable the gate refuses in its own words, naming
+    git as the missing dependency and the check that could not run, and no
+    traceback reaches the reader. The tree is the seeded lockstep fixture the
+    other refusal cases use, so G9 is the only check that needs git on this
+    path -- --release short-circuits mode detection, G6 skips a tree with no
+    skills/, and every everyday check passes."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = no_git_env(Path(tmp))
+        root = seeded_tree(Path(tmp))
+        result = run_gate_with_env(env, "--release", "--root", str(root))
+        # A non-zero exit alone does not show a refusal: a gate that crashed
+        # exits non-zero too, and that is what this path used to produce.
+        check(
+            "a release run with no git on PATH is refused",
+            result.returncode != 0,
+            result.stdout + result.stderr,
+        )
+        check(
+            "the refusal names git as the missing dependency",
+            "git" in result.stdout and "could not be run" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the refusal names the check that could not run",
+            "G9:" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "the git-unavailable refusal is the only fault in this tree",
+            "1 stale surface(s)" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "no traceback reaches the reader",
+            "Traceback" not in result.stdout + result.stderr,
+            result.stdout + result.stderr,
+        )
+
+
+def case_missing_git_also_refuses_the_mode_detection_path() -> None:
+    """Ordinary mode (no --release) reaches git through release-mode
+    detection before any G-check does. The gate must not treat a missing git
+    as proof the ref is ordinary -- that would skip the release-only checks
+    on a host where they cannot run. Fail closed: detection cannot prove the
+    ref is ordinary, so release checks run and G9 reports the missing
+    dependency in its own words."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = no_git_env(Path(tmp))
+        root = seeded_tree(Path(tmp))
+        result = run_gate_with_env(env, "--root", str(root))
+        check(
+            "an ordinary-mode run with no git on PATH is refused",
+            result.returncode != 0,
+            result.stdout + result.stderr,
+        )
+        check(
+            "the ordinary-mode refusal still names git and G9",
+            "git" in result.stdout and "could not be run" in result.stdout and "G9:" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "no traceback reaches the reader on the mode-detection path",
+            "Traceback" not in result.stdout + result.stderr,
+            result.stdout + result.stderr,
+        )
+
+
+def case_missing_git_refuses_spec_conformance_in_its_own_words() -> None:
+    """A published-tree release reaches G6 before G9. Missing git must make
+    G6 report its unavailable dependency instead of treating it as a non-git
+    fixture and silently skipping external specification conformance."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = no_git_env(Path(tmp))
+        root = seeded_tree(Path(tmp))
+        (root / "skills").mkdir()
+        result = run_gate_with_env(env, "--release", "--root", str(root))
+        check(
+            "a published-tree release with no git on PATH is refused",
+            result.returncode != 0,
+            result.stdout + result.stderr,
+        )
+        check(
+            "the spec-conformance refusal names git and G6",
+            "G6: git could not be run" in result.stdout,
+            result.stdout,
+        )
+        check(
+            "no traceback reaches the reader on the spec-conformance path",
+            "Traceback" not in result.stdout + result.stderr,
+            result.stdout + result.stderr,
+        )
+
+
 def main() -> None:
     cases = (
         case_lockstep_passes,
@@ -2132,6 +2314,9 @@ def main() -> None:
         case_dirty_tree_is_refused_at_release,
         case_clean_release_tree_passes_g9,
         case_g9_skips_a_fixture_with_no_head_commit,
+        case_missing_git_refuses_in_its_own_words,
+        case_missing_git_also_refuses_the_mode_detection_path,
+        case_missing_git_refuses_spec_conformance_in_its_own_words,
     )
     for case in cases:
         case()
