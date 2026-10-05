@@ -484,16 +484,20 @@ def sers_keep_scope_fixture(
     return receipt
 
 
-def expected_scope_for_receipt(verdict: str, extra: dict | None = None) -> str:
-    """The Evidence scope sentence the closed set derives from one receipt.
+def expected_scope_for_receipt(verdict: str) -> str:
+    """The literal closed-set sentence for the legacy receipt fixtures.
 
-    Delegates to conformance.expected_evidence_scope so the suite cannot
-    drift from the checker it grades.
+    These fixtures have no ``verdict_scope``. Keep their expected output out
+    of the production derivation so an O5 regression cannot make its own
+    passing fixture green.
     """
-    receipt: dict = {"verdict": verdict}
-    if extra:
-        receipt.update(extra)
-    return conformance.expected_evidence_scope([receipt])
+    expected = {
+        "CANT_TELL_YET": "NOT DEMONSTRATED — receipt verdict CANT_TELL_YET; "
+        "no effect is shown.",
+        "KEEP": "UNSCOPED — the KEEP receipt carries no verdict_scope "
+        "(SERS before 1.6.0).",
+    }
+    return expected[verdict]
 
 
 def write_evidence_scope(folder: Path, value: str) -> None:
