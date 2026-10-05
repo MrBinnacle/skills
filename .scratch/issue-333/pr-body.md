@@ -2,12 +2,13 @@
 
 Cold install of v3.0.1 failed for a stranger with no SSH key: the README's then-published marketplace-add line used the GitHub shorthand `MrBinnacle/skills`, the CLI resolved that shorthand to SSH, and the install died with `git@github.com: Permission denied (publickey)`. This branch publishes the HTTPS clone URL `https://github.com/MrBinnacle/skills.git` on every reader-facing install surface, pins the suite to the bytes a reader actually copies, and proves both the published URL and the checked-out tree install clean from an empty config directory.
 
-Branch: `agent/issue-333`. Code head at the time of this body: `7c5963ae71d2f6b98389070df885013d3a0de5d9`.
+Branch: `agent/issue-333`. The inventory below is derived from the current branch against `main`.
 
-## Files on this branch (`git diff --name-only origin/main...HEAD`)
+## Files on this branch (`git diff --name-only main...HEAD`)
 
 - `.changeset/install-form-https-333.md`
 - `.github/workflows/tests.yml`
+- `.scratch/issue-333/pr-body.md`
 - `AGENTS.md`
 - `CATALOG.md`
 - `README.md`
@@ -17,7 +18,7 @@ Branch: `agent/issue-333`. Code head at the time of this body: `7c5963ae71d2f6b9
 
 Versions at this head: `package.json` `3.0.1`; each of `mrbinnacle-engineering`, `mrbinnacle-orchestration`, `mrbinnacle-meta` declares `3.0.1` in its `plugin.json`. Published cards: 14 (engineering 10, orchestration 3, meta 1). Claude Code used for the cold installs: `2.1.287`.
 
-CI: the **Install form** job in `.github/workflows/tests.yml` (`install-form`) installs `@anthropic-ai/claude-code@2.1.287` and runs `python scripts/test_install_form.py`. That job was already on this branch from the previous build and is unchanged here.
+CI: the **Install form** job in `.github/workflows/tests.yml` (`install-form`) installs `@anthropic-ai/claude-code@2.1.287` and runs `python scripts/test_install_form.py` on Ubuntu and Windows.
 
 `.changeset/install-form-https-333.md` is left exactly as it stands. Its level (`major` against `patch`) is an open decision the coordinator holds; this rework does not touch it.
 
@@ -80,10 +81,10 @@ Observed: before this repair the live half installed only from `https://github.c
 
 **7. Windows home.**
 `cold_env()` sets both `HOME` and `USERPROFILE` to the empty scratch home. Windows OpenSSH and git read `USERPROFILE`, not `HOME`; setting only `HOME` left a Windows runner able to see the real user profile.
-Test: covered by the live cold-install path that uses `cold_env()` for both cases. There is no separate named check; the setting is in the install environment both cases share.
+Test: the live cold-install path uses `cold_env()` for both cases, and the install-form job runs that path on `windows-latest`. There is no separate named check; the setting is in the install environment both cases share.
 
 **8. PR body true at head.**
-This body lists every file in `git diff --name-only origin/main...HEAD` at code head `7c5963ae71d2f6b98389070df885013d3a0de5d9`, the versions that head declares (`3.0.1` everywhere, Claude Code `2.1.287`), the card count (14), and the **Install form** job in `.github/workflows/tests.yml`.
+This body lists every file in `git diff --name-only main...HEAD`, the versions the branch declares (`3.0.1` everywhere, Claude Code `2.1.287`), the card count (14), and the **Install form** job in `.github/workflows/tests.yml`.
 
 **9. Do not change `.changeset/install-form-https-333.md`.**
 Untouched. Still `major`. The level decision stays with the coordinator.

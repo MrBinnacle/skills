@@ -499,15 +499,19 @@ def main() -> int:
             and all(plugin.get("version") for plugin in installed.values()),
             listed.stdout[:2000],
         )
-        # Cards sit at the plugin root, not under skills/. Count SKILL.md files.
-        skill_count = 0
-        for plugin in installed.values():
-            root = Path(plugin["installPath"])
-            skill_count += len(list(root.glob("*/SKILL.md")))
+        # Cards sit at the plugin root, not under skills/. Each requested
+        # plugin must carry one; a total can hide an empty plugin.
+        installed_card_counts = {
+            name: len(list(Path(plugin.get("installPath", "")).glob("*/SKILL.md")))
+            if plugin.get("installPath")
+            else 0
+            for name, plugin in installed.items()
+        }
         check(
             "cold install carries cards in every requested plugin",
-            skill_count >= len(declared),
-            f"skill_count={skill_count}, plugins={[(p.get('id'), p.get('version')) for p in installed.values()]}",
+            set(installed_card_counts) == declared
+            and all(count > 0 for count in installed_card_counts.values()),
+            f"card_counts={installed_card_counts}",
         )
 
         # Requirement 3: the Verified forms record must match this cold install.
@@ -574,14 +578,17 @@ def main() -> int:
             and local_versions == branch_versions,
             f"installed={local_versions}, branch={branch_versions}",
         )
-        local_skill_count = 0
-        for plugin in local_installed.values():
-            root = Path(plugin["installPath"])
-            local_skill_count += len(list(root.glob("*/SKILL.md")))
+        local_card_counts = {
+            name: len(list(Path(plugin.get("installPath", "")).glob("*/SKILL.md")))
+            if plugin.get("installPath")
+            else 0
+            for name, plugin in local_installed.items()
+        }
         check(
             "checked-out tree cold install carries cards in every plugin",
-            local_skill_count >= len(declared),
-            f"skill_count={local_skill_count}",
+            set(local_card_counts) == declared
+            and all(count > 0 for count in local_card_counts.values()),
+            f"card_counts={local_card_counts}",
         )
         print(f"checked-out-tree transcript available under {local_base}")
 
