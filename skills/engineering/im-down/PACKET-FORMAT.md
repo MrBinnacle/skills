@@ -89,6 +89,32 @@ it runs and never accepts past a red one. The producer refuses to write a
 packet after measuring a receiver check red, and produce mode refuses a
 manifest whose `tests[]` already records one.
 
+Every entry in the receipt's `checks` array also carries `status` (`passed`,
+`cached`, or `failed`) and `duration_ms`.
+
+## Receiver-check cache
+
+A `receiver_checks` entry may carry an optional `cache_inputs` list of paths.
+`~` expands. A directory means every file under it. The receiver keys each such
+check on the blob hashes of its inputs, the Python version, `git --version` and
+the command string. A check whose key matches its last passing run is not
+re-run; the receipt reports it `cached`, with that `cache_key` and the
+`cached_at` time of the run that produced it. Only passing runs are cached.
+Checks with no `cache_inputs` always run.
+
+Once a week, at an open, every check runs uncached and is compared with its
+cached verdict. A disagreement fails the open and clears that check's cache
+entry.
+
+The cache file lives outside the tree, so the open and the close on one machine
+share it. Config key `receiver_check_cache` names an explicit path; otherwise
+the default is `~/.cache/mrbinnacle-skills/receiver-check-cache.json`.
+
+What `cached` promises: the check was not re-executed on this open, and its
+verdict is the last passing run under the same key. It does not promise that
+the check would still pass on a fresh execution outside that key — the weekly
+full run is the audit that keeps a stale cache from admitting a moved tree.
+
 ## Probe execution
 
 A `path` or `commit` probe runs against the repository. A `command` probe runs

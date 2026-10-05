@@ -5,6 +5,11 @@
     {
       "name": "clean-tree",
       "command": "git diff --quiet && git diff --cached --quiet"
+    },
+    {
+      "name": "locked-inputs",
+      "command": "test -f inputs/locked.txt",
+      "cache_inputs": ["inputs/locked.txt"]
     }
   ],
   "trusted_probe_commands": [],

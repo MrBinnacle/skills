@@ -47,6 +47,14 @@ NEXT ACTION: <task> — <purpose>
 
 Proceed only when the receipt verdict is `ACCEPTED`.
 
+## Receiver-check status and the cache
+
+Every check in the receipt carries `status` and `duration_ms`. `status` is `passed`, `cached`, or `failed`.
+
+`cached` promises this and nothing more: the check was not re-executed on this open. Its verdict is the last passing run under the same cache key — the blob hashes of the check's `cache_inputs`, the Python version, `git --version`, and the command string. The receipt also carries that `cache_key` and the `cached_at` time of the run that produced it. Only passing runs are cached; a failing check always re-executes. A check with no `cache_inputs` always runs. Once a week every check runs uncached and is compared with its cached verdict; a disagreement fails the open and clears that check's cache entry. The cache file lives outside the tree, shared by the open and the close on one machine.
+
+A `cached` verdict still gates the packet exactly as a `passed` one does. The weekly full run is what keeps a stale cache from admitting a tree that has moved.
+
 ## Rejection rules
 
 Reject when one condition is true:
@@ -55,7 +63,7 @@ Reject when one condition is true:
 - The packet branch or HEAD is stale.
 - A verified path or commit probe fails.
 - A verified claim carries a `command` probe the config does not authorise.
-- A trusted receiver check fails.
+- A trusted receiver check fails, or a weekly full run disagrees with its cached verdict.
 - The packet contains an unfinished marker or possible secret.
 - The next action exceeds the declared scope.
 - The configured durable state file is missing or unreadable.
