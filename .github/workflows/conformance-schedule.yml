@@ -10,9 +10,21 @@ name: conformance schedule
 #   drifting away from the tree, was found only by someone reading. A check that
 #   never fires is indistinguishable from one that cannot fire.
 #
-#   It is deliberately NOT a required check. `main` has no branch protection, so a
-#   spurious red here would train the sole maintainer to bypass rather than to look.
-#   If required checks ever land on main, that fork is worth reopening.
+#   It is deliberately NOT a required check. Measured 2026-10-05 with
+#   `gh api repos/MrBinnacle/skills/rulesets/18688002`: the `protect-main` ruleset
+#   (active, no bypass actors) blocks force-push and deletion of `main`, requires a
+#   pull request (zero approvals), and requires six status checks: linkcheck,
+#   residue-check, spec-conformance, validator (ubuntu-latest), validator
+#   (windows-latest) and Release gate (fit to release). This workflow's
+#   `conformance` job is not among them; `spec-conformance` is a tests.yml job.
+#
+#   The condition this comment once set for reopening the fork, required checks
+#   on main, now holds. The answer stays "not required", for two reasons. A
+#   workflow with no pull_request trigger never reports a status on a PR, and
+#   GitHub leaves a required check that is never reported pending, so requiring
+#   it would block every merge (GitHub Docs, "Troubleshooting required status
+#   checks", checked 2026-10-05). And a spurious red on a clock-run sweep would
+#   still train the sole maintainer to bypass rather than to look.
 #
 # THE RUN WATCHES ITSELF
 #   A silently broken cron looks exactly like a clean tree: both are silence. So a
