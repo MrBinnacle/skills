@@ -29,14 +29,7 @@ This PR addresses the four acceptance criteria in the agent brief (S528). Out of
 
 Both use a new helper `slash_commands_in(block)`, which counts lines starting with `/plugin` inside one README fence or one landing-page action.
 
-**Observed before the change.** On the unmodified tree the new suite printed:
-
-```
-FAIL no README Install fence holds more than one /plugin command: fences holding multiple slash commands: ['/plugin marketplace add https://github.com/MrBinnacle/skills.git\n/plugin install mrbinnacle-engineering']
-FAIL no site Install action holds more than one /plugin command: the shared action holds both slash commands
-```
-
-The landing-page check fails too: both `<kbd>` elements sat in one copyable `.action` paragraph. The README fence also held both commands.
+**Observed before the change.** The two checks reject the unmodified tree: the README fence and one landing-page `.action` paragraph each contain both slash commands. The landing-page check extracts the commands from the `<kbd>` elements inside that paragraph, which is the text a reader copies.
 
 **Observed after the change.** Both checks print `ok`. The live cold-install half of the same suite (Claude Code 2.1.287 installed locally for this run) printed `PASS: install form is the HTTPS URL on every reader surface, published and checked-out-tree cold installs are green, and the Verified forms record matches the CLI`.
 
