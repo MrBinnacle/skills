@@ -20,23 +20,23 @@ This PR addresses the four acceptance criteria in the agent brief (S528). Out of
 
 ## Criterion 1 — one `/plugin` command per copyable unit
 
-**What was built.** The README Install section now holds two `text` fences, one per interactive slash command. The landing page puts each command in its own `<kbd>` element inside its own `.action` paragraph, so a drag-select of a paragraph copies one command. A sentence above the fences says the lines run one at a time.
+**What was built.** The README Install section now holds two `text` fences, one per interactive slash command. The landing page puts each command in its own `.action` paragraph, so a drag-select of a paragraph copies one command. A sentence above the fences says the lines run one at a time.
 
 **The test that pins it.** `scripts/test_install_form.py` gained two checks:
 
 - `no README Install fence holds more than one /plugin command`
-- `no site kbd element holds more than one /plugin command`
+- `no site Install action holds more than one /plugin command`
 
-Both use a new helper `slash_commands_in(block)`, which counts lines starting with `/plugin` inside one fence or one `<kbd>` element.
+Both use a new helper `slash_commands_in(block)`, which counts lines starting with `/plugin` inside one README fence or one landing-page action.
 
 **Observed before the change.** On the unmodified tree the new suite printed:
 
 ```
 FAIL no README Install fence holds more than one /plugin command: fences holding multiple slash commands: ['/plugin marketplace add https://github.com/MrBinnacle/skills.git\n/plugin install mrbinnacle-engineering']
-ok   no site kbd element holds more than one /plugin command
+FAIL no site Install action holds more than one /plugin command: the shared action holds both slash commands
 ```
 
-The site check already passed: each `<kbd>` already held one command. The README fence did not.
+The landing-page check fails too: both `<kbd>` elements sat in one copyable `.action` paragraph. The README fence also held both commands.
 
 **Observed after the change.** Both checks print `ok`. The live cold-install half of the same suite (Claude Code 2.1.287 installed locally for this run) printed `PASS: install form is the HTTPS URL on every reader surface, published and checked-out-tree cold installs are green, and the Verified forms record matches the CLI`.
 
@@ -45,7 +45,7 @@ The site check already passed: each `<kbd>` already held one command. The README
 | Mutant | Assertion that failed |
 |---|---|
 | M1: the two interactive fences merged back into one block | `no README Install fence holds more than one /plugin command` |
-| M6: both slash commands stuffed into one site `<kbd>` | `no site kbd element holds more than one /plugin command` (plus the pre-existing `site interactive form uses the HTTPS URL` and `README and site slash install names are declared in marketplace.json`) |
+| M6: both slash commands share one site action | `no site Install action holds more than one /plugin command` |
 
 ## Criterion 2 — reload / `--force` / restart, with docs URL and read date
 
@@ -57,8 +57,8 @@ The behaviour claim is the vendor page's own, read 2026-10-06: plugins load on `
 
 **The test that pins it.** Three checks in `scripts/test_install_form.py`:
 
-- `README names /reload-plugins after the install steps`
-- `README names /reload-plugins --force for a pending reload`
+- `README puts reload guidance after the install commands`
+- `README gives /reload-plugins --force for a pending reload`
 - `README cites the Claude Code plugin docs URL with a read date`
 
 Constants: `PLUGIN_DOCS_URL = "https://code.claude.com/docs/en/discover-plugins.md"`, `PLUGIN_DOCS_READ = "2026-10-06"`.
@@ -66,8 +66,8 @@ Constants: `PLUGIN_DOCS_URL = "https://code.claude.com/docs/en/discover-plugins.
 **Observed before the change.** All three failed on the unmodified README:
 
 ```
-FAIL README names /reload-plugins after the install steps: ## Install does not tell the reader when the cards appear
-FAIL README names /reload-plugins --force for a pending reload: ## Install does not name the --force form for a pending reload
+FAIL README puts reload guidance after the install commands: ## Install does not tell the reader when the cards appear
+FAIL README gives /reload-plugins --force for a pending reload: ## Install does not name the --force form for a pending reload
 FAIL README cites the Claude Code plugin docs URL with a read date: expected https://code.claude.com/docs/en/discover-plugins.md and a read date of 2026-10-06 in ## Install
 ```
 
@@ -77,7 +77,7 @@ FAIL README cites the Claude Code plugin docs URL with a read date: expected htt
 
 | Mutant | Assertion that failed |
 |---|---|
-| M2: `--force` clause removed | `README names /reload-plugins --force for a pending reload` |
+| M2: `--force` clause removed | `README gives /reload-plugins --force for a pending reload` |
 | M3: docs URL removed | `README cites the Claude Code plugin docs URL with a read date` |
 | M4: read date removed | `README cites the Claude Code plugin docs URL with a read date` |
 | M7: the entire reload paragraph removed | all three criterion-2 checks |
@@ -92,12 +92,12 @@ The version and the plugin list are read from the tool on the reader's machine. 
 
 **The test that pins it.** `scripts/test_install_form.py` check:
 
-- `README names claude plugin list as the confirmation command`
+- `README says claude plugin list reports installed plugins and versions`
 
 **Observed before the change.**
 
 ```
-FAIL README names claude plugin list as the confirmation command: ## Install does not name a command that shows the installed plugin and version
+FAIL README says claude plugin list reports installed plugins and versions: ## Install does not name a command that shows the installed plugin and version
 ```
 
 **Observed after the change.** The check prints `ok`. The live cold-install half already exercised `claude plugin list --json` against both the published URL and this checked-out tree; that half is unchanged and stayed green.
@@ -106,7 +106,7 @@ FAIL README names claude plugin list as the confirmation command: ## Install doe
 
 | Mutant | Assertion that failed |
 |---|---|
-| M5: the confirmation sentence removed | `README names claude plugin list as the confirmation command` |
+| M5: the confirmation sentence removed | `README says claude plugin list reports installed plugins and versions` |
 
 ## Criterion 4 — every validator in `.github/workflows/` passes
 
@@ -172,11 +172,11 @@ No `scripts/mutation_receipt.py` exists in this repository and the ticket names 
 | # | Mutant | Killed by |
 |---|---|---|
 | M1 | interactive fences merged into one block | `no README Install fence holds more than one /plugin command` |
-| M2 | `--force` clause removed | `README names /reload-plugins --force for a pending reload` |
+| M2 | `--force` clause removed | `README gives /reload-plugins --force for a pending reload` |
 | M3 | docs URL removed | `README cites the Claude Code plugin docs URL with a read date` |
 | M4 | read date removed | `README cites the Claude Code plugin docs URL with a read date` |
-| M5 | confirmation sentence removed | `README names claude plugin list as the confirmation command` |
-| M6 | both slash commands in one site `<kbd>` | `no site kbd element holds more than one /plugin command` |
+| M5 | confirmation sentence removed | `README says claude plugin list reports installed plugins and versions` |
+| M6 | both slash commands share one site action | `no site Install action holds more than one /plugin command` |
 | M7 | entire reload paragraph removed | all three criterion-2 checks |
 
 After the campaign the tree was restored and the suite printed its PASS line again.
@@ -185,5 +185,5 @@ After the campaign the tree was restored and the suite printed its PASS line aga
 
 - `README.md` — Install section: one slash command per fence; reload / `--force` / next-start sentence with the vendor docs URL and read date; `claude plugin list` confirmation line.
 - `site/index.html` — each interactive command in its own `.action` paragraph and `<kbd>`; "Run one at a time." added to the secondary line.
-- `scripts/test_install_form.py` — three new check groups (one-command-per-unit, reload guidance, confirmation command), plus the `slash_commands_in` helper and the two plugin-docs constants.
+- `scripts/test_install_form.py` — three new check groups (one-command-per-unit, reload guidance, confirmation command), plus the `slash_commands_in` helper and the two plugin-docs constants. The site check uses the copyable `.action` paragraph, not an individual nested `<kbd>`.
 - `.changeset/issue-408-install-form-copyable-units.md` — patch changeset for #408.

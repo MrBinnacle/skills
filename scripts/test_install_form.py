@@ -417,7 +417,7 @@ def main() -> int:
     # --- Issue #408, criterion 1: one /plugin command per copyable unit -----
     # A pasted multi-line block of slash commands is read as one command by
     # Claude Code; the second line becomes part of the URL. One command per
-    # fence (README) and per kbd (site) removes the failure.
+    # fence (README) and per copyable action (site) removes the failure.
     all_install_fences = fence_blocks(section)
     multi_command_fences = [
         block for block in all_install_fences if len(slash_commands_in(block)) > 1
@@ -427,32 +427,48 @@ def main() -> int:
         not multi_command_fences,
         f"fences holding multiple slash commands: {multi_command_fences!r}",
     )
-    multi_command_kbds = [
-        kbd for kbd in site_commands if len(slash_commands_in(kbd)) > 1
+    site_actions = re.findall(
+        r'<p class="action">(.*?)</p>', site, flags=re.DOTALL
+    )
+    multi_command_site_actions = [
+        action
+        for action in site_actions
+        if sum(
+            len(slash_commands_in(kbd))
+            for kbd in re.findall(r"<kbd>([^<]+)</kbd>", action)
+        )
+        > 1
     ]
     check(
-        "no site kbd element holds more than one /plugin command",
-        not multi_command_kbds,
-        f"kbd elements holding multiple slash commands: {multi_command_kbds!r}",
+        "no site Install action holds more than one /plugin command",
+        not multi_command_site_actions,
+        "site actions holding multiple slash commands: "
+        f"{multi_command_site_actions!r}",
     )
 
     # --- Issue #408, criterion 2: reload / --force after install ------------
     # The vendor docs say a plugin loads on /reload-plugins or the next start,
     # and that a reload left pending stays pending until /reload-plugins --force.
     # The README must say so, with the page and the date it was read.
+    install_command_at = section.find("/plugin install mrbinnacle-engineering")
+    reload_guidance_at = section.find("/reload-plugins")
     check(
-        "README names /reload-plugins after the install steps",
-        "/reload-plugins" in section,
+        "README puts reload guidance after the install commands",
+        0 <= install_command_at < reload_guidance_at,
         "## Install does not tell the reader when the cards appear",
     )
     check(
-        "README names /reload-plugins --force for a pending reload",
-        "/reload-plugins --force" in section,
+        "README gives /reload-plugins --force for a pending reload",
+        bool(
+            re.search(
+                r"(?is)pending.{0,160}/reload-plugins --force", section
+            )
+        ),
         "## Install does not name the --force form for a pending reload",
     )
     check(
         "README cites the Claude Code plugin docs URL with a read date",
-        PLUGIN_DOCS_URL in section and PLUGIN_DOCS_READ in section,
+        PLUGIN_DOCS_URL in section and f"read {PLUGIN_DOCS_READ}" in section,
         f"expected {PLUGIN_DOCS_URL} and a read date of {PLUGIN_DOCS_READ} in ## Install",
     )
 
@@ -460,8 +476,13 @@ def main() -> int:
     # The version and the plugin list come from the tool, not from prose the
     # README would have to retype on every release.
     check(
-        "README names claude plugin list as the confirmation command",
-        "claude plugin list" in section,
+        "README says claude plugin list reports installed plugins and versions",
+        bool(
+            re.search(
+                r"(?is)claude plugin list.{0,200}installed plugins.{0,100}versions",
+                section,
+            )
+        ),
         "## Install does not name a command that shows the installed plugin and version",
     )
 
