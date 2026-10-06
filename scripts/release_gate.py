@@ -915,9 +915,13 @@ def changeset_declared_bumps(text: str) -> dict[str, str]:
         raise ChangesetHeaderError("frontmatter does not close with ---")
     bumps: dict[str, str] = {}
     for line in lines[1:closing]:
-        match = re.match(r'^\s*("?)([^":]+?)\1\s*:\s*(\w+)\s*$', line)
+        match = re.match(
+            r'^\s*("?)([^":]+?)\1\s*:\s*(?:"([^"]+)"|\'([^\']+)\'|(\w+))\s*$',
+            line,
+        )
         if match:
-            bumps[match.group(2)] = match.group(3).lower()
+            value = next(group for group in match.groups()[2:] if group is not None)
+            bumps[match.group(2)] = value.lower()
     return bumps
 
 

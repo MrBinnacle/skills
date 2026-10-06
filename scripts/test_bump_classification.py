@@ -436,6 +436,18 @@ def case_case2_add_declared_patch_is_refused(tmp: Path) -> None:
     )
 
 
+def case_case2_add_declared_quoted_patch_is_refused(tmp: Path) -> None:
+    """G10 must read a quoted YAML bump scalar as well as an unquoted one."""
+    root = make_tree(tmp, declared='"patch"', branch_change="add_card")
+    expect_g10_refusal(
+        "case 2: a card admission declared quoted patch is refused",
+        root,
+        "G10:",
+        "add",
+        "minor",
+    )
+
+
 def case_case2_remove_declared_patch_is_refused(tmp: Path) -> None:
     """Case 2, the other direction: retiring a card declared patch is refused."""
     root = make_tree(tmp, declared="patch", branch_change="remove_card")
@@ -1090,6 +1102,7 @@ CASES = (
     case_case1_rename_declared_patch_is_refused,
     case_case1_rename_declared_minor_is_refused,
     case_case2_add_declared_patch_is_refused,
+    case_case2_add_declared_quoted_patch_is_refused,
     case_case2_remove_declared_patch_is_refused,
     case_case3_no_surface_declared_minor_is_refused,
     case_case3_no_surface_declared_major_is_refused,

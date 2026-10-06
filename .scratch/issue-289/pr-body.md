@@ -11,7 +11,7 @@ Classification is **read from the repository on every run**, not hardcoded. `der
 | `.changeset/g10-bump-classification-289.md` | Empty changeset (scripts-only; no card, no package bump) |
 | `.github/workflows/tests.yml` | Seven G10 poison controls under the blocking `Release gate (fit to release)` job, plus the bump-classification suite step |
 | `scripts/release_gate.py` | G10 implementation |
-| `scripts/test_bump_classification.py` | 33 controls that plant each refusable shape and drive the shipped gate as a subprocess |
+| `scripts/test_bump_classification.py` | 34 controls that plant each refusable shape and drive the shipped gate as a subprocess |
 
 ## What G10 checks
 
@@ -40,7 +40,7 @@ An explicit `--release` run on a released, clean main (origin/main == HEAD, no p
 
 **Pinned by** `scripts/test_bump_classification.py`:
 - Case 1: `case_case1_rename_declared_patch_is_refused`, `case_case1_rename_declared_minor_is_refused`
-- Case 2: `case_case2_add_declared_patch_is_refused`, `case_case2_remove_declared_patch_is_refused`
+- Case 2: `case_case2_add_declared_patch_is_refused`, `case_case2_add_declared_quoted_patch_is_refused`, `case_case2_remove_declared_patch_is_refused`
 - Case 3: `case_case3_no_surface_declared_minor_is_refused`, `case_case3_no_surface_declared_major_is_refused`, `case_case3_non_card_directory_declared_minor_is_refused`
 - Case 4 refuse half: `case_case4_consumed_major_with_minor_delta_is_refused`, `case_case4_consumed_patch_with_minor_delta_is_refused`, `case_case4_consumed_patch_with_no_delta_is_refused`, `case_case4_requires_the_exact_changesets_version`, `case_case4_no_consumed_plan_with_delta_is_refused`
 - Case 4 pass half (built, not advice): `case_case4_consumed_major_with_major_delta_passes`, `case_b3_v300_shaped_release_passes`
@@ -150,13 +150,13 @@ Counts and commands were run at the head that carries this body's code (`1a60ef2
 |---|---|
 | `python scripts/release_gate.py` | `RELEASE GATE: PASS` (live tree) |
 | `python scripts/release_gate.py --release` on `3dca050` + head gate, `origin/main` = HEAD | `RELEASE GATE: PASS - releasable at version 3.0.1` |
-| `python scripts/test_bump_classification.py` | **PASS: 33 controls** |
+| `python scripts/test_bump_classification.py` | **PASS: 34 controls** |
 | release-gate suite on `origin/main` (`python scripts/test_release_gate.py`) | **PASS: 69 contract case(s)** |
 | `python scripts/test_release_model_disclosure.py` | **PASS** |
 | Seven G10 poison-control `run:` blocks, `bash -e -o pipefail`, `RUNNER_TEMP` set | **7/7 PASS** |
 | bump-classification suite and release-gate suite on a CRLF checkout of HEAD | **PASS** (33 controls, 69 cases) |
 
-The bump-classification suite's 33 controls include the seven static CI-wiring assertions; the shell poison controls are executed separately as above. Both are required: the static assertions say the workflow still names the steps; the live runs say those steps still fire against the shipped gate.
+The bump-classification suite's 34 controls include the seven static CI-wiring assertions; the shell poison controls are executed separately as above. Both are required: the static assertions say the workflow still names the steps; the live runs say those steps still fire against the shipped gate.
 
 ## Revisit if
 
