@@ -31,7 +31,8 @@ jobs:
 
       # The human-readable audit decides the step's exit code. The JSON report
       # only names the advisories for the issue that report-failure files, so
-      # the output is written before the step exits with the audit's status.
+      # the output is written before the step exits with the audit's status,
+      # which is why this step runs without `set -e`.
       - name: Audit high-severity dependencies
         id: audit
         run: |
@@ -48,7 +49,7 @@ jobs:
             for (const vuln of Object.values(report.vulnerabilities || {})) {
               for (const via of vuln.via) {
                 if (typeof via !== "object" || !(rank[via.severity] >= floor)) continue;
-                const id = String(via.url || via.source).split("/").pop();
+                const id = via.url ? via.url.split("/").pop() : `npm advisory ${via.source}`;
                 found.set(id, `${id} (${via.severity}, ${via.name})`);
               }
             }
