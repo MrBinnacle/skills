@@ -12,11 +12,11 @@
     This file sits under assets/ so scripts/validate_brand_kit.py reads both hexes.
   -->
   <style>
-    .ink { stroke: #1F2328; }
-    .seal { fill: #1F2328; }
+    .ink { stroke: #31221e; }
+    .seal { fill: #31221e; }
     @media (prefers-color-scheme: dark) {
-      .ink { stroke: #E6EDF3; }
-      .seal { fill: #E6EDF3; }
+      .ink { stroke: #ece3d6; }
+      .seal { fill: #ece3d6; }
     }
   </style>
   <g transform="translate(12 3)" fill="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">

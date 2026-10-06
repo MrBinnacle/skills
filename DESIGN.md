@@ -23,10 +23,10 @@ A skill being kept is an inventory fact. A skill having been measured is an evid
 move that makes the first look like the second is dressing, and it breaks the only claim the
 repository makes. Most rules below are one application of it:
 
-- **Instrument green is dressing.** `harness.prompt` `#3FB950`, `harness.flagged` `#D29922`,
-  `harness.cantTell` `#58A6FF` belong to `skill-harness`. Green reads as a confirmed-success
-  state on the instrument. It is the sharpest available way to dress this repository's
-  inventory, which is why it is the one colour rule stated as an absolute.
+- **Borrowed state colour is dressing.** A colour that marks success, measurement or verdict on
+  the sibling instrument, or any value it declares, dresses this repository's inventory as a
+  measurement. That is the one colour rule stated as an absolute. The moss accent is green and
+  carries no state; it marks focus and hover and nothing else.
 - **Monospace is dressing when it is decorative.** The mono/sans split is semantic: mono marks a
   value that came from somewhere checkable — a count, a verdict, a command, an identifier. Prose
   that merely describes those things stays in the sans face. Setting a claim in mono to make it
@@ -67,7 +67,7 @@ Two gaps closed on 2026-09-06, each a receipt under `tokens.json > closed_gaps`:
 
 **Author new marks with `currentColor`**, not a literal hex. A file with no hex cannot violate a
 token set, needs no light-mode neutral to exist, and inherits on either surface — which matters
-because the kit declares dark-surface neutrals only. *Revisit if:* light-mode neutrals land, or
+because a mark that inherits ink stays correct in both schemes. *Revisit if:* light-mode neutrals land, or
 an asset needs more than one ink value.
 
 `currentColor` does not survive `<img src="…">`; an asset embedded that way renders black. Use
@@ -130,8 +130,9 @@ re-dereferenced on 2026-10-02 for issue #334; line references rot.
 - **`aria-label` is a claim surface.** Every shipped SVG carries `role="img"` and a meaningful
   label, and `validate_scoreboard.py` checks the banners' labels against ground truth. Drift in a
   label is drift in a claim, not a cosmetic slip.
-- **State reads without colour.** The crib palette encodes admitted / turned-away / retired; each
-  must also be readable as text or shape.
+- **State reads without colour.** The `state` tokens encode admitted / turned-away / retired;
+  each must also be readable as text or shape. They measure below the normal-vision floor as a
+  set, so colour is never the carrier.
 - Both banners ship light and dark variants through `<picture>`. New surfaces follow that.
 
 ---

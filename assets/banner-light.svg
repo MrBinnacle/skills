@@ -8,18 +8,18 @@
        here. See the note in banner-dark.svg for why no accent replaced it. -->
   <g transform="translate(24,25)">
     <path d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"
-          fill="none" stroke="#1f2328" stroke-width="3" stroke-linejoin="round"/>
-    <line x1="14" y1="24" x2="58" y2="24" stroke="#1f2328" stroke-width="3" stroke-linecap="round"/>
-    <line x1="14" y1="40" x2="58" y2="40" stroke="#1f2328" stroke-width="3" stroke-linecap="round"/>
-    <line x1="14" y1="56" x2="40" y2="56" stroke="#57606a" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="53" cy="56" r="6.5" fill="none" stroke="#57606a" stroke-width="2.5"/>
-    <circle cx="53" cy="56" r="2" fill="#57606a"/>
+          fill="none" stroke="#31221e" stroke-width="3" stroke-linejoin="round"/>
+    <line x1="14" y1="24" x2="58" y2="24" stroke="#31221e" stroke-width="3" stroke-linecap="round"/>
+    <line x1="14" y1="40" x2="58" y2="40" stroke="#31221e" stroke-width="3" stroke-linecap="round"/>
+    <line x1="14" y1="56" x2="40" y2="56" stroke="#6f573f" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="53" cy="56" r="6.5" fill="none" stroke="#6f573f" stroke-width="2.5"/>
+    <circle cx="53" cy="56" r="2" fill="#6f573f"/>
   </g>
   <!-- wordmark -->
-  <text x="128" y="76" class="mono" font-size="44" font-weight="700" fill="#1f2328">skills</text>
+  <text x="128" y="76" class="mono" font-size="44" font-weight="700" fill="#31221e">skills</text>
   <!-- The wording is ruled (2026-08-23 owner ruling, skill-harness #216) and the
        validator asserts it byte-identically at five sites, reading the last
        <text> element whole. 55 characters at 18px mono ends near x=722 on the
        760-wide canvas; 19px would run to the edge. -->
-  <text x="128" y="110" class="mono" font-size="18" fill="#57606a">Each card states the condition that would retire it.</text>
+  <text x="128" y="110" class="mono" font-size="18" fill="#6f573f">Each card states the condition that would retire it.</text>
 </svg>

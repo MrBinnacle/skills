@@ -1,17 +1,22 @@
 /* skills landing page.
  *
- * Every colour below is a value declared under assets/tokens.json > color.
- * Light mode is the default and uses color.structural_light; dark mode uses
- * color.structural, switched by prefers-color-scheme with no toggle and no
- * script. One accent, crib.sage #6B6B50 ("governed or active utility
- * accent"), appears in exactly two state roles: the :focus-visible outline
- * and the :hover underline colour. It never carries text or an icon
- * (5.46:1 on light.bg, 3.76:1 on repo.bg: clears the 3:1 non-text floor in
- * both modes and not the 4.5:1 text floor in dark).
+ * Every colour below is a value declared under assets/tokens.json > color,
+ * all of them derived from the owner's field palette. Light mode is the
+ * default and uses color.structural_light; dark mode uses color.structural,
+ * switched by prefers-color-scheme with no toggle and no script. Each scheme
+ * is composed on its own, not inverted from the other.
+ *
+ * One accent, moss, appears in exactly two state roles: the :focus-visible
+ * outline and the :hover underline colour. It never carries text, an icon,
+ * a fill or a state. It keeps one hue across the schemes: accent.light
+ * #5A613F on light (6.06:1 on light.bg, 5.56:1 on light.surface) and
+ * accent.dark #828C5B on dark (5.33:1 on repo.bg, 4.90:1 on repo.surface),
+ * lifted because #5A613F measures 2.93:1 on repo.bg. Both clear the 3:1
+ * non-text floor.
  *
  * Text pairs, the only four used:
- *   light.ink   on light.bg  15.80    repo.ink   on repo.bg  17.38
- *   light.muted on light.bg   6.39    repo.muted on repo.bg   6.68
+ *   light.ink   on light.bg  14.14    repo.ink   on repo.bg  15.05
+ *   light.muted on light.bg   6.27    repo.muted on repo.bg   8.14
  *
  * Radius scale (tokens.json > shape), one documented use per value:
  *   radius.none  0    -> layout, rules, list items, links
@@ -25,12 +30,12 @@
  */
 
 :root {
-  --bg: #FFFFFF;        /* light.bg */
-  --surface: #F6F8FA;   /* light.surface */
-  --ink: #1F2328;       /* light.ink */
-  --muted: #57606A;     /* light.muted */
-  --line: #D0D7DE;      /* light.line */
-  --accent: #6B6B50;    /* crib.sage: focus ring and hover underline only */
+  --bg: #FAF6EF;        /* light.bg */
+  --surface: #F2ECE3;   /* light.surface */
+  --ink: #31221E;       /* light.ink */
+  --muted: #6F573F;     /* light.muted */
+  --line: #B8A78B;      /* light.line */
+  --accent: #5A613F;    /* accent.light: focus ring and hover underline only */
 
   --font-body: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -52,11 +57,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #010409;      /* repo.bg */
-    --surface: #0D1117; /* repo.surface */
-    --ink: #E6EDF3;     /* repo.ink */
-    --muted: #8B949E;   /* repo.muted */
-    --line: #30363D;    /* repo.line */
+    --bg: #140E0C;      /* repo.bg */
+    --surface: #201714; /* repo.surface */
+    --ink: #ECE3D6;     /* repo.ink */
+    --muted: #B8A78B;   /* repo.muted */
+    --line: #6F573F;    /* repo.line */
+    --accent: #828C5B;  /* accent.dark: focus ring and hover underline only */
   }
 }
 
