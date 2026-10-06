@@ -39,8 +39,8 @@
       "skill_md_sha256": "54e35bb416166b1c6751f295fc58ea0c9380ae936724512ab67a0a72fd6dfe10"
     },
     "vacuous-check": {
-      "standing_cost_tokens": 49,
-      "skill_md_sha256": "99c02e78aba62acb48fe4763136a579fe8b399d53c76545a248b99c15521b5ec"
+      "standing_cost_tokens": 53,
+      "skill_md_sha256": "e49527e3242b9bc30dae38b3d895cb255741acd59911298c8c457b20f7663b99"
     },
     "dead-predicate": {
       "standing_cost_tokens": 51,
