@@ -179,9 +179,13 @@ taken, and the hook caught it. In row 2 the prose had been read that same day.
 
 **The prompt nudge.** The maintainer's environment also carries a `UserPromptSubmit` hook that
 matches the operator's words against a rule list and injects a reminder to reach for a skill.
-Over 59 real prompts in five sessions, recorded no later than 2026-09-12, it fired on 8 (13.6%).
-It cannot fire in a proactive or `/loop` context, where no prompt arrives. This is why the rule
-names a PreToolUse block, not the nudge, as the backing that still runs in a loop.
+Over 59 real prompts in five sessions, recorded no later than 2026-08-11, it fired on 8 (13.6%).
+The rule says such a nudge never fires in a proactive or `/loop` context. Claude Code's hooks
+documentation contradicts that. Read 2026-10-05 at `https://code.claude.com/docs/en/hooks.md`,
+section UserPromptSubmit, it says these hooks "don't fire only on prompts you type" and also run
+on "a scheduled task firing, including a `/loop` iteration". The rule's main recommendation does
+not rest on that clause: a PreToolUse block fires on the tool call, whatever started the turn.
+Correcting the clause in the rule is tracked in skills#402, outside this screen.
 
 **The limit.** Two sessions is a small record. The claim is stated for one project's own record
 and is not a general law until it holds across more sessions. It would be falsified by a session
