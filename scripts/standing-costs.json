@@ -27,8 +27,8 @@
       "skill_md_sha256": "02b6bef961c1809fc15da92b4e9eb28b2cb26aa84cba11947edfdd2b865c1dfd"
     },
     "pretooluse-prose": {
-      "standing_cost_tokens": 51,
-      "skill_md_sha256": "e1e13c5e78ec79c8f50080fbbf93de16db74112568390bf462861d9fe56135e4"
+      "standing_cost_tokens": 60,
+      "skill_md_sha256": "73377133621460a0e71336d5b6af0082bc2ce6fb6a93a851d156ab92cf910653"
     },
     "pull-rebase": {
       "standing_cost_tokens": 63,
