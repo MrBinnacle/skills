@@ -2,6 +2,24 @@
 
 **Status: INCOMPLETE.** Stopped before any card-text edit. Two hard prerequisites named by the ticket are missing on this host. No occurrence was recorded without its source. No Skill-tool claim is made that was not performed.
 
+## Session re-verification (second cold session, same branch)
+
+This body is the durable review record. A second unattended session re-ran the two prerequisite checks on the same branch before any card-text edit was attempted. Results match the first session's blockers; nothing new unblocked them.
+
+| Check | Command / observation | Result |
+|---|---|---|
+| Private research checkout | sibling path the dispatch-count script assumes | `No such file or directory`. Filesystem search for the directory name and for both cited filenames (`checkpoint-archive-S415*`, `evaluation-chain-batch-2-S414*`) returned nothing under `/home`, `/opt`, `/var`, `/usr/local`, `/tmp`. |
+| Skill tool `mattpocock-skills:writing-for-agents` | Skill tool call | `Skill "mattpocock-skills:writing-for-agents" not found. Available skills: customize-opencode` |
+| Skill tool `productivity/writing-for-agents` | Skill tool call (AGENTS.md name form) | `Skill "productivity/writing-for-agents" not found. Available skills: customize-opencode` |
+| Example heading absent | `grep -n Example SKILL.md` | No heading match — defect real at head |
+| Jargon present | `grep -nE 'PHASE B\|\bT3\b' case-study.md` | Hits at lines 6 (T3), 12 (PHASE B), 28 (PHASE B') — none define the term |
+| Description routing gap | frontmatter parse | `stale-handoff` absent; `fix-and-re-run` absent; length 193 chars (under 200 bar) |
+| SKILL.md size | `len(bytes)` | 5638 bytes — inside 400–7,168 |
+| Card validator baseline | `PYTHONUTF8=1 python scripts/validate_card_files.py` | PASS (pre-existing allowlisted reachability note; other cards carry unrelated size warnings) |
+| De-personalization gate | `pre-commit run --all-files` | Passed, including residue hooks and Taste prose |
+
+Ticket instruction, verbatim: *"If the checkout is not readable, stop and comment on this issue; do not record an occurrence you have not read."* That fail-closed instruction fires. Acceptance criterion 9 additionally forbids every card-text edit this ticket needs until the Skill call succeeds; the call was attempted under both name forms and failed. The container holds no GitHub token, so the issue-comment substitute is this body.
+
 ## Acceptance-criteria checklist (build target)
 
 1. `SKILL.md` has a heading containing `Example` with a filled, concrete example; the pointer at `gotchas.md:3-5` resolves to it (pointer text not rewritten).
@@ -100,7 +118,7 @@ Note: the residue hooks refuse the private research directory's name in any `*.m
 | 6 | Validators and suites green at PR head | **Not met as a deliverable** | Baseline `validate_card_files.py` PASS recorded above; full workflow roster not run because no card change exists to gate; would be run on a complete build |
 | 7 | Changeset for `mrbinnacle-skills` | **Not met** | No user-visible card change to describe |
 | 8 | Platform claims re-checked and dated | **Not met** | The ticket names one undated claim (`subscription auth` in `case-study.md` around lines 29-30). No card edit made, so no re-check was applied to card text. Left as-is rather than half-dated without the Skill-call precondition. |
-| 9 | Skill tool call `mattpocock-skills:writing-for-agents` | **Not met** | Skill not installed; call not made; this body does not claim it was |
+| 9 | Skill tool call `mattpocock-skills:writing-for-agents` | **Not met — call attempted and failed** | Skill tool returned not-found for both `mattpocock-skills:writing-for-agents` and `productivity/writing-for-agents`. Only `customize-opencode` is installed. This body does not claim the call succeeded. |
 | 10 | SKILL.md size and description bar | **Baseline only** | 5638 bytes, 193-character description — both inside bounds *before* any edit; no post-edit measurement possible |
 | 11 | `pre-commit run --all-files` | **Met for this incomplete tree** | Installed `pre-commit 4.6.2` into the project venv; `pre-commit run --all-files` passed every hook. Must be re-run after card-text edits on a complete build. |
 
@@ -162,9 +180,9 @@ Attempted prerequisite: `gh auth status` → not logged into any GitHub hosts. N
 
 ## What unblocks this ticket
 
-1. Place the private research checkout beside this worktree at the sibling path the dispatch-count script assumes, with `checkpoint-archive-S415.md` and `evaluation-chain-batch-2-S414.md` readable at the lines the ticket names.
-2. Install or load `mattpocock-skills:writing-for-agents` so the Skill tool can be called before any card-text edit.
-3. ~~Install `pre-commit`~~ — done this session; gate is green on the incomplete tree. Re-run after card-text edits.
+1. Place the private research checkout beside this worktree at the sibling path the dispatch-count script assumes, with `checkpoint-archive-S415.md` and `evaluation-chain-batch-2-S414.md` readable at the lines the ticket names. Re-confirmed absent on this host.
+2. Install or load `mattpocock-skills:writing-for-agents` so the Skill tool can be called before any card-text edit. Re-confirmed unavailable; both name forms return not-found.
+3. ~~Install `pre-commit`~~ — done; gate green on the incomplete tree (re-run this session).
 4. Provide a GitHub token if the runner still requires an issue comment; otherwise treat this body as that comment.
 
 ## Companion artifacts
