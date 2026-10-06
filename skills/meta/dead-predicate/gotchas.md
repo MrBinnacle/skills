@@ -49,3 +49,46 @@
   whose subject this is; § 1 here points at it rather than restating it. Recorded on both
   because the occurrence belongs to both: this card's procedure caused it, that card's
   mechanism explains it.
+
+- [OBSERVED 2026-09-01] Occurrence, branch 3 (shadowing). A session added a router rule whose
+  patterns overlapped an existing rule earlier in the file. That router's match loop stops at
+  the first hit, so every prompt the new rule was written for went to the earlier rule, and
+  the new rule would have been inert from the day it shipped. The router's self-test caught
+  it before commit, together with `\b` escapes that had become literal backspace characters.
+  The next session's brief then carried the rule as a constraint: scope new patterns clear of
+  every earlier rule, because an overlapping pattern is dead on arrival.
+
+- [OBSERVED 2026-09-13] Occurrence, branch 5 (wrong claim, complete predicate). An advisory
+  hook rule warned that passing `name` to the Agent tool defers the agent's report, and that
+  a foreground setting does not override it. Its pattern was `"name"\s*:`. Measured that day,
+  twice: a named foreground agent returned its report inline. The deferral comes from
+  backgrounding, which is the default. The rule fired on every dispatch that named an agent,
+  so it was complete against its own pattern, and it never fired on the case that refutes it:
+  an unnamed dispatch that is backgrounded anyway. It stood for eleven sessions with a green
+  self-test, because the fixture was written from the pattern. The repair widened the pattern
+  to `"(name|run_in_background)"\s*:`; narrowing it back reddened exactly the new assertion.
+  Predicate completeness is measured against usage; claim alignment is measured against the
+  counter-example. A rule can hold one and not the other.
+
+- [OBSERVED 2026-09-20] Occurrence, branch 4 (stale name). A sweep of one install's router
+  found four rules whose skill names no longer resolved. Three skills had been renamed when
+  they were promoted into published plugins, and the router kept the old names. The sharpest
+  was the rule marked MANDATORY before any handoff, plan, ADR or subagent prompt: its skill
+  had been invoked 144 times under the old name and was unreachable under it after the
+  rename. A session six days earlier had already seen that the old name was not installed
+  while its router entry stayed live. The fourth was an uninstall: a maintenance command
+  disabled a skill as unused and left its router rule behind. The fix added a check that
+  fails on any rule naming a skill that cannot resolve.
+
+- [OBSERVED 2026-10-05] Fold-in for branch 2, recorded so the count stays honest. The
+  maintainer's research repo records the JSON `\b` defect in six sessions, S312 to S487,
+  across several surfaces: router patterns, signature generators and other JSON writers.
+  Each fix was scoped to the one surface where it was caught. The last control written
+  against it scanned bytes, and reported clean on a file that held the defect, because a
+  JSON writer stores the backspace as the two characters `\b`. The working control decodes
+  the JSON and inspects the values; `probes.md` step 2 does that. Not counted again for this
+  card: most of the six were not router rules, and the two that were are already counted
+  above, in the 2026-08-23 and 2026-09-01 entries.
+
+- [NOTE 2026-10-06] The 2026-08-23 entry says `SKILL.md` § 2 carries the control-character
+  check. That script now lives in `probes.md` step 2, reached from `SKILL.md` § Solution.
