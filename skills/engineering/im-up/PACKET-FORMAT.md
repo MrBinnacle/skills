@@ -95,20 +95,43 @@ Every entry in the receipt's `checks` array also carries `status` (`passed`,
 ## Receiver-check cache
 
 A `receiver_checks` entry may carry an optional `cache_inputs` list of paths.
-`~` expands. A directory means every file under it. The receiver keys each such
-check on the blob hashes of its inputs, the Python version, `git --version` and
-the command string. A check whose key matches its last passing run is not
-re-run; the receipt reports it `cached`, with that `cache_key` and the
-`cached_at` time of the run that produced it. Only passing runs are cached.
-Checks with no `cache_inputs` always run.
+`~` expands, and a relative path resolves against the repository root. A
+directory means every file on disk under it, at any depth.
 
-Once a week, at an open, every check runs uncached and is compared with its
-cached verdict. A disagreement fails the open and clears that check's cache
-entry.
+The cache key is a sha256 over four things: the command string, the Python
+version (`sys.version`), the output of `git --version`, and, for each input
+file, its resolved path with the sha256 of its bytes as they are on disk. A
+missing input counts as `missing`. The bytes are the working file, not a git
+blob, so an uncommitted edit changes the key. A directory input covers every
+file under it on disk, untracked and ignored files included, so a build
+output or a cache directory beneath it changes the key too. Because the path
+is part of the key, the same tree checked out at another path keys apart.
 
-The cache file lives outside the tree, so it persists across opens on one
-machine. Config key `receiver_check_cache` names an explicit path; otherwise
-the default is `~/.cache/mrbinnacle-skills/receiver-check-cache.json`.
+A check whose key matches its last passing run is not re-run; the receipt
+reports it `cached`, with that `cache_key` and the `cached_at` time of the run
+that produced it. Only passing runs are cached. Checks with no `cache_inputs`
+always run.
+
+The open and the close share one cache under these rules. The close
+(`close_session.py`) runs the receiver checks through the same runner, so a
+check that passed at the close is served `cached` at the next open on an
+unchanged tree. The close records each check's `status` in the packet's
+`tests[]`. A `cached` entry there also carries `cache_key` and `cached_at`, and
+its `observed_at` is the time of the cached run, not of the close.
+
+Once a week, at an open or a close, every check runs uncached and is compared
+with its cached verdict. A disagreement fails that open or close and clears
+the check's cache entry.
+
+The cache file persists across sessions on one machine. Config key
+`receiver_check_cache` names an explicit path; otherwise the default is
+`~/.cache/mrbinnacle-skills/receiver-check-cache.json`, outside the tree. An
+absolute or `~` path is used as written. A relative path resolves under
+`~/.cache/mrbinnacle-skills/`, never under the repository; one that climbs out
+of that directory with `..` is refused. Each write goes to a temp file in the
+cache directory and is then renamed over the cache file, so an interrupted
+write or a second writer never leaves a torn file. A cache that cannot be
+written does not fail the open or the close.
 
 What `cached` promises: the check was not re-executed on this open, and its
 verdict is the last passing run under the same key. It does not promise that

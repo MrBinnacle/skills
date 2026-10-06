@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -40,11 +42,22 @@ class PacketError(ValueError):
 
 
 def run(cmd: str, cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, cwd=cwd, shell=True, text=True, capture_output=True)
+    """Run a trusted command, decoding its output as UTF-8 with replacement.
+
+    Never the caller's locale encoding: on a cp1252 host a check printing a
+    character outside cp1252 crashed the validator (issue #372).
+    """
+    return subprocess.run(
+        cmd, cwd=cwd, shell=True, capture_output=True,
+        encoding="utf-8", errors="replace",
+    )
 
 
 def git(cwd: Path, *args: str) -> str:
-    result = subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True)
+    result = subprocess.run(
+        ["git", *args], cwd=cwd, capture_output=True,
+        encoding="utf-8", errors="replace",
+    )
     if result.returncode != 0:
         raise PacketError(result.stderr.strip() or "git command failed")
     return result.stdout.strip()
@@ -378,13 +391,27 @@ def default_cache_path() -> Path:
 
 
 def resolve_cache_path(config: dict, repo_root: Path) -> Path:
+    """Locate the cache file named by `receiver_check_cache`, or the default.
+
+    A relative path resolves under the default cache directory, never under
+    the repository, so a relative entry cannot drop the cache into the tree.
+    A relative path that climbs out of that directory is refused. An absolute
+    path, or one starting with `~`, is used as written.
+    """
     raw = config.get("receiver_check_cache")
-    if raw:
-        path = Path(str(raw)).expanduser()
-        if not path.is_absolute():
-            path = repo_root / path
+    if not raw:
+        return default_cache_path()
+    path = Path(str(raw)).expanduser()
+    if path.is_absolute():
         return path
-    return default_cache_path()
+    cache_dir = default_cache_path().parent
+    confined = cache_dir / path
+    if cache_dir.resolve() not in confined.resolve().parents:
+        raise PacketError(
+            f"receiver_check_cache {raw!r} is relative and climbs out of "
+            f"{cache_dir}; give an absolute path or one inside that directory"
+        )
+    return confined
 
 
 def expand_cache_inputs(paths: list, repo_root: Path) -> list[Path]:
@@ -413,8 +440,11 @@ def _content_hash(path: Path) -> str:
 def check_cache_key(check: dict, repo_root: Path) -> str | None:
     """Key a cacheable check, or None when it declares no cache_inputs.
 
-    The key covers the blob hashes of its inputs, the Python version,
-    `git --version` and the command string. Only a matching key may serve
+    The key is a sha256 over the command string, `sys.version`, the output
+    of `git --version`, and, for each expanded input, its resolved path with
+    the sha256 of its bytes on disk (or `missing`). The bytes are the working
+    file, not a git blob: a directory input covers every file on disk under
+    it, untracked and ignored files included. Only a matching key may serve
     a cached verdict.
     """
     inputs = check.get("cache_inputs")
@@ -425,8 +455,10 @@ def check_cache_key(check: dict, repo_root: Path) -> str | None:
         ["git", "--version"], text=True, capture_output=True
     )
     parts.append(git_version.stdout.strip() or git_version.stderr.strip())
+    # Resolved, so one input keys the same however the root was spelled:
+    # a Windows 8.3 short name (RUNNER~1) and its long form are one path.
     for path in expand_cache_inputs(inputs, repo_root):
-        parts.append(f"{path}:{_content_hash(path)}")
+        parts.append(f"{path.resolve()}:{_content_hash(path)}")
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
 
 
@@ -447,8 +479,26 @@ def load_cache(path: Path) -> dict:
 
 
 def save_cache(path: Path, data: dict) -> None:
+    """Write the cache atomically: a temp file in the same directory, then rename.
+
+    The open and the close both write this one machine-level file, and a
+    writer can die mid-write. Readers see the last complete write or the new
+    one, never a torn file. A failed write removes its temp file and raises.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=path.name + ".", suffix=".tmp", dir=path.parent,
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(data, indent=2) + "\n")
+        os.replace(tmp_name, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
 
 
 def weekly_full_due(cache: dict) -> bool:
@@ -550,9 +600,11 @@ def rerun_checks(config: dict, repo_root: Path) -> tuple[list[dict], list[str]]:
     read as "this check printed nothing", which is a different claim from "this
     check passed and its output was dropped", and the second is the true one.
 
-    Caching contract (issue #368): a check that declares `cache_inputs` is
-    keyed on the blob hashes of those inputs plus Python version, `git
-    --version` and the command string. A key that matches its last passing run
+    Caching contract (issues #368, #371): a check that declares
+    `cache_inputs` is keyed by check_cache_key on the sha256 of those inputs'
+    bytes on disk plus Python version, `git --version` and the command
+    string. The open and the close both run checks here, so they share one
+    cache under one key rule. A key that matches its last passing run
     is not re-run; the entry is reported `cached` with the key and the time of
     the run that produced it. Only passing runs are cached. Checks with no
     `cache_inputs` always run. Once a week every check runs uncached and is

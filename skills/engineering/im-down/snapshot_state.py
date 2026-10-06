@@ -11,15 +11,24 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+# Every subprocess output is decoded as UTF-8 with replacement, never the
+# caller's locale encoding: on a cp1252 host a check or branch name outside
+# cp1252 crashed the snapshot (issue #372).
 def git(root: Path, *args: str) -> str:
-    result = subprocess.run(["git", *args], cwd=root, text=True, capture_output=True, check=True)
+    result = subprocess.run(
+        ["git", *args], cwd=root, capture_output=True, check=True,
+        encoding="utf-8", errors="replace",
+    )
     return result.stdout.strip()
 
 
 def run_check(root: Path, check: dict) -> tuple[dict, str]:
     """Run one receiver check. Returns the manifest entry and the captured output."""
     observed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    result = subprocess.run(check["command"], cwd=root, shell=True, text=True, capture_output=True)
+    result = subprocess.run(
+        check["command"], cwd=root, shell=True, capture_output=True,
+        encoding="utf-8", errors="replace",
+    )
     entry = {
         "command": check["command"], "exit_code": result.returncode,
         "observed_at": observed_at, "head": git(root, "rev-parse", "HEAD")

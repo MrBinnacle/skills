@@ -105,11 +105,11 @@ integer that opens the card's `Occasions counted` row.
 | [`im-up`](skills/engineering/im-up/EVIDENCE.md) | unmeasured | 1 |
 | [`mocked-stub`](skills/engineering/mocked-stub/EVIDENCE.md) | origin-trace | 1 |
 | [`pretooluse-prose`](skills/engineering/pretooluse-prose/EVIDENCE.md) | origin-trace | 12 |
-| [`vacuous-check`](skills/engineering/vacuous-check/EVIDENCE.md) | origin-trace | 2 |
+| [`vacuous-check`](skills/engineering/vacuous-check/EVIDENCE.md) | origin-trace | 8 |
 | [`decision-rights`](skills/orchestration/decision-rights/EVIDENCE.md) | origin-trace | 1 |
 | [`disposition-schema`](skills/orchestration/disposition-schema/EVIDENCE.md) | origin-trace | 2 |
 | [`subagent-handback`](skills/orchestration/subagent-handback/EVIDENCE.md) | origin-trace | 5 |
-| [`dead-predicate`](skills/meta/dead-predicate/EVIDENCE.md) | origin-trace | 2 |
+| [`dead-predicate`](skills/meta/dead-predicate/EVIDENCE.md) | origin-trace | 5 |
 
 CI checks this table against the records and fails on any disagreement, so the records are the
 place to change a row. Nothing generates it.

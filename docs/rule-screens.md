@@ -138,3 +138,66 @@ measurement of any entry is out of scope here and pre-registered separately.
 still shows zero in-use opens on invoked cards, the pointer requirement is falsified and this
 convention narrows to the label fix alone. Otherwise 180 days by lease, or earlier on trigger
 1, 2 or 3.
+
+## 2026-10-05: a discipline that must fire cannot live only in the skill layer, on one project's record
+
+**The rule under screen.** The `AGENTS.md` bullet *"A discipline you *require* to fire cannot
+live only in the skill layer."* It claims that a rule the model has to recall (a card it
+retrieves, a procedure a human invokes, prose it has read) does not reliably fire, and that a
+hook which fires on the tool call does. Class: `model-retrieval`, `model-execution`.
+
+**The test surface this file names has no screen for it.** `skill-harness` measures a card by
+ablation, card present against card absent. Its case study
+`docs/case-studies/displaced-enforcement-skill-ablation-blind-spot.md` states that ablation
+cannot see a discipline whose firing lives in a hook. No screen there compares a prose-only
+rule against a hook-wired one. The search, run 2026-10-05 in a `skill-harness` checkout: tracked
+paths matching `hook|router|prose-rule|must-fire|firing`, and `docs/` and `src/` files naming
+`UserPromptSubmit`. It returned that case study and one unrelated extractor test. So the disposition below is `UNMEASURED` on that surface, and
+the record that follows is evidence beside it, not a screen.
+
+**The record.** Two consecutive working sessions in the maintainer's own environment, both
+dated 2026-09-13, were audited for rules that were broken. Eight instances were found. Each
+row is a file, a hook log line or a commit in the maintainer's private records. "First
+session" and "second session" are those two sessions in order.
+
+| Rule, and where it was written | Read when | Broken how | Caught by |
+|---|---|---|---|
+| "No em dashes in deliverables", a hard rule in the maintainer's voice guide, dated 2026-07-12 | Every session that loaded the voice guide | 474 prose hits in skill-harness, 709 in skills, measured with Vale in both sessions | Nothing, until skill-harness#530 and skills#301 vendored a Vale rule |
+| `read_text` plus `write_text` converts the always-loaded state file from CRLF to LF, recorded as a failed approach in the previous session's hand-off notes | At the first session's open, from those notes | The first session did it again the same day; the second did it a third time on three skill-harness files | A line-ending hook, both times |
+| The legacy branch-protection endpoint returns 404 on a ruleset-protected branch, a gotcha in the always-loaded state file, dated 2026-08-26 | Every session; the file is always loaded | The first session measured skills `main` with that endpoint, recorded "no branch protection at all" in its state notes and hand-off, and handed the second session a work item to enable protection that already existed | A session-open audit, which is a ritual, not a hook; it caught the error one session late |
+| "A tally in a summary is a derived value, read it from the rows", written by the session before the first in its own audit | By that session as it wrote it, and by both sessions reading it | That session mis-tallied one sentence below the rule; each of the two sessions mis-tallied its first draft | A row-wise parse run by hand, in both sessions |
+| `git add -A` sweeps four untracked baseline images in skill-harness | Not read; the rule lives only in the guard | The second session typed it | A command guard, before the call |
+| `git worktree remove --force` can delete uncommitted work | Not read; the rule lives only in the guard | The second session typed it | A safety guard, before the call |
+| `find` without `-L` under-counts the junctioned skill corpus by about 43% | Read in earlier sessions | The second session typed it | A command guard, before the call |
+| A `git pull` with no rebase flag rebases silently under `pull.rebase=true` | Read in the `pull-rebase` card, which this collection publishes | The second session typed it | A pull-rebase guard, before the call |
+
+Tallied from the rows: in all eight, the agent took the action the rule names. Five rows had a
+hook on the call (rows 2 and 5 to 8), and the hook caught the action in all five. Three rows had
+only prose (rows 1, 3 and 4); prose prevented none of them, and they were caught late, by hand
+or not at all. Rows 2, 7 and 8 had both: the prose had been read and the action was still
+taken, and the hook caught it. In row 2 the prose had been read that same day.
+
+**The prompt nudge.** The maintainer's environment also carries a `UserPromptSubmit` hook that
+matches the operator's words against a rule list and injects a reminder to reach for a skill.
+Over 59 real prompts in five sessions, recorded no later than 2026-08-11, it fired on 8 (13.6%).
+The rule says such a nudge never fires in a proactive or `/loop` context. Claude Code's hooks
+documentation contradicts that. Read 2026-10-05 at `https://code.claude.com/docs/en/hooks.md`,
+section UserPromptSubmit, it says these hooks "don't fire only on prompts you type" and also run
+on "a scheduled task firing, including a `/loop` iteration". The rule's main recommendation does
+not rest on that clause: a PreToolUse block fires on the tool call, whatever started the turn.
+Correcting the clause in the rule is tracked in skills#402, outside this screen.
+
+**The limit.** Two sessions is a small record. The claim is stated for one project's own record
+and is not a general law until it holds across more sessions. It would be falsified by a session
+in which a prose-only rule, read in that session, prevents the action it names at the moment
+the action is chosen, with no hook involved, or by a hook-wired rule failing to fire on a call it
+covers. The 13.6% figure is one environment's rule list against one operator's prompts; it
+measures that router, not prompt nudges in general.
+
+**The disposition.** `UNMEASURED` on the `skill-harness` surface, as above. The project record
+is consistent with the rule and contradicts it nowhere. The rule text is unchanged. What would
+close the gap: a `skill-harness` screen that runs the same discipline as prose only and as a
+hook-backed rule, and counts the actions each one prevents.
+
+**Next screen due:** 2027-04-03 by lease, or earlier on trigger 1, 2 or 3, or when the
+falsifier above is observed.
