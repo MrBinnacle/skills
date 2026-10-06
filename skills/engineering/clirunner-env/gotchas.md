@@ -10,8 +10,7 @@
   link-check job on an unrelated pull request went red on
   `github.com/pallets/click/blob/8.1.x/src/click/testing.py` with HTTP 429. The 429 was
   incidental. Querying the repository directly returned `No commit found for the ref 8.1.x`:
-  the branch no longer exists. Click has moved to 8.5 (re-checked 2026-10-06, Click 8.5.x
-  stable docs header and published testing.py), and all three of this card's `8.1.x`
+  the branch no longer exists. Click has moved to 8.5, and all three of this card's `8.1.x`
   URLs were dead, along with the `click/testing.py:534` line pin.
 
   **The behaviour claim survived the re-check; only the pins were stale.** Current stable
@@ -26,8 +25,11 @@
   something external checks. Cite a signature or a documented parameter, not a line number,
   and pin to a ref the project keeps alive.
 
-  Not an instance of the GitHub throttle-masquerade hazard: GitHub answering a throttled
-  request with 404 rather than 429, where the link is alive. Here
+  Not an instance of `linkcheck-throttle`: that card is about
+  GitHub answering a throttled request with 404 rather than 429, where the link is alive. Here
   the checker's complaint was a 429 and the underlying link was genuinely dead. The two look
   alike at the CI log and diverge on the one check that matters — asking the API whether the
   target exists.
+
+  Re-checked 2026-10-06 against the Click 8.5.x stable docs header and published `testing.py`:
+  the version and the signature-backed behaviour claim above still hold.
