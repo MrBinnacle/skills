@@ -39,7 +39,7 @@ A project that declares no `close_commit` is unaffected by the marker check; the
 
 ## Procedure
 
-1. Run `close_session.py` with the objective, next action, and `$ARGUMENTS` purpose. This is the only close command: it writes durable state, commits with the `close_commit` marker, runs the receiver checks, and writes the packet scaffold at the post-commit `HEAD`.
+1. Run `close_session.py` with the objective, next action, and `$ARGUMENTS` purpose. This is the only close command: it writes durable state, commits with the `close_commit` marker, runs the receiver checks, and writes the packet scaffold at the post-commit `HEAD`. It runs the checks through the receiver's cache, so a check that declares `cache_inputs` and passes here is served `cached` at the next open on an unchanged tree ([PACKET-FORMAT.md](PACKET-FORMAT.md) → "Receiver-check cache").
 1a. A red receiver check refuses the packet; the state commit stands. Fix the cause now, while this session holds the context, and close again.
 2. Open the generated packet path from the script's JSON output.
 3. Replace every `__REQUIRED__` marker.
