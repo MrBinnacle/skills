@@ -547,8 +547,8 @@ def _prepared_repo(tmp: str, checks: list[dict], cache_path: Path | None):
 def cache_hit_and_input_change_cases():
     """A byte change under cache_inputs re-runs the check; a hit does not.
 
-    The key covers the blob hashes of cache_inputs, the Python version,
-    `git --version` and the command string. One byte under a declared input
+    The key covers the sha256 of the bytes on disk of cache_inputs, the Python
+    version, `git --version` and the command string. One byte under a declared input
     changes the key, so the last passing run is no longer the answer.
     """
     with tempfile.TemporaryDirectory() as tmp:
@@ -576,16 +576,31 @@ def cache_hit_and_input_change_cases():
         assert second.get("cached_at"), second
         assert _count_runs(repo) == 1, "unchanged inputs must not re-run the check"
 
+        check = json.loads(config.read_text(encoding="utf-8"))["receiver_checks"][0]
+        key_before = validator.check_cache_key(check, repo)
+        assert second["cache_key"] == key_before, (second, key_before)
+        # The key is over each input's resolved path, so the root's spelling
+        # cannot move it. The entry points pass a resolved root; a caller
+        # passing an unresolved one (an 8.3 short name such as RUNNER~1, or a
+        # `..` segment) must compute the same key, or the cache never hits.
+        respelled = repo / "inputs" / ".."
+        assert validator.check_cache_key(check, respelled) == key_before, (
+            "the cache key must not depend on how the repo root is spelled"
+        )
+
         locked = repo / "inputs" / "locked.txt"
         locked.write_text("locked-v2\n", encoding="utf-8")
+        key_after = validator.check_cache_key(check, repo)
+        # A passed entry carries no cache_key, so the key is computed, not read
+        # off the receipt: comparing against an absent field always differs.
+        assert key_after != key_before, "one byte under cache_inputs must change the key"
         code, receipt = _receive_receipt(repo, config, packet)
         assert code == 0, receipt
         third = receipt["checks"][0]
         assert third["status"] == "passed", third
         assert third["exit_code"] == 0, third
-        assert third.get("cache_key") != second.get("cache_key"), (
-            "one byte under cache_inputs must change the key"
-        )
+        stored = json.loads(cache_path.read_text(encoding="utf-8"))["checks"]
+        assert key_after in stored, "the re-run must be cached under the new key"
         assert _count_runs(repo) == 2, "a byte change under cache_inputs must re-run"
 
 
@@ -694,15 +709,9 @@ def cache_weekly_disagreement_cases():
         repo, packet, config = _prepared_repo(tmp, checks, cache_path)
         (repo / "flag-ok").write_text("ok\n", encoding="utf-8")
 
-        # close_session writes durable state the open requires; its own check
-        # runner is uncached and must still see the flag.
-        close_py = _pair_script("close_session.py")
-        closed = subprocess.run(
-            ["python", str(close_py), "--config", str(config),
-             "--repo-root", str(repo), "--objective", "x",
-             "--next-action", "y", "--purpose", "z"],
-            text=True, capture_output=True,
-        )
+        # close_session writes durable state the open requires. It shares the
+        # open's cache, so its passing run is the verdict the open serves.
+        closed = _close(repo, config)
         assert closed.returncode == 0, closed.stdout + closed.stderr
         closed_out = json.loads(closed.stdout)
         packet = _fill_packet(Path(closed_out["packet_path"]), closed_out["head"])
@@ -710,9 +719,9 @@ def cache_weekly_disagreement_cases():
         code, receipt = _open_receipt(repo, config, packet)
         assert code == 0, receipt
         assert receipt["verdict"] == "ACCEPTED", receipt
-        assert receipt["checks"][0]["status"] == "passed", receipt["checks"][0]
+        assert receipt["checks"][0]["status"] == "cached", receipt["checks"][0]
         cached = json.loads(cache_path.read_text(encoding="utf-8"))
-        assert cached.get("checks"), "the open must have populated the cache"
+        assert cached.get("checks"), "the close must have populated the cache"
 
         _age_cache(cache_path)
         (repo / "flag-ok").unlink()
@@ -727,6 +736,159 @@ def cache_weekly_disagreement_cases():
         assert not after.get("checks"), (
             "a weekly disagreement must clear that check's cache entry"
         )
+
+
+
+def _close(
+    repo: Path, config: Path, env: dict | None = None,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["python", str(_pair_script("close_session.py")), "--config", str(config),
+         "--repo-root", str(repo), "--objective", "x",
+         "--next-action", "y", "--purpose", "z"],
+        capture_output=True, env=env, encoding="utf-8", errors="replace",
+    )
+
+
+def cache_close_shares_cases():
+    """The close and the open share one cache under one key rule (issue #371).
+
+    A close runs every receiver check; an open on the unchanged tree right
+    after it must serve each cacheable check from the close's run rather than
+    execute it a second time. A check with no cache_inputs still runs.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        cache_path = Path(tmp) / "check-cache.json"
+        repo, _, config = _prepared_repo(tmp, [
+            {"name": "counter", "command": COUNTER_PASS,
+             "cache_inputs": ["inputs/locked.txt"]},
+            {"name": "uncached", "command": PASSING_COMMAND},
+        ], cache_path)
+
+        closed = _close(repo, config)
+        assert closed.returncode == 0, closed.stdout + closed.stderr
+        assert _count_runs(repo) == 1, "the close must execute the check"
+        assert cache_path.is_file(), "the close must write the shared cache"
+        closed_out = json.loads(closed.stdout)
+        packet = _fill_packet(Path(closed_out["packet_path"]), closed_out["head"])
+
+        code, receipt = _open_receipt(repo, config, packet)
+        assert code == 0, receipt
+        by_name = {c["name"]: c for c in receipt["checks"]}
+        assert by_name["counter"]["status"] == "cached", by_name["counter"]
+        assert by_name["uncached"]["status"] == "passed", by_name["uncached"]
+        assert _count_runs(repo) == 1, (
+            "an open after a close on an unchanged tree must not re-run a cached check"
+        )
+
+        # A second close serves the check from the cache. Its packet must say
+        # so: the verdict is the cached run's, observed when that run happened,
+        # not stamped as though the close had just executed it.
+        closed = _close(repo, config)
+        assert closed.returncode == 0, closed.stdout + closed.stderr
+        assert _count_runs(repo) == 1, "a close on an unchanged tree serves the cache"
+        manifest, _ = validator.extract(Path(json.loads(closed.stdout)["packet_path"]))
+        entry = next(t for t in manifest["tests"] if t["command"] == COUNTER_PASS)
+        assert entry["status"] == "cached", entry
+        assert entry["cache_key"] == by_name["counter"]["cache_key"], entry
+        assert entry["cached_at"] == by_name["counter"]["cached_at"], entry
+        assert entry["observed_at"] == entry["cached_at"], entry
+
+
+class _TornFile:
+    """A writable file that dies halfway through its first write."""
+
+    def __init__(self, handle):
+        self._handle = handle
+
+    def write(self, data):
+        self._handle.write(data[: len(data) // 2])
+        self._handle.flush()
+        raise OSError("simulated interruption mid-write")
+
+    def __getattr__(self, name):
+        return getattr(self._handle, name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self._handle.close()
+        return False
+
+
+def cache_atomic_write_cases():
+    """An interrupted cache write never leaves a corrupt cache file (issue #371).
+
+    Two writers share one machine-level cache, and either can die mid-write.
+    The write is torn halfway through by patching io.open, which every
+    standard-library text write goes through. The cache file must still hold
+    the last complete write, and no partial temp file may be left beside it.
+    """
+    import io
+    with tempfile.TemporaryDirectory() as tmp:
+        cache_path = Path(tmp) / "cache-dir" / "check-cache.json"
+        good = {"checks": {"k1": {"exit_code": 0, "cached_at": "t", "command": "c"}},
+                "last_full_run_at": "2026-01-01T00:00:00Z"}
+        validator.save_cache(cache_path, good)
+        assert validator.load_cache(cache_path) == good
+
+        real_open = io.open
+
+        def torn_open(file, mode="r", *args, **kwargs):
+            handle = real_open(file, mode, *args, **kwargs)
+            return _TornFile(handle) if any(m in mode for m in "wax+") else handle
+
+        newer = {"checks": {"k2": {"exit_code": 0, "cached_at": "u", "command": "d"}},
+                 "last_full_run_at": "2026-02-01T00:00:00Z"}
+        io.open = torn_open
+        try:
+            try:
+                validator.save_cache(cache_path, newer)
+            except OSError:
+                pass
+        finally:
+            io.open = real_open
+
+        raw = cache_path.read_text(encoding="utf-8")
+        try:
+            survived = json.loads(raw)
+        except json.JSONDecodeError:
+            raise AssertionError(
+                f"an interrupted write left a corrupt cache file: {raw!r}"
+            ) from None
+        assert survived == good, survived
+        leftovers = sorted(p.name for p in cache_path.parent.iterdir())
+        assert leftovers == ["check-cache.json"], leftovers
+
+
+def cache_path_confined_cases():
+    """A relative receiver_check_cache never lands in the repo tree (issue #371).
+
+    It resolves under the default cache directory, outside every tree. One
+    that climbs out of that directory is refused, not followed.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp) / "repo"
+        repo.mkdir()
+        cache_dir = validator.default_cache_path().parent
+        resolved = validator.resolve_cache_path(
+            {"receiver_check_cache": "team/cache.json"}, repo,
+        )
+        assert resolved == cache_dir / "team" / "cache.json", resolved
+        assert repo.resolve() not in resolved.resolve().parents, resolved
+        try:
+            escaped = validator.resolve_cache_path(
+                {"receiver_check_cache": "../../escape.json"}, repo,
+            )
+        except validator.PacketError as exc:
+            assert "receiver_check_cache" in str(exc), exc
+        else:
+            raise AssertionError(f"a climbing relative path was followed: {escaped}")
+        absolute = Path(tmp) / "elsewhere" / "cache.json"
+        assert validator.resolve_cache_path(
+            {"receiver_check_cache": str(absolute)}, repo,
+        ) == absolute
 
 
 def cache_no_inputs_fields_cases():
@@ -817,6 +979,152 @@ def cache_expand_cases():
         assert key_cmd1 != key_cmd2, "the command string is part of the key"
 
         assert validator.check_cache_key({"command": "true"}, repo) is None
+
+
+
+# A check that prints U+0141 (UTF-8 C5 81; 0x81 has no cp1252 mapping)
+# followed by a byte that is not valid UTF-8, then fails so its output is
+# kept in the receipt. Shell-neutral: runs under cmd.exe and /bin/sh.
+NON_CP1252_CHECK = (
+    "python -c \"import sys; sys.stdout.buffer.write(bytes([0xc5, 0x81, 0x20, 0xff])); "
+    "sys.stdout.flush(); sys.exit(1)\""
+)
+
+
+def utf8_check_output_cases():
+    """Check output decodes as UTF-8 whatever the caller's locale (issue #372).
+
+    The validator is run with UTF-8 mode off and PYTHONIOENCODING=cp1252, the
+    environment of a Windows host outside a closer that sets them. A check
+    printing a character outside cp1252 crashed the validator there. The
+    trailing invalid byte makes the case discriminate on a UTF-8 host too:
+    strict UTF-8 decoding crashes on it, errors="replace" does not.
+    """
+    import os
+    with tempfile.TemporaryDirectory() as tmp:
+        repo, packet, config = _prepared_repo(tmp, [{
+            "name": "non-cp1252",
+            "command": NON_CP1252_CHECK,
+        }], None)
+        env = dict(os.environ, PYTHONUTF8="0", PYTHONIOENCODING="cp1252")
+        result = subprocess.run(
+            ["python", str(HERE / "validate_packet.py"), str(packet),
+             "--mode", "receive", "--repo-root", str(repo), "--config", str(config)],
+            capture_output=True, env=env,
+        )
+        stdout = result.stdout.decode("utf-8", errors="replace")
+        try:
+            receipt = json.loads(stdout)
+        except json.JSONDecodeError:
+            raise AssertionError(
+                "validator crashed on non-cp1252 check output: "
+                + result.stderr.decode("utf-8", errors="replace")[-600:]
+            ) from None
+        assert result.returncode == 2, receipt
+        check = receipt["checks"][0]
+        assert check["status"] == "failed", check
+        assert "Ł" in check["stdout"], check  # decoded as UTF-8
+        assert "�" in check["stdout"], check  # invalid byte replaced
+
+
+def utf8_git_output_cases():
+    """Git output decodes as UTF-8 whatever the caller's locale.
+
+    The same defect as issue #372 on the validator's git calls: a branch name
+    whose UTF-8 bytes include one cp1252 leaves undefined (U+0401 is D0 81)
+    crashed `git branch --show-current` decoding on a cp1252 host.
+    """
+    import os
+    branch = "feature-Ё"
+    with tempfile.TemporaryDirectory() as tmp:
+        repo, _, config = _prepared_repo(tmp, [{
+            "name": "passing", "command": PASSING_COMMAND,
+        }], None)
+        subprocess.run(["git", "checkout", "-q", "-b", branch], cwd=repo, check=True)
+        head = validator.git(repo, "rev-parse", "HEAD")
+        packet = _fill_packet(repo / "packet.md", head, branch=branch)
+        env = dict(os.environ, PYTHONUTF8="0", PYTHONIOENCODING="cp1252")
+        result = subprocess.run(
+            ["python", str(HERE / "validate_packet.py"), str(packet),
+             "--mode", "receive", "--repo-root", str(repo), "--config", str(config)],
+            capture_output=True, env=env,
+        )
+        stdout = result.stdout.decode("utf-8", errors="replace")
+        try:
+            receipt = json.loads(stdout)
+        except json.JSONDecodeError:
+            raise AssertionError(
+                "validator crashed on non-cp1252 git output: "
+                + result.stderr.decode("utf-8", errors="replace")[-600:]
+            ) from None
+        assert result.returncode == 0, receipt
+        assert receipt["verdict"] == "ACCEPTED", receipt
+
+# A passing check that prints U+0141 (UTF-8 C5 81; 0x81 has no cp1252
+# mapping) and then a byte that is not valid UTF-8. Shell-neutral.
+NON_CP1252_PASS = (
+    "python -c \"import sys; sys.stdout.buffer.write(bytes([0xc5, 0x81, 0x20, 0xff])); "
+    "sys.stdout.flush()\""
+)
+# U+0401 is UTF-8 D0 81; 0x81 has no cp1252 mapping.
+NON_CP1252_BRANCH = "feature-Ё"
+
+
+def _cp1252_env() -> dict:
+    import os
+    return dict(os.environ, PYTHONUTF8="0", PYTHONIOENCODING="cp1252")
+
+
+def utf8_snapshot_state_cases():
+    """snapshot_state.py decodes check and git output as UTF-8 (issue #372).
+
+    The card documents snapshot_state.py as the close path for a project that
+    owns its own close sequence, so it must not depend on the caller's locale
+    either. Run under a cp1252 locale, a passing check printing a character
+    outside cp1252 crashed it with a TypeError, and so did a branch name
+    outside cp1252 on its git calls.
+    """
+    snapshot_py = _pair_script("snapshot_state.py")
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        _init_repo(repo)
+        subprocess.run(["git", "checkout", "-q", "-b", NON_CP1252_BRANCH],
+                       cwd=repo, check=True)
+        config = _boundary_config(repo, "utf8.json", NON_CP1252_PASS)
+        result = subprocess.run(
+            ["python", str(snapshot_py), "--config", str(config),
+             "--repo-root", str(repo), "--objective", "x",
+             "--next-action", "y", "--purpose", "z"],
+            capture_output=True, env=_cp1252_env(),
+            encoding="utf-8", errors="replace",
+        )
+        assert result.returncode == 0, (
+            "snapshot_state.py crashed on non-cp1252 output: " + result.stderr[-600:]
+        )
+        manifest, _ = validator.extract(Path(result.stdout.strip()))
+        assert manifest["tests"][0]["exit_code"] == 0, manifest["tests"]
+        assert manifest["repository"]["branch"] == NON_CP1252_BRANCH, manifest
+
+
+def utf8_close_git_cases():
+    """close_session.py decodes git output as UTF-8 whatever the locale.
+
+    Its own git() reads `git branch --show-current`; under a cp1252 locale a
+    branch name outside cp1252 crashed the close before its packet existed.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        repo, _, config = _prepared_repo(tmp, [{
+            "name": "passing", "command": PASSING_COMMAND,
+        }], None)
+        subprocess.run(["git", "checkout", "-q", "-b", NON_CP1252_BRANCH],
+                       cwd=repo, check=True)
+        closed = _close(repo, config, env=_cp1252_env())
+        assert closed.returncode == 0, (
+            "close crashed on non-cp1252 git output: "
+            + (closed.stdout + closed.stderr)[-600:]
+        )
+        manifest, _ = validator.extract(Path(json.loads(closed.stdout)["packet_path"]))
+        assert manifest["repository"]["branch"] == NON_CP1252_BRANCH, manifest
 
 
 # Every file measured byte-identical across the pair (sha256, 2026-08-24) is
@@ -1117,6 +1425,13 @@ if __name__ == "__main__":
     cache_weekly_disagreement_cases()
     cache_no_inputs_fields_cases()
     cache_expand_cases()
+    cache_close_shares_cases()
+    cache_atomic_write_cases()
+    cache_path_confined_cases()
+    utf8_check_output_cases()
+    utf8_git_output_cases()
+    utf8_snapshot_state_cases()
+    utf8_close_git_cases()
     parity_verified, parity_message = duplication_case()
     print(parity_message)
     roster = ("PASS: clean, stale, incomplete, failed-probe, placeholder, "
@@ -1124,7 +1439,9 @@ if __name__ == "__main__":
               "claimed-head, claimed-head-cli, receive-mode-config, "
               "close-session, open-session, red-check, assertions-held, "
               "cache-hit, cache-outside, cache-directory, cache-fail, "
-              "cache-weekly, cache-no-inputs, cache-expand")
+              "cache-weekly, cache-no-inputs, cache-expand, cache-close-shared, "
+              "cache-atomic, cache-path-confined, utf8-output, utf8-git-output, "
+              "utf8-snapshot, utf8-close-git")
     # no-drift appears in the pass roster only when parity was actually
     # compared; a single-card install reports NOT VERIFIED above instead.
     print(roster + ", no-drift" if parity_verified else roster)
