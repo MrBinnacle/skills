@@ -11,12 +11,21 @@ Claude Code skills for mistakes that report success. Most come from a failure se
 
 ## Install
 
+Run these two commands one at a time. A paste of both in one block is read by Claude Code as a single malformed URL.
+
 ```text
 /plugin marketplace add https://github.com/MrBinnacle/skills.git
+```
+
+```text
 /plugin install mrbinnacle-engineering
 ```
 
 The other plugins are `mrbinnacle-orchestration` and `mrbinnacle-meta`. Or install everything with `npx skills add MrBinnacle/skills`.
+
+The cards appear after `/reload-plugins`. If Claude Code reports the reload as pending, run `/reload-plugins --force`. A new `claude` session in the same profile also loads them. The plugin docs at https://code.claude.com/docs/en/discover-plugins.md state this behaviour (read 2026-10-06).
+
+Confirm what you installed with `claude plugin list`. It reports the installed plugins and their versions.
 
 Shell form, same source:
 
