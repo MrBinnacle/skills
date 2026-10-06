@@ -49,7 +49,7 @@ For the **published** skills in this repo, the repo â€” not any local install â€
 truth. Maintainers **install** the collection and hold a pinned copy. They do not link into the
 clone.
 
-- **Install it the way an end user does.** `claude plugin marketplace add MrBinnacle/skills`,
+- **Install it the way an end user does.** `claude plugin marketplace add https://github.com/MrBinnacle/skills.git`,
   then `claude plugin install mrbinnacle-engineering@mrbinnacle-skills` and the other two
   buckets. The install lands under `plugins/cache/mrbinnacle-skills/<plugin>/<version>/` and
   records a version and a `gitCommitSha` in `plugins/installed_plugins.json`. That pin is a
