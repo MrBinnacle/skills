@@ -1,6 +1,6 @@
 ---
 name: vacuous-check
-description: A success check accepting any non-empty output passes on failure, because failure output is non-empty too. Use when a script reports OK but nothing happened, or a probe says NOT-FOUND batch-wide.
+description: Fail-open success checks. Use when a script says OK but nothing happened, a probe batch returns a false negative or 0 results, or `String(got) === String(want)` passes on a type mismatch.
 ---
 
 # A Success Test That Accepts Any Output Is Not a Test
@@ -54,8 +54,9 @@ For `gh` specifically: prefer `--silent` (documented) plus an explicit
 exit-code test, or capture stderr separately when you need the body.
 `2>/dev/null` hides the diagnostic while leaving the error body on stdout —
 check where a tool actually writes errors before redirecting. The *stream* an
-error body lands on is undocumented for `gh api`: that claim rests on this
-card's dated Example, reproduced once, not specified — so assert the success
+error body lands on is undocumented for `gh api` (manual re-read
+2026-10-05): that claim rests on the retry loop in
+[case-study.md](case-study.md), reproduced once, not specified — so assert the success
 shape rather than rely on where the error text lands.
 
 ### 2. Compare identity, never stringification
@@ -96,15 +97,20 @@ probe that never ran. Put a known-good case in the batch and require it to come
 back positive:
 
 ```sh
-# WRONG — every line is a finding, and a bad path prints the same six lines
-for p in "$SUSPECT_1" "$SUSPECT_2"; do
-  probe "$p" | grep -q "$MARKER" && echo "HIT $p" || echo "MISS $p"
-done
+# A probe: does file $1 carry $MARKER? A missing file prints MISS too.
+probe() { grep -q "$MARKER" "$1" 2>/dev/null && echo HIT || echo MISS; }
 
-# RIGHT — the control fails loudly, before any MISS is believed
-for p in "$KNOWN_GOOD" "$SUSPECT_1" "$SUSPECT_2"; do ... done
-[ "$known_good_result" = HIT ] || { echo "HARNESS BROKEN, findings void"; exit 1; }
+# WRONG — a mistyped path prints MISS, the same line as a true negative
+for p in "$SUSPECT_1" "$SUSPECT_2"; do echo "$(probe "$p") $p"; done
+
+# RIGHT — the known-good control comes back HIT before any MISS is believed
+[ "$(probe "$KNOWN_GOOD")" = HIT ] || { echo "HARNESS BROKEN, findings void"; exit 1; }
+for p in "$SUSPECT_1" "$SUSPECT_2"; do echo "$(probe "$p") $p"; done
 ```
+
+**A detector that scanned zero inputs and exits 0 is a vacuous check.** A
+bad glob or an empty file list yields no findings, which reads as clean. Count
+what it scanned and fail on zero: `[ "$scanned" -gt 0 ] || exit 2`.
 
 **The tell is a clean sweep.** When every probe in a batch returns the
 negative — including cases you expected to pass — suspect the harness before
@@ -124,26 +130,20 @@ looseness; a new failure is a genuine find, not a regression.
 
 ## Example
 
-Session of 2026-08-17, a private linter project. GitHub's GraphQL endpoint returned
-HTTP 503 for roughly fifteen minutes while REST reads kept working — `gh issue
-create` and `gh issue comment` both route through GraphQL. A retry loop
-testing `[ -n "$url" ]`, with `2>/dev/null` hiding the diagnostic, printed
-`#44 OK {"message":"No server is currently available…"}` for both targets;
-re-reading the comment lists showed neither had posted. The fix was the `case`
-statement in rule 1 plus the re-read in rule 3. In the same session, the
-project's own test harness carried `String(got) === String(want)` in two
-copies; one shared `Object.is` harness replaced both, and the assertion counts
-held at 52 and 73 with zero failures — behaviour-preserving, not merely green.
+The origin incidents, the retry loop and the test harness, are in
+[case-study.md](case-study.md). Open it before rewriting a retry loop or a
+comparison helper.
+
+Open [gotchas.md](gotchas.md) when a check accepts failure output or a probe misreports. It records every dated occurrence.
 
 ## Notes
 
-- **The instrument is not exempt.** Both Example instances sat inside
+- **The instrument is not exempt.** Both origin incidents sat inside
   verification machinery — a retry loop and a test harness — in a repository
   whose product detects false-green reporting. Verification code is written
   once, read never, and tested by nobody: audit it first, not last. Confirmed
   a third time 2026-08-23, when a throwaway probe harness built *to audit a
   router* produced the false finding itself.
-  Open [gotchas.md](gotchas.md) when a check accepts failure output or a probe misreports. It records all three instances.
 - **Rule 4 is the one this card was missing.** The 2026-08-17 instances were
   false positives. A false *negative* reads as diligence, which is why it
   survives longer: nobody re-examines a probe that found a problem.
