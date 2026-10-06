@@ -16,11 +16,11 @@
     },
     "im-down": {
       "standing_cost_tokens": 0,
-      "skill_md_sha256": "08664e873bf3e240d09800fce8ed9fa9448cfa0023873c908c60b02c942df650"
+      "skill_md_sha256": "42c677f3fa0588ce138d8a85ea3143ad09acd391a4e6602f1457ea8b2d4ffe60"
     },
     "im-up": {
       "standing_cost_tokens": 0,
-      "skill_md_sha256": "04f662ae5a3c56fbeec5e0b79133e2eb3f98edf5c998732bfef4ec38254ff7b7"
+      "skill_md_sha256": "01cabe6cc9b81d0cb8f2e725f967f19d31370ff78ec9b838ad67e868e16533dc"
     },
     "mocked-stub": {
       "standing_cost_tokens": 51,
