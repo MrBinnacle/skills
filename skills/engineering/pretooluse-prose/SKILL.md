@@ -147,8 +147,9 @@ Open [gotchas.md](gotchas.md) when a Bash guard blocks its own install, a commit
   forbidden strings by design. If a guard is going to false-positive, it will be here.
 - **Duplicating regexes across two guards is deliberate when they enforce one discipline** —
   but they drift. Note the sibling in a comment so a change to one prompts a change to both.
-- The same trap applies to `Edit|Write` guards on documentation paths (the matcher is a
-  regex on the tool name; checked 2026-10-05): a skill file *describing* an anti-pattern
+- The same trap applies to `Edit|Write` guards on documentation paths (a matcher of letters
+  and `|` is a list of exact tool names, so `Edit|Write` matches those two tools only; checked
+  2026-10-06): a skill file *describing* an anti-pattern
   contains the anti-pattern verbatim.
 - Prefer prose-tolerant detection over a suppression escape hatch. An `ACK=1` bypass gets
   used reflexively and the guard stops meaning anything.
