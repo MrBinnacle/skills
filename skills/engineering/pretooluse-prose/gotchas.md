@@ -72,6 +72,9 @@
   it by path (`git commit -F msg.txt`, `gh pr create --body-file body.md`). No guard sees the
   prose, and the artifact is reviewable before it ships.
 
+  `promoted: body` — 2026-10-05, the write-to-a-file mitigation is now the opening remedy of
+  SKILL.md → Solution, phrased as "write the file with a file-write tool, not a heredoc".
+
 - [OBSERVED on or about 2026-08-18, harvested 2026-08-24] Independent occurrence in a third
   project and on a third guard, found by a corpus sweep and verified by reading the source.
   A private linter project's session state records: "CC Safety Net failed closed once on a long
@@ -85,7 +88,7 @@
   the failed-closed block of a legitimate command and the `--body-file` recovery.
 
 - [OBSERVED 2026-08-24] Two further reproductions during this collection's own maintenance
-  passes (the private research repo's S312, fixed the same day in S313), both on the
+  passes (two consecutive sessions of the private research repo, the fix landing in the second), both on the
   read-whole guard rule this card's 2026-08-23 entry did not cover: Python locals named `head` and `tail` inside a
   `python - <<'EOF'` script read as pager commands (a `.md` path in the segment supplied
   the operand), and then the commit describing that block was itself blocked because the
@@ -97,7 +100,7 @@
   fix had been wired to one caller, not the class.
 
 - [OBSERVED 2026-08-24, recorded 2026-08-25] Three further blocks in one session of the
-  private research repo (its S321), on three different guards, every one correct by its
+  private research repo, on three different guards, every one correct by its
   own rule and every one fired by prose rather than by the action the rule polices: a
   commit body describing a safe choice the session had made, a commit body containing
   the words "pull request", and a JSON payload containing a filename. All three recovered
@@ -208,3 +211,40 @@
 
   **Not a falsifier**, for the same reason as the entry above: command-position anchoring was
   never applied to this guard, so the remedy is absent rather than defeated.
+
+  `promoted: description` — 2026-10-05, the card's `description` names the non-prose branch.
+  `promoted: body` — 2026-10-05, SKILL.md → Context / Trigger Conditions carries this case as
+  the non-prose branch, which answers the card-text question this entry left open.
+
+- [OBSERVED 2026-09-22 to 2026-10-05, recorded 2026-10-05] Five further occasions, each in a
+  separate session with a separate task, read from the maintainer's private session records
+  and from this repair's own session. Repeated blocks inside one session count once.
+
+  1. 2026-09-22 occurrence, a coordination session: `guard-git-pull-rebase.py` blocked three
+     heredocs — a board brief whose prose quoted the command, an issue comment naming the regex
+     `git (pull|merge|rebase)`, and the heredoc filing the bug report about the first two. The
+     bug report asks for matching in command position only, or for stripping heredoc bodies and
+     quoted strings first. That is this card's remedy, and the guard still lacked it.
+  2. 2026-09-22 occurrence, a later session the same day: the same guard matched the words
+     inside heredoc text again. The session listed it among its own gotchas; the three sessions
+     between did not carry it, so it is read as a fresh block. Recovered with the Write tool.
+  3. 2026-10-01 occurrence: a shell heredoc was blocked because its text quoted a
+     pull-request creation command. Recovered by writing the body with a file-write tool and
+     passing `--body-file`. The record does not name the guard; stated as a limit.
+  4. 2026-10-05 occurrence: the pull-rebase guard matched words inside heredoc text again. The
+     same record notes a block on a real fast-forward-only pull inside a compound command; that
+     one is the guard working as designed and is not part of this count.
+  5. 2026-10-05 occurrence, first-hand, while building this repair: a pull-request preflight
+     guard blocked a `python - <<'PYEOF'` script that edited this card, because the script's
+     string literals carried the card's own remedy text, `gh pr create --body-file body.md`. No
+     pull request was being opened. Recovered by this card's remedy: the script was written
+     with a file-write tool and run by path.
+
+  Read and left uncounted: a 2026-10-02 record of a pull-request command blocked by a
+  skill-activation gate. That gate polices whether a skill was loaded, not the command text,
+  so it is outside this card's failure class. Its consequence still taught something: the
+  heredoc that wrote the body file never ran, and a stale same-named file from an earlier
+  session was posted. SKILL.md → Solution now says to read the file back before sending it.
+
+  **Not a falsifier**, any of them. The pull-rebase guard still lacks heredoc stripping, and the
+  other guards' predicates were not read, so the remedy is absent rather than defeated.

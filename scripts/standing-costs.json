@@ -16,35 +16,35 @@
     },
     "im-down": {
       "standing_cost_tokens": 0,
-      "skill_md_sha256": "08664e873bf3e240d09800fce8ed9fa9448cfa0023873c908c60b02c942df650"
+      "skill_md_sha256": "42c677f3fa0588ce138d8a85ea3143ad09acd391a4e6602f1457ea8b2d4ffe60"
     },
     "im-up": {
       "standing_cost_tokens": 0,
-      "skill_md_sha256": "03e89a8334e986ee23646b275d75e90c070aa3acf8f7bc43ce1e1296bfa943bd"
+      "skill_md_sha256": "1c22d03d7a7bdc376ccd68ab4efec905cdf328d0b42d6c923298f8f32b5f8492"
     },
     "mocked-stub": {
       "standing_cost_tokens": 51,
       "skill_md_sha256": "02b6bef961c1809fc15da92b4e9eb28b2cb26aa84cba11947edfdd2b865c1dfd"
     },
     "pretooluse-prose": {
-      "standing_cost_tokens": 51,
-      "skill_md_sha256": "e1e13c5e78ec79c8f50080fbbf93de16db74112568390bf462861d9fe56135e4"
+      "standing_cost_tokens": 60,
+      "skill_md_sha256": "73377133621460a0e71336d5b6af0082bc2ce6fb6a93a851d156ab92cf910653"
     },
     "pull-rebase": {
       "standing_cost_tokens": 63,
-      "skill_md_sha256": "825f5eb757acfee3256f4d6b5d33e1db746730a77f65ef4ae8a2d4f5d981d511"
+      "skill_md_sha256": "b8b3c775e37ae592ff9a0024536a4dc928453316b4aede622aff9ac6d85d0a66"
     },
     "stale-deploy": {
       "standing_cost_tokens": 50,
       "skill_md_sha256": "54e35bb416166b1c6751f295fc58ea0c9380ae936724512ab67a0a72fd6dfe10"
     },
     "vacuous-check": {
-      "standing_cost_tokens": 49,
-      "skill_md_sha256": "99c02e78aba62acb48fe4763136a579fe8b399d53c76545a248b99c15521b5ec"
+      "standing_cost_tokens": 53,
+      "skill_md_sha256": "e49527e3242b9bc30dae38b3d895cb255741acd59911298c8c457b20f7663b99"
     },
     "dead-predicate": {
-      "standing_cost_tokens": 51,
-      "skill_md_sha256": "984ecdfa828710f69d72fb218629414211bb9afacb0d2debfa32017c0a3f23b3"
+      "standing_cost_tokens": 53,
+      "skill_md_sha256": "51d65de3b384390e3aa9ec7fe0b4fabfadb10b2921bff8641b9633b7fec42d83"
     },
     "decision-rights": {
       "standing_cost_tokens": 47,
