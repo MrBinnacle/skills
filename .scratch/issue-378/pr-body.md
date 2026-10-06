@@ -1,17 +1,17 @@
 # #378 — halt-as-deliverable: broken Example pointer, S415 occasion, jargon, description routing
 
-**Status: INCOMPLETE.** Third cold session on the same branch. Both hard prerequisites named by the ticket remain missing on this host. No card-text edit was made. No occurrence was recorded without its source. No Skill-tool success is claimed.
+**Status: INCOMPLETE.** Fourth cold session on the same branch. Both hard prerequisites named by the ticket remain missing on this host. No card-text edit was made. No occurrence was recorded without its source. No Skill-tool success is claimed.
 
-## Session re-verification (third cold session, 2026-10-06)
+## Session re-verification (fourth cold session, 2026-10-06)
 
-This body is the durable review record. A third unattended session re-ran every prerequisite check before any card-text edit. Results match the two prior sessions; nothing new unblocked them.
+This body is the durable review record. A fourth unattended session re-ran every prerequisite check before any card-text edit. Results match the three prior sessions; nothing new unblocked them.
 
 | Check | Command / observation | Result |
 |---|---|---|
-| Private research checkout | sibling path the dispatch-count script assumes (`../` from the repository root) | `No such file or directory` at both path interpretations. Filesystem search for the directory name and both cited filenames (`checkpoint-archive*`, `evaluation-chain*`, `tlc-*`, `*S523*`, `*S415*`) under `/` returned nothing outside this worktree's own PR-body text. |
-| Skill tool `mattpocock-skills:writing-for-agents` | Skill tool call | `Skill "mattpocock-skills:writing-for-agents" not found. Available skills: customize-opencode` |
-| Skill tool `productivity/writing-for-agents` | Skill tool call (AGENTS.md name form) | `Skill "productivity/writing-for-agents" not found. Available skills: customize-opencode` |
-| Skill tool `writing-for-agents` | Skill tool call (bare form) | `Skill "writing-for-agents" not found. Available skills: customize-opencode` |
+| Private research checkout | sibling path the dispatch-count script assumes (`../` from the repository root), and parent-of-parent | `No such file or directory` at both path interpretations. Filesystem search for the directory name and both cited filenames (`checkpoint-archive*`, `evaluation-chain*`, `tlc-*`, `*S523*`, `*S415*`, `*S414*`) under `/` returned nothing outside this worktree's own PR-body text. |
+| Skill tool `mattpocock-skills:writing-for-agents` | Skill tool call this session | `Skill "mattpocock-skills:writing-for-agents" not found. Available skills: customize-opencode` |
+| Skill tool `productivity/writing-for-agents` | Skill tool call (AGENTS.md name form, prior sessions) | not found |
+| Skill tool `writing-for-agents` | Skill tool call (bare form, prior sessions) | not found |
 | Example heading absent | headings in `SKILL.md` | Problem, Use when, Solution, Verification, Notes — **no Example heading**. Defect real at head. |
 | Broken pointer | `gotchas.md:3-5` | Points to `` `SKILL.md` → Example ``. Text left unchanged, as the ticket requires. |
 | Jargon present | `grep -nE 'PHASE B\|\bT3\b' case-study.md` | Hits at lines 6 (`T3`), 12 (`PHASE B`), 28 (`PHASE B'`) — none define the term. |
@@ -22,7 +22,7 @@ This body is the durable review record. A third unattended session re-ran every 
 | Platform claim undated | `case-study.md:29-30` | `uses subscription auth` — undated, present. |
 | GitHub auth | `gh auth status`; `GITHUB_TOKEN` | Not logged in; token unset. Issue-comment substitute is this body. |
 
-Ticket instruction, verbatim: *"If the checkout is not readable, stop and comment on this issue; do not record an occurrence you have not read."* That fail-closed instruction fires. Criterion 9 additionally forbids every card-text edit this ticket needs until the Skill call succeeds; the call was attempted under three name forms and failed. The container holds no GitHub token, so this body is the comment.
+Ticket instruction, verbatim: *"If the checkout is not readable, stop and comment on this issue; do not record an occurrence you have not read."* That fail-closed instruction fires. Criterion 9 additionally forbids every card-text edit this ticket needs until the Skill call succeeds; the call was attempted under the required name form this session and failed. The container holds no GitHub token, so this body is the comment.
 
 ## Acceptance-criteria checklist (build target)
 
@@ -61,7 +61,7 @@ A build that records an occurrence it has not read is the failure this evidence-
 
 Acceptance criterion 9, verbatim: *"Card text (`SKILL.md`, `EVIDENCE.md`, `gotchas.md`, aux files, descriptions) is edited only after the implementer calls the Skill tool with `mattpocock-skills:writing-for-agents`; the PR body says that call was made."*
 
-This environment's Skill tool loads only `customize-opencode`. There is no mattpocock plugin, no `installed_plugins.json`, and no local skill under any path on the host. Three name forms were attempted in this session; all returned not-found. Writing "that call was made" in this body without making it would be false.
+This environment's Skill tool loads only `customize-opencode`. There is no mattpocock plugin, no `installed_plugins.json`, and no local skill under any path on the host. The required name form was attempted in this session; it returned not-found. Writing "that call was made" in this body without making it would be false.
 
 That criterion gates every card-text edit this ticket needs:
 
@@ -85,7 +85,7 @@ Branch: `agent/issue-378`. Head is clean at session start. Worktree is one git c
 | Description length today | frontmatter `description` | 193 characters — under the 200 bar; no rewrite made |
 | SKILL.md size today | `wc -c` | 5638 bytes — inside 400–7,168 |
 | Card validator baseline | `PYTHONUTF8=1 python scripts/validate_card_files.py` | PASS (pre-existing allowlisted reachability note for this card's EVIDENCE.md; recorded 2026-09-06, not introduced here) |
-| Dispatches row | `EVIDENCE.md` | Already carries `2 dispatches ... measured 2026-10-06` — issue #374 has landed; this ticket does not edit that row |
+| Dispatches row | `EVIDENCE.md` | Already carries `2 dispatches ... measured 2026-10-06` — issue #374 has landed on this branch's base; this ticket still does not edit that row |
 | Occasions row | `EVIDENCE.md` | Opens `3 —` with three dated references; no S415 date added |
 
 ## Validator roster (this session, incomplete tree)
@@ -112,7 +112,6 @@ This ticket changes no card text and no script, so this roster is a baseline of 
 | `cd skills/engineering/im-down && python test_validate_packet.py` | `PASS: clean, stale, incomplete, ... no-drift` | 0 |
 | `cd skills/engineering/im-up && python test_validate_packet.py` | `PASS: clean, stale, incomplete, ... no-drift` | 0 |
 | `cd skills/engineering/im-down && python validate_packet.py fixture-stale.md --mode produce --repo-root <repo root>` | `{ "verdict": "REJECTED", "packet_id": "stale-1", ... }` | 2 (non-zero; poison control holds) |
-| `python scripts/validate_scoreboard.py` | (see above) | 0 |
 | `python scripts/test_validate_disposition_counts.py` | `PASS: disposition-count check recomputes every stated count from the record` | 0 |
 | `python scripts/validate_disposition_counts.py` | `PASS: CATALOG states no disposition count; record dispositions/2026-08-15-S295-admission-triage.md derives 9 triaged, 2 stand, 6 thin, 1 ceiling-likely` | 0 |
 | `python scripts/test_check_prose_claims.py` | `PASS: 7 controls verified; the live tree passes and every planted defect is refused by name` | 0 |
@@ -123,7 +122,7 @@ This ticket changes no card text and no script, so this roster is a baseline of 
 | `python scripts/validate_site_links.py` | `PASS: every site link resolves, anchors included` | 0 |
 | `python scripts/test_release_model_disclosure.py` | `PASS: release-model disclosure matches ADR 0002 on every surface that states the model` | 0 |
 | `python scripts/test_validate_skill_formats.py` | `PASS: skill-format gate suite, all cases correct` | 0 |
-| `python scripts/validate_skill_formats.py` | `PASS: 47 skill folder(s), 153 file(s), all declared readable formats (.md, .txt, .py, .json), 0 git-ignored file(s) skipped` | 0 |
+| `python scripts/validate_skill_formats.py` | `PASS: 47 skill folder(s), 153 file(s), all declared readable formats (.md, .txt, .py, .json), 2 git-ignored file(s) skipped` | 0 |
 | `python scripts/test_validate_voice_provenance.py` | `PASS: voice-provenance suite, all cases correct` | 0 |
 | `python scripts/validate_voice_provenance.py` | `PASS: 6 voice specimen(s), each equal to a recorded line in VERBATIM.md and cited to the section and date that holds it` | 0 |
 | `python scripts/test_validate_brand_kit.py` | `PASS: brand-kit checker verified across 45 temporary tree(s) plus the live tree; ...` | 0 |
@@ -146,7 +145,7 @@ Two suites fail for **environmental** reasons on this host, not because of this 
 
 Both failures are pre-existing host gaps. This branch changes no script, no validator, and no card text that either suite reads. On a host with `pwsh` and `claude` available, both must be re-run and their final lines updated here.
 
-One environmental fix was applied during this session: `git config --global --add safe.directory '*'`. Without it, `scripts/test_check_prose_claims.py` failed every control that copies the live tree into `/tmp` because git refused `ls-files` on the temp copy (`dubious ownership`). After the fix the suite is green: `PASS: 7 controls verified; the live tree passes and every planted defect is refused by name`. This is host git configuration, not a repository change.
+Host git configuration note carried from a prior session: `git config --global --add safe.directory '*'` was required so `scripts/test_check_prose_claims.py` controls that copy the live tree into `/tmp` can run `git ls-files`. Without it that suite fails on `dubious ownership`. After the fix the suite is green. This is host git configuration, not a repository change.
 
 ## Acceptance criteria — status
 
@@ -157,12 +156,12 @@ One environmental fix was applied during this session: `git config --global --ad
 | 3 | PHASE B / T3 defined or removed in case-study.md | **Not met** | Hits still at lines 6, 12, 28; no edit made (Skill-call gate) |
 | 4 | Description routes stale-handoff and fix-and-re-run | **Not met** | Description unchanged (193 chars, pre-existing text) |
 | 5 | No code defect; red-then-green for any script change | **N/A — satisfied by inaction** | No script or validator changed |
-| 6 | Validators and suites green at PR head | **Baseline run complete; two environmental failures** | Full roster table above. 34 commands exit 0; 2 exit 1 for missing host tools (`pwsh`, `claude`). No card change exists to gate. |
+| 6 | Validators and suites green at PR head | **Baseline run complete; two environmental failures** | Full roster table above. Commands exit 0 except the two missing-host-tool suites. No card change exists to gate. |
 | 7 | Changeset for `mrbinnacle-skills` | **Not met** | No user-visible card change to describe; a changeset claiming a repair would be false |
 | 8 | Platform claims re-checked and dated | **Not met** | The undated `subscription auth` claim at case-study.md:29-30 is left as-is. The card-text edit that would carry a date is gated on the writing-for-agents Skill call. |
-| 9 | Skill tool call `mattpocock-skills:writing-for-agents` | **Not met — call attempted and failed** | Skill tool returned not-found for all three name forms. This body does not claim the call succeeded. |
+| 9 | Skill tool call `mattpocock-skills:writing-for-agents` | **Not met — call attempted and failed** | Skill tool returned not-found for the required name form this session. This body does not claim the call succeeded. |
 | 10 | SKILL.md size and description bar | **Baseline only** | 5638 bytes, 193-character description — both inside bounds *before* any edit; no post-edit measurement possible |
-| 11 | `pre-commit run --all-files` | **Met for this incomplete tree** | `pre-commit 4.6.2` present (installed in a prior session into the project venv). `pre-commit run --all-files` passed every hook this session. Must be re-run after card-text edits on a complete build. |
+| 11 | `pre-commit run --all-files` | **Met for this incomplete tree** | `pre-commit run --all-files` passed every hook this session. Must be re-run after card-text edits on a complete build. |
 
 ## Mutation campaign
 
@@ -200,8 +199,8 @@ Attempted prerequisite: `gh auth status` → not logged into any GitHub hosts. N
 
 ## What unblocks this ticket
 
-1. Place the private research checkout beside this worktree at the sibling path the dispatch-count script assumes, with `checkpoint-archive-S415.md` and `evaluation-chain-batch-2-S414.md` readable at the lines the ticket names. Re-confirmed absent on this host in three consecutive sessions.
-2. Install or load `mattpocock-skills:writing-for-agents` so the Skill tool can be called before any card-text edit. Re-confirmed unavailable; three name forms return not-found.
+1. Place the private research checkout beside this worktree at the sibling path the dispatch-count script assumes, with `checkpoint-archive-S415.md` and `evaluation-chain-batch-2-S414.md` readable at the lines the ticket names. Re-confirmed absent on this host in four consecutive sessions.
+2. Install or load `mattpocock-skills:writing-for-agents` so the Skill tool can be called before any card-text edit. Re-confirmed unavailable this session; the required name form returns not-found.
 3. Provide a GitHub token if the runner still requires an issue comment; otherwise treat this body as that comment.
 4. For criterion 6 on a complete build: a host with `pwsh`/`powershell` and the `claude` CLI on PATH, so `test_link_skills_guard.py` and `test_install_form.py` can run.
 
@@ -216,4 +215,4 @@ Attempted prerequisite: `gh auth status` → not logged into any GitHub hosts. N
 
 ## Bottom line
 
-Every acceptance checkbox that depends on card text or on the S415 source record is unmet. The two hard prerequisites — the private research checkout and the writing-for-agents Skill — are both absent, and both were re-verified independently this session. The tree is otherwise green at baseline: card-file validator PASS, de-personalization gate PASS, 34 workflow commands exit 0, two environmental failures unrelated to this branch. No occurrence was invented. No Skill-tool success is claimed. The incomplete stands.
+Every acceptance checkbox that depends on card text or on the S415 source record is unmet. The two hard prerequisites — the private research checkout and the writing-for-agents Skill — are both absent, and both were re-verified independently this session. The tree is otherwise green at baseline: card-file validator PASS, de-personalization gate PASS, workflow validators exit 0, two environmental failures unrelated to this branch. No occurrence was invented. No Skill-tool success is claimed. The incomplete stands.
