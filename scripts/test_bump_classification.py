@@ -688,6 +688,120 @@ def case_case4_unchanged_version_with_no_consumed_plan_passes(tmp: Path) -> None
     )
 
 
+def case_case4_minor_plan_resets_patch_field(tmp: Path) -> None:
+    """R4-F3: a minor plan must reset the patch field.
+
+    Base 1.2.1 with a consumed minor plan: ``changeset version`` writes
+    1.3.0, not 1.3.1. The minor-reset mutant at release_gate.py:1065
+    returns 1.3.1 (patch left unreset); the pass half dies on that mutant,
+    and the refusal half names it by requiring 1.3.0 when 1.3.1 is written.
+    Existing case-4 controls use bases whose patch field is already 0
+    (1.2.0), so they cannot see this defect.
+    """
+    correct = make_tree(
+        tmp / "correct",
+        declared=None,
+        branch_change="none",
+        base_version="1.2.1",
+        head_version="1.3.0",
+        release=True,
+        consumed="minor",
+    )
+    expect_pass(
+        "R4-F3: minor plan over base 1.2.1 produces 1.3.0 "
+        "(kills minor-reset mutant at release_gate.py:1065)",
+        correct,
+        "--release",
+    )
+    unreset = make_tree(
+        tmp / "unreset",
+        declared=None,
+        branch_change="none",
+        base_version="1.2.1",
+        head_version="1.3.1",
+        release=True,
+        consumed="minor",
+    )
+    expect_g10_refusal(
+        "R4-F3: minor plan over base 1.2.1 refuses unreset 1.3.1 "
+        "(kills minor-reset mutant at release_gate.py:1065)",
+        unreset,
+        "G10:",
+        "1.2.1",
+        "1.3.1",
+        "1.3.0",
+        "minor",
+        release=True,
+    )
+
+
+def case_case4_major_plan_resets_minor_and_patch(tmp: Path) -> None:
+    """R4-F3: a major plan must reset the minor and patch fields.
+
+    Base 2.1.1 with a consumed major plan: ``changeset version`` writes
+    3.0.0, not 3.1.1 (nothing reset) and not 3.0.1 (patch left unreset).
+    The major-reset mutant at release_gate.py:1063 returns 3.1.1; a
+    mutant that resets minor but not patch returns 3.0.1. Existing
+    case-4 major controls use base 2.0.0, whose minor and patch fields are
+    already 0, so they cannot see either defect.
+    """
+    correct = make_tree(
+        tmp / "correct",
+        declared=None,
+        branch_change="none",
+        base_version="2.1.1",
+        head_version="3.0.0",
+        release=True,
+        consumed="major",
+    )
+    expect_pass(
+        "R4-F3: major plan over base 2.1.1 produces 3.0.0 "
+        "(kills major-reset mutant at release_gate.py:1063)",
+        correct,
+        "--release",
+    )
+    unreset_both = make_tree(
+        tmp / "unreset-both",
+        declared=None,
+        branch_change="none",
+        base_version="2.1.1",
+        head_version="3.1.1",
+        release=True,
+        consumed="major",
+    )
+    expect_g10_refusal(
+        "R4-F3: major plan over base 2.1.1 refuses unreset 3.1.1 "
+        "(kills major-reset mutant at release_gate.py:1063)",
+        unreset_both,
+        "G10:",
+        "2.1.1",
+        "3.1.1",
+        "3.0.0",
+        "major",
+        release=True,
+    )
+    unreset_patch = make_tree(
+        tmp / "unreset-patch",
+        declared=None,
+        branch_change="none",
+        base_version="2.1.1",
+        head_version="3.0.1",
+        release=True,
+        consumed="major",
+    )
+    expect_g10_refusal(
+        "R4-F3: major plan over base 2.1.1 refuses unreset 3.0.1 "
+        "(kills major-reset mutant at release_gate.py:1063)",
+        unreset_patch,
+        "G10:",
+        "2.1.1",
+        "3.0.1",
+        "3.0.0",
+        "major",
+        release=True,
+    )
+
+
 def case_b2a_push_to_main_after_admission_passes(tmp: Path) -> None:
     """B2(a): a push to main after an admission merged with minor must PASS.
 
@@ -1115,6 +1229,8 @@ CASES = (
     case_case4_requires_the_exact_changesets_version,
     case_case4_no_consumed_plan_with_delta_is_refused,
     case_case4_unchanged_version_with_no_consumed_plan_passes,
+    case_case4_minor_plan_resets_patch_field,
+    case_case4_major_plan_resets_minor_and_patch,
     case_b2a_push_to_main_after_admission_passes,
     case_b2b_next_scripts_only_pr_passes,
     case_b2c_replay_push_to_main_at_316_passes,
@@ -1144,11 +1260,13 @@ def main() -> int:
     print(
         f"\nPASS: {len(CASES)} controls verified; each planted defect is refused "
         "by G10, the inversion is pinned, cases 1-3 judge only branch-added "
-        "changesets, case 4 prices the consumed plan, the ADR text on disk "
-        "drives classification, G10 refuses in its own words when git is "
-        "absent and a declared bump is pending, an unchanged version at "
-        "explicit --release stays silent when no plan was consumed, and the "
-        "CI poison controls carry the inversion, cases 1-4, B2(a-c) and B3"
+        "changesets, case 4 prices the consumed plan and the SemVer reset "
+        "fields (R4-F3: minor over 1.2.1 -> 1.3.0, major over 2.1.1 -> 3.0.0), "
+        "the ADR text on disk drives classification, G10 refuses in its own "
+        "words when git is absent and a declared bump is pending, an unchanged "
+        "version at explicit --release stays silent when no plan was consumed, "
+        "and the CI poison controls carry the inversion, cases 1-4, B2(a-c) "
+        "and B3"
     )
     return 0
 
