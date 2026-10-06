@@ -331,3 +331,38 @@ class TestLineEndingsPreserved:
         else:
             assert lone_lf == 0
         assert "7 dispatches" in _read_dispatch_row(evidence)
+
+
+class TestAliasKeys:
+    """Issue #374: a card's total sums every telemetry key that names it."""
+
+    def test_current_earlier_and_plugin_prefixed_names_sum(self, repo_copy: Path) -> None:
+        """decision-rights was downstream-instruction-framing before #286 and
+        is dispatched as mrbinnacle-orchestration:decision-rights once installed
+        from the plugin. All three keys are the same card."""
+        log = _make_fixture_log(
+            repo_copy,
+            {
+                "decision-rights": 2,
+                "downstream-instruction-framing": 5,
+                "mrbinnacle-orchestration:decision-rights": 7,
+            },
+        )
+        result = _run_script(log, repo_copy)
+        assert result.returncode == 0, result.stderr
+        row = _read_dispatch_row(
+            repo_copy / "skills/orchestration/decision-rights/EVIDENCE.md"
+        )
+        assert row.startswith("14 dispatches"), row
+
+    def test_colliding_earlier_name_not_counted(self, repo_copy: Path) -> None:
+        """im-up was session-start-from-state until fc5009c, but that rename
+        was made because a separate local skill holds the same name, so the
+        key cannot be attributed to the card."""
+        log = _make_fixture_log(
+            repo_copy, {"im-up": 3, "session-start-from-state": 500}
+        )
+        result = _run_script(log, repo_copy)
+        assert result.returncode == 0, result.stderr
+        row = _read_dispatch_row(repo_copy / "skills/engineering/im-up/EVIDENCE.md")
+        assert row.startswith("3 dispatches"), row

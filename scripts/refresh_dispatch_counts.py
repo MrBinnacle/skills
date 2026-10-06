@@ -26,10 +26,13 @@ Record kinds:
   delta    — every later record, per-session changes in "deltas.skillUsage".
   anomaly  — counter went backwards; skipped, count reported.
 
-The total for one card is its value in the baseline counts plus every delta,
-keyed by the card's directory name. A key absent from a record contributes
-zero. Only skillUsage is read; pluginUsage counts plugin loads, not card
-dispatches.
+The total for one card is the sum, over every telemetry key that names the
+card, of that key's baseline value plus every delta. The keys that name a card
+are its directory name, each earlier name in EARLIER_NAMES, and each of those
+prefixed by the bucket's plugin name (`<plugin.json name>:<name>`), the form
+the platform records when the card is invoked from the installed plugin. A key
+absent from a record contributes zero. Only skillUsage is read; pluginUsage
+counts plugin loads, not card dispatches.
 
 The date written into a row is the ts of the newest record consumed, not
 today's date. An empty log has no record ts; the date then is the UTC day
@@ -65,6 +68,47 @@ _NONZERO_SUFFIX = (
     "counter predates the per-session delta log (2026-08-16), so a lifetime "
     "per-session figure is not derivable. Never recurrence, lift, or worth."
 )
+
+# Every earlier name a published card was dispatched under, with the record
+# that ties the old key to the card. The single place a card's aliases live.
+# A key whose link to a card cannot be cited is left out, even when the name
+# resembles the card: see UNATTRIBUTED below.
+EARLIER_NAMES: dict[str, tuple[tuple[str, str], ...]] = {
+    "clirunner-env": (("click-clirunner-env-none-deletes",
+                       "git mv in 541522a (#286); CHANGELOG v2.0.0 rename table"),),
+    "closure-mode": (("closure-mode-at-boundaries",
+                      "git mv in 541522a (#286); CHANGELOG v2.0.0 rename table"),),
+    "dead-predicate": (("router-skill-predicate-gap",
+                        "git mv in 541522a (#286); CHANGELOG v2.0.0 rename table"),),
+    "decision-rights": (("downstream-instruction-framing",
+                         "git mv in 541522a (#286); CHANGELOG v2.0.0 rename table"),),
+    "disposition-schema": (("parallel-review-disposition-schema",
+                            "git mv in 541522a (#286); CHANGELOG v2.0.0 rename table"),),
+    "im-down": (("session-close",
+                 "git mv in fc5009c (#11): session-close becomes im-down"),),
+    "mocked-stub": (("mock-masked-stub-trap",
+                     "git mv in 541522a (#286); CHANGELOG v2.0.0 rename table"),),
+    "pretooluse-prose": (("pretooluse-bash-guard-prose-false-positive",
+                          "git mv in 541522a (#286); CHANGELOG v2.0.0 rename table"),),
+    "pull-rebase": (("git-pull-rebase-trap",
+                     "git mv in 541522a (#286); CHANGELOG v2.0.0 rename table"),),
+    "stale-deploy": (("github-pages-deploy-verification",
+                      "git mv in 541522a (#286); CHANGELOG v2.0.0 rename table"),),
+    "subagent-handback": (("subagent-research-reliability",
+                           "git mv in 541522a (#286); CHANGELOG v2.0.0 rename table"),),
+    "vacuous-check": (("success-test-accepts-any-output",
+                       "git mv in 541522a (#286); CHANGELOG v2.0.0 rename table"),),
+}
+
+# Earlier names deliberately not mapped, with the reason. Kept beside the map
+# so a later reader does not "fix" the omission.
+UNATTRIBUTED: dict[str, str] = {
+    "session-start-from-state": (
+        "im-up carried this name until fc5009c (#11), which renamed it because "
+        "a separate, widely installed local skill holds the same name; the "
+        "key's dispatches cannot be split between the two"
+    ),
+}
 
 # Standard zero form used only when the previous row was nonzero (or had no
 # zero opening). Already-zero rows keep their card-specific diagnosis.
@@ -111,9 +155,6 @@ def _parse_log(log_path: Path) -> tuple[dict[str, int], str | None, int]:
             continue
 
         for key, value in skill_map.items():
-            # Only match bare skill names, not plugin:skill form.
-            if ":" in key:
-                continue
             counts[key] = counts.get(key, 0) + int(value)
 
         if ts and (newest_ts is None or ts > newest_ts):
@@ -169,9 +210,22 @@ def find_cards(repo_root: Path) -> list[Path]:
     )
 
 
-def _skill_name_from_path(card: Path) -> str:
-    """The card's directory name — the key to match in skillUsage."""
-    return card.name
+def _plugin_name(bucket: Path) -> str | None:
+    """The bucket's plugin name from .claude-plugin/plugin.json, if present."""
+    manifest = bucket / ".claude-plugin" / "plugin.json"
+    try:
+        name = json.loads(manifest.read_text(encoding="utf-8")).get("name")
+    except (OSError, json.JSONDecodeError):
+        return None
+    return name if isinstance(name, str) and name else None
+
+
+def telemetry_keys(card: Path) -> list[str]:
+    """Every skillUsage key that names this card, current name first."""
+    names = [card.name] + [old for old, _ in EARLIER_NAMES.get(card.name, ())]
+    plugin = _plugin_name(card.parent)
+    prefixed = [f"{plugin}:{n}" for n in names] if plugin else []
+    return names + prefixed
 
 
 def rewrite_dispatch_row(evidence: Path, count: int, date: str) -> bool:
@@ -256,11 +310,12 @@ def main() -> None:
         evidence = card / "EVIDENCE.md"
         if not evidence.is_file():
             continue
-        skill_key = _skill_name_from_path(card)
-        count = counts.get(skill_key, 0)
+        summed = {k: counts[k] for k in telemetry_keys(card) if counts.get(k)}
+        count = sum(summed.values())
         if rewrite_dispatch_row(evidence, count, date):
             changed += 1
-            print(f"  {card.relative_to(repo_root)}: {count} dispatch(es)")
+            print(f"  {card.relative_to(repo_root)}: {count} dispatch(es) "
+                  f"from {summed or 'no key'}")
 
     print(f"PASS: refreshed dispatch rows in {changed}/{len(cards)} card(s)")
 
