@@ -366,3 +366,50 @@ class TestAliasKeys:
         assert result.returncode == 0, result.stderr
         row = _read_dispatch_row(repo_copy / "skills/engineering/im-up/EVIDENCE.md")
         assert row.startswith("3 dispatches"), row
+
+    def test_no_unattributed_key_is_mapped(self) -> None:
+        """A key recorded as unattributable must never enter the alias map."""
+        sys.path.insert(0, str(SCRIPT.parent))
+        import refresh_dispatch_counts as refresh
+
+        mapped = {old for olds in refresh.EARLIER_NAMES.values() for old, _ in olds}
+        assert mapped.isdisjoint(refresh.UNATTRIBUTED)
+        assert all(cite for olds in refresh.EARLIER_NAMES.values() for _, cite in olds)
+
+
+_UNOBSERVABLE_ZERO_ROW = (
+    "| **Dispatches recorded** | No recorded dispatch, lifetime platform counter, "
+    "measured 2026-09-30. This card enforces through hook and trap mechanisms this "
+    "counter cannot see, so zero means no recorded dispatch, never unused. Demand "
+    "evidence only: slash + model Skill invocations. |"
+)
+
+
+class TestUnobservableDiagnosisSurvivesNonzero:
+    """AGENTS.md harvest step 2: pull-rebase and stale-deploy say in their own
+    dispatch row that the counter cannot see their hook firings. Once an alias
+    gives one of them a nonzero count, that statement must stay in the row, and
+    must still be there when a later log brings the count back to zero."""
+
+    def test_zero_to_nonzero_to_zero(self, repo_copy: Path) -> None:
+        evidence = repo_copy / "skills/engineering/stale-deploy/EVIDENCE.md"
+        text = evidence.read_text(encoding="utf-8")
+        lines = [
+            _UNOBSERVABLE_ZERO_ROW if line.startswith("| **Dispatches recorded**") else line
+            for line in text.split("\n")
+        ]
+        evidence.write_text("\n".join(lines), encoding="utf-8", newline="")
+
+        log = _make_fixture_log(repo_copy, {"stale-deploy": 5})
+        assert _run_script(log, repo_copy).returncode == 0
+        row = _read_dispatch_row(evidence)
+        assert row.startswith("5 dispatches"), row
+        assert "this counter cannot see" in row, row
+
+        empty = repo_copy / "empty.jsonl"
+        empty.write_text("")
+        assert _run_script(empty, repo_copy).returncode == 0
+        row = _read_dispatch_row(evidence)
+        assert row.startswith("No recorded dispatch"), row
+        assert "this counter cannot see" in row, row
+        assert "never unused" in row, row

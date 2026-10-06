@@ -30,9 +30,11 @@ The total for one card is the sum, over every telemetry key that names the
 card, of that key's baseline value plus every delta. The keys that name a card
 are its directory name, each earlier name in EARLIER_NAMES, and each of those
 prefixed by the bucket's plugin name (`<plugin.json name>:<name>`), the form
-the platform records when the card is invoked from the installed plugin. A key
-absent from a record contributes zero. Only skillUsage is read; pluginUsage
-counts plugin loads, not card dispatches.
+the platform records when the card is invoked from the installed plugin
+(plugin skills are namespaced `plugin-name:skill-name`, per
+code.claude.com/docs/en/agent-sdk/plugins, checked through Context7
+2026-10-05). A key absent from a record contributes zero. Only skillUsage is
+read; pluginUsage counts plugin loads, not card dispatches.
 
 The date written into a row is the ts of the newest record consumed, not
 today's date. An empty log has no record ts; the date then is the UTC day
@@ -114,6 +116,20 @@ UNATTRIBUTED: dict[str, str] = {
 # zero opening). Already-zero rows keep their card-specific diagnosis.
 _ZERO_SUFFIX = "Demand evidence only: never recurrence, lift, or worth."
 
+# Hook-fired cards (AGENTS.md harvest step 2, branch 1: pull-rebase and
+# stale-deploy) say in their own row that the counter cannot see their
+# enforcing path. The marker identifies such a row whatever its count, so the
+# statement survives a zero-to-nonzero rewrite and comes back on the return.
+_UNOBSERVABLE_MARK = "hook and trap mechanisms this counter cannot see"
+_UNOBSERVABLE_ZERO = (
+    "This card enforces through hook and trap mechanisms this counter cannot "
+    "see, so zero means no recorded dispatch, never unused."
+)
+_UNOBSERVABLE_NONZERO = (
+    "This card enforces through hook and trap mechanisms this counter cannot "
+    "see, so the figure counts Skill invocations only, never hook firings."
+)
+
 
 def _parse_log(log_path: Path) -> tuple[dict[str, int], str | None, int]:
     """Parse the JSONL usage log.
@@ -170,23 +186,31 @@ def _format_date(ts: str) -> str:
     return dt.strftime("%Y-%m-%d")
 
 
-def _make_row(count: int, date: str) -> str:
+def _make_row(count: int, date: str, unobservable: bool = False) -> str:
     """Build a full replacement dispatch row (nonzero, or first-time zero)."""
+    if count == 0 and unobservable:
+        prefix = (f"No recorded dispatch, lifetime platform counter, measured "
+                  f"{date}. {_UNOBSERVABLE_ZERO}")
+        return f"| **Dispatches recorded** | {prefix} {_NONZERO_SUFFIX} |"
     if count == 0:
         prefix = f"No recorded dispatch, measured {date}."
         return f"| **Dispatches recorded** | {prefix} {_ZERO_SUFFIX} |"
-    prefix = f"{count} dispatches, lifetime platform counter, measured {date}."
+    noun = "dispatch" if count == 1 else "dispatches"
+    prefix = f"{count} {noun}, lifetime platform counter, measured {date}."
+    if unobservable:
+        prefix = f"{prefix} {_UNOBSERVABLE_NONZERO}"
     return f"| **Dispatches recorded** | {prefix} {_NONZERO_SUFFIX} |"
 
 
 def _row_for(count: int, date: str, existing_row: str) -> str:
-    """Choose the replacement row, preserving already-zero card diagnosis."""
+    """Choose the replacement row, preserving card-specific diagnosis."""
+    unobservable = _UNOBSERVABLE_MARK in existing_row
     if count == 0 and _ZERO_OPEN_RE.search(existing_row):
         # Keep hook-unobservable / quarantine tautology prose; move the date.
         if _MEASURED_DATE_RE.search(existing_row):
             return _MEASURED_DATE_RE.sub(f"measured {date}", existing_row, count=1)
-        return _make_row(0, date)
-    return _make_row(count, date)
+        return _make_row(0, date, unobservable)
+    return _make_row(count, date, unobservable)
 
 
 def find_cards(repo_root: Path) -> list[Path]:
@@ -223,6 +247,7 @@ def _plugin_name(bucket: Path) -> str | None:
 def telemetry_keys(card: Path) -> list[str]:
     """Every skillUsage key that names this card, current name first."""
     names = [card.name] + [old for old, _ in EARLIER_NAMES.get(card.name, ())]
+    names = [n for n in names if n not in UNATTRIBUTED]
     plugin = _plugin_name(card.parent)
     prefixed = [f"{plugin}:{n}" for n in names] if plugin else []
     return names + prefixed
