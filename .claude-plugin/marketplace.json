@@ -11,7 +11,7 @@
     {
       "name": "mrbinnacle-engineering",
       "source": "./skills/engineering",
-      "description": "Workflow disciplines for shipping software: traps that survive review, and the checks that catch them."
+      "description": "Workflow disciplines for shipping software: mistakes that report success, guards and gates that stop your work, and the rituals at phase and session boundaries."
     },
     {
       "name": "mrbinnacle-orchestration",

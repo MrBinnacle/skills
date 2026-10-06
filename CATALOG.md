@@ -225,7 +225,7 @@ collection stays small and covers little ground. For breadth,
 one plugin per bucket:
 
 ```text
-/plugin marketplace add MrBinnacle/skills
+/plugin marketplace add https://github.com/MrBinnacle/skills.git
 /plugin install mrbinnacle-engineering
 ```
 
