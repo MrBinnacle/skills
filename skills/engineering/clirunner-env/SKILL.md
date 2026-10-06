@@ -1,6 +1,6 @@
 ---
 name: clirunner-env
-description: "Click's CliRunner.invoke `env=` only overrides keys the dict names; an absent key is not deleted. Pass `{key: None}` to delete one. Use when a CLI test asserts on an env var being absent."
+description: "Use when a CLI test builds env= as a filtered-dict, passes env={}, or relies on monkeypatch.delenv. Click's CliRunner.invoke only overrides keys the dict names; pass {key: None} to delete one."
 ---
 
 # Click CliRunner: `env=None` deletes; absence does NOT
@@ -17,7 +17,7 @@ Click's `CliRunner.invoke(env=...)` is an OVERRIDE dict, not a REPLACEMENT envir
 - `env[key] = None` → calls `del os.environ[key]` for the duration of the invocation, restoring afterward
 - key absent from `env` → `os.environ[key]` is left UNTOUCHED
 
-Originally verified against `click/testing.py:534` on Click 8.1.x; re-checked 2026-08-23 and 2026-08-24 against the current published [testing module source](https://github.com/pallets/click/blob/stable/src/click/testing.py). The durable evidence is the signature: `env: Mapping[str, str | None] | None` on `CliRunner`, `CliRunner.invoke` and `CliRunner.isolation`. A value type of `str | None` is the API stating that `None` is a meaningful value rather than an omission — that is the delete. The docs describe `env` as "overrides", which is the absent-keys-untouched half. Cite the signature, not a file offset or a version pin — the `8.1.x` branch no longer exists, and the signature has survived every check so far.
+Originally verified against `click/testing.py:534` on Click 8.1.x; re-checked 2026-08-23 and 2026-08-24 against the current published [testing module source](https://github.com/pallets/click/blob/stable/src/click/testing.py); re-checked 2026-10-06 against Click 8.5.x (the stable docs header and the published testing module). The durable evidence is the signature: `env: Mapping[str, str | None] | None` on `CliRunner`, `CliRunner.invoke` and `CliRunner.isolation`. A value type of `str | None` is the API stating that `None` is a meaningful value rather than an omission — that is the delete. The docs describe `env` as "overrides", which is the absent-keys-untouched half. Cite the signature, not a file offset or a version pin — the `8.1.x` branch no longer exists, and the signature has survived every check so far.
 
 ## Trigger conditions
 
@@ -81,7 +81,7 @@ Open [gotchas.md](gotchas.md) when a CLI test silently passed on a branch that n
 - The behavior is documented — [the env parameter on CliRunner.invoke](https://click.palletsprojects.com/en/stable/api/#click.testing.CliRunner.invoke) — but phrased as "added/overridden," not as "absence does nothing." Easy to miss.
 - `subprocess.run(env=...)` works differently: there, `env=` REPLACES the entire environment. The cross-tool inconsistency is a contributor to the confusion.
 
-## Example (from skill-harness 2026-06-09)
+## Example (2026-06-09)
 
 ```python
 # tests/ablation/test_cli_d3_fixes.py — BEFORE, looked correct
