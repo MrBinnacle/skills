@@ -32,7 +32,7 @@
     },
     "pull-rebase": {
       "standing_cost_tokens": 63,
-      "skill_md_sha256": "825f5eb757acfee3256f4d6b5d33e1db746730a77f65ef4ae8a2d4f5d981d511"
+      "skill_md_sha256": "b8b3c775e37ae592ff9a0024536a4dc928453316b4aede622aff9ac6d85d0a66"
     },
     "stale-deploy": {
       "standing_cost_tokens": 50,
