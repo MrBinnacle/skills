@@ -6,6 +6,7 @@ import importlib.util
 import json
 import subprocess
 import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -16,6 +17,14 @@ SPEC.loader.exec_module(validator)
 
 PASSING_COMMAND = "git rev-parse HEAD"
 FAILING_COMMAND = "exit 1"
+# Cross-platform side-effect commands: record that the check actually ran.
+COUNTER_PASS = "python -c \"open('run-count.txt','a').write('pass\\n')\""
+COUNTER_FAIL = (
+    "python -c \"open('run-count.txt','a').write('fail\\n'); raise SystemExit(1)\""
+)
+FLAG_CHECK = (
+    "python -c \"import os,sys; sys.exit(0 if os.path.exists('flag-ok') else 1)\""
+)
 
 
 def expect_structure(name: str, valid: bool):
@@ -465,6 +474,351 @@ def assertions_held_cases():
         assert "packet_assertions_held" not in json.loads(result.stdout)
 
 
+def _cache_config(
+    repo: Path,
+    name: str,
+    checks: list[dict],
+    cache_path: Path | None,
+    extra: dict | None = None,
+) -> Path:
+    config = repo / name
+    payload: dict = {
+        "state_file": ".claude/session-state.json",
+        "packet_dir": "packets",
+        "receiver_checks": checks,
+    }
+    if cache_path is not None:
+        payload["receiver_check_cache"] = str(cache_path)
+    if extra:
+        payload.update(extra)
+    config.write_text(json.dumps(payload), encoding="utf-8")
+    return config
+
+
+def _receive_receipt(repo: Path, config_path: Path, packet: Path) -> tuple[int, dict]:
+    result = subprocess.run(
+        ["python", str(HERE / "validate_packet.py"), str(packet),
+         "--mode", "receive", "--repo-root", str(repo), "--config", str(config_path)],
+        text=True, capture_output=True,
+    )
+    return result.returncode, json.loads(result.stdout)
+
+
+def _open_receipt(repo: Path, config_path: Path, packet: Path) -> tuple[int, dict]:
+    open_py = _pair_script("open_session.py")
+    result = subprocess.run(
+        ["python", str(open_py), str(packet),
+         "--config", str(config_path), "--repo-root", str(repo)],
+        text=True, capture_output=True,
+    )
+    return result.returncode, json.loads(result.stdout)
+
+
+def _count_runs(repo: Path) -> int:
+    path = repo / "run-count.txt"
+    if not path.is_file():
+        return 0
+    return len([ln for ln in path.read_text(encoding="utf-8").splitlines() if ln])
+
+
+def _age_cache(cache_path: Path, days: int = 8) -> None:
+    data = json.loads(cache_path.read_text(encoding="utf-8"))
+    then = datetime.now(timezone.utc) - timedelta(days=days)
+    data["last_full_run_at"] = then.isoformat().replace("+00:00", "Z")
+    cache_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def _prepared_repo(tmp: str, checks: list[dict], cache_path: Path | None):
+    """Init a repo with inputs, a packet at HEAD, and a boundary config."""
+    repo = Path(tmp) / "repo"
+    repo.mkdir(parents=True)
+    _init_repo(repo)
+    inputs = repo / "inputs"
+    inputs.mkdir()
+    (inputs / "locked.txt").write_text("locked-v1\n", encoding="utf-8")
+    (inputs / "other.txt").write_text("other\n", encoding="utf-8")
+    (repo / "outside.txt").write_text("outside\n", encoding="utf-8")
+    head = validator.git(repo, "rev-parse", "HEAD")
+    packet = _fill_packet(repo / "packet.md", head)
+    config = _cache_config(repo, "boundary.json", checks, cache_path)
+    return repo, packet, config
+
+
+def cache_hit_and_input_change_cases():
+    """A byte change under cache_inputs re-runs the check; a hit does not.
+
+    The key covers the blob hashes of cache_inputs, the Python version,
+    `git --version` and the command string. One byte under a declared input
+    changes the key, so the last passing run is no longer the answer.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        cache_path = Path(tmp) / "check-cache.json"
+        repo, packet, config = _prepared_repo(tmp, [{
+            "name": "counter",
+            "command": COUNTER_PASS,
+            "cache_inputs": ["inputs/locked.txt"],
+        }], cache_path)
+
+        code, receipt = _receive_receipt(repo, config, packet)
+        assert code == 0, receipt
+        first = receipt["checks"][0]
+        assert first["status"] == "passed", first
+        assert first["exit_code"] == 0, first
+        assert _count_runs(repo) == 1, "first open must execute the check"
+        assert cache_path.is_file(), "a passing cacheable check must be cached"
+
+        code, receipt = _receive_receipt(repo, config, packet)
+        assert code == 0, receipt
+        second = receipt["checks"][0]
+        assert second["status"] == "cached", second
+        assert second["exit_code"] == 0, second
+        assert second.get("cache_key"), second
+        assert second.get("cached_at"), second
+        assert _count_runs(repo) == 1, "unchanged inputs must not re-run the check"
+
+        locked = repo / "inputs" / "locked.txt"
+        locked.write_text("locked-v2\n", encoding="utf-8")
+        code, receipt = _receive_receipt(repo, config, packet)
+        assert code == 0, receipt
+        third = receipt["checks"][0]
+        assert third["status"] == "passed", third
+        assert third["exit_code"] == 0, third
+        assert third.get("cache_key") != second.get("cache_key"), (
+            "one byte under cache_inputs must change the key"
+        )
+        assert _count_runs(repo) == 2, "a byte change under cache_inputs must re-run"
+
+
+def cache_outside_change_cases():
+    """A change outside every cache_inputs re-runs no cached check."""
+    with tempfile.TemporaryDirectory() as tmp:
+        cache_path = Path(tmp) / "check-cache.json"
+        repo, packet, config = _prepared_repo(tmp, [{
+            "name": "counter",
+            "command": COUNTER_PASS,
+            "cache_inputs": ["inputs/locked.txt"],
+        }], cache_path)
+
+        code, receipt = _receive_receipt(repo, config, packet)
+        assert code == 0, receipt
+        assert receipt["checks"][0]["status"] == "passed"
+        assert _count_runs(repo) == 1
+
+        (repo / "inputs" / "other.txt").write_text("other-changed\n", encoding="utf-8")
+        (repo / "outside.txt").write_text("outside-changed\n", encoding="utf-8")
+        code, receipt = _receive_receipt(repo, config, packet)
+        assert code == 0, receipt
+        check = receipt["checks"][0]
+        assert check["status"] == "cached", check
+        assert _count_runs(repo) == 1, (
+            "a change outside cache_inputs must not re-run a cached check"
+        )
+
+
+def cache_directory_inputs_cases():
+    """A directory in cache_inputs covers every file under it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        cache_path = Path(tmp) / "check-cache.json"
+        repo, packet, config = _prepared_repo(tmp, [{
+            "name": "counter",
+            "command": COUNTER_PASS,
+            "cache_inputs": ["inputs/"],
+        }], cache_path)
+
+        code, receipt = _receive_receipt(repo, config, packet)
+        assert code == 0, receipt
+        assert receipt["checks"][0]["status"] == "passed"
+        assert _count_runs(repo) == 1
+
+        code, receipt = _receive_receipt(repo, config, packet)
+        assert receipt["checks"][0]["status"] == "cached"
+        assert _count_runs(repo) == 1
+
+        # other.txt sits under the declared directory, so a byte there re-runs.
+        (repo / "inputs" / "other.txt").write_text("other-v2\n", encoding="utf-8")
+        code, receipt = _receive_receipt(repo, config, packet)
+        assert receipt["checks"][0]["status"] == "passed", receipt["checks"][0]
+        assert _count_runs(repo) == 2
+
+
+def cache_failing_never_cached_cases():
+    """A failing check is never served from cache.
+
+    Run it failing twice with no change: the second run must execute again
+    and fail. Only passing runs are cached.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        cache_path = Path(tmp) / "check-cache.json"
+        repo, packet, config = _prepared_repo(tmp, [{
+            "name": "counter-fail",
+            "command": COUNTER_FAIL,
+            "cache_inputs": ["inputs/locked.txt"],
+        }], cache_path)
+
+        code, receipt = _receive_receipt(repo, config, packet)
+        assert code == 2, receipt
+        first = receipt["checks"][0]
+        assert first["status"] == "failed", first
+        assert first["exit_code"] != 0, first
+        assert _count_runs(repo) == 1
+        assert not cache_path.is_file() or not json.loads(
+            cache_path.read_text(encoding="utf-8")
+        ).get("checks"), "a failing check must not be cached"
+
+        code, receipt = _receive_receipt(repo, config, packet)
+        assert code == 2, receipt
+        second = receipt["checks"][0]
+        assert second["status"] == "failed", second
+        assert second["exit_code"] != 0, second
+        assert _count_runs(repo) == 2, (
+            "a failing check must execute again, never be served from cache"
+        )
+
+
+def cache_weekly_disagreement_cases():
+    """A planted disagreement is caught by the weekly full run and fails the open.
+
+    The cache records a pass under the current key. The check's real outcome
+    then changes without any cache_inputs byte changing — the flag the command
+    tests is outside the key. Once a week the full run executes every check
+    uncached, compares against the cached verdict, and refuses the open on a
+    disagreement while clearing that check's cache entry.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        cache_path = Path(tmp) / "check-cache.json"
+        checks = [{
+            "name": "flagged",
+            "command": FLAG_CHECK,
+            "cache_inputs": ["inputs/locked.txt"],
+        }]
+        repo, packet, config = _prepared_repo(tmp, checks, cache_path)
+        (repo / "flag-ok").write_text("ok\n", encoding="utf-8")
+
+        # close_session writes durable state the open requires; its own check
+        # runner is uncached and must still see the flag.
+        close_py = _pair_script("close_session.py")
+        closed = subprocess.run(
+            ["python", str(close_py), "--config", str(config),
+             "--repo-root", str(repo), "--objective", "x",
+             "--next-action", "y", "--purpose", "z"],
+            text=True, capture_output=True,
+        )
+        assert closed.returncode == 0, closed.stdout + closed.stderr
+        closed_out = json.loads(closed.stdout)
+        packet = _fill_packet(Path(closed_out["packet_path"]), closed_out["head"])
+
+        code, receipt = _open_receipt(repo, config, packet)
+        assert code == 0, receipt
+        assert receipt["verdict"] == "ACCEPTED", receipt
+        assert receipt["checks"][0]["status"] == "passed", receipt["checks"][0]
+        cached = json.loads(cache_path.read_text(encoding="utf-8"))
+        assert cached.get("checks"), "the open must have populated the cache"
+
+        _age_cache(cache_path)
+        (repo / "flag-ok").unlink()
+
+        code, receipt = _open_receipt(repo, config, packet)
+        assert code == 2, receipt
+        assert receipt["verdict"] == "REJECTED", receipt
+        errors = receipt["errors"]
+        assert any("cache disagreement" in e for e in errors), errors
+        assert any("flagged" in e for e in errors), errors
+        after = json.loads(cache_path.read_text(encoding="utf-8"))
+        assert not after.get("checks"), (
+            "a weekly disagreement must clear that check's cache entry"
+        )
+
+
+def cache_no_inputs_fields_cases():
+    """A config with no cache_inputs keeps prior fields, plus status and duration_ms."""
+    with tempfile.TemporaryDirectory() as tmp:
+        cache_path = Path(tmp) / "check-cache.json"
+        repo, packet, config = _prepared_repo(tmp, [{
+            "name": "under-test",
+            "command": PASSING_COMMAND,
+        }], None)
+
+        code, receipt = _receive_receipt(repo, config, packet)
+        assert code == 0, receipt
+        assert receipt["verdict"] == "ACCEPTED", receipt
+        check = receipt["checks"][0]
+        # Prior fields unchanged.
+        assert check["name"] == "under-test"
+        assert check["command"] == PASSING_COMMAND
+        assert check["exit_code"] == 0
+        assert "output" in check
+        # New fields present.
+        assert check["status"] == "passed", check
+        assert isinstance(check["duration_ms"], int), check
+        assert "cache_key" not in check
+        assert "cached_at" not in check
+        assert not cache_path.exists(), (
+            "a config with no cache_inputs must not open a cache file"
+        )
+
+        red_config = _cache_config(repo, "red.json", [{
+            "name": "under-test",
+            "command": FAILING_COMMAND,
+        }], None)
+        code, receipt = _receive_receipt(repo, red_config, packet)
+        assert code == 2, receipt
+        check = receipt["checks"][0]
+        assert check["status"] == "failed", check
+        assert check["exit_code"] != 0
+        assert isinstance(check["duration_ms"], int), check
+        assert "stdout" in check or "stderr" in check
+
+
+def cache_expand_cases():
+    """`~` expands; a directory means every file under it; key covers command."""
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp) / "repo"
+        repo.mkdir()
+        _init_repo(repo)
+        with tempfile.NamedTemporaryFile(
+            dir=Path.home(), prefix=".im-up-cache-expand-probe-", delete=False
+        ) as probe:
+            probe.write(b"home-probe\n")
+            home_file = Path(probe.name)
+        try:
+            key_home = validator.check_cache_key(
+                {"command": "true", "cache_inputs": [f"~/{home_file.name}"]},
+                repo,
+            )
+            key_home_other = validator.check_cache_key(
+                {"command": "true", "cache_inputs": [str(home_file)]},
+                repo,
+            )
+            assert key_home and key_home_other
+            assert key_home == key_home_other, "~ must expand to the same file"
+        finally:
+            home_file.unlink(missing_ok=True)
+
+        assert validator.weekly_full_due({"last_full_run_at": "2026-10-01T00:00:00"})
+
+        (repo / "inputs").mkdir()
+        (repo / "inputs" / "a.txt").write_text("a\n", encoding="utf-8")
+        (repo / "inputs" / "b.txt").write_text("b\n", encoding="utf-8")
+        key_dir = validator.check_cache_key(
+            {"command": "true", "cache_inputs": ["inputs"]}, repo
+        )
+        key_a_only = validator.check_cache_key(
+            {"command": "true", "cache_inputs": ["inputs/a.txt"]}, repo
+        )
+        assert key_dir and key_a_only
+        assert key_dir != key_a_only, "a directory covers more than one file"
+
+        key_cmd1 = validator.check_cache_key(
+            {"command": "true", "cache_inputs": ["inputs/a.txt"]}, repo
+        )
+        key_cmd2 = validator.check_cache_key(
+            {"command": "false", "cache_inputs": ["inputs/a.txt"]}, repo
+        )
+        assert key_cmd1 != key_cmd2, "the command string is part of the key"
+
+        assert validator.check_cache_key({"command": "true"}, repo) is None
+
+
 # Every file measured byte-identical across the pair (sha256, 2026-08-24) is
 # in the contract. If a file stops being shared, REMOVE it from this tuple and
 # record why in the removing change -- a contract that silently narrows is the
@@ -756,12 +1110,21 @@ if __name__ == "__main__":
     open_session_cases()
     red_check_cases()
     assertions_held_cases()
+    cache_hit_and_input_change_cases()
+    cache_outside_change_cases()
+    cache_directory_inputs_cases()
+    cache_failing_never_cached_cases()
+    cache_weekly_disagreement_cases()
+    cache_no_inputs_fields_cases()
+    cache_expand_cases()
     parity_verified, parity_message = duplication_case()
     print(parity_message)
     roster = ("PASS: clean, stale, incomplete, failed-probe, placeholder, "
               "unfailable-check, command-probe, close-commit, close-commit-cli, "
               "claimed-head, claimed-head-cli, receive-mode-config, "
-              "close-session, open-session, red-check, assertions-held")
+              "close-session, open-session, red-check, assertions-held, "
+              "cache-hit, cache-outside, cache-directory, cache-fail, "
+              "cache-weekly, cache-no-inputs, cache-expand")
     # no-drift appears in the pass roster only when parity was actually
     # compared; a single-card install reports NOT VERIFIED above instead.
     print(roster + ", no-drift" if parity_verified else roster)

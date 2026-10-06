@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
 import sys
-from datetime import datetime
+import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 START = "<!-- SESSION-PACKET-V1"
@@ -28,6 +30,9 @@ LIST_PREFIX = re.compile(r"^\s*(?:[-*+]\s+|\d+[.)]\s+|>\s*)*")
 # A receiver check signals through stdout and always exits zero, so it cannot
 # fail and cannot gate anything. Name the known instance rather than guess.
 UNFAILABLE_CHECK = re.compile(r"^\s*git\s+status(\s+--porcelain(=\S+)?)*\s*$")
+# Receiver-check cache: once a week every cached check runs uncached and is
+# compared with its cached verdict. A disagreement fails the open.
+CACHE_WEEKLY_DAYS = 7
 
 
 class PacketError(ValueError):
@@ -363,8 +368,176 @@ def validate_repository(
     return errors, notes
 
 
-def rerun_checks(config: dict, repo_root: Path) -> list[dict]:
-    """Run each configured receiver check, keeping output only where it informs.
+def default_cache_path() -> Path:
+    """Machine-level cache location, outside any repository tree.
+
+    It persists across opens on one machine. It is never committed, never
+    per-repo, and never under the worktree.
+    """
+    return Path.home() / ".cache" / "mrbinnacle-skills" / "receiver-check-cache.json"
+
+
+def resolve_cache_path(config: dict, repo_root: Path) -> Path:
+    raw = config.get("receiver_check_cache")
+    if raw:
+        path = Path(str(raw)).expanduser()
+        if not path.is_absolute():
+            path = repo_root / path
+        return path
+    return default_cache_path()
+
+
+def expand_cache_inputs(paths: list, repo_root: Path) -> list[Path]:
+    """Expand cache_inputs: `~` expands; a directory means every file under it."""
+    files: list[Path] = []
+    for raw in paths:
+        path = Path(str(raw)).expanduser()
+        if not path.is_absolute():
+            path = repo_root / path
+        if path.is_dir():
+            files.extend(sorted(p for p in path.rglob("*") if p.is_file()))
+        elif path.is_file():
+            files.append(path)
+        else:
+            files.append(path)  # missing path participates in the key
+    return files
+
+
+def _content_hash(path: Path) -> str:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return "missing"
+
+
+def check_cache_key(check: dict, repo_root: Path) -> str | None:
+    """Key a cacheable check, or None when it declares no cache_inputs.
+
+    The key covers the blob hashes of its inputs, the Python version,
+    `git --version` and the command string. Only a matching key may serve
+    a cached verdict.
+    """
+    inputs = check.get("cache_inputs")
+    if not inputs:
+        return None
+    parts: list[str] = [str(check.get("command", "")), sys.version]
+    git_version = subprocess.run(
+        ["git", "--version"], text=True, capture_output=True
+    )
+    parts.append(git_version.stdout.strip() or git_version.stderr.strip())
+    for path in expand_cache_inputs(inputs, repo_root):
+        parts.append(f"{path}:{_content_hash(path)}")
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
+
+
+def load_cache(path: Path) -> dict:
+    empty = {"checks": {}, "last_full_run_at": None}
+    if not path.is_file():
+        return empty
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return empty
+    if not isinstance(data, dict):
+        return empty
+    checks = data.get("checks")
+    data["checks"] = checks if isinstance(checks, dict) else {}
+    data.setdefault("last_full_run_at", None)
+    return data
+
+
+def save_cache(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def weekly_full_due(cache: dict) -> bool:
+    """True when every cached check must run uncached and be compared."""
+    last = cache.get("last_full_run_at")
+    if not last:
+        return True
+    try:
+        last_dt = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    if last_dt.tzinfo is None:
+        return True
+    return datetime.now(timezone.utc) - last_dt >= timedelta(days=CACHE_WEEKLY_DAYS)
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _run_one_check(
+    check: dict,
+    repo_root: Path,
+    cache: dict | None,
+    force_run: bool,
+) -> tuple[dict, str | None]:
+    """Run one receiver check. Returns (receipt entry, cache-disagreement error)."""
+    started = time.perf_counter()
+    key = check_cache_key(check, repo_root)
+    cacheable = key is not None
+    cached_entry = None
+    if cacheable and cache is not None:
+        cached_entry = (cache.get("checks") or {}).get(key)
+        if not force_run and cached_entry is not None and cached_entry.get("exit_code") == 0:
+            duration_ms = int((time.perf_counter() - started) * 1000)
+            entry = {
+                "name": check["name"],
+                "command": check["command"],
+                "exit_code": 0,
+                "status": "cached",
+                "duration_ms": duration_ms,
+                "cache_key": key,
+                "cached_at": cached_entry.get("cached_at"),
+                "output": "omitted: check passed, exit code is the verdict",
+            }
+            return entry, None
+
+    result = run(check["command"], repo_root)
+    duration_ms = int((time.perf_counter() - started) * 1000)
+    entry = {
+        "name": check["name"],
+        "command": check["command"],
+        "exit_code": result.returncode,
+        "status": "passed" if result.returncode == 0 else "failed",
+        "duration_ms": duration_ms,
+    }
+    if result.returncode == 0:
+        entry["output"] = "omitted: check passed, exit code is the verdict"
+    else:
+        entry["stdout"] = result.stdout[-2000:]
+        entry["stderr"] = result.stderr[-2000:]
+
+    disagreement = None
+    if cacheable and cache is not None and key:
+        checks_map = cache.setdefault("checks", {})
+        if (
+            force_run
+            and cached_entry is not None
+            and cached_entry.get("exit_code") == 0
+            and result.returncode != 0
+        ):
+            disagreement = (
+                f"receiver check cache disagreement: '{check.get('name')}' was "
+                f"cached as passing under key {key}, but the weekly full run "
+                f"measured exit {result.returncode}. The cache entry has been "
+                "cleared."
+            )
+            checks_map.pop(key, None)
+        elif result.returncode == 0:
+            checks_map[key] = {
+                "exit_code": 0,
+                "cached_at": _utc_now_iso(),
+                "command": check.get("command", ""),
+            }
+    return entry, disagreement
+
+
+def rerun_checks(config: dict, repo_root: Path) -> tuple[list[dict], list[str]]:
+    """Run each configured receiver check, with an optional machine-level cache.
 
     A receiver check signals through its exit code. On a PASS its stdout is
     decoration, and at 2000 chars per check across a full config it buries the
@@ -376,22 +549,46 @@ def rerun_checks(config: dict, repo_root: Path) -> list[dict]:
     The omission is recorded rather than silent. An absent stdout field would
     read as "this check printed nothing", which is a different claim from "this
     check passed and its output was dropped", and the second is the true one.
+
+    Caching contract (issue #368): a check that declares `cache_inputs` is
+    keyed on the blob hashes of those inputs plus Python version, `git
+    --version` and the command string. A key that matches its last passing run
+    is not re-run; the entry is reported `cached` with the key and the time of
+    the run that produced it. Only passing runs are cached. Checks with no
+    `cache_inputs` always run. Once a week every check runs uncached and is
+    compared with its cached verdict; a disagreement fails the open and clears
+    that check's cache entry. The cache file lives outside the tree.
     """
-    results = []
-    for check in config.get("receiver_checks", []):
-        result = run(check["command"], repo_root)
-        entry = {
-            "name": check["name"],
-            "command": check["command"],
-            "exit_code": result.returncode,
-        }
-        if result.returncode == 0:
-            entry["output"] = "omitted: check passed, exit code is the verdict"
-        else:
-            entry["stdout"] = result.stdout[-2000:]
-            entry["stderr"] = result.stderr[-2000:]
+    checks = config.get("receiver_checks", [])
+    cacheable = any(
+        isinstance(check, dict) and check.get("cache_inputs") for check in checks
+    )
+    cache: dict | None = None
+    force_run = False
+    cache_path: Path | None = None
+    if cacheable or config.get("receiver_check_cache"):
+        cache_path = resolve_cache_path(config, repo_root)
+        cache = load_cache(cache_path)
+        force_run = weekly_full_due(cache)
+
+    results: list[dict] = []
+    errors: list[str] = []
+    for check in checks:
+        entry, disagreement = _run_one_check(check, repo_root, cache, force_run)
         results.append(entry)
-    return results
+        if disagreement:
+            errors.append(disagreement)
+
+    if cache is not None and cache_path is not None:
+        if force_run:
+            cache["last_full_run_at"] = _utc_now_iso()
+        try:
+            save_cache(cache_path, cache)
+        except OSError:
+            # A cache that cannot be written must not fail the open; the real
+            # check results above are the authority.
+            pass
+    return results, errors
 
 
 def main() -> int:
@@ -446,7 +643,8 @@ def main() -> int:
             if config is None or args.repo_root is None:
                 errors.append("receive mode requires --config and --repo-root")
             else:
-                checks = rerun_checks(config, args.repo_root.resolve())
+                checks, check_errors = rerun_checks(config, args.repo_root.resolve())
+                errors.extend(check_errors)
                 for check in checks:
                     if check["exit_code"] != 0:
                         failed_receiver_checks.append(check["name"])
