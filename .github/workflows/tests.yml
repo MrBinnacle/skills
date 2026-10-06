@@ -134,6 +134,16 @@ jobs:
           out="$(python scripts/validate_vale_style.py)" || { echo "$out"; exit 1; }
           echo "$out"
 
+      # pretooluse-prose prescribes detector code that readers copy into their
+      # own guards; this suite executes that code straight out of SKILL.md.
+      - name: pretooluse-prose card snippet suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_pretooluse_prose_snippets.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::pretooluse-prose snippet suite emitted no PASS line - it did not run"; exit 1; }
+
       # Both suites must also show ", no-drift" in the roster: the suite reports
       # parity NOT VERIFIED (and still exits 0) when it cannot find its sibling,
       # which is correct on a single-card install and self-disabling here, where
