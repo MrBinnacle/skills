@@ -1,4 +1,4 @@
-"""Install-form contract for issue #333.
+"""Install-form contract for issue #333, extended by issue #408.
 
 What this pins
     The published install path must name a marketplace source that works for a
@@ -8,6 +8,17 @@ What this pins
     first-class `git` source in the Claude Code plugin CLI docs and was verified
     cold on 2026-10-02. Every reader-facing install site publishes that same
     HTTPS form.
+
+    Issue #408 adds three further contracts on the same surfaces:
+    1. No copyable unit in the README Install section or on the landing page
+       holds more than one `/plugin` command. A pasted multi-line block of
+       slash commands is read as one command by Claude Code, so the second
+       line becomes part of the URL and fails on a reader's first action.
+    2. The README states when the cards appear after install (`/reload-plugins`,
+       `/reload-plugins --force` for a pending reload, or the next start) and
+       cites the vendor page with the date it was read.
+    3. The README names `claude plugin list` so a reader can confirm what was
+       installed from the tool rather than from prose.
 
 What is asserted, and why these shapes
     External behaviour only: what a reader copies out of README.md,
@@ -86,6 +97,13 @@ SHORTHAND = "MrBinnacle/skills"
 # otherwise flag this test file for publishing the form it refuses.
 SHORTHAND_ADD = f"marketplace add {SHORTHAND}"
 
+# Issue #408: Claude Code's plugin docs state that a plugin loads on
+# `/reload-plugins` or the next start, and that a reload left pending stays
+# pending until `/reload-plugins --force`. The README must tell the reader
+# this, with the vendor page and the date the page was read.
+PLUGIN_DOCS_URL = "https://code.claude.com/docs/en/discover-plugins.md"
+PLUGIN_DOCS_READ = "2026-10-06"
+
 FAILURES: list[str] = []
 
 
@@ -112,6 +130,20 @@ def fence_blocks(text: str) -> list[str]:
         if in_fence:
             current.append(line)
     return blocks
+
+
+def slash_commands_in(block: str) -> list[str]:
+    """Every `/plugin ...` command line inside one copyable unit.
+
+    Issue #408: Claude Code reads a multi-line paste of slash commands as one
+    command and takes the second line as part of the URL, so a copyable block
+    that holds two of them fails on a reader's first action.
+    """
+    return [
+        line.strip()
+        for line in block.splitlines()
+        if line.strip().startswith("/plugin")
+    ]
 
 
 def install_section(text: str) -> str:
@@ -380,6 +412,57 @@ def main() -> int:
         if install_fences
         else False,
         "a published fence still uses only the GitHub shorthand",
+    )
+
+    # --- Issue #408, criterion 1: one /plugin command per copyable unit -----
+    # A pasted multi-line block of slash commands is read as one command by
+    # Claude Code; the second line becomes part of the URL. One command per
+    # fence (README) and per kbd (site) removes the failure.
+    all_install_fences = fence_blocks(section)
+    multi_command_fences = [
+        block for block in all_install_fences if len(slash_commands_in(block)) > 1
+    ]
+    check(
+        "no README Install fence holds more than one /plugin command",
+        not multi_command_fences,
+        f"fences holding multiple slash commands: {multi_command_fences!r}",
+    )
+    multi_command_kbds = [
+        kbd for kbd in site_commands if len(slash_commands_in(kbd)) > 1
+    ]
+    check(
+        "no site kbd element holds more than one /plugin command",
+        not multi_command_kbds,
+        f"kbd elements holding multiple slash commands: {multi_command_kbds!r}",
+    )
+
+    # --- Issue #408, criterion 2: reload / --force after install ------------
+    # The vendor docs say a plugin loads on /reload-plugins or the next start,
+    # and that a reload left pending stays pending until /reload-plugins --force.
+    # The README must say so, with the page and the date it was read.
+    check(
+        "README names /reload-plugins after the install steps",
+        "/reload-plugins" in section,
+        "## Install does not tell the reader when the cards appear",
+    )
+    check(
+        "README names /reload-plugins --force for a pending reload",
+        "/reload-plugins --force" in section,
+        "## Install does not name the --force form for a pending reload",
+    )
+    check(
+        "README cites the Claude Code plugin docs URL with a read date",
+        PLUGIN_DOCS_URL in section and PLUGIN_DOCS_READ in section,
+        f"expected {PLUGIN_DOCS_URL} and a read date of {PLUGIN_DOCS_READ} in ## Install",
+    )
+
+    # --- Issue #408, criterion 3: confirm what is installed ------------------
+    # The version and the plugin list come from the tool, not from prose the
+    # README would have to retype on every release.
+    check(
+        "README names claude plugin list as the confirmation command",
+        "claude plugin list" in section,
+        "## Install does not name a command that shows the installed plugin and version",
     )
 
     # --- Requirement 4: every reader-facing site gives the same form --------
