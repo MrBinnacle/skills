@@ -33,18 +33,24 @@ What is asserted, and why these shapes
 Live cold install
     Two cases run when `claude` is on PATH. Both use a clean
     CLAUDE_CONFIG_DIR, an empty scratch HOME, the matching empty USERPROFILE
-    (Windows OpenSSH and git read USERPROFILE, not HOME) and a fail-closed
-    GIT_SSH_COMMAND.
+    (Windows OpenSSH and git read USERPROFILE, not HOME), an empty
+    GIT_CONFIG_GLOBAL with GIT_CONFIG_NOSYSTEM=1 (so no system or user git
+    config, such as a credential helper, reaches the clone) and a fail-closed
+    GIT_SSH_COMMAND. Each isolation clause has its own named check.
 
     1. Published URL: the README's own `claude plugin marketplace add` and
-       `claude plugin install` lines are executed exactly as written — argv[0]
-       is replaced with the CLI path, nothing else. Remaining declared plugins
-       are installed afterwards so the "all three" claim in the Verified forms
-       record is exercised.
+       `claude plugin install` lines are executed exactly as written, every
+       token included. argv[0] is replaced with the CLI path, nothing else.
+       Remaining declared plugins are installed afterwards so the "all three"
+       claim in the Verified forms record is exercised.
     2. Checked-out tree: `claude plugin marketplace add <path of this
        worktree>` in a separate clean config, then all three declared plugins
        installed from that tree. This is the case that would see a break this
        branch makes in `.claude-plugin/marketplace.json`.
+
+    Both cases live under one temporary root that is removed when the suite
+    exits, whether it passes, fails or raises; a named check compares the
+    temp-folder listing before and after.
 
     When `claude` is absent the suite FAILS rather than skips: a skip that
     prints a pass line is a check that never ran, which this repository
@@ -60,6 +66,7 @@ import os
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -135,9 +142,13 @@ def branch_plugin_versions() -> dict[str, str]:
     return versions
 
 
-def readme_shell_install_names(section: str) -> list[str]:
-    """Every `claude plugin install <name>` line from README shell fences."""
-    names: list[str] = []
+def readme_shell_install_commands(section: str) -> list[list[str]]:
+    """Every `claude plugin install ...` line from README shell fences, as argv.
+
+    The whole line is kept, every token included, so the live cold install
+    can run it exactly as a reader would copy it.
+    """
+    commands: list[list[str]] = []
     for fence in fence_blocks(section):
         for raw in fence.splitlines():
             line = raw.strip()
@@ -148,8 +159,8 @@ def readme_shell_install_names(section: str) -> list[str]:
             except ValueError:
                 continue
             if len(parts) >= 4 and parts[1:3] == ["plugin", "install"]:
-                names.append(parts[3])
-    return names
+                commands.append(parts)
+    return commands
 
 
 def slash_install_names(text: str) -> list[str]:
@@ -201,20 +212,76 @@ def scan_exempt(path: str) -> bool:
 
 
 def cold_env(base: Path) -> dict[str, str]:
-    """Clean install environment: empty scratch home, no working SSH key."""
+    """Clean install environment: empty scratch home, no working SSH key,
+    no global or system git configuration."""
     config = base / "config"
     home = base / "home"
     config.mkdir(parents=True, exist_ok=True)
     home.mkdir(parents=True, exist_ok=True)
+    git_config = home / ".gitconfig-empty"
+    git_config.write_text("", encoding="utf-8")
     env = os.environ.copy()
     env["CLAUDE_CONFIG_DIR"] = str(config)
     env["HOME"] = str(home)
     # Windows OpenSSH and git read USERPROFILE, not HOME.
     env["USERPROFILE"] = str(home)
+    # A system git config (for example a Windows credential.helper=manager)
+    # would otherwise still apply to the published-URL clone.
+    env["GIT_CONFIG_GLOBAL"] = str(git_config)
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
     env["GIT_SSH_COMMAND"] = (
         "ssh -o BatchMode=yes -o IdentityFile=/dev/null -o IdentitiesOnly=yes"
     )
     return env
+
+
+def check_cold_env(base: Path) -> None:
+    """Observe each isolation clause of cold_env directly."""
+    env = cold_env(base / "probe")
+    home = env.get("HOME", "")
+    check(
+        "cold_env sets USERPROFILE to the scratch HOME",
+        bool(home)
+        and env.get("USERPROFILE") == home
+        and Path(home).resolve().is_relative_to(base.resolve()),
+        f"HOME={home!r}, USERPROFILE={env.get('USERPROFILE')!r}, base={str(base)!r}",
+    )
+    global_config = env.get("GIT_CONFIG_GLOBAL", "")
+    check(
+        "cold_env points GIT_CONFIG_GLOBAL at an empty file in the scratch home",
+        bool(global_config)
+        and Path(global_config).resolve().is_relative_to(base.resolve())
+        and Path(global_config).is_file()
+        and Path(global_config).stat().st_size == 0,
+        f"GIT_CONFIG_GLOBAL={global_config!r}, base={str(base)!r}",
+    )
+    check(
+        "cold_env sets GIT_CONFIG_NOSYSTEM=1",
+        env.get("GIT_CONFIG_NOSYSTEM") == "1",
+        f"GIT_CONFIG_NOSYSTEM={env.get('GIT_CONFIG_NOSYSTEM')!r}",
+    )
+
+
+TEMP_PREFIX = "install-form-"
+
+
+def temp_listing() -> set[str]:
+    """Names of this suite's temporary roots in the system temp folder."""
+    temp_dir = Path(tempfile.gettempdir())
+    return {p.name for p in temp_dir.glob(f"{TEMP_PREFIX}*")}
+
+
+def remove_tree(path: Path) -> None:
+    """Remove a temporary root, including read-only git pack files on Windows."""
+
+    def make_writable_and_retry(func, target, _exc) -> None:
+        os.chmod(target, stat.S_IWRITE)
+        func(target)
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=make_writable_and_retry)
+    else:
+        shutil.rmtree(path, onerror=make_writable_and_retry)
 
 
 def run_cli(
@@ -354,7 +421,8 @@ def main() -> int:
     )
 
     # --- Requirement 2: published plugin names are declared -----------------
-    shell_install_names = readme_shell_install_names(section)
+    shell_install_commands = readme_shell_install_commands(section)
+    shell_install_names = [command[3] for command in shell_install_commands]
     slash_names = slash_install_names(readme) + slash_install_names(site)
     check(
         "README shell fence provides runnable marketplace and plugin commands",
@@ -364,7 +432,7 @@ def main() -> int:
         )
         or (
             "claude plugin marketplace add" in section
-            and shell_install_names
+            and bool(shell_install_names)
         ),
         "shell fence must contain both `claude plugin marketplace add` and `claude plugin install`",
     )
@@ -428,169 +496,35 @@ def main() -> int:
         "## Install does not state which plugin version was verified",
     )
 
-    # --- Criterion 2 and requirement 6: live cold installs ------------------
-    claude = shutil.which("claude")
-    if claude is None:
-        # Look beside a user-local install this container uses.
-        candidate = Path.home() / ".local/claude-cli/node_modules/.bin/claude"
-        claude = str(candidate) if candidate.is_file() else None
-    if claude is None:
-        check(
-            "claude CLI available for the live cold-install check",
-            False,
-            "no claude on PATH; criterion 2 cannot be exercised here",
+    # --- Criterion 2, requirement 6 and round 2: live cold installs ---------
+    # Every directory the live half creates sits under one temporary root,
+    # removed on the way out whether the run passes, fails or raises.
+    temp_before = temp_listing()
+    temp_root = Path(tempfile.mkdtemp(prefix=f"{TEMP_PREFIX}333-"))
+    try:
+        check_cold_env(temp_root)
+        live_cold_installs(
+            temp_root,
+            install_fences,
+            shell_install_commands,
+            declared,
+            readme_claude_version,
+            readme_plugin_version,
         )
-    else:
-        add_command = next(
-            (
-                shlex.split(line)
-                for fence in install_fences
-                for line in fence.splitlines()
-                if line.strip().startswith("claude plugin marketplace add")
-            ),
-            None,
-        )
-        check(
-            "README shell fence provides a runnable marketplace add command",
-            add_command is not None,
-            "shell fence must contain `claude plugin marketplace add`",
-        )
-        if add_command is None:
-            print()
-            print(f"{len(FAILURES)} FAILED")
-            return 1
-
-        # Case 1: published URL, README lines exactly as written.
-        base = Path(tempfile.mkdtemp(prefix="install-form-333-"))
-        env = cold_env(base)
-        add_command[0] = claude
-        add = run_cli(claude, add_command[1:], env, str(base))
-        out = add.stdout + add.stderr
-        check(
-            "cold marketplace add (HTTPS form) succeeds without SSH",
-            add.returncode == 0 and "Successfully added marketplace" in out,
-            f"rc={add.returncode}\n{out}",
-        )
-        installs: list[tuple[str, int, str]] = []
-        # Run every README install line exactly as written (argv[0] only).
-        for name in shell_install_names:
-            proc = run_cli(claude, ["plugin", "install", name], env, str(base))
-            installs.append((name, proc.returncode, proc.stdout + proc.stderr))
-        # The Verified forms record claims all three plugins; install any
-        # declared plugin the README shell fence did not already name.
-        for name in sorted(declared - set(shell_install_names)):
-            proc = run_cli(claude, ["plugin", "install", name], env, str(base))
-            installs.append((name, proc.returncode, proc.stdout + proc.stderr))
-        check(
-            "cold install of all three plugins succeeds",
-            all(
-                rc == 0 and "Successfully installed plugin" in plugin_out
-                for _, rc, plugin_out in installs
-            ),
-            "\n".join(f"{p}: rc={rc}\n{o}" for p, rc, o in installs),
-        )
-        listed = run_cli(claude, ["plugin", "list", "--json"], env, str(base))
-        installed = parse_plugin_list(listed.stdout)
-        check(
-            "installed plugins report one nonempty version from the cold install",
-            listed.returncode == 0
-            and set(installed) == declared
-            and len({plugin.get("version") for plugin in installed.values()}) == 1
-            and all(plugin.get("version") for plugin in installed.values()),
-            listed.stdout[:2000],
-        )
-        # Cards sit at the plugin root, not under skills/. Each requested
-        # plugin must carry one; a total can hide an empty plugin.
-        installed_card_counts = {
-            name: len(list(Path(plugin.get("installPath", "")).glob("*/SKILL.md")))
-            if plugin.get("installPath")
-            else 0
-            for name, plugin in installed.items()
-        }
-        check(
-            "cold install carries cards in every requested plugin",
-            set(installed_card_counts) == declared
-            and all(count > 0 for count in installed_card_counts.values()),
-            f"card_counts={installed_card_counts}",
-        )
-
-        # Requirement 3: the Verified forms record must match this cold install.
-        version_out = run_cli(claude, ["--version"], env, str(base))
-        cli_version = (version_out.stdout or version_out.stderr).strip().split()[0]
-        check(
-            "README Verified forms Claude Code version matches the installed CLI",
-            bool(readme_claude_version)
-            and readme_claude_version == cli_version,
-            f"README says {readme_claude_version!r}, CLI reports {cli_version!r}",
-        )
-        installed_versions = {
-            plugin.get("version") for plugin in installed.values()
-        }
-        check(
-            "README Verified forms plugin version matches the cold install",
-            bool(readme_plugin_version)
-            and installed_versions == {readme_plugin_version},
-            f"README says {readme_plugin_version!r}, cold install reports {installed_versions!r}",
-        )
-        print(f"cold-install transcript available under {base}")
-
-        # Requirement 6: the tree under test, not only the published default branch.
-        local_base = Path(tempfile.mkdtemp(prefix="install-form-local-333-"))
-        local_env = cold_env(local_base)
-        local_add = run_cli(
-            claude,
-            ["plugin", "marketplace", "add", str(ROOT)],
-            local_env,
-            str(local_base),
-        )
-        local_out = local_add.stdout + local_add.stderr
-        check(
-            "cold install from the checked-out tree succeeds",
-            local_add.returncode == 0 and "Successfully added marketplace" in local_out,
-            f"rc={local_add.returncode}\n{local_out}",
-        )
-        local_installs: list[tuple[str, int, str]] = []
-        for name in sorted(declared):
-            proc = run_cli(
-                claude, ["plugin", "install", name], local_env, str(local_base)
-            )
-            local_installs.append((name, proc.returncode, proc.stdout + proc.stderr))
-        check(
-            "checked-out tree cold install carries every declared plugin",
-            all(
-                rc == 0 and "Successfully installed plugin" in plugin_out
-                for _, rc, plugin_out in local_installs
-            ),
-            "\n".join(f"{p}: rc={rc}\n{o}" for p, rc, o in local_installs),
-        )
-        local_listed = run_cli(
-            claude, ["plugin", "list", "--json"], local_env, str(local_base)
-        )
-        local_installed = parse_plugin_list(local_listed.stdout)
-        branch_versions = branch_plugin_versions()
-        local_versions = {
-            name: plugin.get("version") for name, plugin in local_installed.items()
-        }
-        check(
-            "checked-out tree cold install reports the branch plugin versions",
-            local_listed.returncode == 0
-            and set(local_installed) == declared
-            and local_versions == branch_versions,
-            f"installed={local_versions}, branch={branch_versions}",
-        )
-        local_card_counts = {
-            name: len(list(Path(plugin.get("installPath", "")).glob("*/SKILL.md")))
-            if plugin.get("installPath")
-            else 0
-            for name, plugin in local_installed.items()
-        }
-        check(
-            "checked-out tree cold install carries cards in every plugin",
-            set(local_card_counts) == declared
-            and all(count > 0 for count in local_card_counts.values()),
-            f"card_counts={local_card_counts}",
-        )
-        print(f"checked-out-tree transcript available under {local_base}")
+    finally:
+        # A cleanup error must not bury an error from the live half, nor skip
+        # the leftover check below; that check reports what remains.
+        cleanup_error = ""
+        try:
+            remove_tree(temp_root)
+        except OSError as exc:
+            cleanup_error = f"; cleanup raised {exc!r}"
+    leftover = sorted(temp_listing() - temp_before)
+    check(
+        f"suite leaves no {TEMP_PREFIX}* directory in the temp folder",
+        not leftover,
+        f"left behind under {tempfile.gettempdir()}: {leftover}{cleanup_error}",
+    )
 
     print()
     if FAILURES:
@@ -602,6 +536,189 @@ def main() -> int:
         "Verified forms record matches the CLI"
     )
     return 0
+
+
+def find_claude() -> str | None:
+    claude = shutil.which("claude")
+    if claude is None:
+        # Look beside a user-local install this container uses.
+        candidate = Path.home() / ".local/claude-cli/node_modules/.bin/claude"
+        claude = str(candidate) if candidate.is_file() else None
+    return claude
+
+
+def installed_card_counts(installed: dict[str, dict]) -> dict[str, int]:
+    # Cards sit at the plugin root, not under skills/. Each plugin must carry
+    # one; a total can hide an empty plugin.
+    return {
+        name: len(list(Path(plugin.get("installPath", "")).glob("*/SKILL.md")))
+        if plugin.get("installPath")
+        else 0
+        for name, plugin in installed.items()
+    }
+
+
+def live_cold_installs(
+    temp_root: Path,
+    install_fences: list[str],
+    shell_install_commands: list[list[str]],
+    declared: set[str],
+    readme_claude_version: str | None,
+    readme_plugin_version: str | None,
+) -> None:
+    claude = find_claude()
+    if claude is None:
+        check(
+            "claude CLI available for the live cold-install check",
+            False,
+            "no claude on PATH; criterion 2 cannot be exercised here",
+        )
+        return
+    add_command = next(
+        (
+            shlex.split(line)
+            for fence in install_fences
+            for line in fence.splitlines()
+            if line.strip().startswith("claude plugin marketplace add")
+        ),
+        None,
+    )
+    check(
+        "README shell fence provides a runnable marketplace add command",
+        add_command is not None,
+        "shell fence must contain `claude plugin marketplace add`",
+    )
+    if add_command is None:
+        return
+
+    # Case 1: published URL, README lines exactly as written.
+    base = temp_root / "published"
+    env = cold_env(base)
+    add = run_cli(claude, add_command[1:], env, str(base))
+    out = add.stdout + add.stderr
+    check(
+        "cold marketplace add (HTTPS form) succeeds without SSH",
+        add.returncode == 0 and "Successfully added marketplace" in out,
+        f"rc={add.returncode}\n{out}",
+    )
+    # Run every README install line exactly as written, every token
+    # included; only argv[0] is replaced with the CLI path.
+    readme_installs: list[tuple[str, int, str]] = []
+    for command in shell_install_commands:
+        proc = run_cli(claude, command[1:], env, str(base))
+        readme_installs.append(
+            (shlex.join(command), proc.returncode, proc.stdout + proc.stderr)
+        )
+    check(
+        "README shell install lines run as written succeed",
+        bool(readme_installs)
+        and all(
+            rc == 0 and "Successfully installed plugin" in plugin_out
+            for _, rc, plugin_out in readme_installs
+        ),
+        "\n".join(f"{c}: rc={rc}\n{o}" for c, rc, o in readme_installs),
+    )
+    # The Verified forms record claims all three plugins; install any
+    # declared plugin the README shell fence did not already name.
+    named = {command[3] for command in shell_install_commands}
+    installs = list(readme_installs)
+    for name in sorted(declared - named):
+        proc = run_cli(claude, ["plugin", "install", name], env, str(base))
+        installs.append((name, proc.returncode, proc.stdout + proc.stderr))
+    check(
+        "cold install of all three plugins succeeds",
+        all(
+            rc == 0 and "Successfully installed plugin" in plugin_out
+            for _, rc, plugin_out in installs
+        ),
+        "\n".join(f"{p}: rc={rc}\n{o}" for p, rc, o in installs),
+    )
+    listed = run_cli(claude, ["plugin", "list", "--json"], env, str(base))
+    installed = parse_plugin_list(listed.stdout)
+    check(
+        "installed plugins report one nonempty version from the cold install",
+        listed.returncode == 0
+        and set(installed) == declared
+        and len({plugin.get("version") for plugin in installed.values()}) == 1
+        and all(plugin.get("version") for plugin in installed.values()),
+        listed.stdout[:2000],
+    )
+    card_counts = installed_card_counts(installed)
+    check(
+        "cold install carries cards in every requested plugin",
+        set(card_counts) == declared
+        and all(count > 0 for count in card_counts.values()),
+        f"card_counts={card_counts}",
+    )
+
+    # The Verified forms record must match this cold install.
+    version_out = run_cli(claude, ["--version"], env, str(base))
+    version_words = (version_out.stdout or version_out.stderr).split()
+    cli_version = version_words[0] if version_words else ""
+    check(
+        "README Verified forms Claude Code version matches the installed CLI",
+        bool(readme_claude_version) and readme_claude_version == cli_version,
+        f"README says {readme_claude_version!r}, CLI reports {cli_version!r}",
+    )
+    installed_versions = {plugin.get("version") for plugin in installed.values()}
+    check(
+        "README Verified forms plugin version matches the cold install",
+        bool(readme_plugin_version)
+        and installed_versions == {readme_plugin_version},
+        f"README says {readme_plugin_version!r}, cold install reports {installed_versions!r}",
+    )
+
+    # Case 2: the tree under test, not only the published default branch.
+    local_base = temp_root / "local"
+    local_env = cold_env(local_base)
+    local_add = run_cli(
+        claude,
+        ["plugin", "marketplace", "add", str(ROOT)],
+        local_env,
+        str(local_base),
+    )
+    local_out = local_add.stdout + local_add.stderr
+    check(
+        "cold install from the checked-out tree succeeds",
+        local_add.returncode == 0 and "Successfully added marketplace" in local_out,
+        f"rc={local_add.returncode}\n{local_out}",
+    )
+    local_installs: list[tuple[str, int, str]] = []
+    for name in sorted(declared):
+        proc = run_cli(
+            claude, ["plugin", "install", name], local_env, str(local_base)
+        )
+        local_installs.append((name, proc.returncode, proc.stdout + proc.stderr))
+    check(
+        "checked-out tree cold install carries every declared plugin",
+        all(
+            rc == 0 and "Successfully installed plugin" in plugin_out
+            for _, rc, plugin_out in local_installs
+        ),
+        "\n".join(f"{p}: rc={rc}\n{o}" for p, rc, o in local_installs),
+    )
+    local_listed = run_cli(
+        claude, ["plugin", "list", "--json"], local_env, str(local_base)
+    )
+    local_installed = parse_plugin_list(local_listed.stdout)
+    branch_versions = branch_plugin_versions()
+    local_versions = {
+        name: plugin.get("version") for name, plugin in local_installed.items()
+    }
+    check(
+        "checked-out tree cold install reports the branch plugin versions",
+        local_listed.returncode == 0
+        and set(local_installed) == declared
+        and local_versions == branch_versions,
+        f"installed={local_versions}, branch={branch_versions}",
+    )
+    local_card_counts = installed_card_counts(local_installed)
+    check(
+        "checked-out tree cold install carries cards in every plugin",
+        set(local_card_counts) == declared
+        and all(count > 0 for count in local_card_counts.values()),
+        f"card_counts={local_card_counts}",
+    )
 
 
 if __name__ == "__main__":
