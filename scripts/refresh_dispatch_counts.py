@@ -22,12 +22,14 @@ Replacing that prose with a generic zero would erase the harvest pass's
 unobservable-vs-insurance discriminator (AGENTS.md step 2).
 
 Record kinds:
-  baseline — first record, absolute lifetime totals in "counts.skillUsage".
+  baseline — absolute lifetime totals in "counts.skillUsage". The logger
+             writes one on its first run and again whenever it loses its
+             cursor; the latest baseline replaces everything before it.
   delta    — every later record, per-session changes in "deltas.skillUsage".
   anomaly  — counter went backwards; skipped, count reported.
 
 The total for one card is the sum, over every telemetry key that names the
-card, of that key's baseline value plus every delta. The keys that name a card
+card, of that key's value in the latest baseline plus every delta after it. The keys that name a card
 are its directory name, each earlier name in EARLIER_NAMES, and each of those
 prefixed by the bucket's plugin name (`<plugin.json name>:<name>`), the form
 the platform records when the card is invoked from the installed plugin
@@ -163,6 +165,9 @@ def _parse_log(log_path: Path) -> tuple[dict[str, int], str | None, int]:
             continue
 
         if kind == "baseline":
+            # Absolute lifetime totals: a later baseline already contains every
+            # earlier record, so it replaces the running totals.
+            counts = {}
             skill_map = record.get("counts", {}).get("skillUsage", {})
         elif kind == "delta":
             skill_map = record.get("deltas", {}).get("skillUsage", {})

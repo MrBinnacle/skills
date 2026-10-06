@@ -413,3 +413,28 @@ class TestUnobservableDiagnosisSurvivesNonzero:
         assert row.startswith("No recorded dispatch"), row
         assert "this counter cannot see" in row, row
         assert "never unused" in row, row
+
+
+class TestRepeatedBaseline:
+    """A baseline carries absolute lifetime totals. When the logger loses its
+    cursor it writes a second baseline that already contains the first one and
+    every delta before it, so only the latest baseline and the deltas after it
+    may be summed."""
+
+    def test_later_baseline_supersedes_earlier_records(self, repo_copy: Path) -> None:
+        records = [
+            {"kind": "baseline", "ts": "2026-08-16T00:00:00Z", "v": 1,
+             "counts": {"skillUsage": {"im-up": 40}}},
+            {"kind": "delta", "ts": "2026-08-20T00:00:00Z", "v": 1,
+             "deltas": {"skillUsage": {"im-up": 10}}},
+            {"kind": "baseline", "ts": "2026-09-11T00:00:00Z", "v": 1,
+             "counts": {"skillUsage": {"im-up": 50}}},
+            {"kind": "delta", "ts": "2026-09-12T00:00:00Z", "v": 1,
+             "deltas": {"skillUsage": {"im-up": 3}}},
+        ]
+        log = repo_copy / "usage-log.jsonl"
+        log.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+        result = _run_script(log, repo_copy)
+        assert result.returncode == 0, result.stderr
+        row = _read_dispatch_row(repo_copy / "skills/engineering/im-up/EVIDENCE.md")
+        assert row.startswith("53 dispatches"), row
