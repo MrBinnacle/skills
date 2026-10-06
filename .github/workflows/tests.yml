@@ -1102,9 +1102,23 @@ jobs:
           mkdir -p "$tree/site"
           cp site/*.css "$tree/site/"
           cp README.md package.json "$tree/"
-          sed -i 's|#8b949e|#3fb950|g' "$tree/assets/banner-dark.svg"
-          grep -q '#3fb950' "$tree/assets/banner-dark.svg" \
-            || { echo "::error::the control fixture was not mutated - nothing was planted"; exit 1; }
+          # Plant over a colour the banner actually draws, read from its own
+          # fill/stroke attributes, so a palette change cannot leave the sed
+          # matching nothing. Only attribute values are rewritten, and the
+          # guard compares checksums and counts planted attributes, so a hex
+          # named in an XML comment cannot satisfy it.
+          banner="$tree/assets/banner-dark.svg"
+          victim="$(grep -m1 -oE '(fill|stroke)="#[0-9A-Fa-f]{6}"' "$banner" | grep -oE '#[0-9A-Fa-f]{6}')" \
+            || { echo "::error::banner-dark.svg draws no fill/stroke hex to plant over"; exit 1; }
+          before="$(sha256sum "$banner")"
+          sed -i "s|=\"$victim\"|=\"#3fb950\"|g" "$banner"
+          after="$(sha256sum "$banner")"
+          planted="$(grep -c '="#3fb950"' "$banner" || true)"
+          if [ "${before%% *}" = "${after%% *}" ] || [ "$planted" -lt 1 ]; then
+            echo "::error::the control fixture was not mutated - nothing was planted"
+            exit 1
+          fi
+          echo "control: planted #3fb950 over $victim in $planted attribute(s)"
           # #267: the checker selects the TRACKED set, so a control tree that
           # is not a repository is one it REFUSES to scan rather than one it
           # finds clean - and a refusal is not the rejection this control is
