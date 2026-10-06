@@ -8,6 +8,7 @@ would record a pre-commit HEAD and the next open would reject it as stale.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import subprocess
 import sys
@@ -18,9 +19,25 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 
+def _load_validator():
+    spec = importlib.util.spec_from_file_location(
+        "validate_packet", HERE / "validate_packet.py",
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# The close runs receiver checks through the validator's own runner, so the
+# close and the open share one cache under one key rule (issue #371).
+validator = _load_validator()
+
+
 def git(root: Path, *args: str) -> str:
     result = subprocess.run(
-        ["git", *args], cwd=root, text=True, capture_output=True, check=True,
+        ["git", *args], cwd=root, capture_output=True, check=True,
+        encoding="utf-8", errors="replace",
     )
     return result.stdout.strip()
 
@@ -33,23 +50,13 @@ class CloseError(Exception):
         super().__init__(payload.get("error", "close failed"))
 
 
-def run_check(root: Path, check: dict) -> tuple[dict, str]:
-    """Run one receiver check. Returns the manifest entry and the captured output."""
-    observed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    result = subprocess.run(
-        check["command"], cwd=root, shell=True, text=True, capture_output=True,
-    )
-    entry = {
-        "command": check["command"],
-        "exit_code": result.returncode,
-        "observed_at": observed_at,
-        "head": git(root, "rev-parse", "HEAD"),
-    }
-    return entry, (result.stdout + result.stderr)[-2000:]
-
-
 def run_checks(root: Path, config: dict) -> list[dict]:
-    """Run every receiver check; refuse the close when any is red.
+    """Run every receiver check through the shared cache; refuse when any is red.
+
+    The checks run through the validator's runner, so a passing check is
+    cached under the same key the open computes, and an open on the unchanged
+    tree serves it as `cached` instead of running it again. The weekly full
+    run applies here too: a cached pass the fresh run contradicts is red.
 
     The receiver will re-run these and reject the packet on a red one. That
     is known here, one session earlier, while the cause is still in context,
@@ -57,23 +64,50 @@ def run_checks(root: Path, config: dict) -> list[dict]:
     it is durable state and is correct as written. Fix the cause and close
     again; the next close records a new HEAD.
     """
+    checks = [
+        dict(check, name=check.get("name", check["command"]))
+        for check in config.get("receiver_checks", [])
+    ]
+    observed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    try:
+        results, cache_errors = validator.rerun_checks(
+            dict(config, receiver_checks=checks), root,
+        )
+    except validator.PacketError as exc:
+        raise CloseError({"error": f"refusing to write a packet: {exc}"}) from exc
+    head = git(root, "rev-parse", "HEAD")
     entries: list[dict] = []
     red: list[dict] = []
-    for check in config.get("receiver_checks", []):
-        entry, output = run_check(root, check)
+    for result in results:
+        entry = {
+            "command": result["command"],
+            "exit_code": result["exit_code"],
+            "status": result["status"],
+            "observed_at": observed_at,
+            "head": head,
+        }
+        if result["status"] == "cached":
+            # The verdict is the cached run's, so it was observed when that
+            # run happened. The key ties it to inputs unchanged since then.
+            entry["observed_at"] = result["cached_at"]
+            entry["cache_key"] = result["cache_key"]
+            entry["cached_at"] = result["cached_at"]
         entries.append(entry)
-        if entry["exit_code"] != 0:
+        if result["exit_code"] != 0:
             red.append({
-                "name": check.get("name", check["command"]),
-                "command": check["command"],
-                "exit_code": entry["exit_code"],
-                "output": output,
+                "name": result["name"],
+                "command": result["command"],
+                "exit_code": result["exit_code"],
+                "output": (result.get("stdout", "") + result.get("stderr", ""))[-2000:],
             })
-    if red:
-        raise CloseError({
+    if red or cache_errors:
+        payload = {
             "error": "refusing to write a packet: a receiver check is red",
             "failed_receiver_checks": red,
-        })
+        }
+        if cache_errors:
+            payload["cache_errors"] = cache_errors
+        raise CloseError(payload)
     return entries
 
 

@@ -117,7 +117,7 @@ if ($gitRoot) {
       "First: $($unignored[0]). Git records a link as ordinary files, so that tree would " +
       "track this repo's bytes and a routine checkout in either repository could delete " +
       "them from the other's index. Add these paths to that repository's .gitignore, or " +
-      "install the collection instead with `claude plugin marketplace add MrBinnacle/skills`."
+      "install the collection instead with `claude plugin marketplace add https://github.com/MrBinnacle/skills.git`."
     )
     exit 1
   }

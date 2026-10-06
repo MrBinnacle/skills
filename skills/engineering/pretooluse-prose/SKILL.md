@@ -1,6 +1,6 @@
 ---
 name: pretooluse-prose
-description: A PreToolUse Bash guard reads the whole command string, so it blocks prose that only mentions what it forbids. Use when a hook blocks its own install, or when writing a Bash matcher.
+description: A PreToolUse Bash guard reads the whole command, so a heredoc or commit message naming a banned command trips it. Use on BLOCKED by a guard, writing a Bash matcher, or a non-prose argument misread.
 ---
 
 # PreToolUse Bash Guards Match Prose, Not Just Commands
@@ -32,15 +32,47 @@ independent defects, one commit.
 - `BLOCKED by <your guard>` appears on a `git commit`, `cat`, or `echo` that contains prose.
 - A guard fires on a heredoc body rather than on a command.
 - You are writing a `PreToolUse` matcher on `Bash` and your detection regex has no anchor.
+- **Non-prose branch:** a live command is blocked because an argument contains the banned word.
+  `git fetch origin pull/292/head` names a pull-request ref, and a `git pull` guard reads `pull`
+  in the path. Same defect, no prose: the predicate read text instead of command position.
 
 ## Solution
 
-**1. Anchor detection to a command position.** A command starts at the beginning of the
-string, or after a shell separator, optionally preceded by `VAR=value` assignments.
+**When a guard blocks your prose, write the file with a file-write tool, not a heredoc.** Use
+the agent's Write tool, then pass the path: `git commit -F msg.txt`, `gh pr create --body-file
+body.md`. No guard reads the prose. Read the file back before you send it: a blocked call
+writes nothing, so a same-named file from earlier work can be what gets posted.
+
+**1. Anchor detection to a command position outside quotes.** A command starts at the beginning
+of the string, after an unquoted shell separator, or inside `$(`, optionally after `VAR=value`
+assignments. A `;` inside quotes is data, and a regex cannot see quotes, so scan for them:
 
 ```python
-_CMD_POS = r"(?:^|[;&|]{1,2}|\n|\$\()\s*(?:[A-Za-z_]\w*=\S*\s+)*"
-CREATE_RE = re.compile(_CMD_POS + r"gh\s+(?:issue|pr)\s+create\b", re.IGNORECASE)
+def command_starts(cmd):
+    starts, quote, i = [0], None, 0
+    while i < len(cmd):
+        c = cmd[i]
+        if quote == "'":
+            quote = None if c == "'" else quote
+        elif c == "\\":
+            i += 1
+        elif c == "$" and cmd[i + 1:i + 2] == "(":
+            starts.append(i + 2)
+        elif quote == '"':
+            quote = None if c == '"' else quote
+        elif c in "'\"":
+            quote = c
+        elif c in ";&|\n":
+            starts.append(i + 1)
+        i += 1
+    return starts
+
+_PREFIX = re.compile(r"[\s;&|]*(?:[A-Za-z_]\w*=\S*\s+)*")
+CREATE_RE = re.compile(r"gh\s+(?:issue|pr)\s+create\b", re.IGNORECASE)
+
+def runs(shell, pattern):
+    return any(pattern.match(shell, _PREFIX.match(shell, s).end())
+               for s in command_starts(shell))
 ```
 
 **2. Split the heredoc body from the shell before deciding anything.** The body is the
@@ -48,16 +80,21 @@ artifact; the shell is the invocation. Detect commands in the shell part, inspec
 the body part.
 
 ```python
-HEREDOC_RE = re.compile(r"<<-?\s*(['\"]?)(\w+)\1\s*\n(.*?)(?:^\2$|\Z)",
-                        re.DOTALL | re.MULTILINE)
+HEREDOC_RE = re.compile(
+    r"<<(-)?\s*(['\"]?)(\w+)\2\s*\n(.*?)(?:^(?(1)\t*)\3$|\Z)",
+    re.DOTALL | re.MULTILINE)
 
 def split_shell_and_body(cmd):
     bodies = []
-    shell = HEREDOC_RE.sub(lambda m: (bodies.append(m.group(3)), "<<HEREDOC>>")[1], cmd)
+    shell = HEREDOC_RE.sub(lambda m: (bodies.append(m.group(4)), "<<HEREDOC>>")[1], cmd)
     for m in re.finditer(r"--body(?:-file)?[= ]\s*(['\"])(.*?)\1", shell, re.DOTALL):
         bodies.append(m.group(2))
     return shell, "\n".join(bodies) if bodies else shell
 ```
+
+`<<-` lets the terminator carry leading tabs; plain `<<` does not. `(-)?` captures only a real
+dash, so `(?(1)\t*)` accepts tabs for `<<-` alone. Without that branch a `<<-` match runs to the
+end of the string and swallows every later command into the body.
 
 **3. Fail open on every internal error.** A guard must never be the reason work stops.
 
@@ -66,8 +103,9 @@ except Exception:
     return 0
 ```
 
-**4. Exit codes.** `2` blocks with stderr shown to the model; `0` proceeds. To warn without
-blocking, exit `0` and print `{"hookSpecificOutput": {"hookEventName": "PreToolUse",
+**4. Exit codes** (Claude Code hooks docs, checked 2026-10-05). `2` blocks the tool call and
+feeds stderr to the model; `0` raises no objection, so the normal permission flow applies. To
+warn without blocking, exit `0` and print `{"hookSpecificOutput": {"hookEventName": "PreToolUse",
 "additionalContext": "..."}}` on stdout.
 
 ## Verification
@@ -97,6 +135,8 @@ Minimum test matrix for any Bash guard:
 | Compliant real command | pass (0) |
 | Unrelated command | pass (0) |
 | Read-only subcommand (`list`, `view`) | pass (0) |
+| Banned phrase after a `;` inside quotes | pass (0) |
+| Offending command after a `<<-` heredoc | block (2) |
 | Malformed stdin | pass (0) |
 
 ## Notes
@@ -107,7 +147,9 @@ Open [gotchas.md](gotchas.md) when a Bash guard blocks its own install, a commit
   forbidden strings by design. If a guard is going to false-positive, it will be here.
 - **Duplicating regexes across two guards is deliberate when they enforce one discipline** —
   but they drift. Note the sibling in a comment so a change to one prompts a change to both.
-- The same trap applies to `Edit|Write` guards on documentation paths: a skill file
-  *describing* an anti-pattern contains the anti-pattern verbatim.
+- The same trap applies to `Edit|Write` guards on documentation paths (a matcher of letters
+  and `|` is a list of exact tool names, so `Edit|Write` matches those two tools only; checked
+  2026-10-06): a skill file *describing* an anti-pattern
+  contains the anti-pattern verbatim.
 - Prefer prose-tolerant detection over a suppression escape hatch. An `ACK=1` bypass gets
   used reflexively and the guard stops meaning anything.

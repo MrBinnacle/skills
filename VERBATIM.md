@@ -96,3 +96,9 @@ The first-person lines of `README.md` as shipped at `f42d167`, ratified by the o
 > `templates/BASE-OPERATING-RULES.md` contains the project-agnostic operating rules I use across
 > repositories: anti-anchoring, decision escalation, layer placement, verification, and context
 > hygiene.
+
+### On who writes the plugin descriptions — 2026-10-05
+
+The owner answered a triage question on `skills#363` and routed the engineering plugin description to the Tech Writer seat, which wrote the line.
+
+> This should go to my SME tech writer

@@ -12,11 +12,28 @@ Claude Code skills for mistakes that report success. Most come from a failure se
 ## Install
 
 ```text
-/plugin marketplace add MrBinnacle/skills
+/plugin marketplace add https://github.com/MrBinnacle/skills.git
 /plugin install mrbinnacle-engineering
 ```
 
 The other plugins are `mrbinnacle-orchestration` and `mrbinnacle-meta`. Or install everything with `npx skills add MrBinnacle/skills`.
+
+Shell form, same source:
+
+```bash
+claude plugin marketplace add https://github.com/MrBinnacle/skills.git
+claude plugin install mrbinnacle-engineering
+```
+
+The HTTPS clone URL is what this README publishes. The GitHub shorthand `MrBinnacle/skills` is also a documented CLI source; on a machine with no working SSH key for github.com it can fail with `git@github.com: Permission denied (publickey)`, which is what a cold install of v3.0.1 recorded. Issue #333 recorded that failure.
+
+Verified forms, Claude Code 2.1.287, 2026-10-02, from a clean `CLAUDE_CONFIG_DIR` with no SSH key:
+
+- interactive `/plugin marketplace add https://github.com/MrBinnacle/skills.git`
+- shell `claude plugin marketplace add https://github.com/MrBinnacle/skills.git`
+- shell `claude plugin install` of all three plugins, at 3.0.1
+
+The cold-install transcript is in the pull request that changed this section (#340).
 
 Each skill adds one line to every session: about 45 to 65 tokens, measured by `skill-harness skill audit` on 2026-09-22. The rest loads only when it is used. The three marked "by hand" cost nothing until you run them.
 

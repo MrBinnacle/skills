@@ -10,9 +10,21 @@ name: conformance schedule
 #   drifting away from the tree, was found only by someone reading. A check that
 #   never fires is indistinguishable from one that cannot fire.
 #
-#   It is deliberately NOT a required check. `main` has no branch protection, so a
-#   spurious red here would train the sole maintainer to bypass rather than to look.
-#   If required checks ever land on main, that fork is worth reopening.
+#   It is deliberately NOT a required check. Measured 2026-10-05 with
+#   `gh api repos/MrBinnacle/skills/rulesets/18688002`: the `protect-main` ruleset
+#   (active, no bypass actors) blocks force-push and deletion of `main`, requires a
+#   pull request (zero approvals), and requires six status checks: linkcheck,
+#   residue-check, spec-conformance, validator (ubuntu-latest), validator
+#   (windows-latest) and Release gate (fit to release). This workflow's
+#   `conformance` job is not among them; `spec-conformance` is a tests.yml job.
+#
+#   The condition this comment once set for reopening the fork, required checks
+#   on main, now holds. The answer stays "not required", for two reasons. A
+#   workflow with no pull_request trigger never reports a status on a PR, and
+#   GitHub leaves a required check that is never reported pending, so requiring
+#   it would block every merge (GitHub Docs, "Troubleshooting required status
+#   checks", checked 2026-10-05). And a spurious red on a clock-run sweep would
+#   still train the sole maintainer to bypass rather than to look.
 #
 # THE RUN WATCHES ITSELF
 #   A silently broken cron looks exactly like a clean tree: both are silence. So a
@@ -63,9 +75,9 @@ jobs:
     outputs:
       outcome: ${{ steps.run.outcome }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
 
@@ -121,7 +133,7 @@ jobs:
       issues: write
     steps:
       - name: File, update, or close the run-failure issue
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           RESULT: ${{ needs.conformance.result }}
         with:
