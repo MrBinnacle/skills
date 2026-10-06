@@ -20,7 +20,7 @@
     },
     "im-up": {
       "standing_cost_tokens": 0,
-      "skill_md_sha256": "01cabe6cc9b81d0cb8f2e725f967f19d31370ff78ec9b838ad67e868e16533dc"
+      "skill_md_sha256": "1c22d03d7a7bdc376ccd68ab4efec905cdf328d0b42d6c923298f8f32b5f8492"
     },
     "mocked-stub": {
       "standing_cost_tokens": 51,

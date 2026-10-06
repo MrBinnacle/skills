@@ -123,9 +123,9 @@ Once a week, at an open or a close, every check runs uncached and is compared
 with its cached verdict. A disagreement fails that open or close and clears
 the check's cache entry.
 
-The cache file lives outside the tree, so it persists across sessions on one
-machine. Config key `receiver_check_cache` names an explicit path; otherwise
-the default is `~/.cache/mrbinnacle-skills/receiver-check-cache.json`. An
+The cache file persists across sessions on one machine. Config key
+`receiver_check_cache` names an explicit path; otherwise the default is
+`~/.cache/mrbinnacle-skills/receiver-check-cache.json`, outside the tree. An
 absolute or `~` path is used as written. A relative path resolves under
 `~/.cache/mrbinnacle-skills/`, never under the repository; one that climbs out
 of that directory with `..` is refused. Each write goes to a temp file in the

@@ -579,6 +579,14 @@ def cache_hit_and_input_change_cases():
         check = json.loads(config.read_text(encoding="utf-8"))["receiver_checks"][0]
         key_before = validator.check_cache_key(check, repo)
         assert second["cache_key"] == key_before, (second, key_before)
+        # The key is over each input's resolved path, so the root's spelling
+        # cannot move it. The entry points pass a resolved root; a caller
+        # passing an unresolved one (an 8.3 short name such as RUNNER~1, or a
+        # `..` segment) must compute the same key, or the cache never hits.
+        respelled = repo / "inputs" / ".."
+        assert validator.check_cache_key(check, respelled) == key_before, (
+            "the cache key must not depend on how the repo root is spelled"
+        )
 
         locked = repo / "inputs" / "locked.txt"
         locked.write_text("locked-v2\n", encoding="utf-8")
@@ -731,12 +739,14 @@ def cache_weekly_disagreement_cases():
 
 
 
-def _close(repo: Path, config: Path) -> subprocess.CompletedProcess[str]:
+def _close(
+    repo: Path, config: Path, env: dict | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["python", str(_pair_script("close_session.py")), "--config", str(config),
          "--repo-root", str(repo), "--objective", "x",
          "--next-action", "y", "--purpose", "z"],
-        text=True, capture_output=True,
+        capture_output=True, env=env, encoding="utf-8", errors="replace",
     )
 
 
@@ -1050,6 +1060,73 @@ def utf8_git_output_cases():
         assert result.returncode == 0, receipt
         assert receipt["verdict"] == "ACCEPTED", receipt
 
+# A passing check that prints U+0141 (UTF-8 C5 81; 0x81 has no cp1252
+# mapping) and then a byte that is not valid UTF-8. Shell-neutral.
+NON_CP1252_PASS = (
+    "python -c \"import sys; sys.stdout.buffer.write(bytes([0xc5, 0x81, 0x20, 0xff])); "
+    "sys.stdout.flush()\""
+)
+# U+0401 is UTF-8 D0 81; 0x81 has no cp1252 mapping.
+NON_CP1252_BRANCH = "feature-Ё"
+
+
+def _cp1252_env() -> dict:
+    import os
+    return dict(os.environ, PYTHONUTF8="0", PYTHONIOENCODING="cp1252")
+
+
+def utf8_snapshot_state_cases():
+    """snapshot_state.py decodes check and git output as UTF-8 (issue #372).
+
+    The card documents snapshot_state.py as the close path for a project that
+    owns its own close sequence, so it must not depend on the caller's locale
+    either. Run under a cp1252 locale, a passing check printing a character
+    outside cp1252 crashed it with a TypeError, and so did a branch name
+    outside cp1252 on its git calls.
+    """
+    snapshot_py = _pair_script("snapshot_state.py")
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        _init_repo(repo)
+        subprocess.run(["git", "checkout", "-q", "-b", NON_CP1252_BRANCH],
+                       cwd=repo, check=True)
+        config = _boundary_config(repo, "utf8.json", NON_CP1252_PASS)
+        result = subprocess.run(
+            ["python", str(snapshot_py), "--config", str(config),
+             "--repo-root", str(repo), "--objective", "x",
+             "--next-action", "y", "--purpose", "z"],
+            capture_output=True, env=_cp1252_env(),
+            encoding="utf-8", errors="replace",
+        )
+        assert result.returncode == 0, (
+            "snapshot_state.py crashed on non-cp1252 output: " + result.stderr[-600:]
+        )
+        manifest, _ = validator.extract(Path(result.stdout.strip()))
+        assert manifest["tests"][0]["exit_code"] == 0, manifest["tests"]
+        assert manifest["repository"]["branch"] == NON_CP1252_BRANCH, manifest
+
+
+def utf8_close_git_cases():
+    """close_session.py decodes git output as UTF-8 whatever the locale.
+
+    Its own git() reads `git branch --show-current`; under a cp1252 locale a
+    branch name outside cp1252 crashed the close before its packet existed.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        repo, _, config = _prepared_repo(tmp, [{
+            "name": "passing", "command": PASSING_COMMAND,
+        }], None)
+        subprocess.run(["git", "checkout", "-q", "-b", NON_CP1252_BRANCH],
+                       cwd=repo, check=True)
+        closed = _close(repo, config, env=_cp1252_env())
+        assert closed.returncode == 0, (
+            "close crashed on non-cp1252 git output: "
+            + (closed.stdout + closed.stderr)[-600:]
+        )
+        manifest, _ = validator.extract(Path(json.loads(closed.stdout)["packet_path"]))
+        assert manifest["repository"]["branch"] == NON_CP1252_BRANCH, manifest
+
+
 # Every file measured byte-identical across the pair (sha256, 2026-08-24) is
 # in the contract. If a file stops being shared, REMOVE it from this tuple and
 # record why in the removing change -- a contract that silently narrows is the
@@ -1353,6 +1430,8 @@ if __name__ == "__main__":
     cache_path_confined_cases()
     utf8_check_output_cases()
     utf8_git_output_cases()
+    utf8_snapshot_state_cases()
+    utf8_close_git_cases()
     parity_verified, parity_message = duplication_case()
     print(parity_message)
     roster = ("PASS: clean, stale, incomplete, failed-probe, placeholder, "
@@ -1361,7 +1440,8 @@ if __name__ == "__main__":
               "close-session, open-session, red-check, assertions-held, "
               "cache-hit, cache-outside, cache-directory, cache-fail, "
               "cache-weekly, cache-no-inputs, cache-expand, cache-close-shared, "
-              "cache-atomic, cache-path-confined, utf8-output, utf8-git-output")
+              "cache-atomic, cache-path-confined, utf8-output, utf8-git-output, "
+              "utf8-snapshot, utf8-close-git")
     # no-drift appears in the pass roster only when parity was actually
     # compared; a single-card install reports NOT VERIFIED above instead.
     print(roster + ", no-drift" if parity_verified else roster)

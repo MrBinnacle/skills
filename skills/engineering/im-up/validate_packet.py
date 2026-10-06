@@ -455,8 +455,10 @@ def check_cache_key(check: dict, repo_root: Path) -> str | None:
         ["git", "--version"], text=True, capture_output=True
     )
     parts.append(git_version.stdout.strip() or git_version.stderr.strip())
+    # Resolved, so one input keys the same however the root was spelled:
+    # a Windows 8.3 short name (RUNNER~1) and its long form are one path.
     for path in expand_cache_inputs(inputs, repo_root):
-        parts.append(f"{path}:{_content_hash(path)}")
+        parts.append(f"{path.resolve()}:{_content_hash(path)}")
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
 
 
