@@ -22,11 +22,13 @@
 
 - **2026-08-10 / mention-only false positives:** A private guard matched a `git` token followed later by a `pull` token anywhere in the command string. It repeatedly blocked legitimate commands that only named the skill or guard, including reading the guard's own source; two later reproductions blocked path globs naming this skill's directory. Parse actual shell/Git arguments instead. A guard that trains users to bypass the whole family is worse than no guard.
 
+  `retired` — 2026-10-05. This entry is the history of one maintainer's guard, not of this card. Its substance lives in [preventive-recipes.md](preventive-recipes.md): the Shared predicate (parse the arguments; never scan the raw string) and the acceptance-table row for a command that merely names this skill or its guard.
+
 - **2026-09-13 / the false positive is not only mention-only, and it reproduced four more times:**
   The 2026-08-10 entry above calls this class "mention-only". That name is too narrow, and the
   narrowness hid a second class until a session walked into it. A private guard refused
-  `git fetch origin pull/506/head:probe506`. Nothing in that command mentions the skill, the guard,
-  or any prose. `pull/506/head` is GitHub's documented refspec for a pull request head, and `pull`
+  `git fetch origin pull/<n>/head:<local-branch>`. Nothing in that command mentions the skill, the guard,
+  or any prose. `pull/<n>/head` is GitHub's documented refspec for a pull request head, and `pull`
   there is a **path segment**. The guard's lookahead excluded a word character, a dot and a hyphen
   after the matched word, and a slash is in none of those, so a path matched as a subcommand.
 
@@ -45,6 +47,8 @@
   here, and the card said so before the guard was written. A regex narrowing shrinks the blast
   radius of an approach this card rejects. The parse-the-arguments remedy remains unimplemented in
   that guard.
+
+  `retired` — 2026-10-05. This entry is the history of one maintainer's guard, not of this card. Its substance lives in [preventive-recipes.md](preventive-recipes.md): the Shared predicate, and the acceptance-table rows for a refspec whose path contains the subcommand word and for a commit message that spells it in prose.
 
 - **2026-08-23 / discriminator run (rotation pass, step 2):** This card had never been
   model-invoked across 261 tracked startups, so the retrieval-vs-insurance discriminator ran: a
