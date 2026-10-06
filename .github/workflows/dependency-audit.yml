@@ -8,10 +8,15 @@ on:
 permissions:
   contents: read
 
+env:
+  AUDIT_LEVEL: high
+
 jobs:
   audit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      advisories: ${{ steps.audit.outputs.advisories }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -24,5 +29,67 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
 
+      # The human-readable audit decides the step's exit code. The JSON report
+      # only names the advisories for the issue that report-failure files, so
+      # the output is written before the step exits with the audit's status.
       - name: Audit high-severity dependencies
-        run: npm audit --audit-level=high --registry=https://registry.npmjs.org
+        id: audit
+        run: |
+          set -uo pipefail
+          status=0
+          npm audit --audit-level="$AUDIT_LEVEL" --registry=https://registry.npmjs.org || status=$?
+          report="$RUNNER_TEMP/audit.json"
+          npm audit --json --registry=https://registry.npmjs.org > "$report" || true
+          advisories=$(node -e '
+            const rank = { info: 0, low: 1, moderate: 2, high: 3, critical: 4 };
+            const floor = rank[process.env.AUDIT_LEVEL];
+            const report = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const found = new Map();
+            for (const vuln of Object.values(report.vulnerabilities || {})) {
+              for (const via of vuln.via) {
+                if (typeof via !== "object" || !(rank[via.severity] >= floor)) continue;
+                const id = String(via.url || via.source).split("/").pop();
+                found.set(id, `${id} (${via.severity}, ${via.name})`);
+              }
+            }
+            console.log([...found.values()].join("; "));
+          ' "$report") || advisories="unreadable audit report"
+          echo "advisories=$advisories" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+  # A red run is owned by an issue, not only by the Actions tab. One open issue
+  # carries the failure: the first red run opens it, and each later one comments.
+  report-failure:
+    needs: audit
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the audit-failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: 'dependency-audit: the scheduled audit is failing'
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref_name }}
+          ADVISORIES: ${{ needs.audit.outputs.advisories }}
+        run: |
+          set -euo pipefail
+          body="$RUNNER_TEMP/body.md"
+          {
+            echo "The \`dependency-audit\` workflow failed (\`npm audit --audit-level=$AUDIT_LEVEL\`)."
+            echo
+            echo "- Run: $RUN_URL"
+            echo "- Trigger: \`$EVENT\` on \`$REF\`"
+            echo "- Advisories: ${ADVISORIES:-none captured; the run failed before the audit step, so read its log}"
+          } > "$body"
+          number=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title \
+            --jq 'map(select(.title == env.TITLE)) | first | .number // empty')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file "$body"
+          else
+            gh issue create --title "$TITLE" --body-file "$body"
+          fi
