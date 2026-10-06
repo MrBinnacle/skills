@@ -916,7 +916,7 @@ def changeset_declared_bumps(text: str) -> dict[str, str]:
     bumps: dict[str, str] = {}
     for line in lines[1:closing]:
         match = re.match(
-            r'^\s*("?)([^":]+?)\1\s*:\s*(?:"([^"]+)"|\'([^\']+)\'|(\w+))\s*$',
+            r'^\s*("?)([^":]+?)\1\s*:\s*(?:"([^"]+)"|\'([^\']+)\'|(\w+))(?:\s+#.*)?\s*$',
             line,
         )
         if match:

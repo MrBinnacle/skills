@@ -484,6 +484,22 @@ def case_case3_no_surface_declared_major_is_refused(tmp: Path) -> None:
     )
 
 
+def case_case3_commented_major_is_refused(tmp: Path) -> None:
+    """A YAML comment cannot hide a declared bump from G10."""
+    root = make_tree(
+        tmp,
+        declared="major # a valid YAML comment after the bump",
+        branch_change="scripts_only",
+    )
+    expect_g10_refusal(
+        "case 3: a commented major declaration is refused",
+        root,
+        "G10:",
+        "skills/*/*/",
+        "major",
+    )
+
+
 def case_case3_non_card_directory_declared_minor_is_refused(tmp: Path) -> None:
     """A directory below a bucket is not a card unless it carries SKILL.md."""
     root = make_tree(tmp, declared="minor", branch_change="non_card")
@@ -1220,6 +1236,7 @@ CASES = (
     case_case2_remove_declared_patch_is_refused,
     case_case3_no_surface_declared_minor_is_refused,
     case_case3_no_surface_declared_major_is_refused,
+    case_case3_commented_major_is_refused,
     case_case3_non_card_directory_declared_minor_is_refused,
     case_higher_classification_governs_rename_plus_add,
     case_case4_consumed_major_with_major_delta_passes,
