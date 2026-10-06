@@ -226,7 +226,7 @@
      bug report asks for matching in command position only, or for stripping heredoc bodies and
      quoted strings first. That is this card's remedy, and the guard still lacked it.
   2. 2026-09-22 occurrence, a later session the same day: the same guard matched the words
-     inside heredoc text again. The session listed it among its own gotchas; the two sessions
+     inside heredoc text again. The session listed it among its own gotchas; the three sessions
      between did not carry it, so it is read as a fresh block. Recovered with the Write tool.
   3. 2026-10-01 occurrence: a shell heredoc was blocked because its text quoted a
      pull-request creation command. Recovered by writing the body with a file-write tool and
