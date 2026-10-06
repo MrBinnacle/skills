@@ -657,6 +657,25 @@ def case_case4_no_consumed_plan_with_delta_is_refused(tmp: Path) -> None:
     )
 
 
+def case_case4_unchanged_version_with_no_consumed_plan_passes(tmp: Path) -> None:
+    """N1: an explicit --release run on a released, clean main must PASS.
+
+    After a release, origin/main == HEAD, package.json still declares the
+    released version, and no plan remains to consume. The version is
+    unchanged; that is not a release delta. Before the fix G10 refused this
+    tree with the false message "release version changed from 1.2.0 to
+    1.2.0". A control that only tested the refusing direction could not
+    catch that regression (dfd1e45 -> 53a5b3a)."""
+    root = tmp / "repo"
+    init_base_repo(root)
+    set_origin_main(root)
+    expect_pass(
+        "case 4: --release on an unchanged version with no consumed plan PASSES",
+        root,
+        "--release",
+    )
+
+
 def case_b2a_push_to_main_after_admission_passes(tmp: Path) -> None:
     """B2(a): a push to main after an admission merged with minor must PASS.
 
@@ -1082,6 +1101,7 @@ CASES = (
     case_case4_consumed_patch_with_no_delta_is_refused,
     case_case4_requires_the_exact_changesets_version,
     case_case4_no_consumed_plan_with_delta_is_refused,
+    case_case4_unchanged_version_with_no_consumed_plan_passes,
     case_b2a_push_to_main_after_admission_passes,
     case_b2b_next_scripts_only_pr_passes,
     case_b2c_replay_push_to_main_at_316_passes,
@@ -1113,8 +1133,9 @@ def main() -> int:
         "by G10, the inversion is pinned, cases 1-3 judge only branch-added "
         "changesets, case 4 prices the consumed plan, the ADR text on disk "
         "drives classification, G10 refuses in its own words when git is "
-        "absent and a declared bump is pending, and the CI poison controls "
-        "carry the inversion, cases 1-4, B2(a-c) and B3"
+        "absent and a declared bump is pending, an unchanged version at "
+        "explicit --release stays silent when no plan was consumed, and the "
+        "CI poison controls carry the inversion, cases 1-4, B2(a-c) and B3"
     )
     return 0
 

@@ -1386,8 +1386,17 @@ def _refuse_delta_mismatch(
     bumps. The gate reads those files at the merge-base. A delta with no
     consumed plan behind it, or one that disagrees with the plan, spends a
     version number permanently (ADR 0002) and is refused.
+
+    An unchanged version with no consumed plan is NOT a delta: an explicit
+    ``--release`` run on a released, clean main (origin/main == HEAD) has
+    nothing to consume and nothing to bump. Refusing that tree with "release
+    version changed from X to X" is a false fault (N1, round 3); return
+    instead. A consumed plan that leaves the version unchanged is still
+    refused below -- that tree has a plan and no increment behind it.
     """
     if required_bump is None:
+        if current_version == base_version:
+            return
         errors.append(
             f"G10: release version changed from {base_version} to {current_version}, "
             "but no changeset consumed by this release declares a "
