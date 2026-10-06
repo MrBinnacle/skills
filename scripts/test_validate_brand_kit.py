@@ -62,7 +62,7 @@ FAILURES: list[str] = []
 ONE_BREACH = "REJECTED: 1 brand kit breach(es)"
 
 # The sibling instrument's semantic palette. Neither banner may wear it.
-INSTRUMENT_PALETTE = ("#3fb950", "#2da44e", "#d29922", "#58a6ff")
+INSTRUMENT_PALETTE = ("#3fb950", "#2da44e", "#d29922", "#58a6ff", "#adb78c")
 
 BASELINE_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40" role="img"'
