@@ -43,8 +43,8 @@
       "skill_md_sha256": "e49527e3242b9bc30dae38b3d895cb255741acd59911298c8c457b20f7663b99"
     },
     "dead-predicate": {
-      "standing_cost_tokens": 51,
-      "skill_md_sha256": "984ecdfa828710f69d72fb218629414211bb9afacb0d2debfa32017c0a3f23b3"
+      "standing_cost_tokens": 53,
+      "skill_md_sha256": "51d65de3b384390e3aa9ec7fe0b4fabfadb10b2921bff8641b9633b7fec42d83"
     },
     "decision-rights": {
       "standing_cost_tokens": 47,
