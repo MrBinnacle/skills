@@ -54,6 +54,7 @@ CONFORMING_EVIDENCE = (
     "| **Occasions counted** | 1 - 2026-03-04 the one incident. RECURRENCE-THIN. |\n"
     "| **Dispatches recorded** | 5 dispatches, fixture counter, measured 2026-03-05. |\n"
     "| **Re-screen trigger** | A platform fix that makes the failure impossible. |\n"
+    "| **Evidence scope** | UNMEASURED — no receipt. |\n"
 )
 CONFORMING_GOTCHAS = "# gotchas\n\n[OBSERVED 2026-03-04] the one incident.\n"
 
@@ -149,6 +150,123 @@ def case_stating_the_rows_clears_it(root: Path) -> None:
         "the pass line says the rows were checked, not just the files",
         "Occasions counted" in result.stdout and "Re-screen trigger" in result.stdout,
         result.stdout.strip(),
+    )
+
+
+def case_missing_evidence_scope_row_is_rejected(root: Path) -> None:
+    """#354: Evidence scope is contract. Dropping it must not pass silently."""
+    evidence = CONFORMING_EVIDENCE.replace(
+        "| **Evidence scope** | UNMEASURED — no receipt. |\n",
+        "",
+    )
+    write_card(root, "scopeless-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a card without the Evidence scope row is rejected",
+        result.returncode != 0 and "no Evidence scope row" in result.stderr,
+        result.stdout + result.stderr,
+    )
+    check(
+        "the refusal names the card and the row",
+        "skills/engineering/scopeless-card" in result.stderr
+        and "Evidence scope" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_evidence_scope_row_present_clears_it(root: Path) -> None:
+    """The green half: CONFORMING_EVIDENCE carries the row and passes."""
+    write_card(root, "scoped-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a card stating Evidence scope passes",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+    check(
+        "the pass line names Evidence scope among the checked rows",
+        "Evidence scope" in result.stdout,
+        result.stdout.strip(),
+    )
+
+
+def case_skill_size_uses_normalized_line_endings(root: Path) -> None:
+    """A CRLF checkout cannot make an at-limit card exceed its content limit."""
+    card = write_card(root, "crlf-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    skill = card / "SKILL.md"
+    lf = skill.read_text(encoding="utf-8")
+    lf += "x" * (validate_card_files.SKILL_SIZE_MAX - len(lf.encode("utf-8")))
+    skill.write_bytes(lf.replace("\n", "\r\n").encode("utf-8"))
+    result = run_checker(root)
+    check(
+        "an at-limit card with CRLF line endings passes the real validator",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+    check(
+        "the CRLF fixture exceeds the raw byte limit but not the content limit",
+        skill.stat().st_size > validate_card_files.SKILL_SIZE_MAX
+        and not validate_card_files.size_breaches(card),
+        f"raw={skill.stat().st_size} breaches={validate_card_files.size_breaches(card)}",
+    )
+
+
+def case_quarantine_card_with_no_row_is_exempt(root: Path) -> None:
+    """Quarantine candidates owe no Evidence scope row.
+
+    find_cards walks skills/<bucket>/<card> only. A published card carries the
+    row; a quarantine candidate does not; the run is green.
+    """
+    write_card(root, "published-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    q = root / "_quarantine" / "candidate-card"
+    q.mkdir(parents=True)
+    (q / "SKILL.md").write_text(
+        "---\nname: candidate-card\ndescription: A quarantine candidate. "
+        "Use when testing exemption.\n---\n\n# candidate-card\n\n"
+        "See [EVIDENCE.md](EVIDENCE.md). Open [gotchas.md](gotchas.md) when "
+        "a green result needs the failure record.\n" + "x" * 400,
+        encoding="utf-8",
+    )
+    (q / "gotchas.md").write_text("# gotchas\n\n[OBSERVED 2026-01-01] candidate.\n", encoding="utf-8")
+    (q / "EVIDENCE.md").write_text(
+        "# EVIDENCE - candidate-card\n\n"
+        "| Field | Value |\n|---|---|\n"
+        "| **Occasions counted** | 0 - fixture card, no occurrence to count. RECURRENCE-THIN. |\n"
+        "| **Dispatches recorded** | No recorded dispatch, fixture counter, measured 2026-01-01. |\n"
+        "| **Re-screen trigger** | Fixture; never screened, never re-screened. |\n"
+        ,
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "a quarantine card with no Evidence scope row does not fail the gate",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+    check(
+        "the pass line counts only the published card",
+        "1 published card(s)" in result.stdout,
+        result.stdout.strip(),
+    )
+
+
+def case_scoreboard_passes_a_card_carrying_evidence_scope(root: Path) -> None:
+    """The scoreboard validator still passes a card that carries the new row."""
+    write_card(root, "scoped-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    live = subprocess.run(
+        [sys.executable, str(SCRIPT_DIR / "validate_scoreboard.py"), "--root", str(REPO_ROOT)],
+        capture_output=True,
+        text=True,
+    )
+    check(
+        "the scoreboard validator still passes the live tree carrying Evidence scope",
+        live.returncode == 0,
+        live.stdout + live.stderr,
+    )
+    check(
+        "the scoreboard PASS line still derives the counts",
+        "records derive" in live.stdout,
+        live.stdout.strip(),
     )
 
 
@@ -1072,6 +1190,7 @@ def _observed_evidence(locator_part: str) -> str:
         "| **Occasions counted** | 1 - 2026-01-01 the one incident. RECURRENCE-THIN. |\n"
         "| **Dispatches recorded** | 5 dispatches, fixture counter, measured 2026-01-02. |\n"
         "| **Re-screen trigger** | A platform fix that makes the failure impossible. |\n"
+        "| **Evidence scope** | UNMEASURED — no receipt. |\n"
     )
 
 
@@ -1084,6 +1203,7 @@ def _absent_evidence() -> str:
         "| **Occasions counted** | 0 - no occurrence to count. RECURRENCE-THIN. |\n"
         "| **Dispatches recorded** | No recorded dispatch, fixture counter, measured 2026-01-02. |\n"
         "| **Re-screen trigger** | A platform fix that makes the failure impossible. |\n"
+        "| **Evidence scope** | UNMEASURED — no receipt. |\n"
     )
 
 
@@ -1420,6 +1540,11 @@ def main() -> None:
     case_committed_missing_row_fixture_is_red()
     isolated = [
         case_stating_the_rows_clears_it,
+        case_missing_evidence_scope_row_is_rejected,
+        case_evidence_scope_row_present_clears_it,
+        case_skill_size_uses_normalized_line_endings,
+        case_quarantine_card_with_no_row_is_exempt,
+        case_scoreboard_passes_a_card_carrying_evidence_scope,
         case_count_must_match_the_dated_references,
         case_a_count_that_is_not_a_number_is_rejected,
         case_dates_must_be_corroborated_by_the_record,
