@@ -409,10 +409,13 @@ def receipt_json(
 
 def sers_keep_scope_fixture(
     *,
-    delivery_mechanism: str | None = "hook-blocked",
+    delivery_mechanism: object | None = "hook-blocked",
+    model_id: object | None = "claude-sonnet-5",
+    task_family: object | None = "trap-discipline",
+    tested_at: object | None = "2026-09-22T00:00:00Z",
+    subject_model: object | None = "claude-sonnet-6",
     carried_forward: bool = False,
     skill_id: str | None = None,
-    task_family: str = "trap-discipline",
 ) -> dict:
     """R2-shaped SERS 1.6.0 KEEP receipt for evidence-scope cases.
 
@@ -420,20 +423,26 @@ def sers_keep_scope_fixture(
     verdict, verdict_scope as an object with model_id / task_family /
     tested_at (and delivery_mechanism in the standard case), currentness as
     an object or null, subject_identity as an object or null, sers_version
-    1.6.0. `delivery_mechanism=None` omits the field so the derivation must
-    read `unknown delivery`. Carried-forward sets currentness.state and
-    subject_identity.subject_model; SERS receipts carry no
-    scope_carried_forward key.
+    1.6.0. `None` omits the field so the derivation must read the harness's
+    missing-field default (`unknown delivery`, `unknown model`,
+    `unknown task family`, `unknown date`, `current model`). A non-`None`
+    non-string value is written into the field so the derivation must still
+    read the default — the harness never prints a non-string field.
+    Carried-forward sets currentness.state and subject_identity.subject_model;
+    SERS receipts carry no scope_carried_forward key.
     """
-    scope = {
-        "model_id": "claude-sonnet-5",
+    scope: dict = {
         "harness_version": "0.3.0",
         "fixture_version": "abc123",
         "task_id": "test-task",
-        "tested_at": "2026-09-22T00:00:00Z",
-        "task_family": task_family,
         "estimand": "treatment-policy",
     }
+    if model_id is not None:
+        scope["model_id"] = model_id
+    if task_family is not None:
+        scope["task_family"] = task_family
+    if tested_at is not None:
+        scope["tested_at"] = tested_at
     if delivery_mechanism is not None:
         scope["delivery_mechanism"] = delivery_mechanism
     receipt: dict = {
@@ -465,14 +474,16 @@ def sers_keep_scope_fixture(
             "state": "CARRIED_FORWARD",
             "basis": "SENTINEL_PASS",
         }
-        receipt["subject_identity"] = {
+        identity: dict = {
             "skill_id": skill_id or "b" * 64,
             "harness_version": "0.3.0",
             "metric_version": "0.3.0",
             "implementation_hash": "c" * 64,
             "arms": ["null", "full"],
-            "subject_model": "claude-sonnet-6",
         }
+        if subject_model is not None:
+            identity["subject_model"] = subject_model
+        receipt["subject_identity"] = identity
     elif skill_id is not None:
         receipt["subject_identity"] = {
             "skill_id": skill_id,
@@ -1007,6 +1018,112 @@ def case_evidence_scope_no_receipt_correct_sentence_is_cant(root: Path) -> None:
     )
 
 
+def case_evidence_scope_no_receipt_wrong_sentence_with_harness_root_is_fail(
+    root: Path,
+) -> None:
+    """F1(b)/M26: under --harness-root the no-receipt wrong-row case is still FAIL.
+
+    Without a harness root the refusal comes from the harness_root-is-None path.
+    Under --harness-root a no-receipt card falls into `if not linked_receipts:`,
+    which must still report the scope breach as FAIL rather than CANNOT-CHECK.
+    Changing that branch's `if scope_breaches:` to `if False:` turns this case
+    red.
+    """
+    make_tree(root)
+    harness_root = root / "harness"
+    harness_root.mkdir(parents=True, exist_ok=True)
+    folder = root / "skills" / "engineering" / CARDS[0]
+    write_evidence_scope(folder, "Shown here: everything.")
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "a no-receipt card with a wrong Evidence scope sentence is FAIL under --harness-root",
+        cell(result.stdout, CARDS[0], "O5") == "FAIL",
+        result.stdout,
+    )
+    detail = o5_detail(result.stdout, CARDS[0])
+    check(
+        "the harness-root refusal names the card and the Evidence scope row",
+        CARDS[0] in detail and "Evidence scope" in detail,
+        detail,
+    )
+    check(
+        "the harness-root wrong-row run goes nonzero",
+        result.returncode != 0,
+        f"rc={result.returncode}",
+    )
+
+
+def case_evidence_scope_history_link_to_missing_file_passes(root: Path) -> None:
+    """F1(c)/M23: a history link to a missing file still allows a correct row.
+
+    The card's only Receipt clause is a `not current` history link to a file
+    that is not under the harness root. The correctly stated row is the
+    NOT DEMONSTRATED sentence. Removing `unresolvable = True` for a missing
+    file derives UNMEASURED from the empty receipt list and refuses that row.
+    """
+    make_tree(root)
+    harness_root = root / "harness"
+    harness_root.mkdir(parents=True, exist_ok=True)
+    folder = root / "skills" / "engineering" / CARDS[0]
+    (folder / "EVIDENCE.md").write_text(
+        "# EVIDENCE\n\n"
+        "| Field | Value |\n|---|---|\n"
+        "| **Screen result** | CANT_TELL_YET. Receipt: `missing-history.json`, "
+        "dated 2026-07-20, harness 1.0.0. not current: no_skill_id. |\n"
+        "| **Paired verdict** | UNMEASURED. |\n"
+        f"| **Evidence scope** | {expected_scope_for_receipt('CANT_TELL_YET')} |\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is PASS when a history link names a missing file and the row is correct",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+    detail = o5_detail(result.stdout, CARDS[0])
+    check(
+        "the missing history file is not refused on Evidence scope",
+        "Evidence scope" not in detail,
+        detail,
+    )
+
+
+def case_evidence_scope_history_link_to_invalid_json_passes(root: Path) -> None:
+    """F1(c)/M24: a history link to unreadable JSON still allows a correct row.
+
+    Same shape as the missing-file case; the file exists but is not JSON.
+    Removing `unresolvable = True` for an unreadable receipt derives
+    UNMEASURED and refuses the correctly stated NOT DEMONSTRATED sentence.
+    """
+    make_tree(root)
+    harness_root = root / "harness"
+    receipt_dir = harness_root / "docs" / "sers" / "receipts"
+    receipt_dir.mkdir(parents=True, exist_ok=True)
+    (receipt_dir / "broken-history.json").write_text("{not json", encoding="utf-8")
+    folder = root / "skills" / "engineering" / CARDS[0]
+    (folder / "EVIDENCE.md").write_text(
+        "# EVIDENCE\n\n"
+        "| Field | Value |\n|---|---|\n"
+        "| **Screen result** | CANT_TELL_YET. Receipt: `broken-history.json`, "
+        "dated 2026-07-20, harness 1.0.0. not current: no_skill_id. |\n"
+        "| **Paired verdict** | UNMEASURED. |\n"
+        f"| **Evidence scope** | {expected_scope_for_receipt('CANT_TELL_YET')} |\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "O5 is PASS when a history link names invalid JSON and the row is correct",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+    detail = o5_detail(result.stdout, CARDS[0])
+    check(
+        "the invalid-JSON history file is not refused on Evidence scope",
+        "Evidence scope" not in detail,
+        detail,
+    )
+
+
 def case_evidence_scope_cant_tell_yet_shown_here_is_fail(root: Path) -> None:
     """A CANT_TELL_YET receipt with a row reading `Shown here: ...`."""
     make_tree(root)
@@ -1111,6 +1228,149 @@ def case_evidence_scope_keep_without_delivery_is_unknown_delivery(root: Path) ->
     result = run_checker(root, "--harness-root", str(harness_root))
     check(
         "KEEP + missing delivery_mechanism with the unknown delivery sentence passes O5",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+
+
+def case_evidence_scope_keep_missing_model_id_reads_unknown_model(root: Path) -> None:
+    """F1(a)/M13: model_id absent (poison_keep_no_model_id) reads `unknown model`."""
+    make_tree(root)
+    receipt = sers_keep_scope_fixture(model_id=None)
+    expected = conformance.expected_evidence_scope([receipt])
+    check(
+        "a KEEP receipt without model_id reads unknown model",
+        expected.startswith("Shown here: effect on trap-discipline, unknown model")
+        and "unknown model" in expected
+        and "claude-sonnet-5" not in expected,
+        expected,
+    )
+    harness_root = make_receipt_tree(
+        root,
+        CARDS[0],
+        verdict="KEEP",
+        receipt_data=receipt,
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "KEEP + missing model_id with the unknown model sentence passes O5",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+
+
+def case_evidence_scope_keep_missing_task_family_reads_unknown_task_family(
+    root: Path,
+) -> None:
+    """F1(a)/M11: task_family absent (poison_keep_no_task_family) reads the default."""
+    make_tree(root)
+    receipt = sers_keep_scope_fixture(task_family=None)
+    expected = conformance.expected_evidence_scope([receipt])
+    check(
+        "a KEEP receipt without task_family reads unknown task family",
+        "effect on unknown task family, claude-sonnet-5" in expected
+        and "trap-discipline" not in expected,
+        expected,
+    )
+    harness_root = make_receipt_tree(
+        root,
+        CARDS[0],
+        verdict="KEEP",
+        receipt_data=receipt,
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "KEEP + missing task_family with the unknown task family sentence passes O5",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+
+
+def case_evidence_scope_keep_missing_tested_at_reads_unknown_date(root: Path) -> None:
+    """F1(a)/M12: tested_at absent reads `unknown date`."""
+    make_tree(root)
+    receipt = sers_keep_scope_fixture(tested_at=None)
+    expected = conformance.expected_evidence_scope([receipt])
+    check(
+        "a KEEP receipt without tested_at reads unknown date",
+        "measured unknown date. Not shown:" in expected
+        and "2026-09-22" not in expected,
+        expected,
+    )
+    harness_root = make_receipt_tree(
+        root,
+        CARDS[0],
+        verdict="KEEP",
+        receipt_data=receipt,
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "KEEP + missing tested_at with the unknown date sentence passes O5",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+
+
+def case_evidence_scope_keep_non_string_scope_field_reads_default(root: Path) -> None:
+    """F1(a)/M15: a non-string scope field still reads the missing-field default.
+
+    The harness `_string_field` returns the default for any non-string value.
+    A skills `_string_field` that accepted any non-None value would print the
+    number into the sentence; this assertion and the O5 row derived from the
+    default both go red on that mutant.
+    """
+    make_tree(root)
+    receipt = sers_keep_scope_fixture(model_id=12345, task_family=["list"])
+    expected = conformance.expected_evidence_scope([receipt])
+    check(
+        "a non-string model_id reads as unknown model",
+        "unknown model" in expected and "12345" not in expected,
+        expected,
+    )
+    check(
+        "a non-string task_family reads as unknown task family",
+        "unknown task family" in expected and "['list']" not in expected,
+        expected,
+    )
+    harness_root = make_receipt_tree(
+        root,
+        CARDS[0],
+        verdict="KEEP",
+        receipt_data=receipt,
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "KEEP + non-string scope fields with the default sentences passes O5",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+
+
+def case_evidence_scope_carried_forward_missing_subject_model_reads_current_model(
+    root: Path,
+) -> None:
+    """F1(a)/M14: carried-forward without subject_model reads `current model`."""
+    make_tree(root)
+    receipt = sers_keep_scope_fixture(carried_forward=True, subject_model=None)
+    expected = conformance.expected_evidence_scope([receipt])
+    check(
+        "a carried-forward KEEP without subject_model reads current model",
+        expected.startswith(
+            "demonstrated on claude-sonnet-5; carried forward to current model"
+        )
+        and "not re-validated on current model." in expected
+        and "claude-sonnet-6" not in expected,
+        expected,
+    )
+    harness_root = make_receipt_tree(
+        root,
+        CARDS[0],
+        verdict="KEEP",
+        receipt_data=receipt,
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "carried-forward KEEP + missing subject_model with the current model sentence passes O5",
         cell(result.stdout, CARDS[0], "O5") == "PASS",
         result.stdout,
     )
@@ -1291,6 +1551,11 @@ def case_scope_line_drift_vs_harness_render() -> None:
     Imports skill_harness.sitegen.render._scope_line from <root>/src and
     renders the R2 KEEP fixtures through it. It does not look for named
     constants in the harness.
+
+    N1: the import must resolve under SKILL_HARNESS_ROOT. When skill-harness
+    is installed editable from another checkout, the setuptools finder can
+    resolve `skill_harness` ahead of the inserted `<root>/src`, so
+    SKILL_HARNESS_ROOT alone would not decide which render.py runs.
     """
     harness_root = os.environ.get("SKILL_HARNESS_ROOT")
     if not harness_root or not Path(harness_root).is_dir():
@@ -1323,13 +1588,42 @@ def case_scope_line_drift_vs_harness_render() -> None:
     if not hasattr(harness_render, "_scope_line"):
         check("skill-harness exposes _scope_line", False, "attribute missing")
         return
+    resolved = Path(harness_render.__file__).resolve()
+    root_resolved = Path(harness_root).resolve()
+    check(
+        "the drift import of render.py lies under SKILL_HARNESS_ROOT",
+        str(resolved).startswith(str(root_resolved) + os.sep),
+        f"imported {resolved}; SKILL_HARNESS_ROOT={root_resolved}",
+    )
     fixtures = (
         ("standard KEEP with delivery_mechanism", sers_keep_scope_fixture()),
         (
             "standard KEEP without delivery_mechanism",
             sers_keep_scope_fixture(delivery_mechanism=None),
         ),
+        ("standard KEEP without model_id", sers_keep_scope_fixture(model_id=None)),
+        (
+            "standard KEEP without task_family",
+            sers_keep_scope_fixture(task_family=None),
+        ),
+        ("standard KEEP without tested_at", sers_keep_scope_fixture(tested_at=None)),
+        (
+            "standard KEEP with non-string model_id",
+            sers_keep_scope_fixture(model_id=12345),
+        ),
+        (
+            "standard KEEP with non-string task_family",
+            sers_keep_scope_fixture(task_family=["list"]),
+        ),
         ("carried-forward KEEP", sers_keep_scope_fixture(carried_forward=True)),
+        (
+            "carried-forward KEEP without subject_model",
+            sers_keep_scope_fixture(carried_forward=True, subject_model=None),
+        ),
+        (
+            "carried-forward KEEP with non-string subject_model",
+            sers_keep_scope_fixture(carried_forward=True, subject_model=99),
+        ),
     )
     for label, receipt in fixtures:
         html = harness_render._scope_line(receipt)
@@ -2003,11 +2297,19 @@ def main() -> None:
         case_o5_undeclared_1_0_0_receipt_is_fail,
         case_o5_history_link_does_not_mask_a_newer_receipt,
         case_evidence_scope_no_receipt_wrong_sentence_is_fail,
+        case_evidence_scope_no_receipt_wrong_sentence_with_harness_root_is_fail,
         case_evidence_scope_no_receipt_correct_sentence_is_cant,
+        case_evidence_scope_history_link_to_missing_file_passes,
+        case_evidence_scope_history_link_to_invalid_json_passes,
         case_evidence_scope_cant_tell_yet_shown_here_is_fail,
         case_evidence_scope_keep_with_scope_exact_passes,
         case_evidence_scope_keep_one_word_change_is_fail,
         case_evidence_scope_keep_without_delivery_is_unknown_delivery,
+        case_evidence_scope_keep_missing_model_id_reads_unknown_model,
+        case_evidence_scope_keep_missing_task_family_reads_unknown_task_family,
+        case_evidence_scope_keep_missing_tested_at_reads_unknown_date,
+        case_evidence_scope_keep_non_string_scope_field_reads_default,
+        case_evidence_scope_carried_forward_missing_subject_model_reads_current_model,
         case_evidence_scope_keep_without_scope_is_unscoped,
         case_evidence_scope_carried_forward_beats_standard,
         case_evidence_scope_empty_row_is_refused_with_its_own_message,
