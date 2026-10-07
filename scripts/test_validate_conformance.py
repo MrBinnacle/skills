@@ -1124,6 +1124,45 @@ def case_evidence_scope_history_link_to_invalid_json_passes(root: Path) -> None:
     )
 
 
+def case_evidence_scope_partial_receipt_set_is_not_derived(root: Path) -> None:
+    """A readable receipt cannot stand in for an unreadable linked history receipt.
+
+    O5 validates the current CANT_TELL_YET receipt and permits the missing
+    history link. The scope row describes both linked receipts, so deriving a
+    CANT_TELL_YET-only sentence from the readable subset would falsely refuse
+    its multi-verdict value.
+    """
+    make_tree(root)
+    folder = root / "skills" / "engineering" / CARDS[0]
+    harness_root = root / "harness"
+    receipt_dir = harness_root / "docs" / "sers" / "receipts"
+    receipt_dir.mkdir(parents=True, exist_ok=True)
+    (receipt_dir / "current.json").write_text(
+        receipt_json(CARDS[0], skill_id_for(folder), "CANT_TELL_YET"),
+        encoding="utf-8",
+    )
+    (folder / "EVIDENCE.md").write_text(
+        "# EVIDENCE\n\n"
+        "| Field | Value |\n|---|---|\n"
+        "| **Screen result** | CANT_TELL_YET. Receipt: `current.json` |\n"
+        "| **Paired verdict** | NO_LIFT. Receipt: `missing-history.json`, "
+        "not current: no_skill_id. |\n"
+        "| **Evidence scope** | NOT DEMONSTRATED (CANT_TELL_YET, NO_LIFT) |\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "a partial receipt set does not derive an Evidence scope from its readable subset",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+    check(
+        "the unreadable history link does not report an Evidence scope breach",
+        "Evidence scope" not in o5_detail(result.stdout, CARDS[0]),
+        o5_detail(result.stdout, CARDS[0]),
+    )
+
+
 def case_evidence_scope_cant_tell_yet_shown_here_is_fail(root: Path) -> None:
     """A CANT_TELL_YET receipt with a row reading `Shown here: ...`."""
     make_tree(root)
@@ -2477,6 +2516,7 @@ def main() -> None:
         case_evidence_scope_no_receipt_correct_sentence_is_cant,
         case_evidence_scope_history_link_to_missing_file_passes,
         case_evidence_scope_history_link_to_invalid_json_passes,
+        case_evidence_scope_partial_receipt_set_is_not_derived,
         case_evidence_scope_cant_tell_yet_shown_here_is_fail,
         case_evidence_scope_keep_with_scope_exact_passes,
         case_evidence_scope_keep_one_word_change_is_fail,

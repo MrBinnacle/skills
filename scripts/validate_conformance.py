@@ -597,9 +597,9 @@ def _linked_receipt_dicts(
     Returns (receipts, unresolvable). `unresolvable` is True when a clause
     names a receipt this run cannot load (no harness root, missing file, or
     unreadable JSON). A caller that needs the derived scope skips the value
-    check when unresolvable is True and nothing loaded -- the expected sentence
-    is then unknown, and inventing one would refuse a card for a run that
-    could not see its receipt.
+    check when any linked receipt is unresolvable -- the expected sentence is
+    then unknown, and deriving it from only the readable subset would refuse a
+    card for a run that could not see all of its receipts.
     """
     evidence = card.folder / "EVIDENCE.md"
     if not evidence.exists():
@@ -634,8 +634,8 @@ def evidence_scope_breaches(card: Card, harness_root: Path | None) -> list[str]:
     repository can derive from the card alone. O5 used to return CANNOT-CHECK
     for that case by construction; #354 closes it. A card whose controlled
     fields name a receipt this run cannot load is left to the receipt check
-    rather than failed here -- the scope sentence depends on a file the run
-    never saw.
+    rather than failed here -- the scope sentence depends on every linked file,
+    not only the readable subset.
     """
     evidence = card.folder / "EVIDENCE.md"
     if not evidence.exists():
@@ -643,13 +643,8 @@ def evidence_scope_breaches(card: Card, harness_root: Path | None) -> list[str]:
     rows = scoreboard.evidence_fields(evidence, (EVIDENCE_SCOPE_ROW,))
     stated = rows.get(EVIDENCE_SCOPE_ROW, "").strip("* `")
     linked, unresolvable = _linked_receipt_dicts(card, harness_root)
-    if unresolvable and not linked:
-        fields = scoreboard.evidence_fields(evidence, scoreboard.CONTROLLED_FIELDS)
-        has_clause = any(
-            _receipt_filename(fields.get(name, "")) for name in scoreboard.CONTROLLED_FIELDS
-        )
-        if has_clause:
-            return []
+    if unresolvable:
+        return []
     expected = expected_evidence_scope(linked)
     if not stated:
         return [
