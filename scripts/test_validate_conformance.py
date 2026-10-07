@@ -1405,6 +1405,176 @@ def case_evidence_scope_keep_without_scope_is_unscoped(root: Path) -> None:
     )
 
 
+def case_evidence_scope_keep_non_object_verdict_scope_is_unscoped(root: Path) -> None:
+    """R3-1/M16: a KEEP receipt whose verdict_scope is not an object reads UNSCOPED.
+
+    skill-harness _scope_line returns "" when verdict_scope is not a Mapping.
+    The closed set has no Shown here sentence for that case: the row reads
+    UNSCOPED. Changing `if not isinstance(scope, dict):` to `if not scope:`
+    lets a non-empty string verdict_scope fall through to the standard
+    template, and this case goes red.
+    """
+    make_tree(root)
+    receipt = sers_keep_scope_fixture()
+    receipt["verdict_scope"] = "not-an-object"
+    expected = conformance.expected_evidence_scope([receipt])
+    check(
+        "a KEEP receipt with a non-object verdict_scope derives UNSCOPED",
+        expected == conformance.SCOPE_UNSCOPED,
+        expected,
+    )
+    harness_root = make_receipt_tree(
+        root,
+        CARDS[0],
+        verdict="KEEP",
+        receipt_data=receipt,
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "KEEP + non-object verdict_scope with the UNSCOPED sentence passes O5",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+    folder = root / "skills" / "engineering" / CARDS[0]
+    write_evidence_scope(
+        folder,
+        "Shown here: effect on unknown task family, unknown model, "
+        "unknown delivery, measured unknown date. Not shown: other task "
+        "families, models, environments, or real-world incidence.",
+    )
+    bad = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "KEEP + non-object verdict_scope with a Shown here: sentence is FAIL",
+        cell(bad.stdout, CARDS[0], "O5") == "FAIL",
+        bad.stdout,
+    )
+    detail = o5_detail(bad.stdout, CARDS[0])
+    check(
+        "the non-object refusal names Evidence scope and the UNSCOPED sentence",
+        "Evidence scope" in detail and "UNSCOPED" in detail,
+        detail,
+    )
+
+
+def case_evidence_scope_bold_wrapped_row_is_accepted(root: Path) -> None:
+    """R3-2/M31: a correct row wrapped in bold or backticks is accepted.
+
+    evidence_scope_breaches strips `* ` and backticks before comparing. A
+    mutant that changes `.strip("* ")` to `.strip()` leaves the wrappers in
+    place, the comparison fails, and this case goes red.
+    """
+    make_tree(root)
+    folder = root / "skills" / "engineering" / CARDS[0]
+    write_evidence_scope(folder, f"**{conformance.SCOPE_NO_RECEIPT}**")
+    result = run_checker(root)
+    check(
+        "a bold-wrapped correct Evidence scope row is accepted on O5",
+        cell(result.stdout, CARDS[0], "O5") == "CANNOT-CHECK",
+        result.stdout,
+    )
+    detail = o5_detail(result.stdout, CARDS[0])
+    check(
+        "the bold-wrapped row is not reported as an Evidence scope breach",
+        "Evidence scope" not in detail,
+        detail,
+    )
+    write_evidence_scope(folder, f"`{conformance.SCOPE_NO_RECEIPT}`")
+    result = run_checker(root)
+    check(
+        "a backtick-wrapped correct Evidence scope row is accepted on O5",
+        cell(result.stdout, CARDS[0], "O5") == "CANNOT-CHECK",
+        result.stdout,
+    )
+    detail = o5_detail(result.stdout, CARDS[0])
+    check(
+        "the backtick-wrapped row is not reported as an Evidence scope breach",
+        "Evidence scope" not in detail,
+        detail,
+    )
+
+
+def case_evidence_scope_multi_receipt_names_every_verdict(root: Path) -> None:
+    """R3-3/M32: a multi-receipt NOT DEMONSTRATED row names every distinct verdict.
+
+    The row lists every distinct verdict among the linked receipts, in receipt
+    order, deduplicated. Mutants that pick receipts[0] or receipts[-1] each
+    leave one verdict out and turn the derivation assertion red.
+    """
+    make_tree(root)
+    receipt_a = receipt_json(CARDS[0], "a" * 64, "CANT_TELL_YET")
+    receipt_b = receipt_json(CARDS[0], "b" * 64, "NO_LIFT")
+    import json as _json
+
+    dicts = [_json.loads(receipt_a), _json.loads(receipt_b)]
+    expected = conformance.expected_evidence_scope(dicts)
+    check(
+        "two linked receipts derive NOT DEMONSTRATED naming both verdicts",
+        expected == "NOT DEMONSTRATED (CANT_TELL_YET, NO_LIFT)",
+        expected,
+    )
+    check(
+        "the multi-verdict row names every distinct verdict, in receipt order",
+        expected.index("CANT_TELL_YET") < expected.index("NO_LIFT")
+        and "CANT_TELL_YET" in expected
+        and "NO_LIFT" in expected,
+        expected,
+    )
+    check(
+        "a single-pick derivation of receipts[0] differs from the row",
+        conformance.expected_evidence_scope([dicts[0]]) != expected,
+        conformance.expected_evidence_scope([dicts[0]]),
+    )
+    check(
+        "a single-pick derivation of receipts[-1] differs from the row",
+        conformance.expected_evidence_scope([dicts[-1]]) != expected,
+        conformance.expected_evidence_scope([dicts[-1]]),
+    )
+    # End-to-end O5: a tree whose two controlled fields link two receipts.
+    harness_root = root / "harness"
+    receipt_dir = harness_root / "docs" / "sers" / "receipts"
+    receipt_dir.mkdir(parents=True, exist_ok=True)
+    folder = root / "skills" / "engineering" / CARDS[0]
+    skill_id = skill_id_for(folder)
+    for fname, payload in (
+        ("receipt-a.json", receipt_json(CARDS[0], skill_id, "CANT_TELL_YET")),
+        ("receipt-b.json", receipt_json(CARDS[0], skill_id, "NO_LIFT")),
+    ):
+        (receipt_dir / fname).write_text(payload, encoding="utf-8")
+    (folder / "EVIDENCE.md").write_text(
+        f"# EVIDENCE - {CARDS[0]}\n\n"
+        "| Field | Value |\n|---|---|\n"
+        "| **Screen result** | CANT_TELL_YET. Receipt: `receipt-a.json` |\n"
+        "| **Paired verdict** | NO_LIFT. Receipt: `receipt-b.json` |\n"
+        "| **Evidence scope** | NOT DEMONSTRATED (CANT_TELL_YET, NO_LIFT) |\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "two linked receipts with the multi-verdict row pass O5",
+        cell(result.stdout, CARDS[0], "O5") == "PASS",
+        result.stdout,
+    )
+    folder = root / "skills" / "engineering" / CARDS[0]
+    write_evidence_scope(
+        folder,
+        "NOT DEMONSTRATED — receipt verdict CANT_TELL_YET; no effect is shown.",
+    )
+    bad = run_checker(root, "--harness-root", str(harness_root))
+    check(
+        "two linked receipts with a single-verdict row is FAIL",
+        cell(bad.stdout, CARDS[0], "O5") == "FAIL",
+        bad.stdout,
+    )
+    detail = o5_detail(bad.stdout, CARDS[0])
+    check(
+        "the single-verdict refusal names Evidence scope and both verdicts",
+        "Evidence scope" in detail
+        and "CANT_TELL_YET" in detail
+        and "NO_LIFT" in detail,
+        detail,
+    )
+
+
 def case_evidence_scope_carried_forward_beats_standard(root: Path) -> None:
     """Carried-forward KEEP (currentness.state): the carried-forward sentence
     passes, the standard sentence is refused. SERS carries no
@@ -1500,6 +1670,12 @@ def case_evidence_scope_constants_are_the_closed_set() -> None:
         conformance.SCOPE_NOT_DEMONSTRATED_FMT
         == "NOT DEMONSTRATED — receipt verdict {verdict}; no effect is shown.",
         conformance.SCOPE_NOT_DEMONSTRATED_FMT,
+    )
+    check(
+        "SCOPE_NOT_DEMONSTRATED_MULTI_FMT lists every distinct verdict",
+        conformance.SCOPE_NOT_DEMONSTRATED_MULTI_FMT
+        == "NOT DEMONSTRATED ({verdicts})",
+        conformance.SCOPE_NOT_DEMONSTRATED_MULTI_FMT,
     )
     check(
         "SCOPE_UNSCOPED is the closed-set scopeless-KEEP sentence",
@@ -2311,6 +2487,9 @@ def main() -> None:
         case_evidence_scope_keep_non_string_scope_field_reads_default,
         case_evidence_scope_carried_forward_missing_subject_model_reads_current_model,
         case_evidence_scope_keep_without_scope_is_unscoped,
+        case_evidence_scope_keep_non_object_verdict_scope_is_unscoped,
+        case_evidence_scope_bold_wrapped_row_is_accepted,
+        case_evidence_scope_multi_receipt_names_every_verdict,
         case_evidence_scope_carried_forward_beats_standard,
         case_evidence_scope_empty_row_is_refused_with_its_own_message,
         case_evidence_scope_quarantine_card_with_no_row_passes,

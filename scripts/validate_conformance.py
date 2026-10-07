@@ -98,6 +98,12 @@ SCOPE_NOT_DEMONSTRATED_FMT: Final[str] = (
 SCOPE_UNSCOPED: Final[str] = (
     "UNSCOPED — the KEEP receipt carries no verdict_scope (SERS before 1.6.0)."
 )
+# R3-3: when a card links more than one receipt and none is a usable KEEP,
+# the NOT DEMONSTRATED row names every distinct verdict among the linked
+# receipts, in receipt order, deduplicated. A public row must not hide a
+# linked verdict, so the row never picks one. One distinct verdict keeps the
+# closed-set single sentence above; several use this parenthetical form.
+SCOPE_NOT_DEMONSTRATED_MULTI_FMT: Final[str] = "NOT DEMONSTRATED ({verdicts})"
 # skill_harness/sitegen/render.py::_scope_line standard form, unescaped:
 # Shown here: effect on {task_family}, {model}, {delivery}, measured {tested_at}.
 # Not shown: other task families, models, environments, or real-world incidence.
@@ -524,7 +530,9 @@ def expected_evidence_scope(receipts: list[dict]) -> str:
     usable verdict_scope object -> UNSCOPED; a KEEP receipt with a
     verdict_scope object -> skill-harness's scope line (standard form, or the
     carried-forward form when currentness.state == "CARRIED_FORWARD");
-    any other verdict -> NOT DEMONSTRATED naming that verdict.
+    any other verdict -> NOT DEMONSTRATED naming that verdict; when several
+    receipts are linked, every distinct verdict appears, in receipt order,
+    deduplicated (R3-3).
 
     Carried-forward is decided from currentness.state only. SERS receipts
     carry no scope_carried_forward key. The verdict_scope object itself is
@@ -565,6 +573,18 @@ def expected_evidence_scope(receipts: list[dict]) -> str:
         )
     if keeps:
         return SCOPE_UNSCOPED
+    # R3-3: name every distinct verdict among the linked receipts, in receipt
+    # order, deduplicated. Mutants that pick receipts[0] or receipts[-1] each
+    # hide a linked verdict and leave this derivation wrong.
+    verdicts: list[str] = []
+    for receipt in receipts:
+        v = str(receipt.get("verdict") or "").strip().upper()
+        if v and v not in verdicts:
+            verdicts.append(v)
+    if len(verdicts) > 1:
+        return SCOPE_NOT_DEMONSTRATED_MULTI_FMT.format(verdicts=", ".join(verdicts))
+    if verdicts:
+        return SCOPE_NOT_DEMONSTRATED_FMT.format(verdict=verdicts[0])
     verdict = str(receipts[0].get("verdict") or "").strip().upper()
     return SCOPE_NOT_DEMONSTRATED_FMT.format(verdict=verdict)
 
