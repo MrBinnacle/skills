@@ -2066,6 +2066,107 @@ jobs:
           grep -q 'major' "$log" || { echo "::error::refusal does not name the consumed plan price"; cat "$log"; exit 1; }
           echo "control: v3.0.0-shaped release PASSes; the same plan with a minor delta is REFUSED"
 
+      # R5-2: a frontmatter line the bump parser cannot read must be refused,
+      # never skipped. Before R5-2 the parser returned {} for a `!!str`-tagged
+      # or multi-word bump value, so G10 had nothing to classify and the gate
+      # stayed green over an unreadable declared bump -- the root cause behind
+      # the R5-1 regex fix. One named control per unparseable form. Each
+      # plants a scripts-only branch change, so G10 is the only fault and the
+      # refusal must be single-reason.
+      - name: Poison control - a !!str-tagged bump line must be refused
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-bump-unparseable-tag"
+          log="$RUNNER_TEMP/control-bump-unparseable-tag.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/docs/adr" "$tree/skills/engineering/old-card" \
+                   "$tree/skills/engineering/.claude-plugin" "$tree/.claude-plugin" \
+                   "$tree/.changeset" "$tree/scripts"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nBase.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf '{"name": "fixture-skills", "plugins": [{"name": "fixture-engineering", "source": "./skills/engineering"}]}\n' \
+            > "$tree/.claude-plugin/marketplace.json"
+          printf '**Decision. Renaming a card is a major change. Admitting or retiring one remains a minor change.**\n' \
+            > "$tree/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md"
+          printf '**The declared surface is the install path and the card format.** Corrections within a card are a patch.\n' \
+            > "$tree/docs/adr/0002-a-release-is-a-delivery-event.md"
+          git -C "$tree" init -q
+          git -C "$tree" config user.email fixture@example.invalid
+          git -C "$tree" config user.name fixture
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m base
+          git -C "$tree" branch -M main
+          git -C "$tree" checkout -q -b candidate
+          printf 'print("outside the surface")\n' > "$tree/scripts/outside.py"
+          printf -- '---\n"mrbinnacle-skills": !!str major\n---\n\nA !!str-tagged bump.\n' \
+            > "$tree/.changeset/zzz-unparseable-tag.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "candidate"
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a !!str-tagged bump line was ACCEPTED - the parser skipped it"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G10:' "$log" || { echo "::error::not refused under G10"; cat "$log"; exit 1; }
+          grep -q 'zzz-unparseable-tag.md' "$log" \
+            || { echo "::error::the refusal does not name the changeset"; cat "$log"; exit 1; }
+          grep -q '!!str' "$log" \
+            || { echo "::error::the refusal does not name the unparseable line"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: a !!str-tagged bump line refused under G10, single-reason"
+
+      - name: Poison control - an unquoted multi-word bump line must be refused
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-bump-unparseable-word"
+          log="$RUNNER_TEMP/control-bump-unparseable-word.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/docs/adr" "$tree/skills/engineering/old-card" \
+                   "$tree/skills/engineering/.claude-plugin" "$tree/.claude-plugin" \
+                   "$tree/.changeset" "$tree/scripts"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nBase.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf '{"name": "fixture-skills", "plugins": [{"name": "fixture-engineering", "source": "./skills/engineering"}]}\n' \
+            > "$tree/.claude-plugin/marketplace.json"
+          printf '**Decision. Renaming a card is a major change. Admitting or retiring one remains a minor change.**\n' \
+            > "$tree/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md"
+          printf '**The declared surface is the install path and the card format.** Corrections within a card are a patch.\n' \
+            > "$tree/docs/adr/0002-a-release-is-a-delivery-event.md"
+          git -C "$tree" init -q
+          git -C "$tree" config user.email fixture@example.invalid
+          git -C "$tree" config user.name fixture
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m base
+          git -C "$tree" branch -M main
+          git -C "$tree" checkout -q -b candidate
+          printf 'print("outside the surface")\n' > "$tree/scripts/outside.py"
+          printf -- '---\n"mrbinnacle-skills": major release\n---\n\nA multi-word bump value.\n' \
+            > "$tree/.changeset/zzz-unparseable-word.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "candidate"
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::an unquoted multi-word bump line was ACCEPTED - the parser skipped it"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G10:' "$log" || { echo "::error::not refused under G10"; cat "$log"; exit 1; }
+          grep -q 'zzz-unparseable-word.md' "$log" \
+            || { echo "::error::the refusal does not name the changeset"; cat "$log"; exit 1; }
+          grep -q 'major release' "$log" \
+            || { echo "::error::the refusal does not name the unparseable line"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: an unquoted multi-word bump line refused under G10, single-reason"
+
   # ---------------------------------------------------------------------------
   # The only conformance instrument in this repository its maintainer did not
   # write. `skills-ref` is the Agent Skills specification's own reference

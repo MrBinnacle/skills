@@ -119,7 +119,11 @@ Checks (all must pass; failures are listed, not first-fail):
       their own branch ran this gate; a later PR must not be refused for them.
 
       A rename and an addition in one changeset resolve to major: the higher
-      classification governs a changeset that contains both. Classification is
+      classification governs a changeset that contains both. A frontmatter
+      line that is not a bump declaration the parser can read is refused, never
+      skipped (R5-2): a `!!str`-tagged value, an unquoted multi-word value, or
+      any other YAML form the regex misses makes G10 report the changeset and
+      the line, single-reason. Classification is
       skipped only when the tree publishes no card (vacuous surface), when no
       branch-added changeset declares a bump, or when the git diff cannot be
       established -- the house pattern G5 and G6 already use. When
@@ -218,6 +222,18 @@ class ChangesetHeaderError(ValueError):
     Subclasses ValueError so one handler reports it as an unassemblable plan.
     `changeset version` refuses such a file outright, so the gate refusing it
     is the same verdict earlier and cheaper.
+    """
+
+
+class ChangesetBumpParseError(ValueError):
+    """A changeset frontmatter line is not a bump declaration the gate can read.
+
+    Subclasses ValueError. G10's callers report this one under G10 naming the
+    file and the line, single-reason. The R5-1 regex fix closed
+    `major # comment` hiding a declared bump; this closes the root cause behind
+    that fix -- a line the regex misses is refused, never skipped. Before R5-2
+    the parser returned {} for such a line, so G10 had nothing to classify and
+    the gate stayed green over an unreadable declared bump.
     """
 
 
@@ -899,10 +915,13 @@ def _higher(a: str, b: str) -> str:
 def changeset_declared_bumps(text: str) -> dict[str, str]:
     """package -> bump level from one changeset's frontmatter.
 
-    An empty changeset (``---\\n---\\n``) declares nothing and returns {}. A
-    frontmatter that opens and closes but names a package with no level is the
-    same shape G2 already treats as unassemblable upstream; this function
-    simply omits that package rather than inventing a price.
+    An empty changeset (``---\\n---\\n``) declares nothing and returns {}. Blank
+    lines and full-line ``#`` comments are not bump declarations and are
+    ignored. Any other frontmatter line the bump regex does not recognise -- a
+    ``!!str`` tag, an unquoted multi-word value, or another YAML form -- raises
+    ``ChangesetBumpParseError`` naming the line. Callers must refuse, never
+    skip: a skipped line used to return {} and leave G10 blind to the bump the
+    file actually carried (R5-2).
     """
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
@@ -915,13 +934,19 @@ def changeset_declared_bumps(text: str) -> dict[str, str]:
         raise ChangesetHeaderError("frontmatter does not close with ---")
     bumps: dict[str, str] = {}
     for line in lines[1:closing]:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
         match = re.match(
             r'^\s*("?)([^":]+?)\1\s*:\s*(?:"([^"]+)"|\'([^\']+)\'|(\w+))(?:\s+#.*)?\s*$',
             line,
         )
-        if match:
-            value = next(group for group in match.groups()[2:] if group is not None)
-            bumps[match.group(2)] = value.lower()
+        if not match:
+            raise ChangesetBumpParseError(
+                f"has a frontmatter line the bump parser cannot read: {stripped!r}"
+            )
+        value = next(group for group in match.groups()[2:] if group is not None)
+        bumps[match.group(2)] = value.lower()
     return bumps
 
 
@@ -1129,13 +1154,22 @@ def _bumps_from_declared(
 
 
 def _read_declared_bumps(path: Path, errors: list[str]) -> dict[str, str]:
-    """Declared bumps from a changeset on disk. Unreadable frontmatter is G2's."""
+    """Declared bumps from a changeset on disk.
+
+    A bump line the parser cannot read is G10's own refusal: report the file
+    and the line, single-reason, and return {} so classification does not run
+    on partial data. Header errors (no frontmatter) remain G2's; they already
+    refuse the plan under their own ID.
+    """
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return {}
     try:
         return changeset_declared_bumps(text)
+    except ChangesetBumpParseError as exc:
+        errors.append(f"G10: {path.name} {exc}")
+        return {}
     except ValueError:
         return {}
 
@@ -1155,25 +1189,33 @@ def _branch_declared_bumps(
 
 def _consumed_declared_bumps(
     root: Path, merge_base: str, errors: list[str]
-) -> dict[str, str]:
+) -> tuple[dict[str, str], bool]:
     """filename -> highest declared bump among changesets the release consumed.
 
     Read at the merge-base with ``git show``: at HEAD the files are already
-    deleted, which is the whole point of a release PR.
+    deleted, which is the whole point of a release PR. The second return value
+    is True when any consumed frontmatter carried a line the bump parser could
+    not read -- the caller must refuse and must not price a delta against a
+    plan it cannot read (R5-2, single-reason).
     """
     bumps: dict[str, str] = {}
+    unparseable = False
     for name in _consumed_changeset_names(root, merge_base):
         ok, text = _git_ok(root, ["show", f"{merge_base}:{CHANGESET_DIR_REL}/{name}"])
         if not ok:
             continue
         try:
             declared = changeset_declared_bumps(text)
+        except ChangesetBumpParseError as exc:
+            errors.append(f"G10: {name} {exc}")
+            unparseable = True
+            continue
         except ValueError:
             continue
         highest = _bumps_from_declared(declared, name, errors)
         if highest is not None:
             bumps[name] = highest
-    return bumps
+    return bumps, unparseable
 
 
 def _highest_bump(bumps: dict[str, str]) -> str | None:
@@ -1185,25 +1227,39 @@ def _highest_bump(bumps: dict[str, str]) -> str | None:
     return highest
 
 
-def _disk_declared_bumps(root: Path) -> dict[str, str]:
-    """Pending changesets on disk that declare a bump -- no git required.
+def _disk_declared_bumps(root: Path) -> tuple[dict[str, str], list[str]]:
+    """Pending changesets on disk, by git-absent status -- no git required.
 
-    Used only when git itself cannot run: a tree that still carries a
-    declared bump has something G10 would have classified, so the gate
-    refuses in its own words. A tree with none has nothing for G10 to say.
+    Used only when git itself cannot run. Returns (parseable bumps,
+    unparseable-line descriptions). A tree that still carries a declared bump
+    has something G10 would have classified, so the gate refuses in its own
+    words. A tree whose only pending file carries an unparseable bump line is
+    refused on that line -- it is something G10 would refuse even with git
+    once R5-2 is in force. A tree with neither has nothing for G10 to say.
     """
     changeset_dir = root / CHANGESET_DIR_REL
     bumps: dict[str, str] = {}
+    unparseable: list[str] = []
     if not changeset_dir.is_dir():
-        return bumps
+        return bumps, unparseable
     for path in sorted(
         p for p in changeset_dir.glob("*.md") if p.name != CHANGESET_README
     ):
-        declared = _read_declared_bumps(path, [])
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        try:
+            declared = changeset_declared_bumps(text)
+        except ChangesetBumpParseError as exc:
+            unparseable.append(f"{path.name} {exc}")
+            continue
+        except ValueError:
+            continue
         highest = _bumps_from_declared(declared, path.name, [])
         if highest is not None:
             bumps[path.name] = highest
-    return bumps
+    return bumps, unparseable
 
 
 def gate_bump_classification(
@@ -1225,7 +1281,9 @@ def gate_bump_classification(
     tree publishes no card, no branch-added changeset declares a bump, or the
     git diff cannot be established, there is nothing to classify. When
     classification IS needed and an ADR cannot be read, this fails closed.
-    When git itself cannot run, this refuses under G10 in its own words
+    When a frontmatter line cannot be parsed as a bump declaration, this
+    refuses under G10 naming the file and the line, never skipping the line
+    (R5-2). When git itself cannot run, this refuses under G10 in its own words
     rather than raising (#342).
     """
     try:
@@ -1236,8 +1294,13 @@ def gate_bump_classification(
             declared_version=declared_version,
         )
     except GitUnavailableError as exc:
-        pending = _disk_declared_bumps(root)
-        if pending:
+        pending, unparseable = _disk_declared_bumps(root)
+        if unparseable:
+            errors.append(
+                "G10: git could not be run - a frontmatter line that cannot be "
+                f"parsed as a bump declaration cannot be refused: {'; '.join(unparseable)}"
+            )
+        elif pending:
             names = ", ".join(sorted(pending))
             errors.append(
                 f"G10: git could not be run - the declared bump in {names} "
@@ -1340,7 +1403,12 @@ def _gate_bump_classification_inner(
         base_version = _base_version_at(root, merge_base)
         if base_version is None:
             return
-        consumed = _consumed_declared_bumps(root, merge_base, errors)
+        consumed, consumed_unparseable = _consumed_declared_bumps(root, merge_base, errors)
+        if consumed_unparseable:
+            # R5-2: a consumed plan carrying a line the bump parser cannot read
+            # is already listed under G10. Pricing a delta against that plan
+            # would add a second fault built on partial data.
+            return
         required_bump = _highest_bump(consumed)
         _refuse_delta_mismatch(
             errors,

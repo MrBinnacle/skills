@@ -32,6 +32,13 @@ major PASSES and the same rename declared minor is REFUSED. A control that only
 tested the refusing direction would also pass under the superseded rule that
 required minor.
 
+R5-2: `changeset_declared_bumps` must refuse, not skip, a frontmatter line it
+cannot parse. A named control per unparseable form kills the mutant that
+restores the skip. Two forms ship: a `!!str`-tagged bump value and an unquoted
+multi-word bump value. Either form used to parse to `{}`, so G10 had nothing to
+classify and the gate stayed green over a changeset whose declared bump was
+unreadable -- the root cause behind the R5-1 regex fix.
+
 Run: python scripts/test_bump_classification.py
 """
 from __future__ import annotations
@@ -509,6 +516,58 @@ def case_case3_non_card_directory_declared_minor_is_refused(tmp: Path) -> None:
         "G10:",
         "no file under skills/*/*/",
         "minor",
+    )
+
+
+def case_unparseable_yaml_tag_bump_is_refused(tmp: Path) -> None:
+    """R5-2: a `!!str`-tagged bump line must be refused, never skipped.
+
+    The R5-1 regex closed `major # comment` hiding a declared bump; the root
+    cause behind that fix is a frontmatter line the parser does not recognise
+    at all. Before R5-2 this fixture PASSED -- the parser skipped the line,
+    returned {}, and G10 had nothing to classify. The skip mutant (the
+    pre-R5-2 `if match: ...` with no else) is killed by this control's name:
+    `case_unparseable_yaml_tag_bump_is_refused`. Single-reason: the tree is
+    otherwise conforming, so G10 is the only fault.
+    """
+    root = make_tree(tmp, declared="!!str major", branch_change="scripts_only")
+    expect_g10_refusal(
+        "R5-2: a !!str-tagged bump line is refused, not skipped",
+        root,
+        "G10:",
+        "zzz-classify.md",
+        "!!str major",
+    )
+    result = run_gate("--root", str(root))
+    output = result.stdout + result.stderr
+    check(
+        "R5-2: the !!str refusal is single-reason",
+        "1 stale surface(s)" in output and output.count("G10:") == 1,
+        output,
+    )
+
+
+def case_unparseable_multiword_bump_is_refused(tmp: Path) -> None:
+    """R5-2: an unquoted multi-word bump value must be refused, never skipped.
+
+    `major release` is a second YAML form the R5-1 regex misses. Named control
+    `case_unparseable_multiword_bump_is_refused` kills the skip mutant for this
+    form. Single-reason, same shape as the !!str control.
+    """
+    root = make_tree(tmp, declared="major release", branch_change="scripts_only")
+    expect_g10_refusal(
+        "R5-2: an unquoted multi-word bump line is refused, not skipped",
+        root,
+        "G10:",
+        "zzz-classify.md",
+        "major release",
+    )
+    result = run_gate("--root", str(root))
+    output = result.stdout + result.stderr
+    check(
+        "R5-2: the multi-word refusal is single-reason",
+        "1 stale surface(s)" in output and output.count("G10:") == 1,
+        output,
     )
 
 
@@ -1112,6 +1171,33 @@ def case_ci_carries_case1_to_case4_poison_controls(tmp: Path) -> None:
         )
 
 
+def case_ci_carries_unparseable_bump_controls(tmp: Path) -> None:
+    """R5-2 needs a named CI control per unparseable form, not only suite cases."""
+    job = _workflow_job("release-gate")
+    for step_name, needles in (
+        (
+            "Poison control - a !!str-tagged bump line must be refused",
+            ("G10:", "!!str", "zzz-unparseable-tag.md", "1 stale surface(s)"),
+        ),
+        (
+            "Poison control - an unquoted multi-word bump line must be refused",
+            ("G10:", "major release", "zzz-unparseable-word.md", "1 stale surface(s)"),
+        ),
+    ):
+        step = _named_step(job, step_name)
+        check(
+            f"CI carries the control {step_name!r}",
+            bool(step),
+            "no such step under the release-gate job",
+        )
+        missing = [n for n in needles if n not in step]
+        check(
+            f"the control {step_name!r} plants the defect and names G10",
+            not missing,
+            f"missing {missing!r} in step" if missing else "",
+        )
+
+
 def case_ci_carries_b2_and_b3_controls(tmp: Path) -> None:
     """B2 and B3 each need a CI control, not only a suite case."""
     job = _workflow_job("release-gate")
@@ -1238,6 +1324,8 @@ CASES = (
     case_case3_no_surface_declared_major_is_refused,
     case_case3_commented_major_is_refused,
     case_case3_non_card_directory_declared_minor_is_refused,
+    case_unparseable_yaml_tag_bump_is_refused,
+    case_unparseable_multiword_bump_is_refused,
     case_higher_classification_governs_rename_plus_add,
     case_case4_consumed_major_with_major_delta_passes,
     case_case4_consumed_major_with_minor_delta_is_refused,
@@ -1262,6 +1350,7 @@ CASES = (
     case_ci_runs_the_bump_classification_suite,
     case_ci_carries_the_inversion_poison_control,
     case_ci_carries_case1_to_case4_poison_controls,
+    case_ci_carries_unparseable_bump_controls,
     case_ci_carries_b2_and_b3_controls,
 )
 
@@ -1282,8 +1371,8 @@ def main() -> int:
         "the ADR text on disk drives classification, G10 refuses in its own "
         "words when git is absent and a declared bump is pending, an unchanged "
         "version at explicit --release stays silent when no plan was consumed, "
-        "and the CI poison controls carry the inversion, cases 1-4, B2(a-c) "
-        "and B3"
+        "and the CI poison controls carry the inversion, cases 1-4, B2(a-c), "
+        "B3, and the R5-2 unparseable-bump refusals"
     )
     return 0
 
