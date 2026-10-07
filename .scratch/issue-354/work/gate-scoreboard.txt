@@ -1,1 +1,0 @@
-PASS: ruled banner line pinned at 5 sites; records derive 14 admitted, 1 measured, 2 retired, 4 solutions looking for a problem; admission policy declares one canonical version; origin tiers 12 OBSERVED, 2 DESIGNED, 0 DISTILLED agree

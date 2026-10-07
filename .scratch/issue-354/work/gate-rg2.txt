@@ -1,1 +1,0 @@
-RELEASE GATE: PASS - surfaces healthy at version 3.0.1: plugin versions in lockstep with package.json, release plan assembles, changelog section dated.
