@@ -88,6 +88,50 @@ Checks (all must pass; failures are listed, not first-fail):
       fixture with only ``git init`` has no committed state to dirty, and the
       live checkout is always clean by construction in CI.
 
+  G10 A changeset's declared bump type (major / minor / patch) must agree with
+      what its diff does to the declared surface. The surface and its prices
+      are read from the ADRs on disk, never hardcoded here: ADR 0003 rules that
+      renaming a card is major and admitting or retiring one is minor; ADR 0002
+      prices corrections within a card as a patch and keeps the card set
+      outside the surface. Cases, each a listed failure:
+
+        1. A branch-added changeset whose diff renames a card directory under
+           ``skills/*/*/`` and declares anything less than the rename price
+           (major).
+        2. A branch-added changeset whose diff adds or removes a directory
+           under ``skills/*/*/`` and declares the patch price.
+        3. A branch-added changeset whose diff touches no file under
+           ``skills/*/*/`` and declares minor or major -- nothing outside the
+           cards changes the declared surface.
+        4. (--release only) A release version that differs from the exact
+           SemVer result the changesets this release CONSUMED declare. A
+           release PR runs
+           ``npm run version``, which deletes the consumed ``.changeset/*.md``
+           files and writes the new number; the gate reads those files at the
+           merge-base, prices them under the same ADR rules, and requires the
+           version to match the result changesets would write. A botched release
+           spends a version number
+           permanently (ADR 0002), so this blocks rather than reports.
+
+      Cases 1-3 judge only the changesets THIS BRANCH adds -- new
+      ``.changeset/*.md`` in ``merge-base..HEAD`` -- never every pending file
+      on disk. Pending changesets that main already holds were classified when
+      their own branch ran this gate; a later PR must not be refused for them.
+
+      A rename and an addition in one changeset resolve to major: the higher
+      classification governs a changeset that contains both. A frontmatter
+      line that is not a bump declaration the parser can read is refused, never
+      skipped (R5-2): a `!!str`-tagged value, an unquoted multi-word value, or
+      any other YAML form the regex misses makes G10 report the changeset and
+      the line, single-reason. Classification is
+      skipped only when the tree publishes no card (vacuous surface), when no
+      branch-added changeset declares a bump, or when the git diff cannot be
+      established -- the house pattern G5 and G6 already use. When
+      classification is needed and an ADR cannot be read or parsed, the run
+      fails closed: an input this gate cannot trust is a listed failure, never
+      a skip and never a pass. When git itself cannot run, G10 refuses in its
+      own words rather than dying with a traceback (#342 / #347).
+
 Mode detection (#153):
   A release ref is one whose ``package.json`` version CHANGED relative to its
   merge-base with the default branch. The release-only checks (G3, G5, G6, G7,
@@ -178,6 +222,18 @@ class ChangesetHeaderError(ValueError):
     Subclasses ValueError so one handler reports it as an unassemblable plan.
     `changeset version` refuses such a file outright, so the gate refusing it
     is the same verdict earlier and cheaper.
+    """
+
+
+class ChangesetBumpParseError(ValueError):
+    """A changeset frontmatter line is not a bump declaration the gate can read.
+
+    Subclasses ValueError. G10's callers report this one under G10 naming the
+    file and the line, single-reason. The R5-1 regex fix closed
+    `major # comment` hiding a declared bump; this closes the root cause behind
+    that fix -- a line the regex misses is refused, never skipped. Before R5-2
+    the parser returned {} for such a line, so G10 had nothing to classify and
+    the gate stayed green over an unreadable declared bump.
     """
 
 
@@ -771,6 +827,679 @@ def gate_clean_tree(root: Path, errors: list[str]) -> None:
         )
 
 
+# --------------------------------------------------------------------- G10 bump
+#
+# The declared surface and its prices live in the ADRs, not in this file. A
+# constant written here would be a cache of ADR 0003 and would go stale the
+# same way a line-number citation of README.md did. The parsers below read the
+# decision sentences from disk on every run.
+
+ADR_0003_REL = Path("docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md")
+ADR_0002_REL = Path("docs/adr/0002-a-release-is-a-delivery-event.md")
+
+# Decision sentences, as the ADRs write them (line breaks allowed inside).
+_RENAME_PRICE_RE = re.compile(
+    r"Renaming a card\s+is a\s+(\w+)\s+change", re.IGNORECASE
+)
+_ADMIT_PRICE_RE = re.compile(
+    r"Admitting or retiring one\s+remains a\s+(\w+)\s+change", re.IGNORECASE
+)
+_PATCH_PRICE_RE = re.compile(
+    r"Corrections within a card\s+are a\s+(\w+)", re.IGNORECASE
+)
+
+# The changesets vocabulary, used only to RANK words the ADRs supply. The rule
+# "rename -> major" is never written here; only how to order the words once
+# they have been read.
+BUMP_RANK = {"patch": 0, "minor": 1, "major": 2}
+
+
+def _read_text_or_raise(path: Path, label: str) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ValueError(f"{label} could not be read: {exc}") from exc
+
+
+def derive_bump_prices(root: Path) -> dict[str, str]:
+    """The bump word each surface action costs, read from the ADRs on disk.
+
+    Returns {"rename": ..., "admit_retire": ..., "patch": ...}. Raises ValueError
+    when an ADR is missing, unreadable, or no longer carries the decision
+    sentence -- callers fail closed rather than guessing a price.
+    """
+    adr3_path = root / ADR_0003_REL
+    adr2_path = root / ADR_0002_REL
+    adr3 = _read_text_or_raise(adr3_path, ADR_0003_REL.as_posix())
+    adr2 = _read_text_or_raise(adr2_path, ADR_0002_REL.as_posix())
+    rename = _RENAME_PRICE_RE.search(adr3)
+    admit = _ADMIT_PRICE_RE.search(adr3)
+    patch = _PATCH_PRICE_RE.search(adr2)
+    if rename is None:
+        raise ValueError(
+            f"{ADR_0003_REL.as_posix()} carries no 'Renaming a card ... change' "
+            "decision sentence, so the rename price cannot be derived"
+        )
+    if admit is None:
+        raise ValueError(
+            f"{ADR_0003_REL.as_posix()} carries no 'Admitting or retiring one ... "
+            "change' decision sentence, so the admit/retire price cannot be derived"
+        )
+    if patch is None:
+        raise ValueError(
+            f"{ADR_0002_REL.as_posix()} carries no 'Corrections within a card are a ...' "
+            "sentence, so the patch price cannot be derived"
+        )
+    prices = {
+        "rename": rename.group(1).lower(),
+        "admit_retire": admit.group(1).lower(),
+        "patch": patch.group(1).lower(),
+    }
+    for action, word in prices.items():
+        if word not in BUMP_RANK:
+            raise ValueError(
+                f"the ADRs price {action!r} as {word!r}, which is not a changesets "
+                f"bump type (expected one of {sorted(BUMP_RANK)})"
+            )
+    return prices
+
+
+def _rank(level: str) -> int:
+    return BUMP_RANK[level]
+
+
+def _higher(a: str, b: str) -> str:
+    return a if _rank(a) >= _rank(b) else b
+
+
+def changeset_declared_bumps(text: str) -> dict[str, str]:
+    """package -> bump level from one changeset's frontmatter.
+
+    An empty changeset (``---\\n---\\n``) declares nothing and returns {}. Blank
+    lines and full-line ``#`` comments are not bump declarations and are
+    ignored. Any other frontmatter line the bump regex does not recognise -- a
+    ``!!str`` tag, an unquoted multi-word value, or another YAML form -- raises
+    ``ChangesetBumpParseError`` naming the line. Callers must refuse, never
+    skip: a skipped line used to return {} and leave G10 blind to the bump the
+    file actually carried (R5-2).
+    """
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        raise ChangesetHeaderError("frontmatter does not open with ---")
+    closing = next(
+        (i for i in range(1, len(lines)) if lines[i].strip() == "---"),
+        None,
+    )
+    if closing is None:
+        raise ChangesetHeaderError("frontmatter does not close with ---")
+    bumps: dict[str, str] = {}
+    for line in lines[1:closing]:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        match = re.match(
+            r'^\s*("?)([^":]+?)\1\s*:\s*(?:"([^"]+)"|\'([^\']+)\'|(\w+))(?:\s+#.*)?\s*$',
+            line,
+        )
+        if not match:
+            raise ChangesetBumpParseError(
+                f"has a frontmatter line the bump parser cannot read: {stripped!r}"
+            )
+        value = next(group for group in match.groups()[2:] if group is not None)
+        bumps[match.group(2)] = value.lower()
+    return bumps
+
+
+def _card_dir(path: str, cards: set[str]) -> str | None:
+    """The card containing `path` at one revision, or None when it is not a card.
+
+    A path below ``skills/<bucket>/`` is not necessarily a card. The name is in
+    the declared surface only when that directory carries a ``SKILL.md`` in the
+    revision being inspected; plugin packaging and stray directories must not
+    change a release's price.
+    """
+    parts = path.split("/")
+    if len(parts) >= 3:
+        candidate = "/".join(parts[:3])
+        if candidate in cards:
+            return candidate
+    return None
+
+
+def _list_card_dirs(root: Path, rev: str) -> set[str]:
+    """Card directories published at `rev`: skills/*/*/ that carry a SKILL.md.
+
+    Enumerated with git rather than a filesystem walk, matching the house rule
+    check_prose_claims.py states. A directory under skills/*/*/ with no
+    SKILL.md is not a card and is not part of the declared surface.
+    """
+    ok, output = _git_ok(root, ["ls-tree", "-r", "--name-only", rev])
+    if not ok:
+        return set()
+    dirs: set[str] = set()
+    for line in output.splitlines():
+        parts = line.strip().split("/")
+        if (
+            len(parts) >= 4
+            and parts[0] == "skills"
+            and parts[-1] == "SKILL.md"
+            and parts[2] not in {".claude-plugin", "evals"}
+        ):
+            dirs.add("/".join(parts[:3]))
+    return dirs
+
+
+def classify_surface_diff(root: Path, base_rev: str) -> dict:
+    """What the branch diff does to the declared surface under skills/*/*/.
+
+    Returns a dict:
+      touched          bool -- a path belonging to a card appears in the diff
+      rename           bool -- a card directory was renamed
+      admit_or_retire  bool -- a card directory was added or removed
+      required         str | None -- highest ADR price the diff reaches;
+                                     None when the surface is untouched
+      detail           str -- short phrase naming what was found
+    """
+    ok, output = _git_ok(root, ["diff", "--name-status", "-M", base_rev, "HEAD"])
+    if not ok:
+        raise ValueError(f"git diff {base_rev}..HEAD could not be read")
+    base_dirs = _list_card_dirs(root, base_rev)
+    head_dirs = _list_card_dirs(root, "HEAD")
+    touched = False
+    rename = False
+    renamed_from: set[str] = set()
+    renamed_to: set[str] = set()
+    details: list[str] = []
+    for line in output.splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("\t")
+        status = parts[0][:1]
+        if status == "R" and len(parts) >= 3:
+            old, new = parts[1], parts[2]
+            old_dir = _card_dir(old, base_dirs)
+            new_dir = _card_dir(new, head_dirs)
+            if old_dir is not None or new_dir is not None:
+                touched = True
+            if old_dir is not None and new_dir is not None and old_dir != new_dir:
+                rename = True
+                renamed_from.add(old_dir)
+                renamed_to.add(new_dir)
+                details.append(f"renamed {old_dir} -> {new_dir}")
+        elif status in ("A", "D") and len(parts) >= 2:
+            path = parts[1]
+            cards = head_dirs if status == "A" else base_dirs
+            if _card_dir(path, cards) is not None:
+                touched = True
+        elif status in ("M", "C") and len(parts) >= 2:
+            if (
+                _card_dir(parts[1], base_dirs) is not None
+                or _card_dir(parts[1], head_dirs) is not None
+            ):
+                touched = True
+        # T (typechange) and other statuses in a card still count as a touch.
+        elif len(parts) >= 2 and (
+            _card_dir(parts[1], base_dirs) is not None
+            or _card_dir(parts[1], head_dirs) is not None
+        ):
+            touched = True
+    added = sorted((head_dirs - base_dirs) - renamed_to)
+    removed = sorted((base_dirs - head_dirs) - renamed_from)
+    admit_or_retire = bool(added or removed)
+    details.extend(f"added {card}" for card in added)
+    details.extend(f"removed {card}" for card in removed)
+    return {
+        "touched": touched,
+        "rename": rename,
+        "admit_or_retire": admit_or_retire,
+        "detail": "; ".join(details) if details else "no card directory rename or set change",
+    }
+
+
+def required_price_for_diff(diff: dict, prices: dict[str, str]) -> str | None:
+    """The highest ADR price the diff reaches, or None when the surface is untouched.
+
+    A rename and an addition in one diff resolve to the higher price -- the
+    ticket and ADR 0003 both say the higher classification governs.
+    """
+    if not diff["touched"]:
+        return None
+    required = prices["patch"]
+    if diff["admit_or_retire"]:
+        required = _higher(required, prices["admit_retire"])
+    if diff["rename"]:
+        required = _higher(required, prices["rename"])
+    return required
+
+
+def next_version_for_bump(base_version: str, bump: str) -> str | None:
+    """The exact normal-form version changesets produces for one bump.
+
+    A release cannot merely change the field named by its highest changeset.
+    ``changeset version`` increments that field and resets less-significant
+    fields. Return None when the base version is not normal form; G10 cannot
+    check a release plan against an unreadable starting point.
+    """
+    base = SEMVER_RE.match(base_version)
+    if base is None:
+        return None
+    b = tuple(int(x) for x in base.groups())
+    if bump == "major":
+        return f"{b[0] + 1}.0.0"
+    if bump == "minor":
+        return f"{b[0]}.{b[1] + 1}.0"
+    if bump == "patch":
+        return f"{b[0]}.{b[1]}.{b[2] + 1}"
+    return None
+
+
+def _changeset_names_at(root: Path, rev: str) -> set[str]:
+    """Changeset filenames at `rev`, excluding the README and non-md files."""
+    ok, output = _git_ok(
+        root, ["ls-tree", "-r", "--name-only", rev, "--", f"{CHANGESET_DIR_REL}/"]
+    )
+    if not ok:
+        return set()
+    names: set[str] = set()
+    for line in output.splitlines():
+        path = line.strip()
+        if not path.startswith(f"{CHANGESET_DIR_REL}/"):
+            continue
+        name = Path(path).name
+        if name == CHANGESET_README or not name.endswith(".md"):
+            continue
+        names.add(name)
+    return names
+
+
+def _branch_added_changeset_names(root: Path, merge_base: str) -> list[str]:
+    """Changeset files THIS branch adds: present at HEAD, absent at merge_base.
+
+    Cases 1-3 classify only these. A changeset main already held was
+    classified when its own branch ran the gate; judging it again here would
+    refuse a later scripts-only PR for an admission that already merged.
+    """
+    added = _changeset_names_at(root, "HEAD") - _changeset_names_at(root, merge_base)
+    return sorted(added)
+
+
+def _consumed_changeset_names(root: Path, merge_base: str) -> list[str]:
+    """Changesets this release consumed: present at merge_base, gone at HEAD.
+
+    ``changeset version`` deletes every pending file when it rolls, so a
+    release PR's diff carries those deletions. The declared bumps still live
+    at the merge-base; that is the plan the version number must match.
+    """
+    consumed = _changeset_names_at(root, merge_base) - _changeset_names_at(root, "HEAD")
+    return sorted(consumed)
+
+
+def _bumps_from_declared(
+    declared: dict[str, str], label: str, errors: list[str]
+) -> str | None:
+    """Highest bump among one changeset's package declarations, or None if empty."""
+    if not declared:
+        return None
+    highest = "patch"
+    for level in declared.values():
+        if level in BUMP_RANK:
+            highest = _higher(highest, level)
+        else:
+            errors.append(
+                f"G10: {label} declares {level!r}, which is not a changesets "
+                f"bump type (expected one of {sorted(BUMP_RANK)})"
+            )
+            highest = _higher(highest, "patch")
+    return highest
+
+
+def _read_declared_bumps(path: Path, errors: list[str]) -> dict[str, str]:
+    """Declared bumps from a changeset on disk.
+
+    A bump line the parser cannot read is G10's own refusal: report the file
+    and the line, single-reason, and return {} so classification does not run
+    on partial data. Header errors (no frontmatter) remain G2's; they already
+    refuse the plan under their own ID.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {}
+    try:
+        return changeset_declared_bumps(text)
+    except ChangesetBumpParseError as exc:
+        errors.append(f"G10: {path.name} {exc}")
+        return {}
+    except ValueError:
+        return {}
+
+
+def _branch_declared_bumps(
+    root: Path, merge_base: str, errors: list[str]
+) -> dict[str, str]:
+    """filename -> highest declared bump among branch-added changeset packages."""
+    bumps: dict[str, str] = {}
+    for name in _branch_added_changeset_names(root, merge_base):
+        declared = _read_declared_bumps(root / CHANGESET_DIR_REL / name, errors)
+        highest = _bumps_from_declared(declared, name, errors)
+        if highest is not None:
+            bumps[name] = highest
+    return bumps
+
+
+def _consumed_declared_bumps(
+    root: Path, merge_base: str, errors: list[str]
+) -> tuple[dict[str, str], bool]:
+    """filename -> highest declared bump among changesets the release consumed.
+
+    Read at the merge-base with ``git show``: at HEAD the files are already
+    deleted, which is the whole point of a release PR. The second return value
+    is True when any consumed frontmatter carried a line the bump parser could
+    not read -- the caller must refuse and must not price a delta against a
+    plan it cannot read (R5-2, single-reason).
+    """
+    bumps: dict[str, str] = {}
+    unparseable = False
+    for name in _consumed_changeset_names(root, merge_base):
+        ok, text = _git_ok(root, ["show", f"{merge_base}:{CHANGESET_DIR_REL}/{name}"])
+        if not ok:
+            continue
+        try:
+            declared = changeset_declared_bumps(text)
+        except ChangesetBumpParseError as exc:
+            errors.append(f"G10: {name} {exc}")
+            unparseable = True
+            continue
+        except ValueError:
+            continue
+        highest = _bumps_from_declared(declared, name, errors)
+        if highest is not None:
+            bumps[name] = highest
+    return bumps, unparseable
+
+
+def _highest_bump(bumps: dict[str, str]) -> str | None:
+    if not bumps:
+        return None
+    highest = "patch"
+    for level in bumps.values():
+        highest = _higher(highest, level)
+    return highest
+
+
+def _disk_declared_bumps(root: Path) -> tuple[dict[str, str], list[str]]:
+    """Pending changesets on disk, by git-absent status -- no git required.
+
+    Used only when git itself cannot run. Returns (parseable bumps,
+    unparseable-line descriptions). A tree that still carries a declared bump
+    has something G10 would have classified, so the gate refuses in its own
+    words. A tree whose only pending file carries an unparseable bump line is
+    refused on that line -- it is something G10 would refuse even with git
+    once R5-2 is in force. A tree with neither has nothing for G10 to say.
+    """
+    changeset_dir = root / CHANGESET_DIR_REL
+    bumps: dict[str, str] = {}
+    unparseable: list[str] = []
+    if not changeset_dir.is_dir():
+        return bumps, unparseable
+    for path in sorted(
+        p for p in changeset_dir.glob("*.md") if p.name != CHANGESET_README
+    ):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        try:
+            declared = changeset_declared_bumps(text)
+        except ChangesetBumpParseError as exc:
+            unparseable.append(f"{path.name} {exc}")
+            continue
+        except ValueError:
+            continue
+        highest = _bumps_from_declared(declared, path.name, [])
+        if highest is not None:
+            bumps[path.name] = highest
+    return bumps, unparseable
+
+
+def gate_bump_classification(
+    root: Path,
+    errors: list[str],
+    *,
+    release_mode: bool,
+    declared_version: str | None,
+) -> None:
+    """G10: every branch-added changeset's declared bump must match its diff.
+
+    Cases 1-3 classify only the changesets this branch adds (new
+    ``.changeset/*.md`` in merge-base..HEAD), never every pending file on
+    disk. Case 4, in release mode, compares the version delta against the
+    changesets the release CONSUMED -- read at the merge-base, because
+    ``changeset version`` deletes them at HEAD.
+
+    Skip reasons follow the house pattern (G5 vacuum, G6 non-git): when the
+    tree publishes no card, no branch-added changeset declares a bump, or the
+    git diff cannot be established, there is nothing to classify. When
+    classification IS needed and an ADR cannot be read, this fails closed.
+    When a frontmatter line cannot be parsed as a bump declaration, this
+    refuses under G10 naming the file and the line, never skipping the line
+    (R5-2). When git itself cannot run, this refuses under G10 in its own words
+    rather than raising (#342).
+    """
+    try:
+        _gate_bump_classification_inner(
+            root,
+            errors,
+            release_mode=release_mode,
+            declared_version=declared_version,
+        )
+    except GitUnavailableError as exc:
+        pending, unparseable = _disk_declared_bumps(root)
+        if unparseable:
+            # R6-4: the gate DOES refuse an unparseable line under G10. What
+            # git's absence prevents is checking that line against the branch
+            # diff -- not refusing it. An earlier message said "cannot be
+            # refused", which described the opposite of what this branch does.
+            errors.append(
+                "G10: git could not be run - a frontmatter line that cannot be "
+                f"parsed as a bump declaration cannot be checked against the "
+                f"branch diff: {'; '.join(unparseable)}"
+            )
+        elif pending:
+            names = ", ".join(sorted(pending))
+            errors.append(
+                f"G10: git could not be run - the declared bump in {names} "
+                f"cannot be checked against the branch diff: {exc}"
+            )
+        return
+
+
+def _gate_bump_classification_inner(
+    root: Path,
+    errors: list[str],
+    *,
+    release_mode: bool,
+    declared_version: str | None,
+) -> None:
+    git_ready = _is_git_work_tree(root)
+    merge_base: str | None = None
+    if git_ready:
+        head_ok, _ = _git_ok(root, ["rev-parse", "--verify", "HEAD"])
+        base_ref = None
+        if head_ok:
+            for candidate in BASE_REF_CANDIDATES:
+                ok, _ = _git_ok(root, ["rev-parse", "--verify", candidate])
+                if ok:
+                    base_ref = candidate
+                    break
+        if head_ok and base_ref is not None:
+            mb_ok, mb = _git_ok(root, ["merge-base", "HEAD", base_ref])
+            if mb_ok and mb.strip():
+                merge_base = mb.strip()
+
+    publishes_cards = False
+    branch_bumps: dict[str, str] = {}
+    if merge_base is not None:
+        # Base OR head: a change that retires the last card still reaches the
+        # declared surface, and skipping on an empty HEAD would let it through.
+        publishes_cards = bool(
+            _list_card_dirs(root, "HEAD") or _list_card_dirs(root, merge_base)
+        )
+        branch_bumps = _branch_declared_bumps(root, merge_base, errors)
+
+    # What must be classified right now?
+    need_changesets = bool(branch_bumps) and merge_base is not None and publishes_cards
+    need_delta = (
+        release_mode
+        and declared_version is not None
+        and merge_base is not None
+        and publishes_cards
+    )
+    if not need_changesets and not need_delta:
+        return
+
+    prices = _load_prices_or_refuse(root, errors)
+    if prices is None:
+        return
+    assert merge_base is not None
+    try:
+        diff = classify_surface_diff(root, merge_base)
+    except ValueError as exc:
+        errors.append(f"G10: {exc}")
+        return
+    required = required_price_for_diff(diff, prices)
+
+    if need_changesets:
+        for filename, declared in sorted(branch_bumps.items()):
+            if not diff["touched"]:
+                # Case 3: nothing under skills/*/*/, so the declared surface is
+                # untouched. Only the patch price (or an empty plan) may stand.
+                if _rank(declared) > _rank(prices["patch"]):
+                    errors.append(
+                        f"G10: {filename} declares {declared}, but the change touches "
+                        f"no file under skills/*/*/, so it cannot change the declared "
+                        f"surface (ADR 0002 prices work that reaches no card as "
+                        f"{prices['patch']})"
+                    )
+                continue
+            assert required is not None
+            if _rank(declared) < _rank(required):
+                if diff["rename"]:
+                    errors.append(
+                        f"G10: {filename} declares {declared}, but the diff renames a "
+                        f"card directory under skills/*/*/, which "
+                        f"{ADR_0003_REL.as_posix()} prices as {prices['rename']}: "
+                        f"{diff['detail']}"
+                    )
+                elif diff["admit_or_retire"]:
+                    errors.append(
+                        f"G10: {filename} declares {declared}, but the diff adds or "
+                        f"retires a card directory under skills/*/*/, which "
+                        f"{ADR_0003_REL.as_posix()} prices as "
+                        f"{prices['admit_retire']}: {diff['detail']}"
+                    )
+                else:
+                    errors.append(
+                        f"G10: {filename} declares {declared}, but the diff requires "
+                        f"at least {required} under the ADR prices: {diff['detail']}"
+                    )
+
+    if need_delta:
+        base_version = _base_version_at(root, merge_base)
+        if base_version is None:
+            return
+        consumed, consumed_unparseable = _consumed_declared_bumps(root, merge_base, errors)
+        if consumed_unparseable:
+            # R5-2: a consumed plan carrying a line the bump parser cannot read
+            # is already listed under G10. Pricing a delta against that plan
+            # would add a second fault built on partial data.
+            return
+        required_bump = _highest_bump(consumed)
+        _refuse_delta_mismatch(
+            errors,
+            base_version=base_version,
+            current_version=declared_version or "",
+            required_bump=required_bump,
+            consumed=consumed,
+        )
+
+
+def _load_prices_or_refuse(root: Path, errors: list[str]) -> dict[str, str] | None:
+    try:
+        return derive_bump_prices(root)
+    except ValueError as exc:
+        errors.append(f"G10: cannot derive bump classification from the ADRs: {exc}")
+        return None
+
+
+def _base_version_at(root: Path, merge_base: str) -> str | None:
+    ok, blob = _git_ok(root, ["show", f"{merge_base}:{PACKAGE_REL}"])
+    if not ok:
+        return None
+    try:
+        data = json.loads(blob)
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    version = data.get("version")
+    if not isinstance(version, str) or not version.strip():
+        return None
+    return version
+
+
+def _refuse_delta_mismatch(
+    errors: list[str],
+    *,
+    base_version: str,
+    current_version: str,
+    required_bump: str | None,
+    consumed: dict[str, str],
+) -> None:
+    """Case 4: the release version must equal what its consumed plan produces.
+
+    A release PR runs ``npm run version``, which deletes the consumed
+    ``.changeset/*.md`` files and writes the new number from their declared
+    bumps. The gate reads those files at the merge-base. A delta with no
+    consumed plan behind it, or one that disagrees with the plan, spends a
+    version number permanently (ADR 0002) and is refused.
+
+    An unchanged version with no consumed plan is NOT a delta: an explicit
+    ``--release`` run on a released, clean main (origin/main == HEAD) has
+    nothing to consume and nothing to bump. Refusing that tree with "release
+    version changed from X to X" is a false fault (N1, round 3); return
+    instead. A consumed plan that leaves the version unchanged is still
+    refused below -- that tree has a plan and no increment behind it.
+    """
+    if required_bump is None:
+        if current_version == base_version:
+            return
+        errors.append(
+            f"G10: release version changed from {base_version} to {current_version}, "
+            "but no changeset consumed by this release declares a "
+            "bump, so the delta has no plan behind it. A botched release spends "
+            "a version number permanently (ADR 0002), so the gate blocks "
+            "rather than reports."
+        )
+        return
+    expected_version = next_version_for_bump(base_version, required_bump)
+    if expected_version is None:
+        errors.append(
+            f"G10: the base release version {base_version} is not Semantic "
+            "Versioning normal form, so the consumed plan cannot be priced"
+        )
+        return
+    if current_version != expected_version:
+        plan = ", ".join(f"{name}={bump}" for name, bump in sorted(consumed.items()))
+        errors.append(
+            f"G10: release version changed from {base_version} to {current_version}, "
+            f"but the changesets this release consumed price {required_bump} "
+            f"and require {expected_version} ({plan}). A botched release spends "
+            "a version number permanently (ADR 0002), so the gate blocks rather "
+            "than reports."
+        )
+
+
 def plugin_manifest_paths(root: Path, errors: list[str]) -> list[tuple[str, Path]] | None:
     """(plugin name, path of its plugin.json) for every marketplace entry.
 
@@ -982,6 +1711,15 @@ def main(argv: list[str] | None = None) -> int:
         gate_workflow_pins(root, errors)
         gate_tag_normal_form(root, errors, declared)
         gate_clean_tree(root, errors)
+    # G10 runs in both modes: cases 1-3 classify branch-added changesets
+    # against the surface diff on every run; case 4 prices the version delta
+    # against the changesets the release consumes.
+    gate_bump_classification(
+        root,
+        errors,
+        release_mode=release_mode,
+        declared_version=declared,
+    )
 
     if errors:
         print(f"RELEASE GATE: BLOCKED - {len(errors)} stale surface(s) at version {version}:")
@@ -995,13 +1733,14 @@ def main(argv: list[str] | None = None) -> int:
             "changelog section dated, no unconsumed changesets, manifest and "
             "published tree agree, external spec validator clean, workflow "
             "actions pinned, release tag is SemVer normal form, working tree "
-            "clean."
+            "clean, changeset bump types match the declared surface."
         )
     else:
         print(
             f"RELEASE GATE: PASS - surfaces healthy at version {version}: "
             f"plugin versions in lockstep with {PACKAGE_REL}, release plan "
-            "assembles, changelog section dated."
+            "assembles, changelog section dated, changeset bump types match "
+            "the declared surface."
         )
     return 0
 

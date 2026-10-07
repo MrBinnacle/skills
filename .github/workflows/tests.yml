@@ -1588,6 +1588,585 @@ jobs:
             || { echo "::error::the release ref was red for more than one reason"; cat "$log"; exit 1; }
           echo "control: ordinary and release refs receive different check sets, by version change alone"
 
+      # G10 (#289): a changeset's declared bump type must match what its diff
+      # does to the declared surface. The prices come from ADR 0003 / ADR 0002
+      # on disk, never from a constant in the gate. Cases 1-3 judge only the
+      # changesets THIS branch adds; case 4 prices the version delta against
+      # the changesets the release consumes. The suite below plants each
+      # refusable class, pins the ADR-0003 inversion (rename+major passes,
+      # rename+minor refuses), pins the B2/B3 rework controls, and proves the
+      # ADR text is read rather than cached. A gate that cannot fail guards
+      # nothing, so the poison controls that follow re-run the SHIPPED gate
+      # against planted trees.
+      - name: Bump-classification suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_bump_classification.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::bump-classification suite emitted no PASS line - it did not run"; exit 1; }
+
+      # Inversion pin, in shell, against the shipped gate. ADR 0003 prices a
+      # rename as major. The same planted rename declared minor must be refused
+      # under G10; declared major must PASS. A control that only tested the
+      # refusing direction would also pass under the superseded rule that
+      # required minor.
+      - name: Poison control - a card rename must be refused unless declared major
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-bump-rename"
+          log="$RUNNER_TEMP/control-bump-rename.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/docs/adr" "$tree/skills/engineering/old-card" \
+                   "$tree/skills/engineering/.claude-plugin" "$tree/.claude-plugin" "$tree/.changeset"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nBase.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf '{"name": "fixture-skills", "plugins": [{"name": "fixture-engineering", "source": "./skills/engineering"}]}\n' \
+            > "$tree/.claude-plugin/marketplace.json"
+          {
+            printf '# A card name is part of the declared surface\n\n'
+            printf '**Decision. A card'"'"'s name is part of the declared surface. The card set is not. Renaming a card\n'
+            printf 'is a major change. Admitting or retiring one remains a minor change.**\n'
+          } > "$tree/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md"
+          {
+            printf '# A release is a delivery event\n\n'
+            printf '**The declared surface is the install path and the card format. The card set is not part of\n'
+            printf 'it.** Adding or retiring a card is a minor change. Corrections within a card are a patch.\n'
+          } > "$tree/docs/adr/0002-a-release-is-a-delivery-event.md"
+          git -C "$tree" init -q
+          git -C "$tree" config user.email fixture@example.invalid
+          git -C "$tree" config user.name fixture
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m base
+          git -C "$tree" branch -M main
+          # Half one: rename declared minor must be REFUSED under G10.
+          git -C "$tree" checkout -q -b candidate
+          git -C "$tree" mv skills/engineering/old-card skills/engineering/new-card
+          printf -- '---\nname: new-card\ndescription: fixture card\n---\n\n# new-card\n' \
+            > "$tree/skills/engineering/new-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./new-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf -- '---\n"mrbinnacle-skills": minor\n---\n\nA rename declared minor.\n' \
+            > "$tree/.changeset/zzz-rename.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "rename declared minor"
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a rename declared minor was ACCEPTED - ADR 0003 inversion is not enforced"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G10:' "$log" \
+            || { echo "::error::the rename-minor fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          grep -qi 'rename' "$log" \
+            || { echo "::error::the refusal does not name the rename"; cat "$log"; exit 1; }
+          grep -q 'major' "$log" \
+            || { echo "::error::the refusal does not name the major price"; cat "$log"; exit 1; }
+          # Half two: the same rename declared major must PASS.
+          # `git checkout main` removes the empty `.changeset/` directory left
+          # when half one's file was committed only on `candidate`; recreate it
+          # before writing half two's changeset, or the write fails under `set
+          # -e` and steps 18 to 23 never run.
+          git -C "$tree" checkout -q main
+          git -C "$tree" checkout -q -b candidate-major
+          git -C "$tree" mv skills/engineering/old-card skills/engineering/new-card
+          printf -- '---\nname: new-card\ndescription: fixture card\n---\n\n# new-card\n' \
+            > "$tree/skills/engineering/new-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./new-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          mkdir -p "$tree/.changeset"
+          printf -- '---\n"mrbinnacle-skills": major\n---\n\nA rename declared major.\n' \
+            > "$tree/.changeset/zzz-rename.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "rename declared major"
+          if ! python scripts/release_gate.py --root "$tree" | grep -q '^RELEASE GATE: PASS'; then
+            echo "::error::a rename declared major was REFUSED - the gate enforces the superseded rule"
+            python scripts/release_gate.py --root "$tree" || true
+            exit 1
+          fi
+          echo "control: rename declared minor refused under G10; rename declared major passes (ADR 0003 inversion)"
+
+      # Case 1: a rename declared patch is refused. Single-reason: every other
+      # surface is conforming, so G10 is the only fault.
+      - name: Poison control - a rename declared below major must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-bump-case1"
+          log="$RUNNER_TEMP/control-bump-case1.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/docs/adr" "$tree/skills/engineering/old-card" "$tree/.changeset" \
+                   "$tree/skills/engineering/.claude-plugin" "$tree/.claude-plugin"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nBase.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf '{"name": "fixture-skills", "plugins": [{"name": "fixture-engineering", "source": "./skills/engineering"}]}\n' \
+            > "$tree/.claude-plugin/marketplace.json"
+          {
+            printf '**Decision. A card name is part of the declared surface. The card set is not. Renaming a card\n'
+            printf 'is a major change. Admitting or retiring one remains a minor change.**\n'
+          } > "$tree/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md"
+          printf '**The declared surface is the install path and the card format.** Corrections within a card are a patch.\n' \
+            > "$tree/docs/adr/0002-a-release-is-a-delivery-event.md"
+          git -C "$tree" init -q
+          git -C "$tree" config user.email fixture@example.invalid
+          git -C "$tree" config user.name fixture
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m base
+          git -C "$tree" branch -M main
+          git -C "$tree" checkout -q -b candidate
+          git -C "$tree" mv skills/engineering/old-card skills/engineering/new-card
+          printf -- '---\nname: new-card\ndescription: fixture card\n---\n\n# new-card\n' \
+            > "$tree/skills/engineering/new-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./new-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf -- '---\n"mrbinnacle-skills": patch\n---\n\nA rename declared patch.\n' \
+            > "$tree/.changeset/zzz-case1.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "candidate"
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a rename declared patch was ACCEPTED"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G10:' "$log" || { echo "::error::not refused under G10"; cat "$log"; exit 1; }
+          grep -qi 'rename' "$log" || { echo "::error::refusal does not name the rename"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: rename declared patch rejected under G10, single-reason"
+
+      # Case 2: admitting a card declared patch is refused.
+      - name: Poison control - a card admission declared patch must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-bump-case2"
+          log="$RUNNER_TEMP/control-bump-case2.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/docs/adr" "$tree/skills/engineering/old-card" "$tree/.changeset" \
+                   "$tree/skills/engineering/.claude-plugin" "$tree/.claude-plugin"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nBase.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf '{"name": "fixture-skills", "plugins": [{"name": "fixture-engineering", "source": "./skills/engineering"}]}\n' \
+            > "$tree/.claude-plugin/marketplace.json"
+          printf '**Decision. Renaming a card is a major change. Admitting or retiring one remains a minor change.**\n' \
+            > "$tree/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md"
+          printf '**The declared surface is the install path and the card format.** Corrections within a card are a patch.\n' \
+            > "$tree/docs/adr/0002-a-release-is-a-delivery-event.md"
+          git -C "$tree" init -q
+          git -C "$tree" config user.email fixture@example.invalid
+          git -C "$tree" config user.name fixture
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m base
+          git -C "$tree" branch -M main
+          git -C "$tree" checkout -q -b candidate
+          mkdir -p "$tree/skills/engineering/new-card"
+          printf -- '---\nname: new-card\ndescription: fixture card\n---\n\n# new-card\n' \
+            > "$tree/skills/engineering/new-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./old-card", "./new-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf -- '---\n"mrbinnacle-skills": patch\n---\n\nAn admission declared patch.\n' \
+            > "$tree/.changeset/zzz-case2.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "candidate"
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a card admission declared patch was ACCEPTED"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G10:' "$log" || { echo "::error::not refused under G10"; cat "$log"; exit 1; }
+          grep -qiE 'add|retire' "$log" || { echo "::error::refusal does not name admit/retire"; cat "$log"; exit 1; }
+          grep -q 'minor' "$log" || { echo "::error::refusal does not name the minor price"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: card admission declared patch rejected under G10, single-reason"
+
+      # Case 3: no skills/*/*/ change, yet the changeset declares minor.
+      - name: Poison control - no surface change declaring minor or major must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-bump-case3"
+          log="$RUNNER_TEMP/control-bump-case3.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/docs/adr" "$tree/skills/engineering/old-card" "$tree/.changeset" \
+                   "$tree/scripts" "$tree/skills/engineering/.claude-plugin" "$tree/.claude-plugin"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nBase.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf '{"name": "fixture-skills", "plugins": [{"name": "fixture-engineering", "source": "./skills/engineering"}]}\n' \
+            > "$tree/.claude-plugin/marketplace.json"
+          printf '**Decision. Renaming a card is a major change. Admitting or retiring one remains a minor change.**\n' \
+            > "$tree/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md"
+          printf '**The declared surface is the install path and the card format.** Corrections within a card are a patch.\n' \
+            > "$tree/docs/adr/0002-a-release-is-a-delivery-event.md"
+          git -C "$tree" init -q
+          git -C "$tree" config user.email fixture@example.invalid
+          git -C "$tree" config user.name fixture
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m base
+          git -C "$tree" branch -M main
+          git -C "$tree" checkout -q -b candidate
+          printf 'print("outside the surface")\n' > "$tree/scripts/outside.py"
+          printf -- '---\n"mrbinnacle-skills": minor\n---\n\nNo surface change, declared minor.\n' \
+            > "$tree/.changeset/zzz-case3.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "candidate"
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a no-surface change declared minor was ACCEPTED"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G10:' "$log" || { echo "::error::not refused under G10"; cat "$log"; exit 1; }
+          grep -q 'skills/\*/\*/' "$log" || { echo "::error::refusal does not name the surface path"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: no-surface change declared minor rejected under G10, single-reason"
+
+      # Case 4: a release whose version delta disagrees with the changesets the
+      # release CONSUMES. `changeset version` deletes those files at HEAD; the
+      # gate reads them at the merge-base. This control plants a major plan at
+      # the base, deletes it on the release commit, and writes a minor bump.
+      - name: Poison control - a release version delta that disagrees with the consumed plan
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-bump-case4"
+          log="$RUNNER_TEMP/control-bump-case4.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/docs/adr" "$tree/skills/engineering/old-card" \
+                   "$tree/skills/engineering/.claude-plugin" "$tree/.claude-plugin"
+          printf '{"name": "mrbinnacle-skills", "version": "2.0.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v2.0.0 - 2026-08-10\n\nBase.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "2.0.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf '{"name": "fixture-skills", "plugins": [{"name": "fixture-engineering", "source": "./skills/engineering"}]}\n' \
+            > "$tree/.claude-plugin/marketplace.json"
+          printf '**Decision. Renaming a card is a major change. Admitting or retiring one remains a minor change.**\n' \
+            > "$tree/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md"
+          printf '**The declared surface is the install path and the card format.** Corrections within a card are a patch.\n' \
+            > "$tree/docs/adr/0002-a-release-is-a-delivery-event.md"
+          # Consumed plan at the base commit: major plus patches, the v3.0.0 shape.
+          mkdir -p "$tree/.changeset"
+          printf -- '---\n"mrbinnacle-skills": major\n---\n\nA major plan entry.\n' \
+            > "$tree/.changeset/zzz-consumed-major.md"
+          printf -- '---\n"mrbinnacle-skills": patch\n---\n\nA patch plan entry.\n' \
+            > "$tree/.changeset/zzz-consumed-patch.md"
+          git -C "$tree" init -q
+          git -C "$tree" config user.email fixture@example.invalid
+          git -C "$tree" config user.name fixture
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m base
+          git -C "$tree" branch -M main
+          git -C "$tree" checkout -q -b candidate
+          # Release PR: consume the plan (delete the files), write a MINOR bump.
+          rm -f "$tree/.changeset/zzz-consumed-major.md" "$tree/.changeset/zzz-consumed-patch.md"
+          printf '{"name": "mrbinnacle-skills", "version": "2.1.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v2.1.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
+          printf '{"name": "fixture-engineering", "version": "2.1.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "release"
+          if python scripts/release_gate.py --release --root "$tree" > "$log" 2>&1; then
+            echo "::error::a minor release delta over a consumed-major plan was ACCEPTED"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G10:' "$log" || { echo "::error::not refused under G10"; cat "$log"; exit 1; }
+          grep -q '2.0.0' "$log" || { echo "::error::refusal does not name the base version"; cat "$log"; exit 1; }
+          grep -q '2.1.0' "$log" || { echo "::error::refusal does not name the head version"; cat "$log"; exit 1; }
+          grep -q 'major' "$log" || { echo "::error::refusal does not name the consumed plan price"; cat "$log"; exit 1; }
+          # Positive half: the same plan with a major bump must PASS.
+          git -C "$tree" checkout -q main
+          git -C "$tree" checkout -q -b candidate-major
+          rm -f "$tree/.changeset/zzz-consumed-major.md" "$tree/.changeset/zzz-consumed-patch.md"
+          printf '{"name": "mrbinnacle-skills", "version": "3.0.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v3.0.0 - 2026-08-10\n\nShipped.\n' > "$tree/CHANGELOG.md"
+          printf '{"name": "fixture-engineering", "version": "3.0.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "release major"
+          if ! python scripts/release_gate.py --release --root "$tree" | grep -q '^RELEASE GATE: PASS'; then
+            echo "::error::a major release delta over a consumed-major plan was REFUSED"
+            python scripts/release_gate.py --release --root "$tree" || true
+            exit 1
+          fi
+          echo "control: release delta disagreeing with the consumed plan rejected; matching major plan passes"
+
+      # B2: cases 1-3 judge only the changesets THIS branch adds. After an
+      # admission with a correct minor changeset merges to main, that file sits
+      # on main. A push to main (origin/main == HEAD) has an empty branch diff;
+      # G10 must not re-judge main's pending file as case 3.
+      - name: Poison control - a push to main must not re-judge main's pending changesets
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-bump-b2"
+          log="$RUNNER_TEMP/control-bump-b2.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/docs/adr" "$tree/skills/engineering/old-card" \
+                   "$tree/skills/engineering/.claude-plugin" "$tree/.claude-plugin" "$tree/.changeset"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nBase.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf '{"name": "fixture-skills", "plugins": [{"name": "fixture-engineering", "source": "./skills/engineering"}]}\n' \
+            > "$tree/.claude-plugin/marketplace.json"
+          printf '**Decision. Renaming a card is a major change. Admitting or retiring one remains a minor change.**\n' \
+            > "$tree/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md"
+          printf '**The declared surface is the install path and the card format.** Corrections within a card are a patch.\n' \
+            > "$tree/docs/adr/0002-a-release-is-a-delivery-event.md"
+          git -C "$tree" init -q
+          git -C "$tree" config user.email fixture@example.invalid
+          git -C "$tree" config user.name fixture
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m base
+          git -C "$tree" branch -M main
+          # Admission on a candidate, correctly declared minor.
+          git -C "$tree" checkout -q -b candidate
+          mkdir -p "$tree/skills/engineering/new-card"
+          printf -- '---\nname: new-card\ndescription: fixture card\n---\n\n# new-card\n' \
+            > "$tree/skills/engineering/new-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./old-card", "./new-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf -- '---\n"mrbinnacle-skills": minor\n---\n\nAn admission declared minor.\n' \
+            > "$tree/.changeset/zzz-admit.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "admit"
+          git -C "$tree" checkout -q main
+          git -C "$tree" merge -q --no-ff candidate -m "merge admit"
+          # Push to main: origin/main == HEAD, branch diff empty, pending minor
+          # still on disk and still correct for work already in history.
+          git -C "$tree" update-ref refs/remotes/origin/main HEAD
+          if ! python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a push to main after a correct minor admission was REFUSED"
+            cat "$log"
+            exit 1
+          fi
+          grep -q '^RELEASE GATE: PASS' "$log" \
+            || { echo "::error::the fixture did not print PASS"; cat "$log"; exit 1; }
+          # Next scripts-only PR on top of that main must also PASS.
+          git -C "$tree" checkout -q -b scripts-pr
+          mkdir -p "$tree/scripts"
+          printf 'print("outside the surface")\n' > "$tree/scripts/outside.py"
+          printf -- '---\n"mrbinnacle-skills": patch\n---\n\nA scripts-only patch.\n' \
+            > "$tree/.changeset/zzz-scripts.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "scripts"
+          if ! python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::the next scripts-only PR after the admission was REFUSED"
+            cat "$log"
+            exit 1
+          fi
+          grep -q '^RELEASE GATE: PASS' "$log" \
+            || { echo "::error::the scripts-only PR did not print PASS"; cat "$log"; exit 1; }
+          # B2(c): a replay of the push to main at #316 (correct major) must
+          # also PASS. Main holds a major changeset already in history; the
+          # branch diff is empty; G10 must not re-judge main's pending file.
+          git -C "$tree" checkout -q main
+          git -C "$tree" update-ref refs/remotes/origin/main HEAD
+          mkdir -p "$tree/.changeset"
+          printf -- '---\n"mrbinnacle-skills": major\n---\n\nPlugin roots (#316 shape).\n' \
+            > "$tree/.changeset/plugin-is-its-own-root.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "major pending on main"
+          git -C "$tree" update-ref refs/remotes/origin/main HEAD
+          if ! python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a push to main after a correct major changeset (#316 replay) was REFUSED"
+            cat "$log"
+            exit 1
+          fi
+          grep -q '^RELEASE GATE: PASS' "$log" \
+            || { echo "::error::the #316 replay did not print PASS"; cat "$log"; exit 1; }
+          echo "control: push to main after a minor admission PASSes; the next scripts-only PR PASSes; the #316 major replay PASSes"
+
+      # B3: a tree shaped like the real v3.0.0 release (4c00b0e) run with
+      # --release must PASS; the same tree with a minor bump where the consumed
+      # plan prices major must be REFUSED.
+      - name: Poison control - a v3.0.0-shaped release must pass and a minor delta must be refused
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-bump-b3"
+          log="$RUNNER_TEMP/control-bump-b3.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/docs/adr" "$tree/skills/engineering/old-card" \
+                   "$tree/skills/engineering/.claude-plugin" "$tree/.claude-plugin" "$tree/.changeset"
+          printf '{"name": "mrbinnacle-skills", "version": "2.0.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v2.0.0 - 2026-08-10\n\nBase.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "2.0.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf '{"name": "fixture-skills", "plugins": [{"name": "fixture-engineering", "source": "./skills/engineering"}]}\n' \
+            > "$tree/.claude-plugin/marketplace.json"
+          printf '**Decision. Renaming a card is a major change. Admitting or retiring one remains a minor change.**\n' \
+            > "$tree/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md"
+          printf '**The declared surface is the install path and the card format.** Corrections within a card are a patch.\n' \
+            > "$tree/docs/adr/0002-a-release-is-a-delivery-event.md"
+          printf -- '---\n"mrbinnacle-skills": major\n---\n\nPlugin roots (#316 shape).\n' \
+            > "$tree/.changeset/plugin-is-its-own-root.md"
+          printf -- '---\n"mrbinnacle-skills": patch\n---\n\nA patch plan entry.\n' \
+            > "$tree/.changeset/zzz-patch-a.md"
+          printf -- '---\n"mrbinnacle-skills": patch\n---\n\nAnother patch plan entry.\n' \
+            > "$tree/.changeset/zzz-patch-b.md"
+          git -C "$tree" init -q
+          git -C "$tree" config user.email fixture@example.invalid
+          git -C "$tree" config user.name fixture
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m base
+          git -C "$tree" branch -M main
+          # Release PR shaped like 4c00b0e: consume the plan, write 3.0.0.
+          git -C "$tree" checkout -q -b candidate
+          rm -f "$tree/.changeset/plugin-is-its-own-root.md" \
+                "$tree/.changeset/zzz-patch-a.md" "$tree/.changeset/zzz-patch-b.md"
+          printf '{"name": "mrbinnacle-skills", "version": "3.0.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v3.0.0 - 2026-09-21\n\nMajor and patch changes shipped.\n' > "$tree/CHANGELOG.md"
+          printf '{"name": "fixture-engineering", "version": "3.0.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "Release v3.0.0"
+          if ! python scripts/release_gate.py --release --root "$tree" > "$log" 2>&1; then
+            echo "::error::a v3.0.0-shaped release was REFUSED"
+            cat "$log"
+            exit 1
+          fi
+          grep -q '^RELEASE GATE: PASS' "$log" \
+            || { echo "::error::the v3.0.0-shaped fixture did not print PASS"; cat "$log"; exit 1; }
+          # Same tree, minor bump where the consumed plan prices major.
+          git -C "$tree" checkout -q main
+          git -C "$tree" checkout -q -b candidate-minor
+          rm -f "$tree/.changeset/plugin-is-its-own-root.md" \
+                "$tree/.changeset/zzz-patch-a.md" "$tree/.changeset/zzz-patch-b.md"
+          printf '{"name": "mrbinnacle-skills", "version": "2.1.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v2.1.0 - 2026-09-21\n\nShipped.\n' > "$tree/CHANGELOG.md"
+          printf '{"name": "fixture-engineering", "version": "2.1.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "minor mis-bump"
+          if python scripts/release_gate.py --release --root "$tree" > "$log" 2>&1; then
+            echo "::error::a minor delta over a consumed-major plan was ACCEPTED"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G10:' "$log" || { echo "::error::not refused under G10"; cat "$log"; exit 1; }
+          grep -q '2.0.0' "$log" || { echo "::error::refusal does not name the base version"; cat "$log"; exit 1; }
+          grep -q '2.1.0' "$log" || { echo "::error::refusal does not name the head version"; cat "$log"; exit 1; }
+          grep -q 'major' "$log" || { echo "::error::refusal does not name the consumed plan price"; cat "$log"; exit 1; }
+          echo "control: v3.0.0-shaped release PASSes; the same plan with a minor delta is REFUSED"
+
+      # R5-2: a frontmatter line the bump parser cannot read must be refused,
+      # never skipped. Before R5-2 the parser returned {} for a `!!str`-tagged
+      # or multi-word bump value, so G10 had nothing to classify and the gate
+      # stayed green over an unreadable declared bump -- the root cause behind
+      # the R5-1 regex fix. One named control per unparseable form. Each
+      # plants a scripts-only branch change, so G10 is the only fault and the
+      # refusal must be single-reason.
+      - name: Poison control - a !!str-tagged bump line must be refused
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-bump-unparseable-tag"
+          log="$RUNNER_TEMP/control-bump-unparseable-tag.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/docs/adr" "$tree/skills/engineering/old-card" \
+                   "$tree/skills/engineering/.claude-plugin" "$tree/.claude-plugin" \
+                   "$tree/.changeset" "$tree/scripts"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nBase.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf '{"name": "fixture-skills", "plugins": [{"name": "fixture-engineering", "source": "./skills/engineering"}]}\n' \
+            > "$tree/.claude-plugin/marketplace.json"
+          printf '**Decision. Renaming a card is a major change. Admitting or retiring one remains a minor change.**\n' \
+            > "$tree/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md"
+          printf '**The declared surface is the install path and the card format.** Corrections within a card are a patch.\n' \
+            > "$tree/docs/adr/0002-a-release-is-a-delivery-event.md"
+          git -C "$tree" init -q
+          git -C "$tree" config user.email fixture@example.invalid
+          git -C "$tree" config user.name fixture
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m base
+          git -C "$tree" branch -M main
+          git -C "$tree" checkout -q -b candidate
+          printf 'print("outside the surface")\n' > "$tree/scripts/outside.py"
+          printf -- '---\n"mrbinnacle-skills": !!str major\n---\n\nA !!str-tagged bump.\n' \
+            > "$tree/.changeset/zzz-unparseable-tag.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "candidate"
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a !!str-tagged bump line was ACCEPTED - the parser skipped it"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G10:' "$log" || { echo "::error::not refused under G10"; cat "$log"; exit 1; }
+          grep -q 'zzz-unparseable-tag.md' "$log" \
+            || { echo "::error::the refusal does not name the changeset"; cat "$log"; exit 1; }
+          grep -q '!!str' "$log" \
+            || { echo "::error::the refusal does not name the unparseable line"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: a !!str-tagged bump line refused under G10, single-reason"
+
+      - name: Poison control - an unquoted multi-word bump line must be refused
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-bump-unparseable-word"
+          log="$RUNNER_TEMP/control-bump-unparseable-word.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/docs/adr" "$tree/skills/engineering/old-card" \
+                   "$tree/skills/engineering/.claude-plugin" "$tree/.claude-plugin" \
+                   "$tree/.changeset" "$tree/scripts"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nBase.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf '{"name": "fixture-skills", "plugins": [{"name": "fixture-engineering", "source": "./skills/engineering"}]}\n' \
+            > "$tree/.claude-plugin/marketplace.json"
+          printf '**Decision. Renaming a card is a major change. Admitting or retiring one remains a minor change.**\n' \
+            > "$tree/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md"
+          printf '**The declared surface is the install path and the card format.** Corrections within a card are a patch.\n' \
+            > "$tree/docs/adr/0002-a-release-is-a-delivery-event.md"
+          git -C "$tree" init -q
+          git -C "$tree" config user.email fixture@example.invalid
+          git -C "$tree" config user.name fixture
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m base
+          git -C "$tree" branch -M main
+          git -C "$tree" checkout -q -b candidate
+          printf 'print("outside the surface")\n' > "$tree/scripts/outside.py"
+          printf -- '---\n"mrbinnacle-skills": major release\n---\n\nA multi-word bump value.\n' \
+            > "$tree/.changeset/zzz-unparseable-word.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "candidate"
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::an unquoted multi-word bump line was ACCEPTED - the parser skipped it"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G10:' "$log" || { echo "::error::not refused under G10"; cat "$log"; exit 1; }
+          grep -q 'zzz-unparseable-word.md' "$log" \
+            || { echo "::error::the refusal does not name the changeset"; cat "$log"; exit 1; }
+          grep -q 'major release' "$log" \
+            || { echo "::error::the refusal does not name the unparseable line"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: an unquoted multi-word bump line refused under G10, single-reason"
+
   # ---------------------------------------------------------------------------
   # The only conformance instrument in this repository its maintainer did not
   # write. `skills-ref` is the Agent Skills specification's own reference
