@@ -1,0 +1,109 @@
+  - skills/engineering/waived-card: not reachable from SKILL.md through local links: orphan.md
+REJECTED: 1 card contract breach(es) across 1 published card(s).
+ALLOWED: 1 pre-existing breach(es) recorded 2026-09-06, not repaired by this gate:
+  ~ skills/engineering/waived-card: not reachable from SKILL.md through local links: orphan.md
+  - allowlist entry no longer applies and must be removed: skills/engineering/clean-card (reachability). Recorded 2026-09-06; that breach is fixed, so delete the entry.
+REJECTED: 1 card contract breach(es) across 1 published card(s).
+ok   committed poison fixture is rejected
+ok   missing-file report names the card and file
+ok   the missing-file fixture is red for exactly one reason
+ok   committed missing-row fixture is rejected
+ok   the report names the card and the row it does not state
+ok   the missing-row fixture is red for exactly one reason
+ok   a card stating both rows passes
+ok   the pass line says the rows were checked, not just the files
+ok   a card without the Evidence scope row is rejected
+ok   the refusal names the card and the row
+ok   a card stating Evidence scope passes
+ok   the pass line names Evidence scope among the checked rows
+ok   an at-limit card with CRLF line endings passes the real validator
+ok   the CRLF fixture exceeds the raw byte limit but not the content limit
+ok   a quarantine card with no Evidence scope row does not fail the gate
+ok   the pass line counts only the published card
+ok   the scoreboard validator still passes the live tree carrying Evidence scope
+ok   the scoreboard PASS line still derives the counts
+ok   a count above its dated references is rejected
+ok   an Occasions counted row that does not open with an integer is rejected
+ok   the unreadable row is reported once, not compounded
+ok   writing the count as an integer clears it
+ok   a dated reference no other card file records is rejected
+ok   the corroborated date is not reported
+ok   a card without the Dispatches recorded row is rejected
+ok   a dispatch row opening with prose is rejected
+ok   a zero written as a numeral is rejected
+ok   a dispatch row without a measured clause is rejected
+ok   a boilerplate date without the measured clause is still rejected
+ok   the No recorded dispatch form with a date passes
+ok   a cited date recorded only in the dispatch row is uncorroborated
+ok   a dated occurrence record the row does not cite is rejected
+ok   the cited occurrence dates are not reported
+ok   a plural-worded occurrence record the row does not cite is rejected
+ok   a hyphenated co-occurrences line is not demanded as a count
+ok   dated prose that is not an occurrence record is not demanded as a count
+ok   a date recorded only in a sibling evidence row still passes
+ok   one counted occasion without the RECURRENCE-THIN label is rejected
+ok   a card counting two occasions may not keep the thin label
+ok   dropping the stale label clears it
+ok   a description over 200 characters is rejected
+ok   the report states the measured length, not just that it is too long
+ok   a description of exactly 200 characters passes
+ok   surrounding quotes are not counted against the 200 bar
+ok   a SKILL.md stating no description is rejected
+ok   a tree with zero cards is rejected
+ok   a card in in-progress/ or a dot-bucket is not held to the contract
+ok   unpublished cards are not counted as published
+ok   a bucket's .claude-plugin/ directory is not held to the card contract
+ok   the plugin root is not counted as a published card
+ok   a bucket's evals/ directory is not held to the card contract
+ok   the plugin eval directory is not counted as a published card
+ok   a SKILL.md below 400 bytes is rejected
+ok   a SKILL.md above 7,168 bytes is rejected
+ok   a SKILL.md at the size floor passes
+ok   a SKILL.md at the size ceiling passes
+ok   a link to a nonexistent file is rejected
+ok   a link differing only by case is rejected
+ok   a card with all links resolving passes
+ok   a file not reachable from SKILL.md is rejected
+ok   a transitively reachable file passes
+ok   exempt test/build files not linked from SKILL.md pass
+ok   a stale exemption is detected
+ok   the fixture actually breaches before it is waived
+PASS: 1 published card(s), all carry SKILL.md, gotchas.md, EVIDENCE.md; every EVIDENCE.md states Occasions counted and Dispatches recorded and Re-screen trigger and Evidence scope; every description is stated and within 200 characters; every SKILL.md is between 400 and 7168 bytes; every local link resolves with case matching; every reader-facing auxiliary reachable from SKILL.md; every SKILL.md carries a when-to-open pointer to gotchas.md -- EXCEPT the 1 allowlisted breach(es) listed above, recorded 2026-09-06 and not repaired by this gate
+ok   an allowlisted breach does not fail the gate
+PASS: 1 published card(s), all carry SKILL.md, gotchas.md, EVIDENCE.md; every EVIDENCE.md states Occasions counted and Dispatches recorded and Re-screen trigger and Evidence scope; every description is stated and within 200 characters; every SKILL.md is between 400 and 7168 bytes; every local link resolves with case matching; every reader-facing auxiliary reachable from SKILL.md; every SKILL.md carries a when-to-open pointer to gotchas.md
+ok   the card is clean before the stale entry is added
+ok   a stale allowlist entry FAILS the gate
+PASS: 1 published card(s), all carry SKILL.md, gotchas.md, EVIDENCE.md; every EVIDENCE.md states Occasions counted and Dispatches recorded and Re-screen trigger and Evidence scope; every description is stated and within 200 characters; every SKILL.md is between 400 and 7168 bytes; every local link resolves with case matching; every reader-facing auxiliary reachable from SKILL.md; every SKILL.md carries a when-to-open pointer to gotchas.md
+ok   an entry for an absent card is not reported stale
+ok   a file named only in an index block is reported as unreachable
+ok   OBSERVED origin with no locator is rejected
+ok   OBSERVED origin with non-existent file locator is rejected
+ok   OBSERVED origin with non-existent commit SHA is rejected
+ok   OBSERVED origin with prose-only locator is rejected
+ok   ABSENT origin with no locator passes
+ok   OBSERVED origin with valid in-repo file locator passes
+ok   OBSERVED origin with external reference locator passes
+ok   OBSERVED origin with gotchas.md locator passes
+ok   a SKILL.md with no gotchas pointer is rejected
+ok   the missing-pointer fixture is red for exactly one reason
+ok   a gotchas.md link with no when-to-open cue is rejected
+ok   the bare-link breach is reported once, not compounded
+ok   a gotchas.md image is rejected as a context pointer
+ok   the image-pointer breach is reported once, not compounded
+ok   a gotchas.md mention inside a sentence about something else is rejected
+ok   the mention-only breach is reported once, not compounded
+ok   a SKILL.md carrying a when-to-open gotchas pointer passes
+ok   the live tree passes
+ok   the live run reports every card it walked
+ok   every RECURRENCE-THIN card counts fewer occasions than the threshold
+ok   every card at or above the threshold carries no thin label
+ok   the split is non-trivial in both directions
+ok   the suite's pointer reader refuses the closure-mode line 88 mention
+ok   the suite's pointer reader accepts the house form
+ok   the live tree passes the gotchas-pointer check
+ok   every published SKILL.md carries exactly one house-form gotchas pointer
+ok   links workflow has a linkcheck job
+ok   linkcheck runs the card-file suite
+ok   linkcheck runs the live card-file checker
+
+PASS: card-file conformance suite, all cases correct

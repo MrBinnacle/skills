@@ -1,0 +1,91 @@
+clirunner-env
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+closure-mode
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+halt-as-deliverable
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+im-down
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- 3 named; test suite(s) covered by the SECURITY.md carve-out: test_validate_packet.py
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+im-up
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- all 3 script(s) named in SKILL.md
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+mocked-stub
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+pretooluse-prose
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+pull-rebase
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  PASS         O5 controlled fields do not contradict a published receipt -- the only receipt link is history: gitpull-paired-n32-2026-09-03-sized.json, reclass-git-pull-rebase-trap.json, which its own row declares not current
+
+stale-deploy
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+vacuous-check
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+dead-predicate
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+decision-rights
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+disposition-schema
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+subagent-handback
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+repo-wide obligations (evaluated once over the tree, not per card):
+  PASS         O1 declared formats only -- 153 guarded file(s) across 47 skill folder(s), all declared formats
+  PASS         O6 scoreboard lockstep -- PASS: ruled banner line pinned at 5 sites; records derive 14 admitted, 1 measured, 2 retired, 4 solutions looking for a problem; admission policy declares one canonical version; origin tiers 12 OBSERVED, 2 DESIGNED, 0 DISTILLED agree
+  PASS         O7 plugin manifest and published tree agree -- 14 published card(s), each named exactly once by a plugin manifest, and every named path resolves
+  PASS         O8 no quarantine-published name collision -- 14 published card(s), 24 quarantine candidate(s), no name collision
+
+PASS: conformance v4: 14 card(s) x 4 card obligation(s) + 4 repo obligation(s) = 60 cells: 47 PASS, 0 FAIL, 13 CANNOT-CHECK. CANNOT-CHECK is not a pass -- 13 cell(s) were not verified by this run.

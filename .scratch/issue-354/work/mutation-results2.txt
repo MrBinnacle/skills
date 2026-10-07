@@ -1,0 +1,304 @@
+FAIL a KEEP receipt without task_family reads unknown task family: Shown here: effect on unknown family, claude-sonnet-5, hook-blocked, measured 2026-09-22T00:00:00Z. Not shown: other task families, models, environments, or real-world incidence.
+ok   KEEP + missing task_family with the unknown task family sentence passes O5
+ok   a KEEP receipt without task_family reads unknown task family
+ok   KEEP + missing task_family with the unknown task family sentence passes O5
+M11                      case_evidence_scope_keep_missing_task_family_reads_unknown_task_family
+  KILLED/BASE-GREEN | mut=failures=['a KEEP receipt without task_family reads unknown task family'] notes=[] | base=failures=[] notes=[]
+
+FAIL a KEEP receipt without tested_at reads unknown date: Shown here: effect on trap-discipline, claude-sonnet-5, hook-blocked, measured unknown. Not shown: other task families, models, environments, or real-world incidence.
+ok   KEEP + missing tested_at with the unknown date sentence passes O5
+ok   a KEEP receipt without tested_at reads unknown date
+ok   KEEP + missing tested_at with the unknown date sentence passes O5
+M12                      case_evidence_scope_keep_missing_tested_at_reads_unknown_date
+  KILLED/BASE-GREEN | mut=failures=['a KEEP receipt without tested_at reads unknown date'] notes=[] | base=failures=[] notes=[]
+
+FAIL a KEEP receipt without model_id reads unknown model: Shown here: effect on trap-discipline, unknown, hook-blocked, measured 2026-09-22T00:00:00Z. Not shown: other task families, models, environments, or real-world incidence.
+ok   KEEP + missing model_id with the unknown model sentence passes O5
+ok   a KEEP receipt without model_id reads unknown model
+ok   KEEP + missing model_id with the unknown model sentence passes O5
+M13                      case_evidence_scope_keep_missing_model_id_reads_unknown_model
+  KILLED/BASE-GREEN | mut=failures=['a KEEP receipt without model_id reads unknown model'] notes=[] | base=failures=[] notes=[]
+
+ok   a carried-forward KEEP without subject_model reads current model
+ok   carried-forward KEEP + missing subject_model with the current model sentence passes O5
+ok   a carried-forward KEEP without subject_model reads current model
+ok   carried-forward KEEP + missing subject_model with the current model sentence passes O5
+M14                      case_evidence_scope_carried_forward_missing_subject_model_reads_current_model
+  SURVIVED/BASE-GREEN | mut=failures=[] notes=[] | base=failures=[] notes=[]
+
+FAIL a non-string model_id reads as unknown model: Shown here: effect on ['list'], 12345, hook-blocked, measured 2026-09-22T00:00:00Z. Not shown: other task families, models, environments, or real-world incidence.
+FAIL a non-string task_family reads as unknown task family: Shown here: effect on ['list'], 12345, hook-blocked, measured 2026-09-22T00:00:00Z. Not shown: other task families, models, environments, or real-world incidence.
+ok   KEEP + non-string scope fields with the default sentences passes O5
+ok   a non-string model_id reads as unknown model
+ok   a non-string task_family reads as unknown task family
+ok   KEEP + non-string scope fields with the default sentences passes O5
+M15                      case_evidence_scope_keep_non_string_scope_field_reads_default
+  KILLED/BASE-GREEN | mut=failures=['a non-string model_id reads as unknown model', 'a non-string task_family reads as unknown task family'] notes=[] | base=failures=[] notes=[]
+
+FAIL a no-receipt card with a wrong Evidence scope sentence is FAIL under --harness-root: alpha-card
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+beta-card
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+repo-wide obligations (evaluated once over the tree, not per card):
+  CANNOT-CHECK O1 declared formats only -- scripts/validate_skill_formats.py absent from this tree
+  CANNOT-CHECK O6 scoreboard lockstep -- scripts/validate_scoreboard.py absent from this tree
+  FAIL         O7 plugin manifest and published tree agree -- .claude-plugin/marketplace.json absent: the collection declares no install path, so the native plugin route does not exist
+  PASS         O8 no quarantine-published name collision -- no _quarantine/ directory present
+
+
+FAIL the harness-root refusal names the card and the Evidence scope row:   CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+ok   the harness-root wrong-row run goes nonzero
+ok   a no-receipt card with a wrong Evidence scope sentence is FAIL under --harness-root
+ok   the harness-root refusal names the card and the Evidence scope row
+ok   the harness-root wrong-row run goes nonzero
+M26                      case_evidence_scope_no_receipt_wrong_sentence_with_harness_root_is_fail
+  KILLED/BASE-GREEN | mut=failures=['a no-receipt card with a wrong Evidence scope sentence is FAIL under --harness-root', 'the harness-root refusal names the card and the Evidence scope row'] notes=[] | base=failures=[] notes=[]
+
+FAIL O5 is PASS when a history link names a missing file and the row is correct: alpha-card
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  FAIL         O5 controlled fields do not contradict a published receipt -- alpha-card: Evidence scope is 'NOT DEMONSTRATED — receipt verdict CANT_TELL_YET; no effect is shown.' but the card's linked receipt(s) show 'UNMEASURED — no receipt.'
+
+beta-card
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+repo-wide obligations (evaluated once over the tree, not per card):
+  CANNOT-CHECK O1 declared formats only -- scripts/validate_skill_formats.py absent from this tree
+  CANNOT-CHECK O6 scoreboard lockstep -- scripts/validate_scoreboard.py absent from this tree
+  FAIL         O7 plugin manifest and published tree agree -- .claude-plugin/marketplace.json absent: the collection declares no install path, so the native plugin route does not exist
+  PASS         O8 no quarantine-published name collision -- no _quarantine/ directory present
+
+
+FAIL the missing history file is not refused on Evidence scope:   FAIL         O5 controlled fields do not contradict a published receipt -- alpha-card: Evidence scope is 'NOT DEMONSTRATED — receipt verdict CANT_TELL_YET; no effect is shown.' but the card's linked receipt(s) show 'UNMEASURED — no receipt.'
+ok   O5 is PASS when a history link names a missing file and the row is correct
+ok   the missing history file is not refused on Evidence scope
+M23                      case_evidence_scope_history_link_to_missing_file_passes
+  KILLED/BASE-GREEN | mut=failures=['O5 is PASS when a history link names a missing file and the row is correct', 'the missing history file is not refused on Evidence scope'] notes=[] | base=failures=[] notes=[]
+
+FAIL O5 is PASS when a history link names invalid JSON and the row is correct: alpha-card
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  FAIL         O5 controlled fields do not contradict a published receipt -- alpha-card: Evidence scope is 'NOT DEMONSTRATED — receipt verdict CANT_TELL_YET; no effect is shown.' but the card's linked receipt(s) show 'UNMEASURED — no receipt.'
+
+beta-card
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+repo-wide obligations (evaluated once over the tree, not per card):
+  CANNOT-CHECK O1 declared formats only -- scripts/validate_skill_formats.py absent from this tree
+  CANNOT-CHECK O6 scoreboard lockstep -- scripts/validate_scoreboard.py absent from this tree
+  FAIL         O7 plugin manifest and published tree agree -- .claude-plugin/marketplace.json absent: the collection declares no install path, so the native plugin route does not exist
+  PASS         O8 no quarantine-published name collision -- no _quarantine/ directory present
+
+
+FAIL the invalid-JSON history file is not refused on Evidence scope:   FAIL         O5 controlled fields do not contradict a published receipt -- alpha-card: Evidence scope is 'NOT DEMONSTRATED — receipt verdict CANT_TELL_YET; no effect is shown.' but the card's linked receipt(s) show 'UNMEASURED — no receipt.'
+ok   O5 is PASS when a history link names invalid JSON and the row is correct
+ok   the invalid-JSON history file is not refused on Evidence scope
+M24                      case_evidence_scope_history_link_to_invalid_json_passes
+  KILLED/BASE-GREEN | mut=failures=['O5 is PASS when a history link names invalid JSON and the row is correct', 'the invalid-JSON history file is not refused on Evidence scope'] notes=[] | base=failures=[] notes=[]
+
+ok   an empty Evidence scope row is FAIL on O5
+FAIL the empty-row refusal names the card and uses the empty-row message:   FAIL         O5 controlled fields do not contradict a published receipt -- alpha-card: Evidence scope is '' but the card's linked receipt(s) show 'UNMEASURED — no receipt.'
+ok   an empty Evidence scope row is FAIL on O5
+ok   the empty-row refusal names the card and uses the empty-row message
+R4                       case_evidence_scope_empty_row_is_refused_with_its_own_message
+  KILLED/BASE-GREEN | mut=failures=['the empty-row refusal names the card and uses the empty-row message'] notes=[] | base=failures=[] notes=[]
+
+ok   a CANT_TELL_YET receipt with a Shown here: row is FAIL on O5
+FAIL the refusal names the card, the Evidence scope row and both sentences:   FAIL         O5 controlled fields do not contradict a published receipt -- alpha-card: Evidence scope is 'Shown here: the bare arm passed.' but the card's linked receipt(s) show 'UNMEASURED — no receipt.'
+ok   a CANT_TELL_YET receipt with a Shown here: row is FAIL on O5
+ok   the refusal names the card, the Evidence scope row and both sentences
+Cant-tell-yet-sentence   case_evidence_scope_cant_tell_yet_shown_here_is_fail
+  KILLED/BASE-GREEN | mut=failures=['the refusal names the card, the Evidence scope row and both sentences'] notes=[] | base=failures=[] notes=[]
+
+ok   the carried-forward derivation is the harness sentinel-rule sentence
+ok   the standard sentence differs from the carried-forward sentence
+ok   carried-forward KEEP with the carried-forward sentence passes
+ok   carried-forward KEEP with the standard sentence is FAIL
+ok   the refusal names Evidence scope and both sentence shapes
+ok   the carried-forward derivation is the harness sentinel-rule sentence
+ok   the standard sentence differs from the carried-forward sentence
+ok   carried-forward KEEP with the carried-forward sentence passes
+ok   carried-forward KEEP with the standard sentence is FAIL
+ok   the refusal names Evidence scope and both sentence shapes
+Carried-beats-standard   case_evidence_scope_carried_forward_beats_standard
+  SURVIVED/BASE-GREEN | mut=failures=[] notes=[] | base=failures=[] notes=[]
+
+FAIL a no-receipt card with a wrong Evidence scope sentence is FAIL: alpha-card
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no citable published receipt to compare against from inside this repository; maintainer-clock obligation
+
+beta-card
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no citable published receipt to compare against from inside this repository; maintainer-clock obligation
+
+repo-wide obligations (evaluated once over the tree, not per card):
+  CANNOT-CHECK O1 declared formats only -- scripts/validate_skill_formats.py absent from this tree
+  CANNOT-CHECK O6 scoreboard lockstep -- scripts/validate_scoreboard.py absent from this tree
+  FAIL         O7 plugin manifest and published tree agree -- .claude-plugin/marketplace.json absent: the collection declares no install path, so the native plugin route does not exist
+  PASS         O8 no quarantine-published name collision -- no _quarantine/ directory present
+
+
+FAIL the refusal names the card and the Evidence scope row:   CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no citable published receipt to compare against from inside this repository; maintainer-clock obligation
+ok   the run goes nonzero when Evidence scope is wrong
+ok   a no-receipt card with a wrong Evidence scope sentence is FAIL
+ok   the refusal names the card and the Evidence scope row
+ok   the run goes nonzero when Evidence scope is wrong
+No-receipt-no-harness    case_evidence_scope_no_receipt_wrong_sentence_is_fail
+  KILLED/BASE-GREEN | mut=failures=['a no-receipt card with a wrong Evidence scope sentence is FAIL', 'the refusal names the card and the Evidence scope row'] notes=[] | base=failures=[] notes=[]
+
+ok   the one-word mutant differs from the exact sentence
+FAIL KEEP + verdict_scope with a one-word scope-line change is FAIL: alpha-card
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  PASS         O5 controlled fields do not contradict a published receipt -- controlled fields agree with the linked receipt(s)
+
+beta-card
+  PASS         O2 no fetch-and-execute -- no known download-and-run shape in any shipped file
+  PASS         O3 shipped scripts named in SKILL.md -- ships no script
+  PASS         O4 EVIDENCE.md present with all controlled fields -- EVIDENCE.md states Screen result, Paired verdict
+  CANNOT-CHECK O5 controlled fields do not contradict a published receipt -- no Receipt clause in any controlled field; rotation pass owns this case
+
+repo-wide obligations (evaluated once over the tree, not per card):
+  CANNOT-CHECK O1 declared formats only -- scripts/validate_skill_formats.py absent from this tree
+  CANNOT-CHECK O6 scoreboard lockstep -- scripts/validate_scoreboard.py absent from this tree
+  FAIL         O7 plugin manifest and published tree agree -- .claude-plugin/marketplace.json absent: the collection declares no install path, so the native plugin route does not exist
+  PASS         O8 no quarantine-published name collision -- no _quarantine/ directory present
+
+
+FAIL the one-word refusal names Evidence scope and both sentences:   PASS         O5 controlled fields do not contradict a published receipt -- controlled fields agree with the linked receipt(s)
+ok   the one-word mutant differs from the exact sentence
+ok   KEEP + verdict_scope with a one-word scope-line change is FAIL
+ok   the one-word refusal names Evidence scope and both sentences
+Keep-one-word-row        case_evidence_scope_keep_one_word_change_is_fail
+  KILLED/BASE-GREEN | mut=failures=['KEEP + verdict_scope with a one-word scope-line change is FAIL', 'the one-word refusal names Evidence scope and both sentences'] notes=[] | base=failures=[] notes=[]
+
+ok   the drift import of render.py lies under SKILL_HARNESS_ROOT
+ok   skills derivation equals harness _scope_line for standard KEEP with delivery_mechanism
+ok   skills derivation equals harness _scope_line for standard KEEP without delivery_mechanism
+ok   skills derivation equals harness _scope_line for standard KEEP without model_id
+ok   skills derivation equals harness _scope_line for standard KEEP without task_family
+ok   skills derivation equals harness _scope_line for standard KEEP without tested_at
+ok   skills derivation equals harness _scope_line for standard KEEP with non-string model_id
+ok   skills derivation equals harness _scope_line for standard KEEP with non-string task_family
+ok   skills derivation equals harness _scope_line for carried-forward KEEP
+ok   skills derivation equals harness _scope_line for carried-forward KEEP without subject_model
+ok   skills derivation equals harness _scope_line for carried-forward KEEP with non-string subject_model
+ok   the drift import of render.py lies under SKILL_HARNESS_ROOT
+ok   skills derivation equals harness _scope_line for standard KEEP with delivery_mechanism
+ok   skills derivation equals harness _scope_line for standard KEEP without delivery_mechanism
+ok   skills derivation equals harness _scope_line for standard KEEP without model_id
+ok   skills derivation equals harness _scope_line for standard KEEP without task_family
+ok   skills derivation equals harness _scope_line for standard KEEP without tested_at
+ok   skills derivation equals harness _scope_line for standard KEEP with non-string model_id
+ok   skills derivation equals harness _scope_line for standard KEEP with non-string task_family
+ok   skills derivation equals harness _scope_line for carried-forward KEEP
+ok   skills derivation equals harness _scope_line for carried-forward KEEP without subject_model
+ok   skills derivation equals harness _scope_line for carried-forward KEEP with non-string subject_model
+Drift-standard-word      case_scope_line_drift_vs_harness_render
+  SURVIVED/BASE-GREEN | mut=failures=[] notes=[] | base=failures=[] notes=[]
+
+ok   the drift import of render.py lies under SKILL_HARNESS_ROOT
+ok   skills derivation equals harness _scope_line for standard KEEP with delivery_mechanism
+ok   skills derivation equals harness _scope_line for standard KEEP without delivery_mechanism
+ok   skills derivation equals harness _scope_line for standard KEEP without model_id
+ok   skills derivation equals harness _scope_line for standard KEEP without task_family
+ok   skills derivation equals harness _scope_line for standard KEEP without tested_at
+ok   skills derivation equals harness _scope_line for standard KEEP with non-string model_id
+ok   skills derivation equals harness _scope_line for standard KEEP with non-string task_family
+FAIL skills derivation equals harness _scope_line for carried-forward KEEP: ours='demonstrated on claude-sonnet-5; carried forward to claude-sonnet-6 under the sentinel rule.; not re-validated on claude-sonnet-6.' harness='demonstrated on claude-sonnet-5; carried forward to claude-sonnet-6 under the sentinel rule; not re-validated on claude-sonnet-6.' html='<p class="scope-line">demonstrated on claude-sonnet-5; carried forward to claude-sonnet-6 under the sentinel rule; not re-validated on claude-sonnet-6.</p>'
+FAIL skills derivation equals harness _scope_line for carried-forward KEEP without subject_model: ours='demonstrated on claude-sonnet-5; carried forward to current model under the sentinel rule.; not re-validated on current model.' harness='demonstrated on claude-sonnet-5; carried forward to current model under the sentinel rule; not re-validated on current model.' html='<p class="scope-line">demonstrated on claude-sonnet-5; carried forward to current model under the sentinel rule; not re-validated on current model.</p>'
+FAIL skills derivation equals harness _scope_line for carried-forward KEEP with non-string subject_model: ours='demonstrated on claude-sonnet-5; carried forward to current model under the sentinel rule.; not re-validated on current model.' harness='demonstrated on claude-sonnet-5; carried forward to current model under the sentinel rule; not re-validated on current model.' html='<p class="scope-line">demonstrated on claude-sonnet-5; carried forward to current model under the sentinel rule; not re-validated on current model.</p>'
+ok   the drift import of render.py lies under SKILL_HARNESS_ROOT
+ok   skills derivation equals harness _scope_line for standard KEEP with delivery_mechanism
+ok   skills derivation equals harness _scope_line for standard KEEP without delivery_mechanism
+ok   skills derivation equals harness _scope_line for standard KEEP without model_id
+ok   skills derivation equals harness _scope_line for standard KEEP without task_family
+ok   skills derivation equals harness _scope_line for standard KEEP without tested_at
+ok   skills derivation equals harness _scope_line for standard KEEP with non-string model_id
+ok   skills derivation equals harness _scope_line for standard KEEP with non-string task_family
+ok   skills derivation equals harness _scope_line for carried-forward KEEP
+ok   skills derivation equals harness _scope_line for carried-forward KEEP without subject_model
+ok   skills derivation equals harness _scope_line for carried-forward KEEP with non-string subject_model
+Drift-carried-word       case_scope_line_drift_vs_harness_render
+  KILLED/BASE-GREEN | mut=failures=['skills derivation equals harness _scope_line for carried-forward KEEP', 'skills derivation equals harness _scope_line for carried-forward KEEP without subject_model', 'skills derivation equals harness _scope_line for carried-forward KEEP w | base=failures=[] notes=[]
+
+ok   the drift import of render.py lies under SKILL_HARNESS_ROOT
+ok   skills derivation equals harness _scope_line for standard KEEP with delivery_mechanism
+ok   skills derivation equals harness _scope_line for standard KEEP without delivery_mechanism
+ok   skills derivation equals harness _scope_line for standard KEEP without model_id
+FAIL skills derivation equals harness _scope_line for standard KEEP without task_family: ours='Shown here: effect on unknown family, claude-sonnet-5, hook-blocked, measured 2026-09-22T00:00:00Z. Not shown: other task families, models, environments, or real-world incidence.' harness='Shown here: effect on unknown task family, claude-sonnet-5, hook-blocked, measured 2026-09-22T00:00:00Z. Not shown: other task families, models, environments, or real-world incidence.' html='<p class="scope-line">Shown here: effect on unknown task family, claude-sonnet-5, hook-blocked, measured 2026-09-22T00:00:00Z. Not shown: other task families, models, environments, or real-world incidence.</p>'
+ok   skills derivation equals harness _scope_line for standard KEEP without tested_at
+ok   skills derivation equals harness _scope_line for standard KEEP with non-string model_id
+FAIL skills derivation equals harness _scope_line for standard KEEP with non-string task_family: ours='Shown here: effect on unknown family, claude-sonnet-5, hook-blocked, measured 2026-09-22T00:00:00Z. Not shown: other task families, models, environments, or real-world incidence.' harness='Shown here: effect on unknown task family, claude-sonnet-5, hook-blocked, measured 2026-09-22T00:00:00Z. Not shown: other task families, models, environments, or real-world incidence.' html='<p class="scope-line">Shown here: effect on unknown task family, claude-sonnet-5, hook-blocked, measured 2026-09-22T00:00:00Z. Not shown: other task families, models, environments, or real-world incidence.</p>'
+ok   skills derivation equals harness _scope_line for carried-forward KEEP
+ok   skills derivation equals harness _scope_line for carried-forward KEEP without subject_model
+ok   skills derivation equals harness _scope_line for carried-forward KEEP with non-string subject_model
+ok   the drift import of render.py lies under SKILL_HARNESS_ROOT
+ok   skills derivation equals harness _scope_line for standard KEEP with delivery_mechanism
+ok   skills derivation equals harness _scope_line for standard KEEP without delivery_mechanism
+ok   skills derivation equals harness _scope_line for standard KEEP without model_id
+ok   skills derivation equals harness _scope_line for standard KEEP without task_family
+ok   skills derivation equals harness _scope_line for standard KEEP without tested_at
+ok   skills derivation equals harness _scope_line for standard KEEP with non-string model_id
+ok   skills derivation equals harness _scope_line for standard KEEP with non-string task_family
+ok   skills derivation equals harness _scope_line for carried-forward KEEP
+ok   skills derivation equals harness _scope_line for carried-forward KEEP without subject_model
+ok   skills derivation equals harness _scope_line for carried-forward KEEP with non-string subject_model
+Drift-default-word       case_scope_line_drift_vs_harness_render
+  KILLED/BASE-GREEN | mut=failures=['skills derivation equals harness _scope_line for standard KEEP without task_family', 'skills derivation equals harness _scope_line for standard KEEP with non-string task_family'] notes=[] | base=failures=[] notes=[]
+
+N1  case_scope_line_drift_vs_harness_render
+  KILLED | present=True uses_file=True guard=True decoy_refused=True
+FAIL a card without the Evidence scope row is rejected: PASS: 1 published card(s), all carry SKILL.md, gotchas.md, EVIDENCE.md; every EVIDENCE.md states Occasions counted and Dispatches recorded and Re-screen trigger; every description is stated and within 200 characters; every SKILL.md is between 400 and 7168 bytes; every local link resolves with case matching; every reader-facing auxiliary reachable from SKILL.md; every SKILL.md carries a when-to-open pointer to gotchas.md
+
+FAIL the refusal names the card and the row
+Missing-row-card-files case_missing_evidence_scope_row_is_rejected
+  KILLED | failures=['a card without the Evidence scope row is rejected', 'the refusal names the card and the row']
+ok   the scoreboard validator still passes the live tree carrying Evidence scope
+ok   the scoreboard PASS line still derives the counts
+Scoreboard case_scoreboard_passes_a_card_carrying_evidence_scope
+  GREEN | failures=[]
+
+=== SUMMARY ===
+OK  M11                      KILLED/BASE-GREEN
+OK  M12                      KILLED/BASE-GREEN
+OK  M13                      KILLED/BASE-GREEN
+BAD M14                      SURVIVED/BASE-GREEN
+OK  M15                      KILLED/BASE-GREEN
+OK  M26                      KILLED/BASE-GREEN
+OK  M23                      KILLED/BASE-GREEN
+OK  M24                      KILLED/BASE-GREEN
+OK  R4                       KILLED/BASE-GREEN
+OK  Cant-tell-yet-sentence   KILLED/BASE-GREEN
+BAD Carried-beats-standard   SURVIVED/BASE-GREEN
+OK  No-receipt-no-harness    KILLED/BASE-GREEN
+OK  Keep-one-word-row        KILLED/BASE-GREEN
+BAD Drift-standard-word      SURVIVED/BASE-GREEN
+OK  Drift-carried-word       KILLED/BASE-GREEN
+OK  Drift-default-word       KILLED/BASE-GREEN
+OK  N1                       KILLED
+OK  Missing-row-card-files   KILLED
+OK  Scoreboard-row           GREEN
+
+FAILED: M14, Carried-beats-standard, Drift-standard-word
