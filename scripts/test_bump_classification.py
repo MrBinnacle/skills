@@ -20,7 +20,10 @@ read at the merge-base, because `changeset version` deletes them at HEAD.
 
 When git is absent from PATH, G10 catches GitUnavailableError and refuses in
 its own words when a declared bump is pending on disk (#347 / B1). Without a
-pending bump G10 is silent; the other git-dependent checks still refuse.
+pending bump G10 is silent; the other git-dependent checks still refuse. A
+pending changeset whose frontmatter line cannot be parsed is refused on that
+line even with git absent (R6-2): the unreadable line cannot be *checked*
+against the branch diff without git, but it is still refused -- not skipped.
 
 Each control plants one shape of the defect into a temporary git tree and runs
 the SHIPPED gate as a subprocess -- never module internals -- and requires the
@@ -37,7 +40,13 @@ cannot parse. A named control per unparseable form kills the mutant that
 restores the skip. Two forms ship: a `!!str`-tagged bump value and an unquoted
 multi-word bump value. Either form used to parse to `{}`, so G10 had nothing to
 classify and the gate stayed green over a changeset whose declared bump was
-unreadable -- the root cause behind the R5-1 regex fix.
+unreadable -- the root cause behind the R5-1 regex fix. The same refusal must
+reach the release path (a consumed plan holding `!!str major`) and the
+git-absent path (R6-1, R6-2): a skip mutant that survives only because every
+R5-2 control plants the unreadable line in a branch-added changeset is not
+killed. R6-3 pins the parser's other skip -- full-line `#` comments and blank
+lines in frontmatter are not bump declarations -- with a correctly classified
+changeset that must stay silent.
 
 Run: python scripts/test_bump_classification.py
 """
@@ -147,6 +156,23 @@ def changeset_md(level: str | None) -> str:
     return f'---\n"mrbinnacle-skills": {level}\n---\n\nA described change.\n'
 
 
+def changeset_md_commented(level: str) -> str:
+    """A correctly declared bump whose frontmatter carries noise R6-3 pins.
+
+    A full-line `#` comment and a blank line sit above the bump line. Neither
+    is a bump declaration; `changeset_declared_bumps` must skip both and still
+    read the patch (or whatever) value below them.
+    """
+    return (
+        "---\n"
+        "# a full-line comment that is not a bump declaration\n"
+        "\n"
+        f'"mrbinnacle-skills": {level}\n'
+        "---\n\n"
+        "A described change.\n"
+    )
+
+
 def skill_card(root: Path, name: str) -> Path:
     folder = root / "skills" / SKILLS_BUCKET / name
     write(
@@ -218,6 +244,7 @@ def make_tree(
     head_version: str | None = None,
     release: bool = False,
     consumed: str | list[str] | None = None,
+    changeset_text: str | None = None,
 ) -> Path:
     """A git tree whose branch diff and pending changeset the gate can classify.
 
@@ -320,7 +347,10 @@ def make_tree(
         manifest_lockstep(root, cards_after_change(), base_version)
 
     if not release:
-        write(root / ".changeset" / "zzz-classify.md", changeset_md(declared))
+        if changeset_text is not None:
+            write(root / ".changeset" / "zzz-classify.md", changeset_text)
+        else:
+            write(root / ".changeset" / "zzz-classify.md", changeset_md(declared))
     else:
         # Consumed plan: no pending files at HEAD, so G3 stays silent and G10
         # case 4 alone answers whether the version delta matches the plan the
@@ -767,7 +797,7 @@ def case_case4_minor_plan_resets_patch_field(tmp: Path) -> None:
     """R4-F3: a minor plan must reset the patch field.
 
     Base 1.2.1 with a consumed minor plan: ``changeset version`` writes
-    1.3.0, not 1.3.1. The minor-reset mutant at release_gate.py:1065
+    1.3.0, not 1.3.1. The minor-reset mutant at release_gate.py:1090
     returns 1.3.1 (patch left unreset); the pass half dies on that mutant,
     and the refusal half names it by requiring 1.3.0 when 1.3.1 is written.
     Existing case-4 controls use bases whose patch field is already 0
@@ -784,7 +814,7 @@ def case_case4_minor_plan_resets_patch_field(tmp: Path) -> None:
     )
     expect_pass(
         "R4-F3: minor plan over base 1.2.1 produces 1.3.0 "
-        "(kills minor-reset mutant at release_gate.py:1065)",
+        "(kills minor-reset mutant at release_gate.py:1090)",
         correct,
         "--release",
     )
@@ -799,7 +829,7 @@ def case_case4_minor_plan_resets_patch_field(tmp: Path) -> None:
     )
     expect_g10_refusal(
         "R4-F3: minor plan over base 1.2.1 refuses unreset 1.3.1 "
-        "(kills minor-reset mutant at release_gate.py:1065)",
+        "(kills minor-reset mutant at release_gate.py:1090)",
         unreset,
         "G10:",
         "1.2.1",
@@ -815,7 +845,7 @@ def case_case4_major_plan_resets_minor_and_patch(tmp: Path) -> None:
 
     Base 2.1.1 with a consumed major plan: ``changeset version`` writes
     3.0.0, not 3.1.1 (nothing reset) and not 3.0.1 (patch left unreset).
-    The major-reset mutant at release_gate.py:1063 returns 3.1.1; a
+    The major-reset mutant at release_gate.py:1088 returns 3.1.1; a
     mutant that resets minor but not patch returns 3.0.1. Existing
     case-4 major controls use base 2.0.0, whose minor and patch fields are
     already 0, so they cannot see either defect.
@@ -831,7 +861,7 @@ def case_case4_major_plan_resets_minor_and_patch(tmp: Path) -> None:
     )
     expect_pass(
         "R4-F3: major plan over base 2.1.1 produces 3.0.0 "
-        "(kills major-reset mutant at release_gate.py:1063)",
+        "(kills major-reset mutant at release_gate.py:1088)",
         correct,
         "--release",
     )
@@ -846,7 +876,7 @@ def case_case4_major_plan_resets_minor_and_patch(tmp: Path) -> None:
     )
     expect_g10_refusal(
         "R4-F3: major plan over base 2.1.1 refuses unreset 3.1.1 "
-        "(kills major-reset mutant at release_gate.py:1063)",
+        "(kills major-reset mutant at release_gate.py:1088)",
         unreset_both,
         "G10:",
         "2.1.1",
@@ -866,7 +896,7 @@ def case_case4_major_plan_resets_minor_and_patch(tmp: Path) -> None:
     )
     expect_g10_refusal(
         "R4-F3: major plan over base 2.1.1 refuses unreset 3.0.1 "
-        "(kills major-reset mutant at release_gate.py:1063)",
+        "(kills major-reset mutant at release_gate.py:1088)",
         unreset_patch,
         "G10:",
         "2.1.1",
@@ -874,6 +904,111 @@ def case_case4_major_plan_resets_minor_and_patch(tmp: Path) -> None:
         "3.0.0",
         "major",
         release=True,
+    )
+
+
+def case_case4_consumed_unparseable_plan_is_refused(tmp: Path) -> None:
+    """R6-1: a release whose consumed plan holds an unparseable bump is refused.
+
+    The plan at the base commit carries ``!!str major``. Without the
+    consumed-plan refusal the release at 2.0.1 passes G10 over that line --
+    the R5-2 bypass on the release path. M4 deletes the refusal in
+    ``_consumed_declared_bumps``; M4b deletes ``if consumed_unparseable:
+    return`` (which would add a second G10 fault on the version delta).
+    Both mutants die on this control's name: single-reason, naming the file
+    and the line.
+    """
+    root = make_tree(
+        tmp,
+        declared=None,
+        branch_change="none",
+        base_version="2.0.0",
+        head_version="2.0.1",
+        release=True,
+        consumed="!!str major",
+    )
+    result = run_gate("--release", "--root", str(root))
+    output = result.stdout + result.stderr
+    check(
+        "R6-1: a consumed !!str bump plan is refused under G10",
+        result.returncode != 0 and "G10:" in output,
+        output,
+    )
+    check(
+        "R6-1: the refusal names the changeset file and the !!str line",
+        "zzz-consumed-0.md" in output and "!!str major" in output,
+        output,
+    )
+    check(
+        "R6-1: the refusal is single-reason",
+        "1 stale surface(s)" in output and output.count("G10:") == 1,
+        output,
+    )
+
+
+def case_g10_refuses_unparseable_when_git_absent(tmp: Path) -> None:
+    """R6-2: with git absent, an unparseable pending line is still refused.
+
+    The only pending changeset carries ``!!str major``. Deleting the
+    git-absent ``if unparseable:`` branch in ``gate_bump_classification``
+    (M5) makes G10 silent: neither ``unparseable`` nor ``pending`` is
+    non-empty after a skip, so the refusal never fires. The control also
+    pins R6-4: the message must not claim the unreadable line "cannot be
+    refused" -- the gate does refuse it; git's absence only prevents
+    checking it against the branch diff.
+    """
+    root = make_tree(tmp, declared="!!str major", branch_change="scripts_only")
+    empty = tmp / "empty-path-unparseable"
+    empty.mkdir()
+    env = {"PYTHONUTF8": "1", "PATH": str(empty)}
+    result = run_gate_env(env, "--root", str(root))
+    output = result.stdout + result.stderr
+    check(
+        "R6-2: G10 with git absent and an unparseable pending line exits non-zero",
+        result.returncode != 0,
+        output,
+    )
+    check(
+        "R6-2: the refusal names G10",
+        "G10:" in output,
+        output,
+    )
+    check(
+        "R6-2: the refusal names the unparseable changeset and line",
+        "zzz-classify.md" in output and "!!str major" in output,
+        output,
+    )
+    check(
+        "R6-2: the message does not claim the unreadable line cannot be refused",
+        "cannot be refused" not in output,
+        output,
+    )
+    check(
+        "R6-2: no traceback reaches the reader",
+        "Traceback" not in output,
+        output,
+    )
+
+
+def case_frontmatter_comment_and_blank_line_passes(tmp: Path) -> None:
+    """R6-3: blank lines and full-line comments in frontmatter are not bumps.
+
+    The changeset declares patch for a scripts-only change -- correctly
+    classified -- and its frontmatter carries a full-line ``#`` comment and
+    a blank line above the bump. Deleting the ``if not stripped or
+    stripped.startswith("#"): continue`` skip in ``changeset_declared_bumps``
+    (M2) makes the parser raise on those lines, so G10 refuses a correctly
+    classified changeset and this control goes red.
+    """
+    root = make_tree(
+        tmp,
+        declared="patch",
+        branch_change="scripts_only",
+        changeset_text=changeset_md_commented("patch"),
+    )
+    expect_pass(
+        "R6-3: a frontmatter with a full-line comment and a blank line stays silent",
+        root,
     )
 
 
@@ -1336,6 +1471,9 @@ CASES = (
     case_case4_unchanged_version_with_no_consumed_plan_passes,
     case_case4_minor_plan_resets_patch_field,
     case_case4_major_plan_resets_minor_and_patch,
+    case_case4_consumed_unparseable_plan_is_refused,
+    case_g10_refuses_unparseable_when_git_absent,
+    case_frontmatter_comment_and_blank_line_passes,
     case_b2a_push_to_main_after_admission_passes,
     case_b2b_next_scripts_only_pr_passes,
     case_b2c_replay_push_to_main_at_316_passes,
@@ -1368,11 +1506,14 @@ def main() -> int:
         "by G10, the inversion is pinned, cases 1-3 judge only branch-added "
         "changesets, case 4 prices the consumed plan and the SemVer reset "
         "fields (R4-F3: minor over 1.2.1 -> 1.3.0, major over 2.1.1 -> 3.0.0), "
-        "the ADR text on disk drives classification, G10 refuses in its own "
-        "words when git is absent and a declared bump is pending, an unchanged "
-        "version at explicit --release stays silent when no plan was consumed, "
-        "and the CI poison controls carry the inversion, cases 1-4, B2(a-c), "
-        "B3, and the R5-2 unparseable-bump refusals"
+        "an unparseable consumed plan and an unparseable git-absent pending "
+        "line are both refused under G10 (R6-1, R6-2), a frontmatter with a "
+        "full-line comment and a blank line stays silent (R6-3), the ADR text "
+        "on disk drives classification, G10 refuses in its own words when git "
+        "is absent and a declared bump is pending, an unchanged version at "
+        "explicit --release stays silent when no plan was consumed, and the "
+        "CI poison controls carry the inversion, cases 1-4, B2(a-c), B3, and "
+        "the R5-2 unparseable-bump refusals"
     )
     return 0
 

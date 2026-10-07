@@ -1296,9 +1296,14 @@ def gate_bump_classification(
     except GitUnavailableError as exc:
         pending, unparseable = _disk_declared_bumps(root)
         if unparseable:
+            # R6-4: the gate DOES refuse an unparseable line under G10. What
+            # git's absence prevents is checking that line against the branch
+            # diff -- not refusing it. An earlier message said "cannot be
+            # refused", which described the opposite of what this branch does.
             errors.append(
                 "G10: git could not be run - a frontmatter line that cannot be "
-                f"parsed as a bump declaration cannot be refused: {'; '.join(unparseable)}"
+                f"parsed as a bump declaration cannot be checked against the "
+                f"branch diff: {'; '.join(unparseable)}"
             )
         elif pending:
             names = ", ".join(sorted(pending))
