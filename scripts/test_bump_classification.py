@@ -13,10 +13,12 @@ set is outside the declared surface. A changeset declares its own bump type and
 nothing used to check that declaration against the diff. A wrong bump spends the
 wrong version number permanently (ADR 0002), so the gate must block.
 
-Cases 1-3 judge only the changesets THIS BRANCH adds (new .changeset/*.md in
-merge-base..HEAD), never every pending file on disk. Case 4, at release,
-compares the version delta against the changesets the release CONSUMES --
-read at the merge-base, because `changeset version` deletes them at HEAD.
+Cases 1-3 judge only the changesets THIS BRANCH adds or changes in
+merge-base..HEAD, never an unchanged pending file on disk. Their highest
+declaration is the version price changesets will apply to the branch. Case 4,
+at release, compares the version delta against the changesets the release
+CONSUMES -- read at the merge-base, because `changeset version` deletes them
+at HEAD.
 
 When git is absent from PATH, G10 catches GitUnavailableError and refuses in
 its own words when a declared bump is pending on disk (#347 / B1). Without a
@@ -268,9 +270,9 @@ def make_tree(
     `changeset version` consumes them. G3 stays silent because HEAD holds no
     pending file.
 
-    Cases 1-3 see only changesets this branch ADDS (written on the candidate
-    after the base commit). A consumed plan is planted BEFORE the base commit
-    so the release diff carries the deletions.
+    Cases 1-3 see only changesets this branch adds or changes after the base
+    commit. A consumed plan is planted BEFORE the base commit so the release
+    diff carries the deletions.
     """
     root = tmp / "repo"
     head = head_version or (None if not release else "1.3.0")
@@ -434,6 +436,60 @@ def case_positive_add_minor_passes(tmp: Path) -> None:
     """Admitting a card is minor under ADR 0003; minor must pass."""
     root = make_tree(tmp, declared="minor", branch_change="add_card")
     expect_pass("a card admission declared minor PASSES", root)
+
+
+def case_multiple_changesets_use_the_highest_branch_bump(tmp: Path) -> None:
+    """A patch changeset must not be judged as the branch's card admission.
+
+    Changesets applies the highest declaration across the branch. This fixture
+    adds a card with a minor changeset and independently corrects the old card
+    with a patch changeset. The resulting minor price is correct; rejecting the
+    patch file against the whole branch diff would block valid work.
+    """
+    root = make_tree(tmp, declared="minor", branch_change="add_card")
+    write(
+        root / "skills" / SKILLS_BUCKET / "old-card" / "gotchas.md",
+        "# gotchas\n\nA card correction.\n",
+    )
+    write(root / ".changeset" / "zzz-correction.md", changeset_md("patch"))
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "card correction")
+    expect_pass(
+        "a minor admission plus an independent patch changeset PASSES",
+        root,
+    )
+
+
+def case_surface_change_without_a_declared_bump_is_refused(tmp: Path) -> None:
+    """A card change cannot use an empty changeset to evade its price."""
+    root = make_tree(tmp, declared=None, branch_change="add_card")
+    expect_g10_refusal(
+        "a card admission with no declared bump is refused",
+        root,
+        "G10:",
+        "declares no bump",
+        "minor",
+    )
+
+
+def case_modified_pending_changeset_supplies_the_branch_bump(tmp: Path) -> None:
+    """A branch may correct a pending changeset it inherited from main."""
+    root = tmp / "repo"
+    init_base_repo(root)
+    write(root / ".changeset" / "zzz-pending.md", changeset_md("patch"))
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "pending patch")
+    set_origin_main(root)
+    git(root, "checkout", "-q", "-b", "candidate")
+    skill_card(root, "new-card")
+    manifest_lockstep(root, ["old-card", "new-card"], BASE_VERSION)
+    write(root / ".changeset" / "zzz-pending.md", changeset_md("minor"))
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "correct pending bump")
+    expect_pass(
+        "a modified pending changeset supplies this branch's minor bump",
+        root,
+    )
 
 
 def case_case1_rename_declared_patch_is_refused(tmp: Path) -> None:
@@ -1041,7 +1097,7 @@ def case_b2b_next_scripts_only_pr_passes(tmp: Path) -> None:
 
     main still holds the admission's pending minor changeset. The new PR adds
     only a scripts file and a patch changeset. Cases 1-3 must judge the
-    branch-added patch file, not main's leftover minor -- otherwise every
+    branch patch file, not main's leftover minor -- otherwise every
     ordinary PR after an admission goes red."""
     root = tmp / "repo"
     init_base_repo(root)
@@ -1184,6 +1240,17 @@ def case_missing_ard_fails_closed_when_classification_needed(tmp: Path) -> None:
         result.returncode != 0 and "G10:" in output and "ADR" in output,
         output,
     )
+
+
+def case_missing_adr_is_irrelevant_without_a_classification(tmp: Path) -> None:
+    """An unrelated scripts-only branch does not need a surface price."""
+    root = make_tree(
+        tmp,
+        declared=None,
+        branch_change="scripts_only",
+        adr="missing",
+    )
+    expect_pass("a missing ADR is silent when no bump needs classification", root)
 
 
 def case_empty_changeset_is_not_a_classification_fault(tmp: Path) -> None:
@@ -1419,8 +1486,8 @@ def case_g10_refuses_in_its_own_words_when_git_is_absent(tmp: Path) -> None:
 def case_g10_is_silent_when_git_absent_and_no_declared_bump(tmp: Path) -> None:
     """With no pending declared bump on disk, G10 has nothing to refuse.
 
-    Cases 1-3 judge only branch-added changesets that declare a bump. An empty
-    changeset tree with git absent must not invent a G10 fault; G9 and the
+    Cases 1-3 judge only changed branch changesets that declare a bump. An
+    empty changeset tree with git absent must not invent a G10 fault; G9 and the
     other git-dependent checks still refuse, under their own IDs.
     """
     root = make_tree(tmp, declared=None, branch_change="none")
@@ -1450,6 +1517,9 @@ CASES = (
     case_positive_correct_classification_is_silent,
     case_positive_rename_major_passes,
     case_positive_add_minor_passes,
+    case_multiple_changesets_use_the_highest_branch_bump,
+    case_surface_change_without_a_declared_bump_is_refused,
+    case_modified_pending_changeset_supplies_the_branch_bump,
     case_case1_rename_declared_patch_is_refused,
     case_case1_rename_declared_minor_is_refused,
     case_case2_add_declared_patch_is_refused,
@@ -1481,6 +1551,7 @@ CASES = (
     case_b3_v300_shaped_release_minor_delta_refused,
     case_ard_text_is_read_not_hardcoded,
     case_missing_ard_fails_closed_when_classification_needed,
+    case_missing_adr_is_irrelevant_without_a_classification,
     case_empty_changeset_is_not_a_classification_fault,
     case_live_tree_gate_stays_green,
     case_g10_refuses_in_its_own_words_when_git_is_absent,
@@ -1503,7 +1574,7 @@ def main() -> int:
         return 1
     print(
         f"\nPASS: {len(CASES)} controls verified; each planted defect is refused "
-        "by G10, the inversion is pinned, cases 1-3 judge only branch-added "
+        "by G10, the inversion is pinned, cases 1-3 judge only branch "
         "changesets, case 4 prices the consumed plan and the SemVer reset "
         "fields (R4-F3: minor over 1.2.1 -> 1.3.0, major over 2.1.1 -> 3.0.0), "
         "an unparseable consumed plan and an unparseable git-absent pending "

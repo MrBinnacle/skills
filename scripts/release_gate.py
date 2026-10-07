@@ -95,12 +95,12 @@ Checks (all must pass; failures are listed, not first-fail):
       prices corrections within a card as a patch and keeps the card set
       outside the surface. Cases, each a listed failure:
 
-        1. A branch-added changeset whose diff renames a card directory under
+        1. A branch's declarations whose diff renames a card directory under
            ``skills/*/*/`` and declares anything less than the rename price
            (major).
-        2. A branch-added changeset whose diff adds or removes a directory
+        2. A branch's declarations whose diff adds or removes a directory
            under ``skills/*/*/`` and declares the patch price.
-        3. A branch-added changeset whose diff touches no file under
+        3. A branch's declarations whose diff touches no file under
            ``skills/*/*/`` and declares minor or major -- nothing outside the
            cards changes the declared surface.
         4. (--release only) A release version that differs from the exact
@@ -113,10 +113,10 @@ Checks (all must pass; failures are listed, not first-fail):
            spends a version number
            permanently (ADR 0002), so this blocks rather than reports.
 
-      Cases 1-3 judge only the changesets THIS BRANCH adds -- new
-      ``.changeset/*.md`` in ``merge-base..HEAD`` -- never every pending file
-      on disk. Pending changesets that main already holds were classified when
-      their own branch ran this gate; a later PR must not be refused for them.
+      Cases 1-3 judge only the changesets THIS BRANCH adds or changes in
+      ``merge-base..HEAD`` -- never an unchanged pending file on disk. Pending
+      changesets that main already holds were classified when their own branch
+      ran this gate; a later PR must not be refused for them.
 
       A rename and an addition in one changeset resolve to major: the higher
       classification governs a changeset that contains both. A frontmatter
@@ -125,8 +125,8 @@ Checks (all must pass; failures are listed, not first-fail):
       any other YAML form the regex misses makes G10 report the changeset and
       the line, single-reason. Classification is
       skipped only when the tree publishes no card (vacuous surface), when no
-      branch-added changeset declares a bump, or when the git diff cannot be
-      established -- the house pattern G5 and G6 already use. When
+      card path or changeset declaration changed, or when the git diff cannot
+      be established -- the house pattern G5 and G6 already use. When
       classification is needed and an ADR cannot be read or parsed, the run
       fails closed: an input this gate cannot trust is a listed failure, never
       a skip and never a pass. When git itself cannot run, G10 refuses in its
@@ -1112,15 +1112,42 @@ def _changeset_names_at(root: Path, rev: str) -> set[str]:
     return names
 
 
-def _branch_added_changeset_names(root: Path, merge_base: str) -> list[str]:
-    """Changeset files THIS branch adds: present at HEAD, absent at merge_base.
+def _branch_changeset_names(root: Path, merge_base: str) -> list[str]:
+    """Changeset files this branch adds or changes.
 
-    Cases 1-3 classify only these. A changeset main already held was
-    classified when its own branch ran the gate; judging it again here would
-    refuse a later scripts-only PR for an admission that already merged.
+    An unchanged pending file on main belongs to the work that introduced it
+    and must not be re-judged. A branch can, however, correct or replace its
+    own declaration by modifying an existing pending file, so added and
+    modified files both supply this branch's effective bump.
     """
-    added = _changeset_names_at(root, "HEAD") - _changeset_names_at(root, merge_base)
-    return sorted(added)
+    ok, output = _git_ok(
+        root,
+        [
+            "diff",
+            "--name-status",
+            "--diff-filter=AMR",
+            merge_base,
+            "HEAD",
+            "--",
+            f"{CHANGESET_DIR_REL}/",
+        ],
+    )
+    if not ok:
+        return []
+    names: set[str] = set()
+    for line in output.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        path = parts[-1]
+        name = Path(path).name
+        if (
+            path.startswith(f"{CHANGESET_DIR_REL}/")
+            and name != CHANGESET_README
+            and name.endswith(".md")
+        ):
+            names.add(name)
+    return sorted(names)
 
 
 def _consumed_changeset_names(root: Path, merge_base: str) -> list[str]:
@@ -1177,9 +1204,9 @@ def _read_declared_bumps(path: Path, errors: list[str]) -> dict[str, str]:
 def _branch_declared_bumps(
     root: Path, merge_base: str, errors: list[str]
 ) -> dict[str, str]:
-    """filename -> highest declared bump among branch-added changeset packages."""
+    """filename -> highest declared bump among this branch's changesets."""
     bumps: dict[str, str] = {}
-    for name in _branch_added_changeset_names(root, merge_base):
+    for name in _branch_changeset_names(root, merge_base):
         declared = _read_declared_bumps(root / CHANGESET_DIR_REL / name, errors)
         highest = _bumps_from_declared(declared, name, errors)
         if highest is not None:
@@ -1269,18 +1296,19 @@ def gate_bump_classification(
     release_mode: bool,
     declared_version: str | None,
 ) -> None:
-    """G10: every branch-added changeset's declared bump must match its diff.
+    """G10: this branch's declared bump must match its surface diff.
 
-    Cases 1-3 classify only the changesets this branch adds (new
-    ``.changeset/*.md`` in merge-base..HEAD), never every pending file on
-    disk. Case 4, in release mode, compares the version delta against the
-    changesets the release CONSUMED -- read at the merge-base, because
-    ``changeset version`` deletes them at HEAD.
+    Cases 1-3 classify only changesets this branch adds or changes, never an
+    unchanged pending file on disk. Their highest declaration is the version
+    price changesets will apply to the branch. Case 4, in release mode,
+    compares the version delta against the changesets the release CONSUMED --
+    read at the merge-base, because ``changeset version`` deletes them at HEAD.
 
     Skip reasons follow the house pattern (G5 vacuum, G6 non-git): when the
-    tree publishes no card, no branch-added changeset declares a bump, or the
-    git diff cannot be established, there is nothing to classify. When
-    classification IS needed and an ADR cannot be read, this fails closed.
+    tree publishes no card, no card path or changeset declaration changed, or
+    the git diff cannot be established, there is nothing to classify. A card
+    surface change with no branch declaration is refused. When classification
+    IS needed and an ADR cannot be read, this fails closed.
     When a frontmatter line cannot be parsed as a bump declaration, this
     refuses under G10 naming the file and the line, never skipping the line
     (R5-2). When git itself cannot run, this refuses under G10 in its own words
@@ -1338,71 +1366,87 @@ def _gate_bump_classification_inner(
                 merge_base = mb.strip()
 
     publishes_cards = False
+    branch_changesets: list[str] = []
     branch_bumps: dict[str, str] = {}
+    branch_bump_errors = 0
     if merge_base is not None:
         # Base OR head: a change that retires the last card still reaches the
         # declared surface, and skipping on an empty HEAD would let it through.
         publishes_cards = bool(
             _list_card_dirs(root, "HEAD") or _list_card_dirs(root, merge_base)
         )
+        branch_changesets = _branch_changeset_names(root, merge_base)
+        before = len(errors)
         branch_bumps = _branch_declared_bumps(root, merge_base, errors)
+        branch_bump_errors = len(errors) - before
 
     # What must be classified right now?
-    need_changesets = bool(branch_bumps) and merge_base is not None and publishes_cards
     need_delta = (
         release_mode
         and declared_version is not None
         and merge_base is not None
         and publishes_cards
     )
-    if not need_changesets and not need_delta:
+    if merge_base is None or not publishes_cards:
         return
 
-    prices = _load_prices_or_refuse(root, errors)
-    if prices is None:
-        return
-    assert merge_base is not None
     try:
         diff = classify_surface_diff(root, merge_base)
     except ValueError as exc:
         errors.append(f"G10: {exc}")
         return
-    required = required_price_for_diff(diff, prices)
+    need_branch_classification = (
+        (diff["touched"] or branch_bumps) and not branch_bump_errors
+    )
+    if not need_branch_classification and not need_delta:
+        return
 
-    if need_changesets:
-        for filename, declared in sorted(branch_bumps.items()):
+    if need_branch_classification:
+        prices = _load_prices_or_refuse(root, errors)
+        if prices is None:
+            return
+        required = required_price_for_diff(diff, prices)
+
+        if diff["touched"] and not branch_bumps:
+            subject = ", ".join(branch_changesets) if branch_changesets else "this branch"
+            errors.append(
+                f"G10: {subject} changes the declared surface but declares no bump; "
+                f"the diff requires at least {required} under the ADR prices: {diff['detail']}"
+            )
+        elif branch_bumps:
+            declared = _highest_bump(branch_bumps)
+            assert declared is not None
+            names = ", ".join(sorted(branch_bumps))
             if not diff["touched"]:
                 # Case 3: nothing under skills/*/*/, so the declared surface is
                 # untouched. Only the patch price (or an empty plan) may stand.
                 if _rank(declared) > _rank(prices["patch"]):
                     errors.append(
-                        f"G10: {filename} declares {declared}, but the change touches "
-                        f"no file under skills/*/*/, so it cannot change the declared "
-                        f"surface (ADR 0002 prices work that reaches no card as "
-                        f"{prices['patch']})"
+                        f"G10: {names} declare {declared}, but the change touches no "
+                        f"file under skills/*/*/, so it cannot change the declared surface "
+                        f"(ADR 0002 prices work that reaches no card as {prices['patch']})"
                     )
-                continue
-            assert required is not None
-            if _rank(declared) < _rank(required):
-                if diff["rename"]:
-                    errors.append(
-                        f"G10: {filename} declares {declared}, but the diff renames a "
-                        f"card directory under skills/*/*/, which "
-                        f"{ADR_0003_REL.as_posix()} prices as {prices['rename']}: "
-                        f"{diff['detail']}"
-                    )
-                elif diff["admit_or_retire"]:
-                    errors.append(
-                        f"G10: {filename} declares {declared}, but the diff adds or "
-                        f"retires a card directory under skills/*/*/, which "
-                        f"{ADR_0003_REL.as_posix()} prices as "
-                        f"{prices['admit_retire']}: {diff['detail']}"
-                    )
-                else:
-                    errors.append(
-                        f"G10: {filename} declares {declared}, but the diff requires "
-                        f"at least {required} under the ADR prices: {diff['detail']}"
-                    )
+            else:
+                assert required is not None
+                if _rank(declared) < _rank(required):
+                    if diff["rename"]:
+                        errors.append(
+                            f"G10: {names} declare {declared}, but the diff renames a card "
+                            f"directory under skills/*/*/, which {ADR_0003_REL.as_posix()} "
+                            f"prices as {prices['rename']}: {diff['detail']}"
+                        )
+                    elif diff["admit_or_retire"]:
+                        errors.append(
+                            f"G10: {names} declare {declared}, but the diff adds or retires "
+                            f"a card directory under skills/*/*/, which "
+                            f"{ADR_0003_REL.as_posix()} prices as "
+                            f"{prices['admit_retire']}: {diff['detail']}"
+                        )
+                    else:
+                        errors.append(
+                            f"G10: {names} declare {declared}, but the diff requires at "
+                            f"least {required} under the ADR prices: {diff['detail']}"
+                        )
 
     if need_delta:
         base_version = _base_version_at(root, merge_base)
@@ -1711,7 +1755,7 @@ def main(argv: list[str] | None = None) -> int:
         gate_workflow_pins(root, errors)
         gate_tag_normal_form(root, errors, declared)
         gate_clean_tree(root, errors)
-    # G10 runs in both modes: cases 1-3 classify branch-added changesets
+    # G10 runs in both modes: cases 1-3 classify branch changesets
     # against the surface diff on every run; case 4 prices the version delta
     # against the changesets the release consumes.
     gate_bump_classification(
