@@ -31,6 +31,10 @@ scripts/vendor/** text eol=lf
 assets/*.svg text eol=lf
 assets/*.png binary
 
+# docs/agents/domain.md is compared byte-for-byte to an inlined template fixture;
+# pin eol=lf so a Windows CRLF checkout cannot fail that exact-bytes test.
+docs/agents/domain.md text eol=lf
+
 # WHY THIS FILE DOES NOT PIN THE WHOLE REPOSITORY, THOUGH IT SHOULD EVENTUALLY.
 #
 # Ten tracked files currently hold CRLF in the index:

@@ -40,6 +40,11 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 GATE = SCRIPT_DIR / "validate_voice_provenance.py"
 REPO_ROOT = SCRIPT_DIR.parent
 
+# The shipped surface list under test. Imported so the live-tree cases assert
+# against the same frozenset the gate uses, not a copy of its spelling.
+sys.path.insert(0, str(SCRIPT_DIR))
+import validate_voice_provenance as vp  # noqa: E402
+
 FAILURES: list[str] = []
 
 # A recorded line carrying the roughness the record exists to preserve: a double
@@ -431,6 +436,191 @@ def case_deleted_block_specimens_are_gone() -> None:
         check(f"{label} is gone from BRAND.md", fragment not in body, "still present")
 
 
+# ---------------------------------------------------------------------------
+# #349: CONTEXT.md -> GLOSSARY.md (Pocock v1.3.1 reads GLOSSARY.md)
+# ---------------------------------------------------------------------------
+
+
+def _listed_surface_exists(name: str) -> bool:
+    """A listed shipped surface exists at the repo root or anywhere under it.
+
+    Root files are the common case. EVIDENCE.md is a per-card filename that
+    ships inside skills/, not at the root, so the fallback glob is required
+    for the list to stay honest without special-casing that one entry.
+    """
+    if (REPO_ROOT / name).is_file():
+        return True
+    return any(p.is_file() for p in REPO_ROOT.rglob(name))
+
+
+def case_glossary_renamed_from_context() -> None:
+    """Criterion 1: GLOSSARY.md ships; CONTEXT.md does not; title updated."""
+    glossary = REPO_ROOT / "GLOSSARY.md"
+    context = REPO_ROOT / "CONTEXT.md"
+    check("GLOSSARY.md exists at the repo root", glossary.is_file())
+    check("CONTEXT.md is gone from the repo root", not context.exists())
+    if glossary.is_file():
+        first = glossary.read_text(encoding="utf-8").split("\n", 1)[0]
+        check(
+            "GLOSSARY.md title line names the glossary",
+            first.startswith("# ") and ("Glossary" in first or "GLOSSARY" in first),
+            first,
+        )
+
+
+# v1.3.1 domain.md template, inlined verbatim as a test fixture.
+# Source: github.com/mattpocock/skills at tag v1.3.1,
+# skills/engineering/setup-matt-pocock-skills/domain.md.
+# This repository's base file was the v1.2.3 template and added nothing on
+# top of it, so the comparison below is exact equality, not a subset check.
+V131_DOMAIN_TEMPLATE = """# Domain Docs
+
+How the engineering skills should consume this repo's domain documentation when exploring the codebase.
+
+## Before exploring, read these
+
+- **`GLOSSARY.md`** at the repo root, or
+- **`GLOSSARY-MAP.md`** at the repo root if it exists: it points at one `GLOSSARY.md` per context. Read each one relevant to the topic.
+- **`docs/adr/`**: read ADRs that touch the area you're about to work in. In multi-context repos, also check `src/<context>/docs/adr/` for context-scoped decisions.
+
+If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
+
+## File structure
+
+Single-context repo (most repos):
+
+```
+/
+├── GLOSSARY.md
+├── docs/adr/
+│   ├── 0001-event-sourced-orders.md
+│   └── 0002-postgres-for-write-model.md
+└── src/
+```
+
+Multi-context repo (presence of `GLOSSARY-MAP.md` at the root):
+
+```
+/
+├── GLOSSARY-MAP.md
+├── docs/adr/                          ← system-wide decisions
+└── src/
+    ├── ordering/
+    │   ├── GLOSSARY.md
+    │   └── docs/adr/                  ← context-specific decisions
+    └── billing/
+        ├── GLOSSARY.md
+        └── docs/adr/
+```
+
+## Use the glossary's vocabulary
+
+When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `GLOSSARY.md`. Don't drift to synonyms the glossary explicitly avoids.
+
+If the concept you need isn't in the glossary yet, that's a signal: either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
+
+## Flag ADR conflicts
+
+If your output contradicts an existing ADR, surface it explicitly rather than silently overriding:
+
+> _Contradicts ADR-0007 (event-sourced orders), but worth reopening because…_
+"""
+
+
+def case_domain_md_is_v131_template() -> None:
+    """Criterion 2: docs/agents/domain.md is byte-identical to the v1.3.1 template.
+
+    The fixture V131_DOMAIN_TEMPLATE is the upstream template inlined verbatim.
+    This repository's base file was the v1.2.3 template and added nothing on
+    top of it, so nothing is kept and the check is exact equality. A substring
+    check would pass on a v1.2.3-shaped file that merely renamed CONTEXT.md to
+    GLOSSARY.md while keeping the old CONTEXT-MAP.md name and v1.2.3
+    em-dash punctuation; exact equality reds on both.
+    """
+    path = REPO_ROOT / "docs" / "agents" / "domain.md"
+    if not path.is_file():
+        check("domain.md exists", False, str(path))
+        return
+    body = path.read_bytes()
+    template = V131_DOMAIN_TEMPLATE.encode("utf-8")
+    check("domain.md exists", True)
+    check(
+        "domain.md is byte-identical to the v1.3.1 template",
+        body == template,
+        "content differs from the inlined v1.3.1 fixture",
+    )
+    if body != template:
+        # Name the first differing line so a failure is actionable.
+        body_lines = body.decode("utf-8").splitlines(keepends=True)
+        tmpl_lines = template.decode("utf-8").splitlines(keepends=True)
+        for i, (b, t) in enumerate(zip(body_lines, tmpl_lines), start=1):
+            if b != t:
+                check(
+                    "domain.md first difference is named",
+                    False,
+                    f"line {i}: file={b!r} template={t!r}",
+                )
+                break
+        else:
+            check(
+                "domain.md first difference is named",
+                False,
+                f"length differs: file={len(body_lines)} lines, "
+                f"template={len(tmpl_lines)} lines",
+            )
+
+
+def case_live_instruction_surfaces_name_glossary() -> None:
+    """Criterion 3: live instruction surfaces name GLOSSARY.md.
+
+    Dated records (CHANGELOG.md, ADR 0003) and quarantined example text are
+    deliberately not asserted here -- they stay as written.
+    """
+    for rel, needle in (
+        ("CLAUDE.md", "GLOSSARY.md"),
+        ("AGENTS.md", "GLOSSARY.md"),
+        ("PRODUCT.md", "GLOSSARY.md"),
+    ):
+        body = (REPO_ROOT / rel).read_text(encoding="utf-8")
+        check(f"{rel} names GLOSSARY.md", needle in body)
+        # Live surfaces must not still point at the old root filename as the
+        # glossary. CHANGELOG/ADR/quarantine hits are out of scope for this check.
+        check(f"{rel} no longer names CONTEXT.md as the glossary", "CONTEXT.md" not in body)
+
+
+def case_shipped_surfaces_list_names_existing_files() -> None:
+    """Criterion 4: the shipped-surface list names files that exist.
+
+    A test fails if the list names a file absent from the tree. After the
+    rename that means: if SHIPPED_SURFACES still said CONTEXT.md, this case
+    would fail because CONTEXT.md is gone; if it names GLOSSARY.md, the file
+    is present and the case passes.
+    """
+    missing = sorted(name for name in vp.SHIPPED_SURFACES if not _listed_surface_exists(name))
+    check(
+        "every name in SHIPPED_SURFACES exists in the tree",
+        not missing,
+        f"absent from the tree: {missing}",
+    )
+    check("SHIPPED_SURFACES lists GLOSSARY.md", "GLOSSARY.md" in vp.SHIPPED_SURFACES)
+    check("SHIPPED_SURFACES no longer lists CONTEXT.md", "CONTEXT.md" not in vp.SHIPPED_SURFACES)
+
+
+def case_absent_listed_surface_is_caught() -> None:
+    """Poison control: a listed name absent from the tree must fail the check.
+
+    Proves the existence check is not vacuous -- it reds on a name that is
+    listed but has no file, which is the exact defect #349 pins.
+    """
+    fake = frozenset({"README.md", "NO-SUCH-SURFACE-349.md"})
+    missing = sorted(name for name in fake if not _listed_surface_exists(name))
+    check(
+        "an absent listed surface is reported as missing",
+        missing == ["NO-SUCH-SURFACE-349.md"],
+        f"missing={missing}",
+    )
+
+
 def case_readme_first_person_not_recorded_is_red(root: Path) -> None:
     """A first-person sentence on a surface not recorded in VERBATIM.md.
 
@@ -507,6 +697,15 @@ def main() -> None:
 
     case_live_tree_is_clean()
     case_deleted_block_specimens_are_gone()
+
+    # #349: CONTEXT.md -> GLOSSARY.md. These run against the live tree and
+    # against the shipped SHIPPED_SURFACES constant, so they fail if the rename
+    # or the list change is missing.
+    case_glossary_renamed_from_context()
+    case_domain_md_is_v131_template()
+    case_live_instruction_surfaces_name_glossary()
+    case_shipped_surfaces_list_names_existing_files()
+    case_absent_listed_surface_is_caught()
 
     print("")
     if FAILURES:

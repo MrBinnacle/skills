@@ -102,7 +102,7 @@ SHIPPED_SURFACES: Final[frozenset[str]] = frozenset(
         "ADMISSION.md",
         "RETIRED.md",
         "EVIDENCE.md",
-        "CONTEXT.md",
+        "GLOSSARY.md",
         "SECURITY.md",
         "CHANGELOG.md",
         "AGENTS.md",

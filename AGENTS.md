@@ -242,7 +242,7 @@ fails, in either tree.
 
 ## Vocabulary of record
 
-`CONTEXT.md` at the repo root fixes what each governed term means; use its terms and respect
+`GLOSSARY.md` at the repo root fixes what each governed term means; use its terms and respect
 its Avoid-notes on every surface. Which words may appear in public *asset* copy is the
 narrower `assets/tokens.json` question. When code or a validator disagrees with the glossary,
 the enforced artifact is the primary source — fix the glossary.
