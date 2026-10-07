@@ -98,12 +98,23 @@ SCOPE_NOT_DEMONSTRATED_FMT: Final[str] = (
 SCOPE_UNSCOPED: Final[str] = (
     "UNSCOPED — the KEEP receipt carries no verdict_scope (SERS before 1.6.0)."
 )
-# R3-3: when a card links more than one receipt and none is a usable KEEP,
-# the NOT DEMONSTRATED row names every distinct verdict among the linked
-# receipts, in receipt order, deduplicated. A public row must not hide a
-# linked verdict, so the row never picks one. One distinct verdict keeps the
+# R3-3 / R4-1: when a card links more than one receipt and none is a usable
+# KEEP, the NOT DEMONSTRATED row names every distinct verdict among the
+# linked receipts, in receipt order, deduplicated -- two receipts carrying
+# the same verdict name it once. A public row must not hide a linked
+# verdict, so the row never picks one. One distinct verdict keeps the
 # closed-set single sentence above; several use this parenthetical form.
-SCOPE_NOT_DEMONSTRATED_MULTI_FMT: Final[str] = "NOT DEMONSTRATED ({verdicts})"
+# R4-3 gives the multi form the same ending the other sentences carry.
+SCOPE_NOT_DEMONSTRATED_MULTI_FMT: Final[str] = (
+    "NOT DEMONSTRATED ({verdicts}); no effect is shown."
+)
+# R4-2: a card that links a KEEP receipt together with any non-KEEP
+# receipt keeps the KEEP scope sentence and then names every other
+# distinct linked verdict, in receipt order, deduplicated -- a public
+# row must not hide a linked verdict. One suffix covers both halves.
+SCOPE_OTHER_LINKED_FMT: Final[str] = (
+    "{keep_scope} Other linked receipts: {verdicts}."
+)
 # skill_harness/sitegen/render.py::_scope_line standard form, unescaped:
 # Shown here: effect on {task_family}, {model}, {delivery}, measured {tested_at}.
 # Not shown: other task families, models, environments, or real-world incidence.
@@ -529,10 +540,17 @@ def expected_evidence_scope(receipts: list[dict]) -> str:
     Closed set (#353, R1): no receipt -> UNMEASURED; a KEEP receipt without a
     usable verdict_scope object -> UNSCOPED; a KEEP receipt with a
     verdict_scope object -> skill-harness's scope line (standard form, or the
-    carried-forward form when currentness.state == "CARRIED_FORWARD");
-    any other verdict -> NOT DEMONSTRATED naming that verdict; when several
-    receipts are linked, every distinct verdict appears, in receipt order,
-    deduplicated (R3-3).
+    carried-forward form when currentness.state == "CARRIED_FORWARD"); any
+    other verdict -> NOT DEMONSTRATED naming that verdict.
+
+    R4-1/R3-3: when several receipts are linked and none is a usable KEEP,
+    every distinct verdict appears, in receipt order, deduplicated -- two
+    receipts carrying the same verdict name it once -- and the multi form
+    carries the same "; no effect is shown." ending the single form does.
+    R4-2: a usable KEEP alongside any non-KEEP receipt keeps the KEEP scope
+    sentence and then names every other distinct linked verdict through
+    SCOPE_OTHER_LINKED_FMT, in receipt order, deduplicated. A receipt with no
+    verdict field names nothing: a public row never invents a verdict.
 
     Carried-forward is decided from currentness.state only. SERS receipts
     carry no scope_carried_forward key. The verdict_scope object itself is
@@ -546,6 +564,7 @@ def expected_evidence_scope(receipts: list[dict]) -> str:
     keeps = [
         r for r in receipts if str(r.get("verdict") or "").strip().upper() == "KEEP"
     ]
+    keep_scope: str | None = None
     for receipt in keeps:
         scope = receipt.get("verdict_scope")
         if not isinstance(scope, dict):
@@ -559,23 +578,43 @@ def expected_evidence_scope(receipts: list[dict]) -> str:
             current_model = _string_field(
                 receipt.get("subject_identity"), "subject_model", "current model"
             )
-            return SCOPE_LINE_CARRIED_TEMPLATE.format(
+            keep_scope = SCOPE_LINE_CARRIED_TEMPLATE.format(
                 model=model, current_model=current_model
             )
+            break
         task_family = _string_field(scope, "task_family", "unknown task family")
         delivery = _string_field(scope, "delivery_mechanism", "unknown delivery")
         tested_at = _string_field(scope, "tested_at", "unknown date")
-        return SCOPE_LINE_TEMPLATE.format(
+        keep_scope = SCOPE_LINE_TEMPLATE.format(
             task_family=task_family,
             model=model,
             delivery=delivery,
             tested_at=tested_at,
         )
-    if keeps:
-        return SCOPE_UNSCOPED
-    # R3-3: name every distinct verdict among the linked receipts, in receipt
-    # order, deduplicated. Mutants that pick receipts[0] or receipts[-1] each
-    # hide a linked verdict and leave this derivation wrong.
+        break
+    if keep_scope is None and keeps:
+        keep_scope = SCOPE_UNSCOPED
+    # R4-2: every other distinct linked verdict, in receipt order,
+    # deduplicated. KEEP receipts are the scope sentence, not "other"; a
+    # receipt with no verdict field contributes nothing.
+    other_verdicts: list[str] = []
+    for receipt in receipts:
+        v = str(receipt.get("verdict") or "").strip().upper()
+        if not v or v == "KEEP":
+            continue
+        if v not in other_verdicts:
+            other_verdicts.append(v)
+    if keep_scope is not None:
+        if other_verdicts:
+            return SCOPE_OTHER_LINKED_FMT.format(
+                keep_scope=keep_scope, verdicts=", ".join(other_verdicts)
+            )
+        return keep_scope
+    # R3-3/R4-1: no KEEP receipt. Name every distinct verdict among the
+    # linked receipts, in receipt order, deduplicated. Mutants that pick
+    # receipts[0] or receipts[-1] hide a linked verdict; a mutant that
+    # appends an empty verdict or skips this branch names the wrong row;
+    # each leaves this derivation wrong and a named assertion red.
     verdicts: list[str] = []
     for receipt in receipts:
         v = str(receipt.get("verdict") or "").strip().upper()
