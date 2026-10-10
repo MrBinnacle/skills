@@ -24,6 +24,12 @@ DEFAULT_DIR = REPO / "pi" / "skills"
 
 ALLOWED_CROSS_LINKS = {("vacuous-check", "mocked-stub")}
 
+# Published cards Pi loads straight from `skills/<bucket>/<name>` (settings.json,
+# 2026-10-10) after their pi/skills/ copies were retired. They are part of the
+# loaded set, so a port that names one does not dangle; the neutrality gate
+# (`scripts/validate_harness_neutrality.py`) covers their own text.
+LOADED_FROM_SOURCE = {"vacuous-check", "mocked-stub", "pull-rebase", "decision-rights"}
+
 # Skills that exist in this repository, or were named in the porting plan, but are
 # not in the ported set. A port that names one of them dangles in a Pi install.
 EXTRA_KNOWN_SKILLS = {
@@ -72,7 +78,7 @@ def known_skills(ported: set[str]) -> set[str]:
     names = set(EXTRA_KNOWN_SKILLS)
     for pattern in ("skills/*/*/SKILL.md", "_quarantine/*/SKILL.md"):
         names.update(p.parent.name for p in REPO.glob(pattern))
-    return names - ported
+    return names - ported - LOADED_FROM_SOURCE
 
 
 def frontmatter(text: str) -> dict[str, str] | None:
@@ -139,7 +145,7 @@ def lint(skills_dir: Path) -> list[str]:
                     findings.append(f"{rel}:{lineno}: names skill '{m.group(1)}' outside the ported set")
                 if SKILL_CONTEXT_RE.search(line):
                     for m in KEBAB_TOKEN_RE.finditer(line):
-                        if m.group(1) not in ported and not outside_re.fullmatch(m.group(1)):
+                        if m.group(1) not in ported | LOADED_FROM_SOURCE and not outside_re.fullmatch(m.group(1)):
                             findings.append(f"{rel}:{lineno}: names '{m.group(1)}' as a skill outside the ported set")
                 for m in LINK_RE.finditer(line):
                     target = m.group(1)

@@ -70,7 +70,7 @@ def _lines(path: Path, start: int, end: int) -> str:
 
 
 def _resolve(cited: str, needle: str, label: str) -> None:
-    """cited is 'AGENTS.md:440' or 'RETIRED.md:93-102'. needle must appear there."""
+    """cited is 'AGENTS.md:441' or 'RETIRED.md:93-102'. needle must appear there."""
     if ":" not in cited:
         check(label, False, f"citation has no line number: {cited}")
         return
@@ -116,7 +116,7 @@ def case_product_no_counts_claim_narrowed() -> None:
 
 
 def case_product_agents_citation_points_at_tally_rule() -> None:
-    """The owner ruling against restating tallies lives at AGENTS.md:440, not :315."""
+    """The owner ruling against restating tallies lives at AGENTS.md:441, not :315."""
     text = _read(PRODUCT)
     check(
         "PRODUCT.md no longer cites AGENTS.md:315 for the tally ruling",
@@ -124,11 +124,11 @@ def case_product_agents_citation_points_at_tally_rule() -> None:
         "PRODUCT.md still points the tally ruling at AGENTS.md:315",
     )
     check(
-        "PRODUCT.md cites AGENTS.md:440 for the tally ruling",
-        "AGENTS.md:440" in text,
-        "PRODUCT.md does not cite AGENTS.md:440",
+        "PRODUCT.md cites AGENTS.md:441 for the tally ruling",
+        "AGENTS.md:441" in text,
+        "PRODUCT.md does not cite AGENTS.md:441",
     )
-    _resolve("AGENTS.md:440", "The page states no tally", "AGENTS.md:440 holds the tally ruling")
+    _resolve("AGENTS.md:441", "The page states no tally", "AGENTS.md:441 holds the tally ruling")
 
 
 def case_product_readme_honest_ceilings_attribution_removed() -> None:
@@ -366,8 +366,8 @@ def case_product_provenance_categories_citation_corrected() -> None:
         "PRODUCT.md still points the origin-category claim at README.md:120",
     )
     check(
-        "PRODUCT.md cites CATALOG.md:158-160 and AGENTS.md:435-436 for the origin categories",
-        "CATALOG.md:158-160" in text and "AGENTS.md:435-436" in text and "OBSERVED" in text,
+        "PRODUCT.md cites CATALOG.md:158-160 and AGENTS.md:436-437 for the origin categories",
+        "CATALOG.md:158-160" in text and "AGENTS.md:436-437" in text and "OBSERVED" in text,
         "PRODUCT.md does not cite the live definitions of OBSERVED/DESIGNED/DISTILLED",
     )
     check(
@@ -381,9 +381,9 @@ def case_product_provenance_categories_citation_corrected() -> None:
         "CATALOG.md:158-160 holds the origin-category table",
     )
     _resolve(
-        "AGENTS.md:435-436",
+        "AGENTS.md:436-437",
         "OBSERVED",
-        "AGENTS.md:435-436 holds the origin vocabulary",
+        "AGENTS.md:436-437 holds the origin vocabulary",
     )
     _resolve(
         "CATALOG.md:151-152",
@@ -734,7 +734,7 @@ def case_citations_resolve_at_pr_head() -> None:
 def case_corrected_citations_match_needles() -> None:
     """The corrected citations named in this suite's STALE-row cases, re-asserted."""
     pairs = [
-        ("AGENTS.md:440", "The page states no tally"),
+        ("AGENTS.md:441", "The page states no tally"),
         ("CATALOG.md:31", "not intended to maximize coverage"),
         ("RETIRED.md:3", "Most collections only ever grow"),
         ("RETIRED.md:26", "Turning away your own work costs something"),
@@ -742,7 +742,7 @@ def case_corrected_citations_match_needles() -> None:
         ("RETIRED.md:93-107", "personally convinced were valuable"),
         ("BRAND.md:75-76", "not with a market"),
         ("CATALOG.md:158-160", "OBSERVED"),
-        ("AGENTS.md:435-436", "OBSERVED"),
+        ("AGENTS.md:436-437", "OBSERVED"),
         ("CATALOG.md:151-152", "two separate axes"),
         ("docs/design/variants/front-page/variant-1.md:20", "useful enough to keep developing"),
         ("docs/design/variants/front-page/variant-5.md:38", "breadth you do not use is still paid for"),

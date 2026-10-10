@@ -50,7 +50,7 @@ git rebase origin/<branch>   # explicit rebase — at least the intent is record
 
 A reactive hook surfaces this card after an error or bad pull; it helps recovery but cannot preserve the old SHAs. Prevention must run before the pull itself. Model invocation cannot guarantee that check, and a prompt-triggered hook has no turn to fire during an unattended loop.
 
-Install an adopter-owned guard using [the runtime recipes and required case table](preventive-recipes.md). Claude Code can block the Bash tool call with `PreToolUse`; a shell wrapper covers interactive and automated shells without an agent harness. Native Git hooks do not provide a pre-pull interception point, so `pre-rebase` is too late for this policy (the `githooks` manual, last changed in git 2.54.0, re-checked 2026-10-05).
+Install an adopter-owned guard using [the runtime recipes and required case table](preventive-recipes.md). An agent harness can refuse the shell tool call from a pre-tool-call guard (one recipe per harness in that file); a shell wrapper covers interactive and automated shells without an agent harness. Native Git hooks do not provide a pre-pull interception point, so `pre-rebase` is too late for this policy (the `githooks` manual, last changed in git 2.54.0, re-checked 2026-10-05).
 
 Open [gotchas.md](gotchas.md) when a guard you installed blocks a command that merely names this skill, or the pre-flight reads clean and a pull still rebases. It records the guard's observed false positives and the config scopes and values the pre-flight can miss.
 

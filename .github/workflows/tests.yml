@@ -545,6 +545,27 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::skill-format gate emitted no PASS line — it did not run"; exit 1; }
 
+      # Harness neutrality (AGENTS.md, Authoring conventions, 2026-10-10): a
+      # published SKILL.md names the action, not one harness's tool, hook or
+      # path. The suite plants a card naming the Claude Code Bash tool and
+      # asserts the gate refuses it; the gate then sweeps the live tree with
+      # its shrink-only allowlist of pre-existing breaches.
+      - name: Harness-neutrality gate suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_harness_neutrality.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::harness-neutrality gate suite emitted no PASS line — it did not run"; exit 1; }
+
+      - name: Harness-neutrality gate
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_harness_neutrality.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::harness-neutrality gate emitted no PASS line — it did not run"; exit 1; }
+
       # A gate that cannot fail guards nothing. Built here rather than checked in:
       # the walker discovers skill folders by SKILL.md marker repo-wide, so a
       # committed violating fixture would turn the real run permanently red and

@@ -32,7 +32,7 @@
     },
     "pull-rebase": {
       "standing_cost_tokens": 63,
-      "skill_md_sha256": "b8b3c775e37ae592ff9a0024536a4dc928453316b4aede622aff9ac6d85d0a66"
+      "skill_md_sha256": "ad56d1f3014b3a66cbdbfe8b773061c9f513de5cd5a366da953c95f83ac24d41"
     },
     "stale-deploy": {
       "standing_cost_tokens": 50,
@@ -48,7 +48,7 @@
     },
     "decision-rights": {
       "standing_cost_tokens": 47,
-      "skill_md_sha256": "2d7de62b850dfecc7a8ed5452edbb1d5141c1e439a6231bdf0d1d968eb4325af"
+      "skill_md_sha256": "12dcd04c8d7149c8e6aa1d4ab4ea78eb59694874ac93f7216281fd0e34c52cef"
     },
     "disposition-schema": {
       "standing_cost_tokens": 44,
