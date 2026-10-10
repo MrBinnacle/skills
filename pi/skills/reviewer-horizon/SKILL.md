@@ -5,7 +5,7 @@ version: 1.0.0
 date: 2026-09-06
 ---
 
-# Curated context becomes the reviewer's design boundary
+# Selected context becomes the reviewer's design boundary
 
 ## Problem
 
@@ -68,7 +68,7 @@ Before sending:
 - Each constraint is marked revisable or externally binding.
 - Interpretations are labelled as interpretations.
 
-After the answer returns, and this is the load-bearing check:
+After the answer returns, and this is the check the whole discipline rests on:
 
 - For every point where the recommendation collides with a local rule, ask whether that rule was in the brief. If it was not, the collision is yours.
 
@@ -80,7 +80,7 @@ The full case, including the corrected measurement and the causal claim that rod
 
 ## Notes
 
-- **The reviewer being right is not the point.** The point is that a curated brief makes the question unanswerable correctly, whichever way it goes.
+- **The reviewer being right is not the point.** The point is that a selected brief makes the question unanswerable correctly, whichever way it goes.
 - **Volume is not completeness.** Sending the whole repository is the opposite error and produces a worse answer. Completeness is about decision-relevant context.
 - **Access is not inspection.** If the reviewer has a pinned checkout, paths can replace pasted text only when it actually reads them. Assume it did not unless it says what it read.
 - **This is the mirror of over-constraining.** A brief that hides rules gets a recommendation that violates them; a brief that presents rules as immovable gets a recommendation that designs around them. Both are the brief deciding the answer.

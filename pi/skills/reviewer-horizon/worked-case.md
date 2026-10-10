@@ -1,4 +1,4 @@
-# Worked case: a curated brief manufactured a collision, 2026-09-06
+# Worked case: a selected brief manufactured a collision, 2026-09-06
 
 Read this for the shape of the failure. The procedure in `SKILL.md` does not depend on it.
 

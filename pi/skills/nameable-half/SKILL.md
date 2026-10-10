@@ -48,7 +48,7 @@ Two moves. The first is for the writer, the second for the reader.
 
 ### Writing: keep the disjunction, drop the adjective
 
-When compressing, the enumeration is the load-bearing part and the prose around it is not.
+When compressing, the enumeration is the part that carries the claim and the prose around it is not.
 Cut the prose. If two locations, two causes or two conditions were recorded, the summary
 carries both or it carries neither.
 
