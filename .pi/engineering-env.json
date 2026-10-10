@@ -1,0 +1,9 @@
+{
+  "$note": "Read by mechanisms/shared/config.ts, which REPLACES the gate's default checkCommands with this list rather than merging. So this list must name every command that counts as a check in this repository: the python validators, suites and prose-claim checks under scripts/ and per card (any python invocation of a validate_*.py, test_*.py or check_*.py), release_gate.py in verify mode but not --write (a writer is not a check), bun test over mechanisms/, and pre-commit. Added 2026-10-10 because none of the gate's defaults match `python scripts/validate_*.py`.",
+  "checkCommands": [
+    "\\bpython3? +[^ ]*(validate_|test_|check_)[\\w-]*\\.py\\b",
+    "\\bpython3? +[^ ]*release_gate\\.py(?![^\\n]*--write)",
+    "\\bbun test\\b",
+    "\\bpre-commit run\\b"
+  ]
+}

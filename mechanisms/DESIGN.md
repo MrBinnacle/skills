@@ -1,9 +1,10 @@
-# Pi engineering extensions: shared contract
+# Mechanisms: shared contract
 
-Three extensions that enforce what can be observed, instead of skills asking the model to
-remember it. Pi loads each subdirectory's `index.ts` from this directory (settings
-`extensions: [".../pi/extensions"]`). Files without `index.ts` (like `shared/`) are not loaded
-as extensions; tests (`*.test.ts`) live inside subdirectories so Pi never loads them.
+Three Pi extensions that enforce what can be observed, instead of cards asking the model to
+remember it. [README.md](README.md) names the card each one enforces. Pi loads each
+subdirectory's `index.ts` from this directory (settings
+`extensions: ["<worktree>/mechanisms"]`). Files without `index.ts` (like `shared/`) are not
+loaded as extensions; tests (`*.test.ts`) live inside subdirectories so Pi never loads them.
 
 | Extension | Directory | Pi surface |
 |---|---|---|
@@ -20,7 +21,7 @@ physical copy of either next to this code** (a duplicate `typebox` can break sch
 Adapters use `import type` from Pi where they can. There is no `package.json` and no
 `node_modules` here.
 
-Run all tests: `C:/Users/mlpgr/.bun/bin/bun test pi/extensions` from the worktree root.
+Run all tests: `bun test mechanisms` from the worktree root.
 
 ## Project config: `.pi/engineering-env.json`
 
@@ -54,7 +55,7 @@ explicit command.
 - A user prompt typed while the agent is busy is queued, and the loop drains queued messages
   **before** `agent_before_settle` fires (`agent-session.js`, `_dispatchTurnEndBoundary` returns
   `hasQueuedMessages()`). So two user prompts can form one run: observed 2026-10-10 in
-  interactive session `01a1273f`, an `edit` in prompt N got its nudge at the settle after prompt
+  interactive session `<session>`, an `edit` in prompt N got its nudge at the settle after prompt
   N+1 (queued 26 ms after N's final message). The same two prompts sent sequentially over RPC
   (`rpc_drive.py`, haiku, 2026-10-10) nudged in-run. A "run" for the gate is Pi's run, not one
   user prompt.
