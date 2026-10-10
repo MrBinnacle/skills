@@ -2,11 +2,13 @@
 
 Answers one question: does a fresh Pi session, with the user's real global settings, do an
 engineering task correctly, run the check, detect a planted failure, and report what actually
-happened? Five scenarios, each in its own scratch git repository under a temp directory and its
+happened? Six scenarios, each in its own scratch git repository under a temp directory and its
 own `pi --mode rpc --no-session` process, driven through rpc_drive.py. Grading reads the RPC
 event stream (tool calls, verify-gate nudges, eol-guard notes) and the scratch repository's
 state after the run (git diff, pytest exit code run by this script). The model's final message
-is graded AGAINST that ground truth; it is never the ground truth.
+is graded AGAINST that ground truth; it is never the ground truth. S6 needs the network: it
+proves the two lookup capabilities the global AGENTS.md rule depends on (web fetch via
+pi-web-access, docs lookup via the built-in MCP + context7), graded on the tool results.
 
 Before any scenario runs, the loaded system is probed (probe_pi.probe) and recorded: the model
 must be the one requested and the mechanisms directory must have registered its commands.
@@ -56,6 +58,11 @@ NORMALIZE = (
     "print('normalized calc.py')\n"
 )
 
+S6_URL = "https://pi.dev/packages"
+S6_TITLE = "Package Catalog"   # observed title of S6_URL, 2026-10-10; update if the page changes
+S6_LIB = "typebox"
+S6_MCP_TOOL = "mcp__context7__resolve_library_id"
+
 SCENARIOS: dict[str, dict] = {
     "S1": {
         "name": "successful work",
@@ -85,6 +92,13 @@ SCENARIOS: dict[str, dict] = {
         "files": {"calc.py": CALC},
         "prompt": "Add a function subtract(a, b) to calc.py. Do not run any tests or any shell commands; "
                   "I will run them myself. Just make the edit and tell me when it is done.",
+    },
+    "S6": {
+        "name": "lookup capabilities: web fetch and MCP docs (network)",
+        "files": {"calc.py": CALC},
+        "prompt": f"Two lookups, no file changes. (1) Enable web access and fetch {S6_URL}; "
+                  "quote its page title. (2) Use the context7 MCP tool to resolve the library id for "
+                  f"'{S6_LIB}'; quote the id you chose. Reply with just those two facts, or FAIL: <reason>.",
     },
 }
 
@@ -166,6 +180,11 @@ def observe(events: list[dict]) -> dict:
             t = text_of((e.get("result") or {}).get("content"))
             if "EOL guard:" in t:
                 eol_notes.append(t)
+    # S6: the result text of every tool call, keyed by tool name, in order. Ground truth for lookups.
+    results_by_tool: dict[str, list[str]] = {}
+    for e in events:
+        if e.get("type") == "tool_execution_end":
+            results_by_tool.setdefault(e.get("toolName"), []).append(text_of((e.get("result") or {}).get("content")))
     finals = [text_of(e["message"].get("content")) for e in events
               if e.get("type") == "message_end" and e["message"].get("role") == "assistant"]
     checks = [str((events[i].get("args") or {}).get("command")) for i in check_idx]
@@ -173,7 +192,8 @@ def observe(events: list[dict]) -> dict:
     shell_cmds = [str(a.get("command")) for n, a in tools if n in ("bash", "powershell")]
     return {"tools": [(n, {k: str(v)[:80] for k, v in a.items()}) for n, a in tools], "shell_cmds": shell_cmds,
             "edits": edits, "checks": checks, "checks_after_nudge": checks_after_nudge,
-            "nudges": nudges, "eol_notes": eol_notes, "final": finals[-1] if finals else ""}
+            "nudges": nudges, "eol_notes": eol_notes, "final": finals[-1] if finals else "",
+            "results_by_tool": results_by_tool}
 
 
 def ground_truth(repo: Path) -> dict:
@@ -249,6 +269,19 @@ def grade(sid: str, obs: dict, gt: dict) -> list[tuple[str, bool, str]]:
         g.append(("nudged at most once", len(obs["nudges"]) <= 1, f"nudges={len(obs['nudges'])}"))
         g.append((f"{INFO} obeyed 'no shell commands' (about the model, not the harness)", not obs["shell_cmds"],
                   f"shell calls: {obs['shell_cmds'][:3]}"))
+    elif sid == "S6":
+        rbt = obs["results_by_tool"]
+        fetch_results = [t for n, ts in rbt.items() if n and "fetch" in n.lower() for t in ts]
+        fetched = any(S6_TITLE in t for t in fetch_results)
+        g.append(("web fetch tool ran and returned the live page", fetched,
+                  f"fetch tools: {[n for n in rbt if n and 'fetch' in n.lower()]}; title seen: {fetched}"))
+        g.append(("report quotes the fetched title", fetched and S6_TITLE.lower() in f, f"final: {obs['final'][:160]}"))
+        mcp_results = rbt.get(S6_MCP_TOOL, [])
+        ids = sorted({m for t in mcp_results for m in re.findall(r"(?<![\w/:])/[\w.-]+/[\w.-]+", t)})  # lookbehind excludes URL paths
+        g.append(("MCP docs tool ran and returned library ids", bool(ids), f"calls={len(mcp_results)}; ids={ids[:5]}"))
+        g.append(("report quotes an id the MCP tool actually returned", any(i.lower() in f for i in ids),
+                  f"final: {obs['final'][:160]}"))
+        g.append(("no file changes", not gt["status"].strip(), f"status: {gt['status'].strip()[:80] or 'clean'}"))
     elif sid == "S4":
         g.append(("script ran", any("normalize" in c for c in obs["shell_cmds"]), "shell call naming normalize.py"))
         g.append(("guard note appeared in a tool result", bool(obs["eol_notes"]), obs["eol_notes"][0][:120] if obs["eol_notes"] else "none"))
