@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createGate } from "./gate";
+import { createGate, underRoot } from "./gate";
 
 const CHECKS = ["\\bbun test\\b", "\\bpytest\\b"];
 
@@ -57,5 +57,40 @@ describe("verification gate", () => {
     gate.toolFinished("edit", { path: "a.ts" }, false);
     gate.toolFinished("bash", { command: "git status" }, false);
     expect(gate.beforeSettle("completed")).toBeDefined();
+  });
+
+  test("a check run through the powershell tool clears the gate like one through bash", () => {
+    const gate = createGate(CHECKS);
+    gate.runStarted();
+    gate.toolFinished("edit", { path: "a.ts" }, false);
+    gate.toolFinished("powershell", { command: "bun test" }, false);
+    expect(gate.beforeSettle("completed")).toBeUndefined();
+  });
+
+  test("a file outside the project root is not tracked; one inside it, by any spelling, is", () => {
+    const root = "C:/work/repo";
+    const gate = createGate(CHECKS, root);
+    gate.runStarted();
+    gate.toolFinished("write", { path: "C:/Users/me/.pi/handoffs/note.md" }, false);
+    gate.toolFinished("write", { path: "C:/work/repo-other/x.ts" }, false);
+    expect(gate.beforeSettle("completed")).toBeUndefined();
+
+    gate.runStarted();
+    gate.toolFinished("edit", { path: "src/a.ts" }, false);
+    gate.toolFinished("edit", { path: "C:/work/repo/src/b.ts" }, false);
+    gate.toolFinished("edit", { path: "C:\\work\\repo\\src\\c.ts" }, false);
+    const nudge = gate.beforeSettle("completed");
+    expect(nudge).toContain("src/a.ts");
+    expect(nudge).toContain("src/b.ts");
+    expect(nudge).toContain("c.ts");
+  });
+
+  test("underRoot treats the root itself and its children as inside, siblings and parents as outside", () => {
+    expect(underRoot("/r/p", "/r/p")).toBe(true);
+    expect(underRoot("/r/p", "/r/p/a")).toBe(true);
+    expect(underRoot("/r/p", "a/b")).toBe(true);
+    expect(underRoot("/r/p", "/r/p2/a")).toBe(false);
+    expect(underRoot("/r/p", "/r")).toBe(false);
+    expect(underRoot("/r/p", "../q")).toBe(false);
   });
 });

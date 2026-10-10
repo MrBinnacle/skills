@@ -1,3 +1,5 @@
+import { isAbsolute, relative, resolve } from "node:path";
+
 export type RunOutcome = "completed" | "aborted" | "error";
 
 export interface Gate {
@@ -8,12 +10,20 @@ export interface Gate {
   beforeSettle(outcome: RunOutcome): string | undefined;
 }
 
+/** True when `path` (absolute or relative to `root`) lies under `root`. */
+export function underRoot(root: string, path: string): boolean {
+  const rel = relative(resolve(root), resolve(root, path));
+  return rel !== "" ? !rel.startsWith("..") && !isAbsolute(rel) : true;
+}
+
 /**
  * Tracks files the `edit` and `write` tools changed since the last check command in the
  * current run. Only those two tools are observed: a file changed by a shell command is not
- * seen.
+ * seen. A file outside `projectRoot` is not tracked either: a project's check cannot cover a
+ * file the project does not contain. Measured 2026-10-10 over the first day's sessions, 7 of
+ * 8 nudges named files under the operator's handoff directory, outside every repository.
  */
-export function createGate(checkCommands: readonly string[]): Gate {
+export function createGate(checkCommands: readonly string[], projectRoot?: string): Gate {
   const patterns = checkCommands.map((p) => new RegExp(p));
   const unchecked = new Set<string>();
   let nudged = false;
@@ -24,8 +34,13 @@ export function createGate(checkCommands: readonly string[]): Gate {
       nudged = false;
     },
     toolFinished(toolName, input, isError) {
-      if ((toolName === "edit" || toolName === "write") && !isError) unchecked.add(String(input.path));
-      if (toolName === "bash" && patterns.some((p) => p.test(String(input.command)))) unchecked.clear();
+      if ((toolName === "edit" || toolName === "write") && !isError) {
+        const path = String(input.path);
+        if (projectRoot === undefined || underRoot(projectRoot, path)) unchecked.add(path);
+      }
+      if ((toolName === "bash" || toolName === "powershell") && patterns.some((p) => p.test(String(input.command)))) {
+        unchecked.clear();
+      }
     },
     beforeSettle(outcome) {
       if (outcome !== "completed" || unchecked.size === 0 || nudged) return undefined;

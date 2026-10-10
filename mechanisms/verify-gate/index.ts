@@ -13,7 +13,7 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     const result = loadConfig(ctx.cwd);
     if (result.ok) {
-      gate = createGate(result.config.checkCommands);
+      gate = createGate(result.config.checkCommands, ctx.cwd);
     } else {
       gate = undefined;
       report(ctx, `verify-gate disabled: ${result.error}`);

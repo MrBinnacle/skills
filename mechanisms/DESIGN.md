@@ -1,6 +1,6 @@
 # Mechanisms: shared contract
 
-Three Pi extensions that enforce what can be observed, instead of cards asking the model to
+Four Pi extensions that enforce what can be observed, instead of cards asking the model to
 remember it. [README.md](README.md) names the card each one enforces. Pi loads each
 subdirectory's `index.ts` from this directory (settings
 `extensions: ["<worktree>/mechanisms"]`). Files without `index.ts` (like `shared/`) are not
@@ -9,6 +9,7 @@ loaded as extensions; tests (`*.test.ts`) live inside subdirectories so Pi never
 | Extension | Directory | Pi surface |
 |---|---|---|
 | Verification gate | `verify-gate/` | `session_start` (config load), `before_agent_start`, `tool_result`, `agent_before_settle` |
+| Line-ending guard | `eol-guard/` | `session_start` (repo root via `pi.exec git`), `before_agent_start`, `tool_result` (appends to the result `content`) |
 | In-process reviewer | `reviewer/` | `/review` command, `review_diff` tool, `createAgentSession()` |
 | Session-boundary packet | `session-packet/` | `/packet-close`, `/packet-open` commands, `agent_before_settle` (fill validation), `session_start` check |
 
