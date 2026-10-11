@@ -1,54 +1,73 @@
 /**
  * The `ancestor` head policy: a receiver accepts a packet HEAD that differs from the current HEAD
- * when the work it names is still reachable, still on origin, or was squash-merged. Everything
- * else is drift, reported with the route each check took. No Pi imports.
+ * when the work it names is still reachable, still on origin, or was squash-merged. Every route
+ * is tied to the packet HEAD itself: a branch name that exists, or a PR that merged, is no
+ * evidence about a commit that branch or PR does not hold. Everything else is drift, reported with
+ * the route each check took. No Pi imports.
  */
-import type { Exec, ExecResult } from "./repo";
+import { type Exec, type ExecResult, execNetwork, FULL_OBJECT_ID, isBranchName, networkGit } from "./repo";
 
-export type SquashMergeResult = { merged: boolean } | { unavailable: string };
-/** Whether `branch` was merged through a PR. Injectable; the default asks `gh`. */
+/** The head commits of the merged PRs whose head was the branch, or why that was not checked. */
+export type SquashMergeResult = { mergedHeads: string[] } | { unavailable: string };
+/** The merged PRs of `branch`. Injectable; the default asks `gh`. */
 export type SquashMergeProbe = (branch: string, repoRoot: string) => Promise<SquashMergeResult>;
 
 export function ghSquashMergeProbe(exec: Exec): SquashMergeProbe {
   return async (branch, repoRoot) => {
-    const args = ["pr", "list", "--state", "merged", "--head", branch, "--json", "number", "--limit", "1"];
-    const result = await exec("gh", args, { cwd: repoRoot });
+    const args = ["pr", "list", "--state", "merged", "--head", branch, "--json", "number,headRefOid", "--limit", "100"];
+    const result = await execNetwork(exec, "gh", args, repoRoot);
     if (result.code !== 0) return { unavailable: result.stderr.trim() || `gh exited ${result.code}` };
+    let list: unknown;
     try {
-      const list: unknown = JSON.parse(result.stdout);
-      return { merged: Array.isArray(list) && list.length > 0 };
+      list = JSON.parse(result.stdout);
     } catch {
       return { unavailable: "gh output was not JSON" };
     }
+    if (!Array.isArray(list)) return { unavailable: "gh output was not a list" };
+    const heads = list.map((pr) => (typeof pr === "object" && pr !== null ? (pr as { headRefOid?: unknown }).headRefOid : undefined));
+    return { mergedHeads: heads.filter((h): h is string => typeof h === "string" && h.length > 0) };
   };
 }
 
 const run = (exec: Exec, repoRoot: string, ...args: string[]): Promise<ExecResult> => exec("git", args, { cwd: repoRoot });
+const firstLine = (result: ExecResult, what: string) => result.stderr.trim().split(/\r?\n/)[0] || `${what} exited ${result.code}`;
+const hasCommit = async (exec: Exec, repoRoot: string, id: string) => (await run(exec, repoRoot, "cat-file", "-e", `${id}^{commit}`)).code === 0;
+const isAncestor = async (exec: Exec, repoRoot: string, id: string, of: string) =>
+  (await run(exec, repoRoot, "merge-base", "--is-ancestor", id, of)).code === 0;
 
 /** The remote-tracking ref of origin's default branch, e.g. `origin/main`, or undefined. */
 async function originDefault(exec: Exec, repoRoot: string): Promise<string | undefined> {
   const local = await run(exec, repoRoot, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD");
   if (local.code === 0 && local.stdout.trim()) return local.stdout.trim();
-  const remote = await run(exec, repoRoot, "ls-remote", "--symref", "origin", "HEAD");
+  const remote = await networkGit(exec, repoRoot, "ls-remote", "--symref", "origin", "HEAD");
   const match = remote.code === 0 ? /^ref: refs\/heads\/(\S+)\s+HEAD$/m.exec(remote.stdout) : null;
   if (!match) return undefined;
   const ref = `origin/${match[1]}`;
   return (await run(exec, repoRoot, "rev-parse", "--verify", "--quiet", `refs/remotes/${ref}`)).code === 0 ? ref : undefined;
 }
 
-/** `git ls-remote --exit-code`: 0 found, 2 absent, anything else means origin was not reached. */
+/**
+ * Whether origin has exactly `refs/heads/<branch>`. `git ls-remote` matches a pattern against
+ * the tail of each ref, so `refs/heads/x/refs/heads/wip` would answer for `wip`; only an exact
+ * ref name counts. Exit 2 is absent; any other failure means origin was not reached.
+ */
 export async function remoteBranch(exec: Exec, repoRoot: string, branch: string): Promise<"present" | "absent" | { unreachable: string }> {
-  const result = await run(exec, repoRoot, "ls-remote", "--exit-code", "--heads", "origin", `refs/heads/${branch}`);
-  if (result.code === 0) return "present";
+  const ref = `refs/heads/${branch}`;
+  const result = await networkGit(exec, repoRoot, "ls-remote", "--exit-code", "--heads", "origin", ref);
+  if (result.code === 0) {
+    const refs = result.stdout.split(/\r?\n/).map((line) => line.split("\t")[1]);
+    return refs.includes(ref) ? "present" : "absent";
+  }
   if (result.code === 2) return "absent";
-  return { unreachable: result.stderr.trim().split("\n")[0] || `git ls-remote exited ${result.code}` };
+  return { unreachable: firstLine(result, "git ls-remote") };
 }
 
 /**
  * Judge a packet HEAD that differs from the current HEAD. Accepted routes, in order: reachable
- * from HEAD, reachable from origin's default branch, its branch still on origin, its branch
- * deleted on origin with a merged PR. A missing tool or an unreachable origin is a note and never
- * converts drift into a pass.
+ * from HEAD, reachable from origin's default branch, held by its branch on origin (fetched), held
+ * by a merged PR of its branch once that branch is deleted on origin. A packet HEAD that is not a
+ * full object id is drift before any route runs. A missing tool or an unreachable origin is a
+ * note and never converts drift into a pass.
  */
 export async function checkMovedHead(args: {
   packetHead: string;
@@ -62,14 +81,19 @@ export async function checkMovedHead(args: {
   const notes: string[] = [];
   const failed: string[] = [];
   const accept = (note: string) => ({ errors: [], notes: [...notes, note] });
+  const drift = () => ({ errors: [`HEAD drift: packet=${packetHead} current=${currentHead}: ${failed.join("; ")}`], notes });
 
-  const exists = (await run(exec, repoRoot, "cat-file", "-e", `${packetHead}^{commit}`)).code === 0;
-  if (exists) {
-    if ((await run(exec, repoRoot, "merge-base", "--is-ancestor", packetHead, currentHead)).code === 0) {
+  if (!FULL_OBJECT_ID.test(packetHead)) {
+    failed.push("the packet HEAD is not a full object id, so no route can be tied to it");
+    return drift();
+  }
+
+  if (await hasCommit(exec, repoRoot, packetHead)) {
+    if (await isAncestor(exec, repoRoot, packetHead, currentHead)) {
       return accept(`HEAD moved: packet HEAD ${packetHead} is reachable from HEAD ${currentHead}`);
     }
     const defaultRef = await originDefault(exec, repoRoot);
-    if (defaultRef && (await run(exec, repoRoot, "merge-base", "--is-ancestor", packetHead, `refs/remotes/${defaultRef}`)).code === 0) {
+    if (defaultRef && (await isAncestor(exec, repoRoot, packetHead, `refs/remotes/${defaultRef}`))) {
       return accept(`HEAD moved: packet HEAD ${packetHead} is reachable from ${defaultRef}`);
     }
     failed.push(defaultRef ? `not reachable from HEAD or ${defaultRef}` : "not reachable from HEAD, and origin has no default branch here");
@@ -77,26 +101,52 @@ export async function checkMovedHead(args: {
     failed.push("the packet HEAD is absent from this repository");
   }
 
-  if (packetBranch) {
-    const remote = await remoteBranch(exec, repoRoot, packetBranch);
-    if (remote === "present") return accept(`HEAD moved: packet branch ${packetBranch} still exists on origin`);
-    if (remote === "absent") {
-      failed.push(`branch ${packetBranch} is absent on origin`);
-      const probe = await args.squashMerged(packetBranch, repoRoot);
-      if ("merged" in probe && probe.merged) {
-        return accept(`HEAD moved: packet branch ${packetBranch} was deleted on origin after its PR merged (squash-merge)`);
-      }
-      if ("merged" in probe) failed.push(`no merged PR for ${packetBranch}`);
-      else {
-        notes.push(`squash-merge probe unavailable for ${packetBranch}: ${probe.unavailable}`);
-        failed.push(`squash merge of ${packetBranch} not checked`);
-      }
-    } else {
-      notes.push(`could not reach origin to look for branch ${packetBranch}: ${remote.unreachable}`);
-      failed.push(`branch ${packetBranch} not checked on origin`);
-    }
-  } else {
+  if (!packetBranch) {
     failed.push("the packet records no branch");
+    return drift();
   }
-  return { errors: [`HEAD drift: packet=${packetHead} current=${currentHead}: ${failed.join("; ")}`], notes };
+  if (!(await isBranchName(exec, repoRoot, packetBranch))) {
+    failed.push(`branch ${JSON.stringify(packetBranch)} is not a valid branch name`);
+    return drift();
+  }
+
+  const remote = await remoteBranch(exec, repoRoot, packetBranch);
+  if (remote === "present") {
+    const tracking = `refs/remotes/origin/${packetBranch}`;
+    const fetched = await networkGit(exec, repoRoot, "fetch", "-q", "origin", `+refs/heads/${packetBranch}:${tracking}`);
+    if (fetched.code !== 0) {
+      notes.push(`could not fetch branch ${packetBranch} from origin: ${firstLine(fetched, "git fetch")}`);
+      failed.push(`branch ${packetBranch} on origin not checked for the packet HEAD`);
+      return drift();
+    }
+    if ((await hasCommit(exec, repoRoot, packetHead)) && (await isAncestor(exec, repoRoot, packetHead, tracking))) {
+      return accept(`HEAD moved: packet branch ${packetBranch} still exists on origin and holds the packet HEAD`);
+    }
+    failed.push(`branch ${packetBranch} on origin does not hold the packet HEAD`);
+    return drift();
+  }
+  if (remote !== "absent") {
+    notes.push(`could not reach origin to look for branch ${packetBranch}: ${remote.unreachable}`);
+    failed.push(`branch ${packetBranch} not checked on origin`);
+    return drift();
+  }
+
+  failed.push(`branch ${packetBranch} is absent on origin`);
+  const probe = await args.squashMerged(packetBranch, repoRoot);
+  if ("unavailable" in probe) {
+    notes.push(`squash-merge probe unavailable for ${packetBranch}: ${probe.unavailable}`);
+    failed.push(`squash merge of ${packetBranch} not checked`);
+    return drift();
+  }
+  const present = await hasCommit(exec, repoRoot, packetHead);
+  for (const mergedHead of probe.mergedHeads) {
+    const holds = mergedHead === packetHead ||
+      (present && FULL_OBJECT_ID.test(mergedHead) && (await hasCommit(exec, repoRoot, mergedHead)) &&
+        (await isAncestor(exec, repoRoot, packetHead, mergedHead)));
+    if (holds) {
+      return accept(`HEAD moved: packet branch ${packetBranch} was deleted on origin after a PR holding the packet HEAD merged (squash-merge)`);
+    }
+  }
+  failed.push(`no merged PR for ${packetBranch} holds the packet HEAD`);
+  return drift();
 }

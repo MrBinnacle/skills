@@ -163,9 +163,11 @@ export async function validateFilled(args: {
   repoRoot: string;
   config: PacketConfig;
   exec: Exec;
+  /** The packet text to validate; read from the snapshot path when absent. */
+  text?: string;
 }): Promise<Receipt | UnreadableReceipt> {
   const { snapshot, repoRoot, config, exec } = args;
-  const text = readFileSync(snapshot.path, "utf-8");
+  const text = args.text ?? readFileSync(snapshot.path, "utf-8");
   const receipt = await validatePacket({ text, packetPath: snapshot.path, mode: "produce", repoRoot, config, exec });
   if (!("packet_id" in receipt)) return receipt;
   const data = extract(text);

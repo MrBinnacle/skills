@@ -6,7 +6,7 @@ import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { remoteBranch } from "./head";
 import type { Manifest } from "./packet";
-import type { Exec } from "./repo";
+import { type Exec, isBranchName } from "./repo";
 
 function record(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -42,7 +42,10 @@ export async function verifyParked(args: { data: Manifest; repoRoot: string; exe
     const kind = String(entry.kind);
     const ref = String(entry.ref);
     const fail = () => errors.push(`parked[${i}] ${kind} probe failed: ${ref} (${String(entry.reason)})`);
-    if (kind === "branch-exists") {
+    if ((kind === "branch-exists" || kind === "remote-branch-exists") && !(await isBranchName(exec, repoRoot, ref))) {
+      // A glob would match whatever branch happens to exist; the probe names one branch exactly.
+      errors.push(`parked[${i}] ${kind} ref ${JSON.stringify(ref)} is not a valid branch name (${String(entry.reason)})`);
+    } else if (kind === "branch-exists") {
       const result = await exec("git", ["show-ref", "--verify", "--quiet", `refs/heads/${ref}`], { cwd: repoRoot });
       if (result.code !== 0) fail();
     } else if (kind === "remote-branch-exists") {

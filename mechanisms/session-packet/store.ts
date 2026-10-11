@@ -6,7 +6,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { publishScan } from "./packet";
-import { dirPackets, type Exec, type ExecResult, git, type StoredPacket } from "./repo";
+import { dirPackets, type Exec, type ExecResult, git, networkGit, type StoredPacket } from "./repo";
 import type { PacketConfig } from "./settings";
 
 export type ResolvedStore = { kind: "dir"; dir: string } | { kind: "branch"; ref: string; worktree: string };
@@ -36,7 +36,7 @@ const refExists = async (exec: Exec, cwd: string, ref: string) => (await run(exe
 
 /** Update origin/<ref>. A store origin does not have yet is not a failure. */
 async function fetchStore(exec: Exec, cwd: string, ref: string): Promise<string | undefined> {
-  const result = await run(exec, cwd, "fetch", "-q", "origin", `+refs/heads/${ref}:refs/remotes/origin/${ref}`);
+  const result = await networkGit(exec, cwd, "fetch", "-q", "origin", `+refs/heads/${ref}:refs/remotes/origin/${ref}`);
   if (result.code === 0 || /couldn't find remote ref/i.test(result.stderr)) return undefined;
   return `store fetch failed, reading the local copy: ${firstLine(result)}`;
 }
@@ -136,30 +136,47 @@ export interface PublishResult {
 
 /**
  * Commit an accepted packet to the store branch and push it. The bytes committed are the bytes
- * scanned: the blob is written first, scanned, and only then staged. A failed push never refuses;
- * a non-fast-forward is resolved by fetch and rebase, which cannot conflict because every packet
- * file name is unique.
+ * validated: the blob is written first, compared with `text` (the bytes produce mode accepted),
+ * scanned, and only then staged, and the commit is refused unless the staged set is exactly that
+ * one file. A failed push never refuses; a non-fast-forward is resolved by fetch and rebase, which
+ * cannot conflict because every packet file name is unique.
  */
-export async function publishPacket(args: { repoRoot: string; config: PacketConfig; path: string; exec: Exec }): Promise<PublishResult> {
+export async function publishPacket(args: {
+  repoRoot: string;
+  config: PacketConfig;
+  path: string;
+  /** The packet text that was validated. Absent, the file as it is now is what gets committed. */
+  text?: string;
+  exec: Exec;
+}): Promise<PublishResult> {
   const { exec } = args;
   const store = resolveStore(args.repoRoot, args.config);
   if (store.kind !== "branch") throw new Error("publishPacket needs a branch store");
   const { ref, worktree } = store;
   const name = basename(args.path);
+  const refuse = (why: string): PublishResult => ({ status: "refused", message: `refusing to commit ${name} to ${ref}: ${why}` });
 
   const blob = await git(exec, worktree, "hash-object", "-w", "--", name);
-  const leaks = publishScan(await git(exec, worktree, "cat-file", "blob", blob));
-  if (leaks.length) {
-    return { status: "refused", message: `refusing to commit ${name} to ${ref}: ${leaks.join("; ")}. Remove it from the packet and close again.` };
+  const bytes = (await run(exec, worktree, "cat-file", "blob", blob)).stdout;
+  if (args.text !== undefined && bytes !== args.text) {
+    return refuse("the packet file changed since it was validated. Close again so the bytes committed are the bytes validated.");
   }
+  const leaks = publishScan(bytes);
+  if (leaks.length) return refuse(`${leaks.join("; ")}. Remove it from the packet and close again.`);
   await git(exec, worktree, "update-index", "--add", "--cacheinfo", `100644,${blob},${name}`);
+  // The commit takes the whole index, and only the packet file was scanned.
+  const staged = (await git(exec, worktree, "diff", "--cached", "--name-only", "-z")).split("\0").filter(Boolean);
+  const stray = staged.filter((path) => path !== name);
+  if (stray.length || !staged.includes(name)) {
+    return refuse(`the staged set must be exactly the packet file, and it also holds ${stray.join(", ") || "nothing else"}. Unstage those in ${worktree} and publish again.`);
+  }
   // --no-verify on the store's own commit and push only: the repository's hooks are written for
   // the code tree, and in this orphan tree (no hook config) they fail every store commit. The
   // publishScan above is the gate on these bytes instead.
   const commit = await run(exec, worktree, "commit", "--no-verify", "-q", "-m", `session-packet: ${name}`);
   if (commit.code !== 0) return { status: "failed", message: `store commit of ${name} failed: ${firstLine(commit)}` };
 
-  const push = () => run(exec, worktree, "push", "--no-verify", "-q", "-u", "origin", `refs/heads/${ref}:refs/heads/${ref}`);
+  const push = () => networkGit(exec, worktree, "push", "--no-verify", "-q", "-u", "origin", `refs/heads/${ref}:refs/heads/${ref}`);
   const unpushed = (why: string): PublishResult => ({
     status: "unpushed",
     message: `packet ${name} committed to ${ref} but unpushed: ${why}. The next open reports it unpushed; push ${ref} when origin is reachable.`,

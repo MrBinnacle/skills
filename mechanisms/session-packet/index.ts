@@ -120,12 +120,14 @@ export default function (pi: ExtensionAPI) {
         pending = undefined;
         return report(ctx, `session-packet: run ${event.outcome}; packet not validated: ${current.snapshot.path}`, "warning");
       }
-      const receipt = await validateFilled({ snapshot: current.snapshot, repoRoot: current.repoRoot, config: current.config, exec });
+      // One read: the text validated is the text the branch store commits.
+      const text = readFileSync(current.snapshot.path, "utf-8");
+      const receipt = await validateFilled({ snapshot: current.snapshot, repoRoot: current.repoRoot, config: current.config, exec, text });
       const json = JSON.stringify(receipt, null, 2);
       if (receipt.verdict === "ACCEPTED") {
         pending = undefined;
         if (current.config.store?.kind !== "branch") return report(ctx, `Session packet ${current.snapshot.path}\n${json}`, "info");
-        const published = await publishPacket({ repoRoot: current.repoRoot, config: current.config, path: current.snapshot.path, exec });
+        const published = await publishPacket({ repoRoot: current.repoRoot, config: current.config, path: current.snapshot.path, text, exec });
         const level: Level = published.status === "pushed" ? "info" : published.status === "unpushed" ? "warning" : "error";
         return report(ctx, `Session packet ${current.snapshot.path}\n${json}\n${published.message}`, level);
       }

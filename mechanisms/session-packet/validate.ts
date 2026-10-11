@@ -1,7 +1,7 @@
 /** The validator entrypoint: one packet in, one receipt out (PACKET-FORMAT.md "Receipt"). */
 import { chainNotes } from "./chain";
 import { ghSquashMergeProbe, type SquashMergeProbe } from "./head";
-import { extract, lintReceiverChecks, validateRecordedChecks, validateStructure, type ReceiverCheck } from "./packet";
+import { extract, lintReceiverChecks, publishScan, validateRecordedChecks, validateStructure, type ReceiverCheck } from "./packet";
 import { verifyParked } from "./parked";
 import {
   type Exec, shell, type StoredPacket, unclaimedHeadErrors, validateCloseCommit, validateRepository, validateUnclaimedHead,
@@ -109,6 +109,9 @@ export async function validatePacket(args: {
     // A packet path is a file path or `<ref>:<name>`; either way the name is the last segment.
     const own = packetPath.split(/[\\/:]/).at(-1) ?? packetPath;
     if (mode === "produce") {
+      // A branch store pushes the packet to origin. Its publish scan runs here too, so a leak is a
+      // produce-mode error the agent gets a turn to correct, not a refusal after the run ended.
+      if (branchStore) errors.push(...publishScan(text));
       errors.push(...(await validateCloseCommit({ closeCommit: config?.closeCommit, repoRoot, exec })));
       // The chain replaces the unclaimed-HEAD refusal: a close without a new commit is allowed.
       if (config && !config.chain) {

@@ -17,8 +17,47 @@ export interface ExecResult {
   code: number;
   stdout: string;
   stderr: string;
+  /** Set by Pi's exec when it killed the child (a timeout); the code is then 0 and means nothing. */
+  killed?: boolean;
 }
 export type Exec = (command: string, args: string[], options: { cwd: string; timeout?: number }) => Promise<ExecResult>;
+
+/** How long a call that reaches the network (git fetch, ls-remote, push; gh) may run. */
+export const NETWORK_TIMEOUT_MS = 30_000;
+/** The exit code a timed-out network call reports, as coreutils `timeout` does. */
+export const TIMED_OUT_CODE = 124;
+
+/**
+ * Run a command that reaches the network, with a timeout. A killed child is reported as a
+ * failure carrying "timed out", never read as success: Pi's exec resolves it with code 0.
+ */
+export async function execNetwork(exec: Exec, command: string, args: string[], cwd: string): Promise<ExecResult> {
+  const result = await exec(command, args, { cwd, timeout: NETWORK_TIMEOUT_MS });
+  if (!result.killed) return result;
+  return { code: TIMED_OUT_CODE, stdout: result.stdout, stderr: `${command} timed out after ${NETWORK_TIMEOUT_MS / 1000}s` };
+}
+
+/**
+ * The argv of a git call that reaches origin: no credential prompt, no askpass helper, no ssh
+ * password prompt. A prompt with no terminal to answer it hangs the session instead of failing.
+ */
+export function networkGitArgs(args: readonly string[]): string[] {
+  return ["-c", "credential.interactive=never", "-c", "core.askPass=", "-c", "core.sshCommand=ssh -o BatchMode=yes", ...args];
+}
+
+/** Every git fetch, ls-remote and push goes through here. */
+export function networkGit(exec: Exec, cwd: string, ...args: string[]): Promise<ExecResult> {
+  return execNetwork(exec, "git", networkGitArgs(args), cwd);
+}
+
+/** A full object id: 40 hex (SHA-1) or 64 hex (SHA-256). Not an abbreviation, a ref or a revision. */
+export const FULL_OBJECT_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
+
+/** Whether `name` is a valid branch name. A glob such as `*` is not. */
+export async function isBranchName(exec: Exec, cwd: string, name: string): Promise<boolean> {
+  if (!name || name.startsWith("-")) return false;
+  return (await exec("git", ["check-ref-format", `refs/heads/${name}`], { cwd })).code === 0;
+}
 
 export async function git(exec: Exec, cwd: string, ...args: string[]): Promise<string> {
   const result = await exec("git", args, { cwd });

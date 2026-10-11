@@ -3,7 +3,7 @@
  * in the store when it was closed. Two packets naming the same parent are two heads; both are kept
  * and reported, never refused.
  */
-import { extract } from "./packet";
+import { extract, SCAFFOLD_MARKER } from "./packet";
 import type { StoredPacket } from "./repo";
 
 async function manifestOf(packet: StoredPacket): Promise<Record<string, unknown> | undefined> {
@@ -14,10 +14,20 @@ async function manifestOf(packet: StoredPacket): Promise<Record<string, unknown>
   }
 }
 
-/** The id of the newest stored packet that parses and carries one; null when there is none. */
+/**
+ * The id of the newest stored packet that was filled, parses and carries one; null when there is
+ * none. A scaffold still carrying its marker was abandoned before the fill, so it is no parent.
+ */
 export async function latestPacketId(packets: readonly StoredPacket[]): Promise<string | null> {
   for (const packet of packets) {
-    const id = (await manifestOf(packet))?.packet_id;
+    let id: unknown;
+    try {
+      const text = await packet.read();
+      if (text.includes(SCAFFOLD_MARKER)) continue;
+      id = extract(text).packet_id;
+    } catch {
+      continue;
+    }
     if (typeof id === "string" && id) return id;
   }
   return null;

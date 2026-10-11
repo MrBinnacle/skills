@@ -64,26 +64,42 @@ Every key below is optional. Leaving a key out keeps today's behaviour.
 
 A packet HEAD that equals the current HEAD is checked as in exact mode, including
 `status_porcelain`. A packet HEAD that differs is acceptable through the first route that holds.
-Each acceptance is a note in the receipt:
+Every route is tied to the packet HEAD itself. A branch name that exists, or a PR that merged, says
+nothing about a commit that branch or PR does not hold. Each acceptance is a note in the receipt:
 
 1. It is reachable from the current HEAD.
 2. It is reachable from origin's default branch (`origin/HEAD`, or `git ls-remote --symref origin
    HEAD` when that ref is not set locally).
-3. The packet's branch still exists on origin (`git ls-remote --heads origin`).
-4. The packet's branch is absent on origin and its PR merged (the squash-merge case). The probe is
-   injectable. By default it runs `gh pr list --state merged --head <branch>`.
+3. The packet's branch still exists on origin, under exactly `refs/heads/<branch>`, and holds the
+   packet HEAD. The branch is fetched into `origin/<branch>` first, and the packet HEAD must be
+   reachable from it. A force-pushed branch that no longer holds it is drift.
+4. The packet's branch is absent on origin, and a merged PR of that branch has the packet HEAD as
+   its head commit, or a head commit that descends from it (the squash-merge case). The probe is
+   injectable. By default it runs
+   `gh pr list --state merged --head <branch> --json number,headRefOid --limit 100`.
+
+A `repository.head` that is not a full object id (40 or 64 hex characters) is drift before any
+route runs: `HEAD~1`, `main` or an abbreviation names no fixed commit. A packet branch that is not a
+valid branch name, such as `*`, is drift and is never matched against origin's branches.
 
 When no route holds, the receipt carries one `HEAD drift: packet=<sha> current=<sha>: ...` error. The
 error names every route that failed, and it names a vanished HEAD as absent from this repository.
 When `gh` cannot run, or origin cannot be reached, the receipt gets a note and the drift stays an
-error. A missing tool never turns drift into a pass. A branch change is a note
+error. A missing tool never turns drift into a pass.
+
+Every call that reaches the network (`git fetch`, `git ls-remote`, `git push` and `gh`) runs with
+a timeout of 30 seconds. A call that times out is a failure that says `timed out`, never a success.
+Every git network call also runs with `-c credential.interactive=never -c core.askPass= -c
+"core.sshCommand=ssh -o BatchMode=yes"`, so a credential prompt with no terminal to answer it
+fails at once instead of hanging the session. A branch change is a note
 (`branch changed: ...`), not `branch drift`, so a packet closed on a feature branch can be opened on
 main after the merge. While HEAD has moved, `status_porcelain` is not compared, and a note says so.
 
 ### `chain: true`
 
-The scaffold records `previous_packet_id`: the `packet_id` of the newest packet in the store, or
-`null` for the first packet. The scaffold also gets an empty `parked` array, and the fill
+The scaffold records `previous_packet_id`: the `packet_id` of the newest filled packet in the
+store, or `null` for the first packet. An abandoned scaffold that still carries its markers is
+never the parent. The scaffold also gets an empty `parked` array, and the fill
 instructions explain it. The unclaimed-HEAD refusal is off, so a session may close again without a
 new commit. When two stored packets name the same parent, open and close add a
 `two heads: packets A and B both follow P; both are kept` note. Both packets are kept and neither
@@ -98,13 +114,14 @@ probe.
 | `kind` | `ref` | Probe |
 |---|---|---|
 | `branch-exists` | branch name | `git show-ref --verify refs/heads/<ref>` |
-| `remote-branch-exists` | branch name on origin | `git ls-remote --exit-code --heads origin`. An unreachable origin is a note, not an error. |
+| `remote-branch-exists` | branch name on origin | `git ls-remote --exit-code --heads origin`, and only exactly `refs/heads/<ref>` counts. An unreachable origin is a note, not an error. |
 | `stash-exists` | stash commit SHA, at least 7 hex characters | a prefix match against `git stash list --format=%H` |
 | `worktree-exists` | path, relative to the repository root | a match against `git worktree list --porcelain` |
 
 `stash@{n}` is refused in both modes, because the index renumbers when a stash is pushed or dropped.
-The refusal names the command that records a stable SHA: `git rev-parse stash@{n}`. A manifest
-without `parked` is not checked for it.
+The refusal names the command that records a stable SHA: `git rev-parse stash@{n}`. A `branch-exists` or
+`remote-branch-exists` ref that is not a valid branch name, such as a glob, is an error and is never
+probed. A manifest without `parked` is not checked for it.
 
 ### `store: { "kind": "branch", "ref": ... }`
 
@@ -125,8 +142,11 @@ without `parked` is not checked for it.
   and nothing else in this extension does. The repository's hooks are written for the code tree,
   and in the orphan tree, which has no hook config, a framework such as pre-commit fails every
   store commit. The gate on those bytes is this extension's own scan. The packet's blob is
-  written, then scanned, then staged, so the bytes scanned are the bytes committed. A possible
-  secret or an email address refuses the commit, and nothing is committed or pushed. A repository
+  written, compared with the text produce mode validated, then scanned, then staged, so the bytes
+  validated are the bytes committed. A packet file changed after validation refuses the commit.
+  The commit is refused too unless the staged set is exactly the packet file. A possible secret or
+  an email address refuses the commit, and nothing is committed or pushed. Produce mode runs the
+  same scan with a branch store, so the agent gets a correction turn before the publish. A repository
   that needs more should add its scan as a receiver check.
 - The remote is always `origin`. In branch mode, `dir` is unused except as a status exclusion. An
   abandoned, unfilled scaffold stays uncommitted in the worktree. It never enters the store, so it
