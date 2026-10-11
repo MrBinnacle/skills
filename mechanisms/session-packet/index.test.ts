@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import extension from "./index";
-import { makeRepo, nodeExec } from "./testkit";
+import { fillScaffold, git, makeRemote, makeRepo, nodeExec } from "./testkit";
 
 type Handler = (...args: any[]) => any;
 
@@ -147,6 +147,25 @@ describe("session-packet adapter", () => {
     await events.get("session_start")!({ type: "session_start", reason: "startup" }, ctx);
     expect(notes.at(-1)?.message).toContain("ACCEPTED");
   });
+
+  test("with a branch store, the accepted fill is committed and pushed, and open reads it back from the store", async () => {
+    const { root } = await makeRepo();
+    const bare = await makeRemote(root);
+    writeConfig(root, { store: { kind: "branch", ref: "session-log" }, receiverChecks: [{ name: "head", command: "git rev-parse HEAD" }] });
+    const { commands, events } = fakePi();
+    const { ctx, notes } = fakeCtx(root);
+    await commands.get("packet-close")!("Ship", ctx);
+    const worktree = join(root, "var", "session-log-worktree");
+    const name = readdirSync(worktree).find((f) => f.endsWith(".md"))!;
+    fillScaffold(join(worktree, name));
+    await events.get("agent_before_settle")!(settle, ctx);
+    expect(notes.at(-1)?.level).toBe("info");
+    expect(notes.at(-1)?.message).toContain("pushed");
+    expect(await git(bare, "ls-tree", "--name-only", "session-log")).toBe(name);
+    await events.get("session_start")!({ type: "session_start", reason: "startup" }, ctx);
+    const receipt = JSON.parse(notes.at(-1)!.message);
+    expect(receipt.verdict).toBe("ACCEPTED");
+  }, 30_000);
 
   test("session_start never throws: a failure is reported, on stderr when there is no UI", async () => {
     const root = join(import.meta.dir, "fixtures");

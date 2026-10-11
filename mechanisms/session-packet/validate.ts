@@ -1,7 +1,13 @@
 /** The validator entrypoint: one packet in, one receipt out (PACKET-FORMAT.md "Receipt"). */
+import { chainNotes } from "./chain";
+import { ghSquashMergeProbe, type SquashMergeProbe } from "./head";
 import { extract, lintReceiverChecks, validateRecordedChecks, validateStructure, type ReceiverCheck } from "./packet";
-import { type Exec, shell, validateCloseCommit, validateRepository, validateUnclaimedHead } from "./repo";
+import { verifyParked } from "./parked";
+import {
+  type Exec, shell, type StoredPacket, unclaimedHeadErrors, validateCloseCommit, validateRepository, validateUnclaimedHead,
+} from "./repo";
 import type { PacketConfig } from "./settings";
+import { listPackets, type PacketListing, resolveStore, statusExcludes } from "./store";
 
 export type Mode = "produce" | "receive";
 
@@ -64,6 +70,10 @@ export async function validatePacket(args: {
   /** The project's `sessionPacket` section; `undefined` when the project declares none. */
   config: PacketConfig | undefined;
   exec: Exec;
+  /** The store listing the caller already made; listed here when needed and absent. */
+  listing?: PacketListing;
+  /** The ancestor policy's squash-merge probe; defaults to asking `gh`. */
+  squashMerged?: SquashMergeProbe;
 }): Promise<Receipt | UnreadableReceipt> {
   const { text, packetPath, mode, repoRoot, config, exec } = args;
   try {
@@ -78,14 +88,40 @@ export async function validatePacket(args: {
       data,
       repoRoot,
       exec,
-      packetDir: config?.dir,
+      packetDir: config ? statusExcludes(config) : undefined,
       allowedCommands: config ? [...config.receiverChecks.map((c) => c.command), ...config.trustedProbeCommands] : [],
+      // Produce mode records the HEAD it measured, so a moved HEAD there is always stale.
+      headPolicy: mode === "receive" ? config?.headPolicy : undefined,
+      squashMerged: args.squashMerged ?? ghSquashMergeProbe(exec),
     });
     errors.push(...repo.errors);
     notes.push(...repo.notes);
+    if (mode === "receive") {
+      const parked = await verifyParked({ data, repoRoot, exec });
+      errors.push(...parked.errors);
+      notes.push(...parked.notes);
+    }
+
+    const branchStore = config ? resolveStore(repoRoot, config).kind === "branch" : false;
+    const needsListing = config && (config.chain || (mode === "produce" && branchStore));
+    const listing = args.listing ?? (needsListing ? await listPackets({ repoRoot, config, exec }) : undefined);
+    if (mode === "receive" && listing) notes.push(...listing.notes);
+    // A packet path is a file path or `<ref>:<name>`; either way the name is the last segment.
+    const own = packetPath.split(/[\\/:]/).at(-1) ?? packetPath;
     if (mode === "produce") {
       errors.push(...(await validateCloseCommit({ closeCommit: config?.closeCommit, repoRoot, exec })));
-      if (config) errors.push(...(await validateUnclaimedHead({ repoRoot, packetDir: config.dir, packetPath, exec })));
+      // The chain replaces the unclaimed-HEAD refusal: a close without a new commit is allowed.
+      if (config && !config.chain) {
+        errors.push(...(branchStore
+          ? await unclaimedHeadErrors({ priors: (listing?.packets ?? []).filter((p) => p.name !== own), repoRoot, exec })
+          : await validateUnclaimedHead({ repoRoot, packetDir: config.dir, packetPath, exec })));
+      }
+    }
+    if (config?.chain && listing) {
+      const packets: StoredPacket[] = listing.packets.some((p) => p.name === own)
+        ? listing.packets
+        : [...listing.packets, { name: own, source: packetPath, read: async () => text }];
+      notes.push(...(await chainNotes(packets)));
     }
 
     // Above: assertions the PACKET made. Below: checks the RECEIVER runs. The split is what a

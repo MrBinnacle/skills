@@ -37,6 +37,51 @@ const SECRET_PATTERNS = [
   /gh[pousr]_[A-Za-z0-9]{20,}/,
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
 ];
+/**
+ * The branch store's pre-commit scan adds contact addresses: the store bypasses the repository's
+ * own hooks, so this scan is the gate on the bytes it commits.
+ */
+const CONTACT_PATTERNS = [/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/];
+
+/** Refusals for bytes about to be committed to the branch store: secrets and contact addresses. */
+export function publishScan(text: string): string[] {
+  const errors: string[] = [];
+  for (const pattern of SECRET_PATTERNS) if (pattern.test(text)) errors.push("possible secret detected");
+  for (const pattern of CONTACT_PATTERNS) if (pattern.test(text)) errors.push("email address or contact string detected");
+  return errors;
+}
+
+export const PARKED_KINDS = ["branch-exists", "remote-branch-exists", "stash-exists", "worktree-exists"] as const;
+const STASH_SHA = /^[0-9a-f]{7,64}$/i;
+const STASH_INDEX = /^stash@\{\d+\}$/;
+
+/** Structure of `parked[]`. Checked only when the manifest carries the key, so older packets are unaffected. */
+function validateParked(data: Manifest): string[] {
+  if (!("parked" in data)) return [];
+  if (!Array.isArray(data.parked)) return ["parked must be an array"];
+  const errors: string[] = [];
+  data.parked.forEach((raw, i) => {
+    const entry = obj(raw);
+    const kind = entry.kind;
+    if (typeof kind !== "string" || !(PARKED_KINDS as readonly string[]).includes(kind)) {
+      errors.push(`parked[${i}].kind must be one of ${PARKED_KINDS.join(", ")}`);
+    }
+    if (typeof entry.ref !== "string" || !nonempty(entry.ref) || typeof entry.reason !== "string" || !nonempty(entry.reason)) {
+      errors.push(`parked[${i}] lacks ref or reason`);
+      return;
+    }
+    if (kind === "stash-exists" && !STASH_SHA.test(entry.ref)) {
+      errors.push(
+        STASH_INDEX.test(entry.ref)
+          ? `parked[${i}] stash-exists ref ${entry.ref} renumbers when a stash is pushed or dropped; ` +
+              `record its commit SHA instead: git rev-parse ${entry.ref}`
+          : `parked[${i}] stash-exists ref must be a stash commit SHA of at least 7 hex characters`,
+      );
+    }
+  });
+  return errors;
+}
+
 const SECTIONS = ["## Narrative", "## Decisions", "## What We Tried", "## Resume Bootstrap"];
 const ISO_8601 = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
 
@@ -142,6 +187,7 @@ export function validateStructure(data: Manifest, text: string): string[] {
     }
     if (status === "unverified" && !nonempty(claim.evidence)) errors.push(`claims[${i}] lacks a source in evidence`);
   });
+  errors.push(...validateParked(data));
   if (text.includes(SCAFFOLD_MARKER)) errors.push(`unfinished marker present: ${SCAFFOLD_MARKER}`);
   for (const token of [...placeholderTokens(data, text)].sort()) errors.push(`unfinished marker present: ${token}`);
   for (const pattern of SECRET_PATTERNS) if (pattern.test(text)) errors.push("possible secret detected");

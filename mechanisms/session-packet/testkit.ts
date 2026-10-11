@@ -41,6 +41,34 @@ export async function makeRepo(message = "fixture"): Promise<{ root: string; hea
   return { root, head: await git(root, "rev-parse", "HEAD") };
 }
 
+/** A bare repository in a temp dir, added to `root` as `origin` with main pushed and origin/HEAD set. */
+export async function makeRemote(root: string): Promise<string> {
+  const bare = mkdtempSync(join(tmpdir(), "session-packet-remote-"));
+  await git(bare, "init", "--bare", "-b", "main");
+  await git(root, "remote", "add", "origin", bare);
+  await git(root, "push", "-q", "-u", "origin", "main");
+  await git(root, "remote", "set-head", "origin", "main");
+  return bare;
+}
+
+/** A second working clone of `bare`, standing in for another machine. */
+export async function cloneRepo(bare: string): Promise<string> {
+  const root = join(mkdtempSync(join(tmpdir(), "session-packet-clone-")), "clone");
+  await git(tmpdir(), "clone", "-q", bare, root);
+  await git(root, "config", "user.email", "test@example.com");
+  await git(root, "config", "user.name", "Test");
+  await git(root, "config", "core.autocrlf", "false");
+  return root;
+}
+
+/** What the agent is asked to do with a scaffold: replace every marker with real content. */
+export function fillScaffold(path: string): void {
+  writeFileSync(path, readFileSync(path, "utf-8")
+    .replace('"task": "__REQUIRED__"', '"task": "Run the suite"')
+    .replace('"purpose": "__REQUIRED__"', '"purpose": "Confirm green"')
+    .replaceAll("__REQUIRED__", "Filled in."));
+}
+
 /** Render a manifest object back into a packet with all four narrative sections. */
 export function renderPacket(manifest: unknown, body = "x"): string {
   return [

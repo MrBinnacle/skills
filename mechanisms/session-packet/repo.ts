@@ -5,7 +5,9 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { checkMovedHead, type SquashMergeProbe } from "./head";
 import { extract, type Manifest } from "./packet";
+import type { HeadPolicy } from "./settings";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -30,16 +32,19 @@ export function shell(exec: Exec, cwd: string, command: string): Promise<ExecRes
 }
 
 /**
- * `git status --porcelain`, excluding the packet directory: a packet written into the tree after
- * the snapshot must not make itself stale. The text is whitespace-trimmed when compared, so a
- * packet from validate_packet.py (which strips its stdout) compares equal.
+ * `git status --porcelain`, excluding the packet directory (and the branch store's worktree): a
+ * packet written into the tree after the snapshot must not make itself stale. The text is
+ * whitespace-trimmed when compared, so a packet from validate_packet.py (which strips its stdout)
+ * compares equal.
  */
-export async function statusPorcelain(exec: Exec, repoRoot: string, packetDir?: string): Promise<string> {
+export async function statusPorcelain(exec: Exec, repoRoot: string, packetDir?: string | readonly string[]): Promise<string> {
   const args = ["status", "--porcelain"];
-  if (packetDir) {
-    const rel = relative(repoRoot, resolve(repoRoot, packetDir)).split(sep).join("/");
-    if (rel && !rel.startsWith("..") && !isAbsolute(rel)) args.push("--", ".", `:(exclude)${rel}`);
+  const excludes: string[] = [];
+  for (const dir of typeof packetDir === "string" ? [packetDir] : packetDir ?? []) {
+    const rel = relative(repoRoot, resolve(repoRoot, dir)).split(sep).join("/");
+    if (rel && !rel.startsWith("..") && !isAbsolute(rel)) excludes.push(`:(exclude)${rel}`);
   }
+  if (excludes.length) args.push("--", ".", ...excludes);
   const result = await exec("git", args, { cwd: repoRoot });
   if (result.code !== 0) throw new Error(result.stderr.trim() || "git status failed");
   return result.stdout.trimEnd();
@@ -56,8 +61,12 @@ export async function validateRepository(args: {
   exec: Exec;
   /** Commands the repository owner authorised (receiverChecks + trustedProbeCommands). */
   allowedCommands?: readonly string[];
-  /** Packet directory, excluded from the status comparison. */
-  packetDir?: string;
+  /** Packet directory (or directories), excluded from the status comparison. */
+  packetDir?: string | readonly string[];
+  /** Absent means "exact". The caller passes "ancestor" in receive mode only. */
+  headPolicy?: HeadPolicy;
+  /** Consulted by the ancestor policy only. */
+  squashMerged?: SquashMergeProbe;
 }): Promise<RepositoryResult> {
   const { data, repoRoot, exec } = args;
   const allowed = new Set(args.allowedCommands ?? []);
@@ -66,11 +75,33 @@ export async function validateRepository(args: {
   const currentHead = await git(exec, repoRoot, "rev-parse", "HEAD");
   const currentBranch = await git(exec, repoRoot, "branch", "--show-current");
   const expected = isRecord(data.repository) ? data.repository : {};
-  if (expected.head !== currentHead) errors.push(`stale HEAD: packet=${expected.head} current=${currentHead}`);
-  if (expected.branch !== currentBranch) errors.push(`branch drift: packet=${expected.branch} current=${currentBranch}`);
-  const recorded = String(expected.status_porcelain ?? "").trim();
-  const status = (await statusPorcelain(exec, repoRoot, args.packetDir)).trim();
-  if (recorded !== status) errors.push(`status drift: packet='${recorded}' current='${status}'`);
+  const ancestor = args.headPolicy === "ancestor";
+  const headMoved = expected.head !== currentHead;
+  if (headMoved && !ancestor) errors.push(`stale HEAD: packet=${expected.head} current=${currentHead}`);
+  if (headMoved && ancestor) {
+    const moved = await checkMovedHead({
+      packetHead: String(expected.head ?? ""),
+      packetBranch: typeof expected.branch === "string" ? expected.branch : "",
+      currentHead,
+      repoRoot,
+      exec,
+      squashMerged: args.squashMerged ?? (async () => ({ unavailable: "no squash-merge probe supplied" })),
+    });
+    errors.push(...moved.errors);
+    notes.push(...moved.notes);
+  }
+  if (expected.branch !== currentBranch) {
+    // Ancestor mode judges lineage by the HEAD routes above, so a branch change alone is a note.
+    if (ancestor) notes.push(`branch changed: packet=${expected.branch} current=${currentBranch}`);
+    else errors.push(`branch drift: packet=${expected.branch} current=${currentBranch}`);
+  }
+  if (ancestor && headMoved) {
+    notes.push("status_porcelain not compared: HEAD moved since the packet, so its recorded tree no longer applies");
+  } else {
+    const recorded = String(expected.status_porcelain ?? "").trim();
+    const status = (await statusPorcelain(exec, repoRoot, args.packetDir)).trim();
+    if (recorded !== status) errors.push(`status drift: packet='${recorded}' current='${status}'`);
+  }
   for (const raw of Array.isArray(data.claims) ? data.claims : []) {
     const claim = isRecord(raw) ? raw : {};
     if (claim.status !== "verified") continue;
@@ -129,6 +160,20 @@ export function packetFiles(dir: string): string[] {
     .map((name) => join(dir, name));
 }
 
+/** One stored packet: a file in the packet directory, or a file on the branch store. */
+export interface StoredPacket {
+  /** File name, `<UTC stamp>-<id8>.md`; the newest-first order is by name. */
+  name: string;
+  /** Where it was read from: an absolute path, or `<ref>:<name>`. */
+  source: string;
+  read: () => Promise<string>;
+}
+
+/** Packets in `dir`, newest first, as stored packets. */
+export function dirPackets(dir: string): StoredPacket[] {
+  return packetFiles(dir).map((path) => ({ name: basename(path), source: path, read: async () => readFileSync(path, "utf-8") }));
+}
+
 /**
  * Produce mode: refuse a HEAD the most recent prior packet already claimed -- this session has
  * not closed yet. Walks newest-first to the first file that parses and records a head, so a stray
@@ -142,13 +187,18 @@ export async function validateUnclaimedHead(args: {
   exec: Exec;
 }): Promise<string[]> {
   const own = resolve(args.packetPath);
-  const priors = packetFiles(resolve(args.repoRoot, args.packetDir)).filter((p) => resolve(p) !== own);
-  if (priors.length === 0) return [];
+  const priors = dirPackets(resolve(args.repoRoot, args.packetDir)).filter((p) => resolve(p.source) !== own);
+  return unclaimedHeadErrors({ priors, repoRoot: args.repoRoot, exec: args.exec });
+}
+
+/** The unclaimed-HEAD walk over priors from any store, newest first. */
+export async function unclaimedHeadErrors(args: { priors: readonly StoredPacket[]; repoRoot: string; exec: Exec }): Promise<string[]> {
+  if (args.priors.length === 0) return [];
   const currentHead = await git(args.exec, args.repoRoot, "rev-parse", "HEAD");
-  for (const path of priors) {
+  for (const prior of args.priors) {
     let claimed: unknown;
     try {
-      const repository = extract(readFileSync(path, "utf-8")).repository;
+      const repository = extract(await prior.read()).repository;
       claimed = isRecord(repository) ? repository.head : undefined;
     } catch {
       continue;
@@ -156,7 +206,7 @@ export async function validateUnclaimedHead(args: {
     if (!claimed) continue;
     if (claimed !== currentHead) return [];
     return [
-      `HEAD ${currentHead} is already claimed by prior packet ${basename(path)}: this session has not closed yet. ` +
+      `HEAD ${currentHead} is already claimed by prior packet ${prior.name}: this session has not closed yet. ` +
         "Close first, then produce -- the close moves HEAD, and a packet made before it records a HEAD the receiver will reject as stale.",
     ];
   }
