@@ -148,3 +148,55 @@ describe("branch store", () => {
     }
   }, SLOW);
 });
+
+describe("branch store: the bytes committed are the bytes validated", () => {
+  test("produce validation with a branch store refuses an email address, so the agent gets a correction turn", async () => {
+    const { root } = await makeRepo();
+    await makeRemote(root);
+    const snap = await snapshotPacket({ repoRoot: root, config: config(), objective: "Ship it", exec: nodeExec });
+    if (!snap.ok) throw new Error(snap.error);
+    fillScaffold(snap.path);
+    writeFileSync(snap.path, `${readFileSync(snap.path, "utf-8")}\nAsk someone@example.org about it.\n`);
+    const receipt = await validateFilled({ snapshot: snap, repoRoot: root, config: config(), exec: nodeExec });
+    expect(receipt.verdict).toBe("REJECTED");
+    expect(receipt.errors).toContain("email address or contact string detected");
+  }, SLOW);
+
+  test("the dir store's produce validation is unchanged: an email address is not refused there", async () => {
+    const { root } = await makeRepo();
+    const dirConfig: PacketConfig = { dir: ".pi/session-packets", receiverChecks: [], trustedProbeCommands: [], wakeConditions: [] };
+    const snap = await snapshotPacket({ repoRoot: root, config: dirConfig, objective: "Ship it", exec: nodeExec });
+    if (!snap.ok) throw new Error(snap.error);
+    fillScaffold(snap.path);
+    writeFileSync(snap.path, `${readFileSync(snap.path, "utf-8")}\nAsk someone@example.org about it.\n`);
+    const receipt = await validateFilled({ snapshot: snap, repoRoot: root, config: dirConfig, exec: nodeExec });
+    expect(receipt.verdict).toBe("ACCEPTED");
+  });
+
+  test("a packet file changed after validation is refused; nothing is committed or pushed", async () => {
+    const { root } = await makeRepo();
+    const bare = await makeRemote(root);
+    const snap = await close(root, config());
+    const validated = readFileSync(snap.path, "utf-8");
+    writeFileSync(snap.path, `${validated}\nEdited after validation.\n`);
+    const published = await publishPacket({ repoRoot: root, config: config(), path: snap.path, text: validated, exec: nodeExec });
+    expect(published.status).toBe("refused");
+    expect(published.message).toContain("changed since it was validated");
+    expect(await refExists(root, `refs/heads/${REF}`)).toBe(false);
+    expect(await refExists(bare, `refs/heads/${REF}`)).toBe(false);
+  }, SLOW);
+
+  test("a store commit is refused unless the staged set is exactly the packet file", async () => {
+    const { root } = await makeRepo();
+    const bare = await makeRemote(root);
+    const snap = await close(root, config());
+    const worktree = join(root, "var", "session-log-worktree");
+    writeFileSync(join(worktree, "stray.md"), "never scanned");
+    await git(worktree, "add", "stray.md");
+    const published = await publishPacket({ repoRoot: root, config: config(), path: snap.path, text: readFileSync(snap.path, "utf-8"), exec: nodeExec });
+    expect(published.status).toBe("refused");
+    expect(published.message).toContain("stray.md");
+    expect(await refExists(root, `refs/heads/${REF}`)).toBe(false);
+    expect(await refExists(bare, `refs/heads/${REF}`)).toBe(false);
+  }, SLOW);
+});

@@ -100,3 +100,23 @@ describe("verifyParked (real git repo)", () => {
     expect((receipt as { packet_assertions_held?: boolean }).packet_assertions_held).toBe(false);
   });
 });
+
+describe("verifyParked: refs are branch names, matched exactly", () => {
+  test("a glob ref is not a branch name: it never matches origin's or the local branches", async () => {
+    const { root } = await makeRepo();
+    await makeRemote(root);
+    const result = await verifyParked({ data: parkedPacket([entry("remote-branch-exists", "*"), entry("branch-exists", "ma*")]), repoRoot: root, exec: nodeExec });
+    expect(result.errors).toEqual([
+      'parked[0] remote-branch-exists ref "*" is not a valid branch name (parked for later)',
+      'parked[1] branch-exists ref "ma*" is not a valid branch name (parked for later)',
+    ]);
+  });
+
+  test("remote-branch-exists does not match a longer ref on origin that merely ends with the name", async () => {
+    const { root } = await makeRepo();
+    await makeRemote(root);
+    await git(root, "push", "-q", "origin", "main:refs/heads/x/refs/heads/wip");
+    const result = await verifyParked({ data: parkedPacket([entry("remote-branch-exists", "wip")]), repoRoot: root, exec: nodeExec });
+    expect(result.errors).toEqual(["parked[0] remote-branch-exists probe failed: wip (parked for later)"]);
+  });
+});

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { ghSquashMergeProbe, type SquashMergeProbe, type SquashMergeResult } from "./head";
 import { extract, type Manifest } from "./packet";
 import { type Exec, validateRepository } from "./repo";
-import { fixture, git, makeRemote, makeRepo, nodeExec, renderPacket } from "./testkit";
+import { cloneRepo, fixture, git, makeRemote, makeRepo, nodeExec, renderPacket } from "./testkit";
 import { validatePacket } from "./validate";
 
 function packetAt(root: string, head: string, branch = "main"): Manifest {
@@ -97,7 +97,7 @@ describe("headPolicy ancestor", () => {
   test("a squash-merged packet branch (deleted on origin, PR merged) is accepted through the probe", async () => {
     const { root, p } = await featureFork();
     await git(root, "push", "-q", "origin", "--delete", "feature");
-    const { asked, probe } = answering({ merged: true });
+    const { asked, probe } = answering({ mergedHeads: [p] });
     const result = await ancestor(packetAt(root, p, "feature"), root, probe);
     expect(asked).toEqual(["feature"]);
     expect(result.errors).toEqual([]);
@@ -107,7 +107,7 @@ describe("headPolicy ancestor", () => {
   test("a diverged HEAD is drift, with the details of every route that failed", async () => {
     const { root, p } = await featureFork();
     await git(root, "push", "-q", "origin", "--delete", "feature");
-    const result = await ancestor(packetAt(root, p, "feature"), root, answering({ merged: false }).probe);
+    const result = await ancestor(packetAt(root, p, "feature"), root, answering({ mergedHeads: [] }).probe);
     expect(result.errors).toHaveLength(1);
     const [drift] = result.errors;
     expect(drift).toStartWith(`HEAD drift: packet=${p} current=`);
@@ -172,17 +172,122 @@ describe("ghSquashMergeProbe (the default probe)", () => {
     return { calls, exec };
   };
 
-  test("asks gh for a merged PR whose head is the branch", async () => {
-    const { calls, exec } = fake(0, '[{"number":7}]');
-    expect(await ghSquashMergeProbe(exec)("feature", "/repo")).toEqual({ merged: true });
-    expect(calls[0]).toEqual(["gh", "pr", "list", "--state", "merged", "--head", "feature", "--json", "number", "--limit", "1"]);
+  test("asks gh for the head commit of every merged PR whose head is the branch", async () => {
+    const { calls, exec } = fake(0, `[{"number":7,"headRefOid":"${"a".repeat(40)}"},{"number":3}]`);
+    expect(await ghSquashMergeProbe(exec)("feature", "/repo")).toEqual({ mergedHeads: ["a".repeat(40)] });
+    expect(calls[0]).toEqual(["gh", "pr", "list", "--state", "merged", "--head", "feature", "--json", "number,headRefOid", "--limit", "100"]);
   });
 
   test("an empty list is not merged", async () => {
-    expect(await ghSquashMergeProbe(fake(0, "[]").exec)("feature", "/repo")).toEqual({ merged: false });
+    expect(await ghSquashMergeProbe(fake(0, "[]").exec)("feature", "/repo")).toEqual({ mergedHeads: [] });
   });
 
   test("a gh that cannot run is unavailable, not a failure", async () => {
     expect(await ghSquashMergeProbe(fake(127, "", "spawn gh ENOENT").exec)("feature", "/repo")).toEqual({ unavailable: "spawn gh ENOENT" });
   });
+});
+
+/** A probe that answers through the real `ghSquashMergeProbe`, with `gh` faked and git real. */
+function ghAnswering(stdout: string): SquashMergeProbe {
+  const exec: Exec = (command, args, options) =>
+    command === "gh" ? Promise.resolve({ code: 0, stdout, stderr: "" }) : nodeExec(command, args, options);
+  return ghSquashMergeProbe(exec);
+}
+
+describe("headPolicy ancestor: every route is tied to the packet HEAD", () => {
+  test("a vanished packet HEAD is drift even when its branch exists on origin", async () => {
+    const { root } = await makeRepo();
+    await makeRemote(root);
+    const gone = "d".repeat(40);
+    const result = await ancestor(packetAt(root, gone, "main"), root);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toStartWith(`HEAD drift: packet=${gone}`);
+    expect(result.errors[0]).toContain("absent from this repository");
+  }, SLOW);
+
+  test("a packet from another repository is drift even when its branch name exists on origin", async () => {
+    const { head: foreign } = await makeRepo("another repository");
+    const { root } = await makeRepo();
+    await makeRemote(root);
+    const result = await ancestor(packetAt(root, foreign, "main"), root);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toStartWith(`HEAD drift: packet=${foreign}`);
+  }, SLOW);
+
+  test("a packet HEAD that a force-pushed branch no longer holds is drift", async () => {
+    const { root, p } = await featureFork();
+    await git(root, "checkout", "-q", "feature");
+    await git(root, "commit", "-q", "--amend", "--allow-empty", "-m", "rewritten feature work");
+    await git(root, "push", "-q", "-f", "origin", "feature");
+    await git(root, "checkout", "-q", "main");
+    const result = await ancestor(packetAt(root, p, "feature"), root);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toStartWith(`HEAD drift: packet=${p}`);
+    expect(result.errors[0]).toContain("branch feature on origin does not hold the packet HEAD");
+  }, SLOW);
+
+  test("a packet HEAD behind its branch tip on origin is accepted after fetching that branch", async () => {
+    const { root } = await makeRepo();
+    const bare = await makeRemote(root);
+    await git(root, "checkout", "-q", "-b", "feature");
+    await git(root, "commit", "-q", "--allow-empty", "-m", "feature work");
+    const p = await git(root, "rev-parse", "HEAD");
+    await git(root, "push", "-q", "-u", "origin", "feature");
+    await git(root, "checkout", "-q", "main");
+    await git(root, "commit", "-q", "--allow-empty", "-m", "main moves on");
+    const other = await cloneRepo(bare);
+    await git(other, "checkout", "-q", "feature");
+    await git(other, "commit", "-q", "--allow-empty", "-m", "more feature work elsewhere");
+    await git(other, "push", "-q", "origin", "feature");
+    const result = await ancestor(packetAt(root, p, "feature"), root);
+    expect(result.errors).toEqual([]);
+    expect(result.notes.some((n) => n.includes("branch feature still exists on origin"))).toBe(true);
+  }, SLOW);
+
+  test.each(["HEAD~1", "main", "abbrev"])("a repository.head of %s is drift before any route runs: it is not a full object id", async (value) => {
+    const { root, head } = await makeRepo();
+    await git(root, "commit", "-q", "--allow-empty", "-m", "later");
+    const recorded = value === "abbrev" ? head.slice(0, 12) : value;
+    const result = await ancestor(packetAt(root, recorded, "main"), root);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toStartWith(`HEAD drift: packet=${recorded}`);
+    expect(result.errors[0]).toContain("not a full object id");
+  });
+
+  test("a glob in the packet branch is not a branch name and never matches origin's branches", async () => {
+    const { root } = await makeRepo();
+    await makeRemote(root);
+    await git(root, "checkout", "-q", "-b", "side");
+    await git(root, "commit", "-q", "--allow-empty", "-m", "unpushed side work");
+    const side = await git(root, "rev-parse", "HEAD");
+    await git(root, "checkout", "-q", "main");
+    await git(root, "commit", "-q", "--allow-empty", "-m", "main moves on");
+    const result = await ancestor(packetAt(root, side, "*"), root);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('branch "*" is not a valid branch name');
+  }, SLOW);
+
+  test("a merged PR whose head is another commit does not accept the packet HEAD", async () => {
+    const { root, p } = await featureFork();
+    await git(root, "push", "-q", "origin", "--delete", "feature");
+    const probe = ghAnswering(JSON.stringify([{ number: 7, headRefOid: "e".repeat(40) }]));
+    const result = await ancestor(packetAt(root, p, "feature"), root, probe);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain("no merged PR for feature holds the packet HEAD");
+  }, SLOW);
+
+  test("a merged PR whose head is the packet HEAD, or descends from it, accepts it", async () => {
+    const { root, p } = await featureFork();
+    await git(root, "checkout", "-q", "feature");
+    await git(root, "commit", "-q", "--allow-empty", "-m", "after the packet");
+    const later = await git(root, "rev-parse", "HEAD");
+    await git(root, "checkout", "-q", "main");
+    await git(root, "push", "-q", "origin", "--delete", "feature");
+    for (const headRefOid of [p, later]) {
+      const probe = ghAnswering(JSON.stringify([{ number: 7, headRefOid }]));
+      const result = await ancestor(packetAt(root, p, "feature"), root, probe);
+      expect(result.errors).toEqual([]);
+      expect(result.notes.some((n) => n.includes("squash-merge"))).toBe(true);
+    }
+  }, SLOW);
 });

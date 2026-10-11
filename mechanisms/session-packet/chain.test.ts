@@ -83,3 +83,14 @@ describe("packet chain (opt-in)", () => {
     expect(produced.notes?.some((n) => n.startsWith("two heads:"))).toBe(true);
   });
 });
+
+describe("packet chain parent", () => {
+  test("an abandoned, unfilled scaffold is never the parent: the newest filled packet is", async () => {
+    const { root } = await makeRepo();
+    const first = await close(root, CHAIN, 0);
+    const abandoned = await snapshotPacket({ repoRoot: root, config: CHAIN, objective: "Abandoned", exec: nodeExec, now: new Date(Date.UTC(2026, 0, 1, 0, 0, 1)) });
+    expect(abandoned.ok).toBe(true);
+    const third = await close(root, CHAIN, 2);
+    expect(extract(readFileSync(third.path, "utf-8")).previous_packet_id).toBe(first.packetId);
+  });
+});
