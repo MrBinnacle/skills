@@ -2,6 +2,14 @@
 import type { ReceiverCheck } from "./packet";
 
 export const DEFAULT_DIR = ".pi/session-packets";
+/** Private worktree of the branch store, relative to the repository root unless absolute. */
+export const DEFAULT_STORE_WORKTREE = "var/session-log-worktree";
+
+/** How a receiver judges a packet HEAD that differs from the current HEAD. */
+export type HeadPolicy = "exact" | "ancestor";
+
+/** Where packets live: files in `dir`, or commits on an orphan branch pushed to origin. */
+export type PacketStore = { kind: "dir" } | { kind: "branch"; ref: string; worktree: string };
 
 export interface PacketConfig {
   /** Packet directory, relative to the repository root unless absolute. */
@@ -11,6 +19,12 @@ export interface PacketConfig {
   /** Literal substring HEAD's commit message must carry in produce mode. Opt-in. */
   closeCommit?: { contains: string };
   wakeConditions: string[];
+  /** Opt-in; absent means "exact". Applies to receive mode only. */
+  headPolicy?: HeadPolicy;
+  /** Opt-in: record previous_packet_id and replace the unclaimed-HEAD refusal with chain checks. */
+  chain?: boolean;
+  /** Opt-in; absent means `{ kind: "dir" }`. */
+  store?: PacketStore;
 }
 
 export type PacketConfigResult = { ok: true; config: PacketConfig } | { ok: false; error: string };
@@ -54,6 +68,25 @@ export function parseSessionPacketConfig(raw: Record<string, unknown> | undefine
   if (section.wakeConditions !== undefined) {
     if (!isStringArray(section.wakeConditions)) return fail("wakeConditions", "must be an array of strings");
     config.wakeConditions = section.wakeConditions;
+  }
+  if (section.headPolicy !== undefined) {
+    if (section.headPolicy !== "exact" && section.headPolicy !== "ancestor") return fail("headPolicy", 'must be "exact" or "ancestor"');
+    config.headPolicy = section.headPolicy;
+  }
+  if (section.chain !== undefined) {
+    if (typeof section.chain !== "boolean") return fail("chain", "must be a boolean");
+    config.chain = section.chain;
+  }
+  if (section.store !== undefined) {
+    const store = section.store;
+    if (!isRecord(store)) return fail("store", "must be an object");
+    if (store.kind === "dir") config.store = { kind: "dir" };
+    else if (store.kind === "branch") {
+      if (typeof store.ref !== "string" || store.ref === "") return fail("store.ref", "must be a non-empty string");
+      const worktree = store.worktree ?? DEFAULT_STORE_WORKTREE;
+      if (typeof worktree !== "string" || worktree === "") return fail("store.worktree", "must be a non-empty string");
+      config.store = { kind: "branch", ref: store.ref, worktree };
+    } else return fail("store.kind", 'must be "dir" or "branch"');
   }
   return { ok: true, config };
 }
