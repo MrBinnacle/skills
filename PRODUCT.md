@@ -95,7 +95,7 @@ product-direction decision and it is the owner's. Recorded undecided rather than
 
 ## Product Purpose
 
-**Current shipped surface.** This repository currently distributes agent skill cards, each with an evidence record of where it came from and what has and has not been tested. The record is published so someone who did not write the card can check it. This is the current implementation, not the permanent boundary of the product.
+**Current shipped surface.** This repository currently distributes agent skill cards, each with an evidence record of where it came from and what has and has not been tested. The record is published so the record can be checked by someone who did not write it. This is the current implementation, not the permanent boundary of the product.
 
 **Owner-directed product scope (2026-10-13).** The product ambition now extends beyond “Skills.” Treat this repository as the intervention catalog and operator-facing adoption layer of an evidence-governed reliability system for delegated AI work. Its intended job is to help an operator determine which control, if any, applies to their actual workflow and environment; provide that intervention at the right layer; and keep the resulting claims checkable over time. A skill is one control type and a current delivery format, not the product's defining boundary.
 
