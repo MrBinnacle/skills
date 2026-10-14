@@ -5,7 +5,7 @@
   </picture>
 </p>
 
-# `MRBINNACLE / skills`
+# MRBINNACLE `/ skills`
 
 A small collection of Claude Code skills I develop from problems encountered in actual use.
 
