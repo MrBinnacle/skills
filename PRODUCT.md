@@ -51,12 +51,16 @@ any person:
 > own layer of checks between themselves and their agents. Their unit of work is a session, not a
 > file. They have delegated enough that the reports are all they have.
 
-**Situation of use.** Not browsing. Two entry moments:
+**Situation of use.** Not catalog browsing. Three entry moments:
 
 1. **Post-incident** — something reported success and it was not true, and the reader now
    distrusts a whole class of report.
 2. **Pre-build** — the reader is about to write a hook, guard, router predicate, retry loop,
    parallel dispatch or handoff packet, and wants the known silent-failure modes first.
+3. **Setup or change of environment** — the runtime, project or workflow has changed, and the
+   reader wants to know which controls actually apply before installing or enabling anything.
+   This third moment is a design hypothesis carried by [the broader product map](https://github.com/MrBinnacle/skills/issues/418)
+   and existing issue #407, not an observed user pattern.
 
 **Explicit anti-trigger: coverage-driven browsing.** Do not optimize for a card for every possible task or for catalog size. The new product journey starts from the user's actual workflow, environment and observed failure; it decides whether a control is needed and at which layer. A skill is one possible answer, alongside a rule, guard, check, setup change or no intervention. The repository already refuses to maximize coverage, in its own words: *“The repository is not intended to maximize coverage. The admission policy keeps it small. If you want breadth, [Matt Pocock's skills collection] is a better place to browse.”* (CATALOG.md:31.) The wider product keeps that restraint while adding applicability-aware selection as an explicit design goal; it does not imply that per-card switching is available on every install route.
 
@@ -124,7 +128,9 @@ skills the author was personally convinced were valuable."*
 One skill, `claude-code-stop-hook-envelope`, was retired against a trigger registered before the
 platform change that fired it.
 
-⚠ **The problem addressed is a credence-good problem**, stated for the sibling instrument and true
+⚠ **The current distinction belongs to the skill-collection surface. At the broader product level, the working positioning hypothesis is the complete control lifecycle: identify applicable conditions, choose the correct control layer, qualify the intervention, preserve the evidence, and remove or revise controls when their conditions no longer hold. That system-level distinction is not yet implemented end to end and must not be quoted outward as a current capability.
+
+The problem addressed is a credence-good problem**, stated for the sibling instrument and true
 here: a reader cannot evaluate a skill before installing it, and mostly cannot tell afterwards
 either. The response is not a better claim. It is a checkable record.
 
