@@ -579,13 +579,13 @@ def case_product_contract_linked() -> None:
         contract_text = contract.read_text(encoding="utf-8")
         check(
             "Product contract keeps Pi first and Claude Code compatible",
-            "Pi is the first selected implementation" in contract_text
-            and "Claude Code remains a compatibility and distribution target" in contract_text,
+            "Pi is the first implementation of that principle" in contract_text
+            and "Claude Code remains a current compatibility and distribution target" in contract_text,
             "the runtime architecture direction was omitted or reversed",
         )
         check(
             "Product contract distinguishes source identity from delivery and efficacy",
-            "Separate applicability, delivery, behavior and efficacy" in contract_text
+            "## 6. Applicability, delivery, behavior and efficacy" in contract_text
             and "The Pi subject adapter already exists" in contract_text,
             "the cross-layer evidence boundary or existing Pi adapter distinction is missing",
         )
