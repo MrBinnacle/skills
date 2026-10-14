@@ -579,8 +579,8 @@ def case_product_contract_linked() -> None:
         contract_text = contract.read_text(encoding="utf-8")
         check(
             "Product contract keeps Pi first and Claude Code compatible",
-            "Pi is the first implementation of that principle" in contract_text
-            and "Claude Code remains a current compatibility and distribution target" in contract_text,
+            "Pi is the first implementation, not the principle itself" in contract_text
+            and "Claude Code remains a current compatibility/distribution route" in contract_text,
             "the runtime architecture direction was omitted or reversed",
         )
         check(
