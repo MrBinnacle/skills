@@ -94,7 +94,16 @@ The durable decision is to own the agent layer and keep models/providers replace
 
 Claude Code remains a current compatibility/distribution route, not the governing architecture for every runtime.
 
-The [Agent Skills specification](https://agentskills.io/specification) defines a shared `SKILL.md` package convention. [Pi's skill docs](https://pi.dev/docs/latest/skills) state that Pi implements the specification; [Claude's skill docs](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) describe Claude's format and loading behavior. These pages were checked 2026-10-14. Shared format does **not** prove identical discovery, settings, activation, permissions, loading, invocation or behavior.
+The [Agent Skills specification](https://agentskills.io/specification) defines a shared `SKILL.md` package convention. [Pi's skill docs](https://pi.dev/docs/latest/skills) state that Pi implements the specification; [Pi package docs](https://pi.dev/docs/latest/packages) and [Pi configuration docs](https://pi.dev/docs/latest/configuration) describe its distribution/configuration routes. [Claude's skill docs](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) describe Claude's format and loading behavior. These pages were checked 2026-10-14. Shared format does **not** prove identical discovery, settings, activation, permissions, loading, invocation or behavior.
+
+**Documented route differences (not yet a product compatibility claim):**
+
+| Runtime | Documented discovery/delivery options | Product implication |
+| --- | --- | --- |
+| Pi | User skill directories `~/.pi/agent/skills/` and `~/.agents/skills/`; project `.pi/skills/` and `.agents/skills/`; package, settings and explicit CLI skill paths. Pi packages can be installed from npm, Git or a local path and can expose skill resources. | A future `skills-pi` route could be a thin Pi package or shared-directory config. Choose only after locating the intended owned target and proving the actual loaded context. |
+| Claude Code | Personal `~/.claude/skills/`, project `.claude/skills/`, and plugin-based distribution. This collection currently documents Claude Code plugin installation and the `npx skills add` route in its [README](https://github.com/MrBinnacle/skills/blob/main/README.md). | Preserve the current supported distribution route. Plugin install/cache/version semantics are distinct from Pi package installation and need their own proof. |
+
+These docs establish the available mechanisms at the platform level. They do not establish which route has been tested for every capability in this collection or whether the model received the expected capability description/body in a given run.
 
 ### Required declaration per supported route
 
