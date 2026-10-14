@@ -560,6 +560,36 @@ def case_intent_positioning_preserved() -> None:
     )
 
 
+def case_product_contract_linked() -> None:
+    """The revised Product Purpose links to the internal cross-layer contract."""
+    text = _read(PRODUCT)
+    purpose = text[text.find("## Product Purpose") : text.find("## Positioning")]
+    contract = REPO_ROOT / "docs" / "product" / "product-contract.md"
+    check(
+        "Product Purpose links the cross-layer contract",
+        "[the product contract](docs/product/product-contract.md)" in purpose,
+        "Product Purpose does not link to the capability/context/runtime/evidence contract",
+    )
+    check(
+        "Product contract exists",
+        contract.is_file(),
+        "the linked product contract does not exist",
+    )
+    if contract.is_file():
+        contract_text = contract.read_text(encoding="utf-8")
+        check(
+            "Product contract keeps Pi first and Claude Code compatible",
+            "Pi is the first selected implementation" in contract_text
+            and "Claude Code remains a compatibility and distribution target" in contract_text,
+            "the runtime architecture direction was omitted or reversed",
+        )
+        check(
+            "Product contract distinguishes source identity from delivery and efficacy",
+            "Separate applicability, delivery, behavior and efficacy" in contract_text
+            and "The Pi subject adapter already exists" in contract_text,
+            "the cross-layer evidence boundary or existing Pi adapter distinction is missing",
+        )
+
 def case_intent_purpose_governance_preserved() -> None:
     text = _read(PRODUCT)
     purpose = text[text.find("## Product Purpose") : text.find("## Positioning")]
@@ -800,6 +830,7 @@ CASES = (
     case_product_brand_not_market_citation_moved,
     case_product_breadth_cost_quote_not_in_readme,
     case_product_purpose_allows_designed_cards,
+    case_product_contract_linked,
     case_product_publication_not_validation_readme_claim_removed,
     case_product_retired_line_refs_corrected,
     case_product_screened_out_quote_current,
