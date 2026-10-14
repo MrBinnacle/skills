@@ -5,13 +5,21 @@
   </picture>
 </p>
 
-# `skills`
+# `MRBINNACLE / skills`
 
-Claude Code skills for mistakes that report success. Most come from a failure seen in real work: a pull that quietly rewrote commits, a test that passed over code that never ran, a deploy check that confirmed a deploy that had not landed. Two, `im-down` and `im-up`, were designed on purpose rather than written after an incident. Any Claude Code user can hit these failures. The [admission policy](ADMISSION.md) came after many of the skills were published, and a [triage against it](dispositions/2026-08-15-S295-admission-triage.md) found that most of them do not yet meet all four of its questions on recorded evidence. Each skill's `EVIDENCE.md` says where it stands.
+A small collection of Claude Code skills I develop from problems encountered in actual use.
+
+Claude Code skills for mistakes that report success. Most address a failure seen in real work: a pull that rewrites commits, a test that passes over code that never ran, a deploy check that confirms a deploy that has not landed, or a handoff that returns claims nobody checked. Two cards, `im-down` and `im-up`, were designed for recurring work rather than written after an incident.
+
+Each published card has an instruction, test cases, an evidence record and a stated condition that would retire it. Read those together. A plausible instruction is not evidence that it changes behavior. A run that never reaches the failure a card targets cannot establish that the card prevents it.
+
+**Publication is not validation.**
+
+The [admission policy](ADMISSION.md) governs additions. It asks whether the unaided failure exists, recurs independently, calls for a skill rather than another control, and has evidence adequate for admission and later retirement. An unanswered criterion counts as no.
 
 ## Install
 
-Run these two commands one at a time. A paste of both in one block is read by Claude Code as a single malformed URL.
+This repository currently ships through three Claude Code plugin groups. Run the marketplace command and each install command separately.
 
 ```text
 /plugin marketplace add https://github.com/MrBinnacle/skills.git
@@ -21,73 +29,73 @@ Run these two commands one at a time. A paste of both in one block is read by Cl
 /plugin install mrbinnacle-engineering
 ```
 
-The other plugins are `mrbinnacle-orchestration` and `mrbinnacle-meta`. Or install everything with `npx skills add MrBinnacle/skills`.
+The other groups are `mrbinnacle-orchestration` and `mrbinnacle-meta`. Install either with the same command form, substituting its name. After installation, run `/reload-plugins`. If the reload is pending, use `/reload-plugins --force` or start a new Claude Code session.
 
-The cards appear after `/reload-plugins`. If Claude Code reports the reload as pending, run `/reload-plugins --force`. A new `claude` session in the same profile also loads them. The plugin docs at https://code.claude.com/docs/en/discover-plugins.md state this behaviour (read 2026-10-06).
-
-Confirm what you installed with `claude plugin list`. It reports the installed plugins and their versions.
-
-Shell form, same source:
+The shell form is also supported. Run these as separate commands:
 
 ```bash
 claude plugin marketplace add https://github.com/MrBinnacle/skills.git
+```
+
+```bash
 claude plugin install mrbinnacle-engineering
 ```
 
-The HTTPS clone URL is what this README publishes. The GitHub shorthand `MrBinnacle/skills` is also a documented CLI source; on a machine with no working SSH key for github.com it can fail with `git@github.com: Permission denied (publickey)`, which is what a cold install of v3.0.1 recorded. Issue #333 recorded that failure.
+The [`skills` CLI route](https://github.com/vercel-labs/skills) is another way to install the collection:
 
-Verified forms, Claude Code 2.1.287, 2026-10-02, from a clean `CLAUDE_CONFIG_DIR` with no SSH key:
+```bash
+npx skills add MrBinnacle/skills
+```
 
-- interactive `/plugin marketplace add https://github.com/MrBinnacle/skills.git`
-- shell `claude plugin marketplace add https://github.com/MrBinnacle/skills.git`
-- shell `claude plugin install` of all three plugins, at 3.0.1
+Check installed plugin versions with `claude plugin list`.
 
-The cold-install transcript is in the pull request that changed this section (#340).
+## What ships now
 
-Each skill adds one line to every session: about 45 to 65 tokens, measured by `skill-harness skill audit` on 2026-09-22. The rest loads only when it is used. The three marked "by hand" cost nothing until you run them.
+| Group | What it covers | Index |
+|---|---|---|
+| Engineering | Git, tests, deployment checks, command guards and other places where a success signal can be wrong | [Engineering skills](skills/engineering/README.md) |
+| Orchestration | Handoffs, delegated work and decisions that need a checkable return | [Orchestration skills](skills/orchestration/README.md) |
+| Meta | Routing and dispatch failures inside the skill system | [Meta skills](skills/meta/README.md) |
 
-## What's in it
+The collection is not intended to cover every possible task. A skill is the wrong answer when the failure does not recur, the model already handles it, or a different control is the right place to act. The rule is admission, not coverage.
 
-**mrbinnacle-engineering**
+## Read the record
 
-| Skill | Use it when |
-|---|---|
-| `pull-rebase` | You pull with `pull.rebase` on, and something else records your commit IDs. |
-| `stale-deploy` | You confirm a deploy by polling a page that may already show the new text. |
-| `mocked-stub` | A test mocks a helper that is only a stub in production. |
-| `vacuous-check` | A success check only asks whether the output is non-empty. |
-| `clirunner-env` | A test overrides environment variables to stop a real call. |
-| `pretooluse-prose` | A command guard might block prose that mentions the command. |
-| `halt-as-deliverable` | Your own gate stops the work, and the stop is the result. |
-| `closure-mode` (by hand) | You reach a boundary with a checklist to run. |
-| `im-down`, `im-up` (by hand) | You end a session and start the next one from written state. |
+A skill's `SKILL.md` is the instruction an agent receives. Its `evals/evals.json` holds test cases. Its `EVIDENCE.md` records the origin and the evidence available for that card.
 
-**mrbinnacle-orchestration**
+- [Catalog and evidence map](CATALOG.md) links published cards to their recorded states.
+- [Admission policy](ADMISSION.md) sets the criteria for adding a card.
+- [Retired cards](RETIRED.md) records what left and why.
+- [Quarantine](./_quarantine/README.md) explains the status of candidates that have not been admitted.
+- [Security commitments](SECURITY.md) describes the project's security posture.
+- [`skill-harness`](https://github.com/MrBinnacle/skill-harness) holds the evaluation apparatus, not this repository.
 
-| Skill | Use it when |
-|---|---|
-| `subagent-handback` | You send work to a subagent and need to check what comes back. |
-| `decision-rights` | You write a handoff, plan or prompt that someone else will act on. |
-| `disposition-schema` | You run parallel reviews that must be compared. |
+Three distinctions matter when reading the evidence:
 
-**mrbinnacle-meta**
+- **Origin is not effect.** `OBSERVED`, `DESIGNED` and `DISTILLED` say where a card came from. They do not say whether it helps.
+- **A passing task is not automatically a skill effect.** The comparison must establish what changed between a run with the card and a run without it.
+- **A missing or inconclusive result is not a pass.** `UNMEASURED` and `CANT_TELL_YET` are valid states. Their explanations belong beside the relevant card, not in a universal badge.
 
-| Skill | Use it when |
-|---|---|
-| `dead-predicate` | A hook or router stays silent and you need to know why. |
+The [admission triage record](dispositions/2026-08-15-S295-admission-triage.md) also documents where earlier cards do not yet meet every admission criterion on recorded evidence. That is a limitation in the record, not a reason to infer a positive result.
 
-## What comes with each skill
+## The wider system under review
 
-You would not ship code that runs on every request without tests. A skill runs in every session you have. So each one here comes with:
+The proposed direction is to make this repository the published intervention catalog and operator-facing adoption layer for a larger agent-reliability system. That system is not delivered end to end today. The proposal separates responsibilities instead of copying everything into this repository.
 
-- **Test cases** (`evals/evals.json`), so you can check it still works on your model instead of assuming it does.
-- **An evidence record** (`EVIDENCE.md`): the real failure it came from, and what has been measured. So you know why it is there.
-- **A retirement condition**: the change that would make it unnecessary. So you know when to take it out.
+| Surface | Intended responsibility | Boundary that remains important |
+|---|---|---|
+| GitHub | Canonical bytes and revisions for published capabilities | A knowledge-base description does not override the current file |
+| Notion | Shared context, source relationships, hypotheses and accepted decisions | Context is not evidence that a runtime received a capability or that it worked |
+| Pi | First implementation of an owner-controlled agent layer, with model and provider kept replaceable | The exact `skills-pi` distribution path is not yet verified |
+| Claude Code | Current distribution and compatibility route | Shared `SKILL.md` format does not establish equivalent discovery, loading, invocation or behavior |
+| `skill-harness` | Controlled evaluation, measurement and evidence receipts | The Pi evaluation adapter is not the same thing as a `skills-pi` installer or package |
 
-Controlled tests, with and without each skill, run in [skill-harness](https://github.com/MrBinnacle/skill-harness). The first, on `pull-rebase`, completed on 2026-09-03 and returned `CANT_TELL_YET`: the failure did not occur in either arm, so the run could not tell whether the skill helps. No second run is funded yet. The [evidence record](skills/engineering/pull-rebase/EVIDENCE.md) has the details. No skill claims a measured benefit yet.
+The proposed [product contract](docs/product/product-contract.md) defines capability, context, runtime-delivery, evaluation and lifecycle interfaces. The [product thesis](docs/product/agent-reliability-system-thesis.md) describes the intended operator journey. Both remain proposals until reviewed and accepted.
 
-## How skills get in and out
+The source checks are tracked in [#420, runtime delivery and artifact identity](https://github.com/MrBinnacle/skills/issues/420) and [#421, the Notion context audit](https://github.com/MrBinnacle/skills/issues/421). They are audits, not claims that the integrations already work. A shared format, installer test or adapter test does not by itself prove a specific capability was delivered, invoked or had an effect.
 
-A new skill gets in only if it passes the [admission policy](ADMISSION.md). It leaves when a test finds no benefit, or when a model or Claude Code change makes it unnecessary. [RETIRED.md](RETIRED.md) lists every one that has left, with its evidence. Candidates wait in [`_quarantine/`](_quarantine/README.md).
+## Adding a skill
 
-The full evidence table, the card forms and the admission detail are in [CATALOG.md](CATALOG.md). Security commitments are in [SECURITY.md](SECURITY.md).
+Start with [ADMISSION.md](ADMISSION.md), not a blank card. Record the failure and independently counted occasions. Check that a skill is the right control surface. Preserve the evidence whether a candidate is admitted, held or refused. If evidence is missing, leave the state unresolved instead of filling the gap with a claim.
+
+The point is not to make the inventory grow. It is to leave a record that can survive someone opening the files and checking it.
