@@ -82,7 +82,7 @@ The current repository already separates several axes. The wider product must pr
 - **A review procedure is not a completed review.** The required independent seat, actual invocation, output and adjudication record must exist before the work is said to have passed review.
 - **A green check proves only the property that check actually measures.** An unobserved surface, unchecked assumption, or failed-to-run process must remain visible.
 
-The current [intervention-mechanism preflight RCA, PR #475](https://github.com/MrBinnacle/skills_research/pull/475) proposes a missing pre-spend qualification requirement and mechanism binding. That PR remains a proposed research landing until its prescribed review and merge conditions are met. No new control or efficacy conclusion should be inferred from the proposal alone.
+The currently proposed intervention-mechanism preflight RCA in the sibling research workspace proposes a pre-spend qualification requirement and mechanism binding. It remains a proposed research finding until its prescribed independent review and landing conditions are met. No new control or efficacy conclusion should be inferred from the proposal alone.
 
 The supporting implementation history is in [skill-harness #421](https://github.com/MrBinnacle/skill-harness/issues/421), [#438](https://github.com/MrBinnacle/skill-harness/issues/438), [#620](https://github.com/MrBinnacle/skill-harness/issues/620), and [#621](https://github.com/MrBinnacle/skill-harness/issues/621). The product work here should consume those controls and accepted contracts, not create duplicate machinery.
 
