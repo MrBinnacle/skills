@@ -128,9 +128,9 @@ skills the author was personally convinced were valuable."*
 One skill, `claude-code-stop-hook-envelope`, was retired against a trigger registered before the
 platform change that fired it.
 
-⚠ **The current distinction belongs to the skill-collection surface. At the broader product level, the working positioning hypothesis is the complete control lifecycle: identify applicable conditions, choose the correct control layer, qualify the intervention, preserve the evidence, and remove or revise controls when their conditions no longer hold. That system-level distinction is not yet implemented end to end and must not be quoted outward as a current capability.
+The current distinction belongs to the skill-collection surface. At the broader product level, the working positioning hypothesis is the complete control lifecycle: identify applicable conditions, choose the correct control layer, qualify the intervention, preserve the evidence, and remove or revise controls when their conditions no longer hold. That system-level distinction is not yet implemented end to end and must not be quoted outward as a current capability.
 
-The problem addressed is a credence-good problem**, stated for the sibling instrument and true
+⚠ **The problem addressed is a credence-good problem**, stated for the sibling instrument and true
 here: a reader cannot evaluate a skill before installing it, and mostly cannot tell afterwards
 either. The response is not a better claim. It is a checkable record.
 
