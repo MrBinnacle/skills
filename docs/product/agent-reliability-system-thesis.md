@@ -100,6 +100,30 @@ Before adding a capability, find the current owner and implementation. Link or w
 
 The Skills repository can become the user-facing catalog and adoption surface for a wider system without absorbing all implementation into it. A future change to that boundary requires a concrete dependency or user-journey reason.
 
+## Runtime stance: Pi first, Claude Code compatible
+
+The durable architectural decision is to own the agent layer and keep model/provider choice replaceable. Pi is the first implementation of that decision, not the decision itself. If the Pi implementation is wrong for the job, replace it without surrendering the ownership principle.
+
+Claude Code remains a supported compatibility and distribution target because the existing collection ships through its skill/plugin ecosystem. It is not the governing architecture for every runtime.
+
+The open [Agent Skills specification](https://agentskills.io/specification) provides a shared `SKILL.md` format. [Pi documents that it implements the specification](https://pi.dev/docs/latest/skills); [Claude documents its own format and loading behavior](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview). A shared format allows canonical capability content to be reused, but it does not establish identical discovery, activation, settings, permissions, loading, invocation, or behavior. Each supported route needs an adapter declaration and evidence of actual delivery.
+
+The Pi subject adapter already implemented in [skill-harness](https://github.com/MrBinnacle/skill-harness/tree/main/src/skill_harness/subject/pi) is the scientific execution adapter. It captures Pi-native evidence, normalizes it to the existing `ParsedEvalLog` seam, and leaves shared admissibility/oracle/aggregation authority downstream. That apparatus work does not mean a separate `skills-pi` package, installer, or repository is complete. The intended owned distribution path is unverified and must be located before packaging work is started. No sized Pi efficacy result is established by adapter validation.
+
+## Knowledge base: context, not execution truth
+
+The existing Notion Skills Library and Global Context data sources should become an explicit context plane, not another copy of runtime files or a large block of always-loaded instructions.
+
+Notion can retain durable context, source references, working hypotheses, accepted decisions and relationships between capabilities and global knowledge. The canonical GitHub files determine current published capability bytes; runtime observations determine what was actually discovered or delivered; tests and measurement receipts determine what was measured. A Notion project description cannot override those sources.
+
+The integration must retain item identity, kind/status, scope, source authority, provenance, freshness or re-check trigger, relationships and access boundaries. Retrieval should return the smallest relevant context set. Missing, stale or conflicting context must produce an explicit unknown state instead of a guess. Audit existing relation coverage and data quality before expanding the Notion schema or automating writes.
+
+## The cross-layer contract
+
+The [product contract](product-contract.md) separates five interfaces: capability behavior, knowledge/context, runtime delivery, evaluation, and lifecycle/release. The shared artifact identity is not the delivery receipt; the delivery receipt is not invocation evidence; invocation is not an efficacy verdict.
+
+The contract gives each piece a clear owner and a testable boundary. It does not authorize a duplicate experiment engine or make new runtime and efficacy claims. Product unity comes from shared identity, provenance and handoffs across the components.
+
 ## Existing assets that make this direction plausible
 
 The current repository already contains building blocks beyond a set of `SKILL.md` files:
@@ -115,9 +139,9 @@ This establishes that there are candidate assets for a wider product loop. It do
 
 ## First work sequence
 
-### 1. Establish the product contract
+### 1. Establish and independently review the product contract
 
-This thesis and [map #418](https://github.com/MrBinnacle/skills/issues/418) establish the owner-directed strategy and the initial boundaries. Reconcile the thesis with `PRODUCT.md`, `ADMISSION.md`, `BRAND.md`, `DESIGN.md` and current code. The public product surfaces remain unchanged in this step.
+Use [the product contract](product-contract.md) as the proposed cross-layer boundary and this thesis as its product rationale. Review both against `PRODUCT.md`, `ADMISSION.md`, `BRAND.md`, `DESIGN.md`, current runtime documentation/code, `skill-harness`, and the existing Notion schema. Resolve duplicate and conflicting rules before implementation. The public product surfaces remain unchanged in this step.
 
 ### 2. Resolve the existing setup idea within the full journey
 
@@ -161,7 +185,9 @@ Do not optimize a single aggregate score if a subtype split changes the decision
 - The actual audience beyond the current design hypothesis; no verified external adoption or user-research evidence is present here.
 - Whether setup defaults to enabled-and-prune or disabled-and-enable, and which granularity each supported install route affords.
 - Which additional control types should be stored and released from this repository versus linked integrations.
-- Which runtimes beyond the currently documented routes should be supported first.
+- Pi is the first selected owned runtime; Claude Code is a compatibility/distribution target. Exact supported runtime versions and test matrix remain to be established.
+- The intended owner-controlled repository/path for the `skills-pi` distribution surface has not been verified; locate it before creating or modifying a package.
+- Which runtimes beyond Pi and the currently supported Claude Code routes should be supported next.
 - The cost and evidence standard for accepting non-skill interventions.
 - Commercial model, willingness to pay, and whether any of these are product requirements at all.
 
