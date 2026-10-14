@@ -58,10 +58,8 @@ any person:
 2. **Pre-build** — the reader is about to write a hook, guard, router predicate, retry loop,
    parallel dispatch or handoff packet, and wants the known silent-failure modes first.
 
-**Explicit anti-trigger.** The "is there a skill for X?" browsing moment. CATALOG.md:31
-refuses it in the repository's own words: *"The repository is not intended to maximize
-coverage. The admission policy keeps it small. If you want breadth, [Matt Pocock's skills
-collection] is a better place to browse."*
+**Explicit anti-trigger: coverage-driven browsing.** Do not optimize for a card for every possible task or for catalog size. The new product journey starts from the user's actual workflow, environment and observed failure; it decides whether a control is needed and at which layer. A skill is one possible answer, alongside a rule, guard, check, setup change or no intervention. The repository already refuses to maximize coverage, in its own words: *“The repository is not intended to maximize coverage. The admission policy keeps it small. If you want breadth, [Matt Pocock's skills collection] is a better place to browse.”* (CATALOG.md:31.) The wider product keeps that restraint while adding applicability-aware selection as an explicit design goal; it does not imply that per-card switching is available on every install route.
+
 
 **Job.**
 
@@ -97,23 +95,17 @@ product-direction decision and it is the owner's. Recorded undecided rather than
 
 ## Product Purpose
 
-A small collection of Claude Code skill cards, each carrying an evidence record that states its
-origin — most a dated incident, while `im-down` and `im-up` were designed on purpose (README:10)
-— a recurrence count and a stated screen result, published so the record can be checked by
-someone who did not write it.
+**Current shipped surface.** This repository currently distributes agent skill cards, each with an evidence record of where it came from and what has and has not been tested. The record is published so someone who did not write the card can check it. This is the current implementation, not the permanent boundary of the product.
 
-The purpose is not coverage. It is that **admission is governed and the governance is visible.**
-ADMISSION.md's four-question test, verbatim: *"1. An unaided failure exists... 2. The failure
-recurs independently... 3. A skill is the correct control surface for it... 4. Evidence supports
-admission and later retirement... Default answer: not admitted."*
+**Owner-directed product scope (2026-10-13).** The product ambition now extends beyond “Skills.” Treat this repository as the intervention catalog and operator-facing adoption layer of an evidence-governed reliability system for delegated AI work. Its intended job is to help an operator determine which control, if any, applies to their actual workflow and environment; provide that intervention at the right layer; and keep the resulting claims checkable over time. A skill is one control type and a current delivery format, not the product's defining boundary.
 
-**Success** is that a stranger can open the repository and verify what it claims without trusting
-the author. BRAND.md:47-54: *"That you can see where each card came from, what it does when it
-runs, and what has and has not been tested about it. Nothing beyond that... It competes on whether
-the record holds up when someone opens it."*
+The intended loop is: understand environment and exposure → choose the correct control layer → deliver the intervention → qualify the exact task, subject/runtime and mechanism → observe outcome and consequence → retain scope, cost, provenance, evidence and re-check triggers → update, disable or retire. This is a product-design direction directed by the owner, not a verified claim about users, adoption, efficacy or market demand. The working thesis and sequence are in [the agent-reliability product thesis](docs/product/agent-reliability-system-thesis.md).
 
-⛔ **Publication is not validation.** Stated in BRAND.md. A card being kept is
-an inventory fact, not evidence that it works.
+**What this repository owns.** It owns the intervention catalog and its admission/evidence contracts, the skill cards and portable operating-rules template, and the operator-facing adoption work that helps people choose and configure applicable controls. Evaluation execution and verdict machinery remain with the sibling measurement instrument; research and method development remain in the research/decision layer. Share explicit contracts across those surfaces rather than duplicating their internals or collapsing repositories without a concrete reason.
+
+**Success.** An operator can map real conditions to an appropriate control or a justified no-control answer, understand the control's costs and limits, check what was actually tested, and know when it should be re-evaluated or removed. The operator can do so without treating a published or admitted card as empirically proven.
+
+**Admission remains binding for skill cards.** [ADMISSION.md](ADMISSION.md) continues to govern what may enter the skill collection, with “not admitted” as its default. Other control types do not automatically pass through that policy by analogy; each needs an appropriate, explicit contract and evidence path before it becomes a deliverable.
 
 ## Positioning
 
