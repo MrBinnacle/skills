@@ -111,6 +111,8 @@ The intended loop is: understand environment and exposure → choose the correct
 
 **Success.** An operator can map real conditions to an appropriate control or a justified no-control answer, understand the control's costs and limits, check what was actually tested, and know when it should be re-evaluated or removed. The operator can do so without treating a published or admitted card as empirically proven.
 
+**Publication is not validation.** Admission, installation and verified delivery are each different from a measured effect. The product must keep those states separate.
+
 **Admission remains binding for skill cards.** [ADMISSION.md](ADMISSION.md) continues to govern what may enter the skill collection, with “not admitted” as its default. Other control types do not automatically pass through that policy by analogy; each needs an appropriate, explicit contract and evidence path before it becomes a deliverable.
 
 ## Positioning
