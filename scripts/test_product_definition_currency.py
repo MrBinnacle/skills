@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Suite for S498 / issue #334 currency of PRODUCT.md, BRAND.md, DESIGN.md.
+"""Suite for product-definition currency, originally written for the S498 / issue #334 audit of
+PRODUCT.md, BRAND.md and DESIGN.md.
 
-A currency audit (a separate research repository, docs/audit/product-definitions-currency-S498.md)
-checked every factual line of these three files against origin/main and marked
-rows STALE where a citation, attribution, line number or tense had drifted.
-Issue #334 corrects those rows and leaves INTENT lines alone: the Users
-hypothesis, the Positioning narrative, the Product Purpose claim, the Brand
-Commitments and the Product Principles wait on the operator.
+The original audit's factual citation checks remain useful and are preserved. The owner issued a
+new product-direction ruling on 2026-10-13, expanding PRODUCT.md beyond a skill-card collection.
+This suite therefore now pins the revised Product Purpose and coverage anti-trigger rather than
+mistaking the superseded pre-ruling Product Purpose language for an invariant. The Users audience
+description remains an explicitly unobserved design hypothesis, not public copy. BRAND.md and
+DESIGN.md intent remains owner-governed; this test does not authorize changes to public lines.
 
 Each case reads the live file rather than a fixture, because the file is the
 artifact under review. Citation cases resolve FILE:LINE against the file that
@@ -531,9 +532,17 @@ def case_intent_users_hypothesis_preserved() -> None:
         "the Users status line was edited",
     )
     check(
-        "Users anti-trigger framing preserved",
-        "Explicit anti-trigger" in text and "browsing moment" in text,
-        "the Users anti-trigger framing was removed rather than re-cited",
+        "Coverage-driven anti-trigger preserved under the owner-directed product scope",
+        "Explicit anti-trigger: coverage-driven browsing" in text
+        and "Do not optimize for a card for every possible task" in text
+        and "a skill is one possible answer" in text.lower(),
+        "the anti-trigger no longer protects against catalog growth for its own sake",
+    )
+    check(
+        "Environment-aware setup is explicitly a hypothesis",
+        "not an observed user pattern" in text
+        and "Setup or change of environment" in text,
+        "the new setup moment is presented as observed behavior",
     )
 
 
@@ -553,15 +562,23 @@ def case_intent_positioning_preserved() -> None:
 
 def case_intent_purpose_governance_preserved() -> None:
     text = _read(PRODUCT)
+    purpose = text[text.find("## Product Purpose") : text.find("## Positioning")]
     check(
-        "Purpose governance claim preserved",
-        "admission is governed and the governance is visible" in text,
-        "the Product Purpose governance claim was edited",
+        "Owner-directed broader product scope preserved",
+        "product ambition now extends beyond “Skills.”" in purpose
+        and "evidence-governed reliability system for delegated AI work" in purpose,
+        "the owner-directed expansion beyond skill cards was removed from Product Purpose",
     )
     check(
-        "ADMISSION four-question quote preserved",
-        "Default answer: not admitted" in text,
-        "the admission-policy quote was removed",
+        "Control selection permits no intervention",
+        "which control, if any" in purpose and "no-control answer" in purpose,
+        "the product purpose has collapsed back to always recommending a skill",
+    )
+    check(
+        "Skill admission remains separately governed",
+        "Admission remains binding for skill cards" in purpose
+        and "Default answer: not admitted" in text,
+        "the expanded product purpose no longer preserves the existing admission policy",
     )
 
 
@@ -815,8 +832,8 @@ def main() -> int:
         print(f"\nFAILED: {len(FAILURES)} case(s): {', '.join(FAILURES)}")
         return 1
     print(
-        "\nPASS: PRODUCT.md, BRAND.md and DESIGN.md match the S498 audit's current "
-        "truth; pinned INTENT phrases present; citations resolve at the PR head."
+        "\nPASS: factual citation checks remain current; owner-directed Product Purpose and "
+        "claim boundaries are preserved; citations resolve at the PR head."
     )
     return 0
 
