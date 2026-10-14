@@ -9,7 +9,7 @@
 
 A small collection of Claude Code skills I develop from problems encountered in actual use.
 
-Claude Code skills for mistakes that report success. Most address a failure seen in real work: a pull that rewrites commits, a test that passes over code that never ran, a deploy check that confirms a deploy that has not landed, or a handoff that returns claims nobody checked. Two cards, `im-down` and `im-up`, were designed for recurring work rather than written after an incident.
+Most address a failure seen in real work: a pull that rewrites commits, a test that passes over code that never ran, a deploy check that confirms a deploy that has not landed, or a handoff that returns claims nobody checked. `im-down` and `im-up` were designed for recurring work rather than written after an incident.
 
 Each published card has an instruction, test cases, an evidence record and a stated condition that would retire it. Read those together. A plausible instruction is not evidence that it changes behavior. A run that never reaches the failure a card targets cannot establish that the card prevents it.
 
@@ -19,7 +19,7 @@ The [admission policy](ADMISSION.md) governs additions. It asks whether the unai
 
 ## Install
 
-This repository currently ships through three Claude Code plugin groups. Run the marketplace command and each install command separately.
+Run these two commands one at a time. A paste of both in one block is read by Claude Code as a single malformed URL.
 
 ```text
 /plugin marketplace add https://github.com/MrBinnacle/skills.git
@@ -29,25 +29,28 @@ This repository currently ships through three Claude Code plugin groups. Run the
 /plugin install mrbinnacle-engineering
 ```
 
-The other groups are `mrbinnacle-orchestration` and `mrbinnacle-meta`. Install either with the same command form, substituting its name. After installation, run `/reload-plugins`. If the reload is pending, use `/reload-plugins --force` or start a new Claude Code session.
+The other plugins are `mrbinnacle-orchestration` and `mrbinnacle-meta`. Or install everything with `npx skills add MrBinnacle/skills`.
 
-The shell form is also supported. Run these as separate commands:
+The cards appear after `/reload-plugins`. If Claude Code reports the reload as pending, run `/reload-plugins --force`. A new `claude` session in the same profile also loads them. The plugin docs at https://code.claude.com/docs/en/discover-plugins.md state this behaviour (read 2026-10-06).
+
+Confirm what you installed with `claude plugin list`. It reports the installed plugins and their versions.
+
+Shell form, same source:
 
 ```bash
 claude plugin marketplace add https://github.com/MrBinnacle/skills.git
-```
-
-```bash
 claude plugin install mrbinnacle-engineering
 ```
 
-The [`skills` CLI route](https://github.com/vercel-labs/skills) is another way to install the collection:
+The HTTPS clone URL is what this README publishes. The GitHub shorthand `MrBinnacle/skills` is also a documented CLI source; on a machine with no working SSH key for github.com it can fail with `git@github.com: Permission denied (publickey)`, which is what a cold install of v3.0.1 recorded. Issue #333 recorded that failure.
 
-```bash
-npx skills add MrBinnacle/skills
-```
+Verified forms, Claude Code 2.1.287, 2026-10-02, from a clean `CLAUDE_CONFIG_DIR` with no SSH key:
 
-Check installed plugin versions with `claude plugin list`.
+- interactive `/plugin marketplace add https://github.com/MrBinnacle/skills.git`
+- shell `claude plugin marketplace add https://github.com/MrBinnacle/skills.git`
+- shell `claude plugin install` of all three plugins, at 3.0.1
+
+The cold-install transcript is in the pull request that changed this section (#340).
 
 ## What ships now
 
