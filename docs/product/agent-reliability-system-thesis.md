@@ -27,7 +27,7 @@ The product should reduce the distance between a reported problem and a justifie
 
 The intended operator journey is:
 
-1. **Describe or inspect the actual environment.** Identify the runtime, project setup, relevant configuration, workflow and constraints from checkable sources wherever possible. Missing or inaccessible information returns `CANNOT_TELL`, not a guess presented as fact.
+1. **Describe or inspect the actual environment.** Identify the runtime, project setup, relevant configuration, workflow and constraints from checkable sources wherever possible. Missing or inaccessible information returns `APPLICABILITY_UNKNOWN`, not a guess presented as fact.
 2. **Classify the failure and exposure.** Separate a failure that occurred from a hypothetical risk. Identify the condition that makes the failure reachable, and distinguish exposure from a card invocation or a final outcome.
 3. **Choose the control layer.** The answer may be no intervention, a standing instruction, a project rule, a skill, a hook or guard, a deterministic test or validator, a setup change, or a workflow procedure. Do not force every problem into a skill.
 4. **Deliver the appropriate intervention.** State the actual behavior, prerequisites, scope, delivery route, side effects and costs. Do not infer support for a platform or install route that has not been checked.
@@ -125,7 +125,7 @@ Use [#407](https://github.com/MrBinnacle/skills/issues/407) as the starting poin
 
 ### 3. Prototype one small environment-aware selector
 
-Use a small, throwaway prototype before building a general configurator. Start with a limited set of candidate controls and a real clean installation. Require evidence-backed outputs such as `APPLICABLE`, `NOT_APPLICABLE` and `CANNOT_TELL`, with rationale, evidence source, per-control context cost, and the exact unit that can be enabled or disabled.
+Use a small, throwaway prototype before building a general configurator. Start with a limited set of candidate controls and a real clean installation. Require evidence-backed outputs such as `APPLICABLE`, `NOT_APPLICABLE` and `APPLICABILITY_UNKNOWN`, with rationale, evidence source, per-control context cost, and the exact unit that can be enabled or disabled. These are proposed selector states, not a measurement verdict enum: `APPLICABILITY_UNKNOWN` must remain distinct from `CANT_TELL_YET` (an unresolved efficacy disposition) and `UNMEASURED` (no admissible measurement).
 
 Include positive and negative controls: one setup that should trigger a recommendation, another that should not, and a case with missing evidence. A polished screen is not evidence that the recommendation is correct.
 
@@ -146,7 +146,7 @@ Only after the prototype can correctly select and explain controls should the pr
 These are candidates for future validation, not current results or claims:
 
 - Correctness of applicability recommendations on known positive and negative environment fixtures.
-- Rate at which the selector returns a guess instead of `CANNOT_TELL` when relevant evidence is missing.
+- Rate at which the selector returns a guess instead of `APPLICABILITY_UNKNOWN` when relevant evidence is missing.
 - Successful cold-install and configuration flows on each explicitly supported route and host environment.
 - Accuracy of reported context costs and distinction between enabled, invoked, exposed and measured states.
 - Ability of an independent reader to trace a product claim to the exact intervention version, task/fixture, subject/runtime and evidence record.
