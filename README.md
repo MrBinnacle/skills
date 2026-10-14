@@ -9,11 +9,11 @@
 
 A small collection of Claude Code skills I develop from problems encountered in actual use.
 
-Most address a failure seen in real work: a pull that rewrites commits, a test that passes over code that never ran, a deploy check that confirms a deploy that has not landed, or a handoff that returns claims nobody checked. `im-down` and `im-up` were designed for recurring work rather than written after an incident.
+Most address a failure seen in real work: a pull that rewrites commits, a test that passes over code that never ran, a deploy check that confirms a deploy that has not landed, or a handoff that returns claims nobody checked. Any Claude Code user can hit these failures. `im-down` and `im-up` were designed for recurring work rather than written after an incident.
 
 Each published card has an instruction, test cases, an evidence record and a stated condition that would retire it. Read those together. A plausible instruction is not evidence that it changes behavior. A run that never reaches the failure a card targets cannot establish that the card prevents it.
 
-**Publication is not validation.**
+**A kept card is an inventory fact, not evidence that it works.**
 
 The [admission policy](ADMISSION.md) governs additions. It asks whether the unaided failure exists, recurs independently, calls for a skill rather than another control, and has evidence adequate for admission and later retirement. An unanswered criterion counts as no.
 
@@ -75,7 +75,7 @@ A skill's `SKILL.md` is the instruction an agent receives. Its `evals/evals.json
 
 Three distinctions matter when reading the evidence:
 
-- **Origin is not effect.** `OBSERVED`, `DESIGNED` and `DISTILLED` say where a card came from. They do not say whether it helps.
+- **Origin is not effect.** A card's source record says where it came from. It does not say whether it helps.
 - **A passing task is not automatically a skill effect.** The comparison must establish what changed between a run with the card and a run without it.
 - **A missing or inconclusive result is not a pass.** `UNMEASURED` and `CANT_TELL_YET` are valid states. Their explanations belong beside the relevant card, not in a universal badge.
 
