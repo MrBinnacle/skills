@@ -44,7 +44,7 @@ Verified forms, Claude Code 2.1.287, 2026-10-02, from a clean `CLAUDE_CONFIG_DIR
 
 The cold-install transcript is in the pull request that changed this section (#340).
 
-Each skill adds one line to every session: about 45 to 65 tokens, measured by `skill-harness skill audit` on 2026-09-22. The rest loads only when it is used. The three marked "by hand" cost nothing until you run them.
+Each skill adds one line to every session: about 44 to 63 tokens, measured by `skill-harness skill audit` on 2026-09-22. The rest loads only when it is used. The three marked "by hand" cost nothing until you run them.
 
 ## What's in it
 
