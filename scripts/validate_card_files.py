@@ -92,10 +92,18 @@ DISPATCH_MEASURED_RE: Final[re.Pattern[str]] = re.compile(
     r"\bmeasured 20\d{2}-\d{2}-\d{2}\b"
 )
 
+# #354: the evidence-scope row. Presence is this script's contract; the VALUE
+# is conformance O5's, derived from the card's linked receipt under
+# --harness-root. Quarantine cards and scripts/fixtures/ are not published
+# cards here (find_cards walks skills/<bucket>/<card> only), so they owe
+# nothing -- the same boundary every other contract row already sits behind.
+EVIDENCE_SCOPE_ROW: Final[str] = "Evidence scope"
+
 REQUIRED_EVIDENCE_ROWS: Final[tuple[str, ...]] = (
     OCCASIONS_ROW,
     DISPATCH_ROW,
     RESCREEN_ROW,
+    EVIDENCE_SCOPE_ROW,
 )
 
 # ADMISSION.md criterion 2: the failure recurs independently, "it is not a
@@ -658,11 +666,21 @@ def _path_exists_case_exact(path: Path) -> bool:
 
 
 def size_breaches(card: Path) -> list[str]:
-    """AGENTS.md: SKILL.md within 400–7,168 bytes."""
+    """AGENTS.md: SKILL.md within 400–7,168 bytes.
+
+    Measured on the file's CONTENT with CRLF collapsed to LF. A Windows
+    checkout (`core.autocrlf=true`) stores `\r\n` for every newline, which
+    inflates the byte count without changing what a reader holds. Measuring
+    raw on-disk bytes reds two published cards that sit under the ceiling on
+    LF (vacuous-check 7108 B, dead-predicate 7141 B) purely for their line
+    endings — #354's CRLF acceptance run caught that. The bound is about the
+    card's content, not the checkout's EOL convention.
+    """
     skill = card / "SKILL.md"
     if not skill.is_file():
         return []
-    size = skill.stat().st_size
+    raw = skill.read_bytes()
+    size = len(raw.replace(b"\r\n", b"\n"))
     if size < SKILL_SIZE_MIN:
         return [
             f"SKILL.md is {size} bytes, below the minimum of {SKILL_SIZE_MIN}. "

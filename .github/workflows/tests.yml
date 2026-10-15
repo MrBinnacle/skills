@@ -768,6 +768,38 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::conformance suite emitted no PASS line - it did not run"; exit 1; }
 
+      # #354 R3: the Evidence scope drift test. Without SKILL_HARNESS_ROOT the
+      # suite notes a skip; with it, the test imports
+      # skill_harness.sitegen.render._scope_line from <root>/src, renders the
+      # R2 KEEP fixtures through it, and compares the unescaped scope line
+      # with this repository's derivation. It does not look for named
+      # constants in the harness. The harness is checked out at its default
+      # branch on ubuntu-latest only: the Windows cell would re-download the
+      # same bytes to answer the same question.
+      - name: Evidence scope drift against skill-harness
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -euo pipefail
+          harness_dir="$RUNNER_TEMP/skill-harness"
+          rm -rf "$harness_dir"
+          git clone --depth 1 https://github.com/MrBinnacle/skill-harness.git "$harness_dir"
+          # Importing render.py pulls skill_harness package modules; install
+          # the harness in this step only so the drift import works the same
+          # way here as it does in a maintainer checkout.
+          pip install -e "$harness_dir"
+          out="$(SKILL_HARNESS_ROOT="$harness_dir" python scripts/test_validate_conformance.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::conformance suite with SKILL_HARNESS_ROOT emitted no PASS line"; exit 1; }
+          # The drift case must have RUN, not skipped.
+          echo "$out" | grep -q 'skills derivation equals harness _scope_line' \
+            || { echo "::error::the scope-line drift case did not run against the harness checkout"; exit 1; }
+          if echo "$out" | grep -q 'scope-line drift skipped'; then
+            echo "::error::the scope-line drift case skipped despite SKILL_HARNESS_ROOT"
+            exit 1
+          fi
+          echo "control: scope-line drift ran against the skill-harness checkout"
+
       - name: Standing obligations sweep
         run: |
           set -euo pipefail
