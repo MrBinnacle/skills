@@ -3,8 +3,8 @@
   "calibrated_on": "2026-09-22",
   "cards": {
     "clirunner-env": {
-      "standing_cost_tokens": 56,
-      "skill_md_sha256": "25c51a2b27a35fc49c57eb8175ba25404eb526ef49b0e3f2b162ea498f1985bf"
+      "standing_cost_tokens": 59,
+      "skill_md_sha256": "f9b8e12a91cfe5ce28a2f4592be5c3991121ffa3fa65f73c51059acc100e2807"
     },
     "closure-mode": {
       "standing_cost_tokens": 0,
