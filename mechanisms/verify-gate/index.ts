@@ -27,7 +27,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("tool_result", async (event) => {
-    gate?.toolFinished(event.toolName, event.input, event.isError);
+    gate?.toolFinished(event.toolName, event.input, event.isError, event.details);
   });
 
   pi.on("agent_before_settle", async (event) => {
