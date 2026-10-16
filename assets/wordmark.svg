@@ -11,14 +11,17 @@
 
     Set at 24px. The viewBox is sized for Inter 700 + a 0.6em mono advance; font
     substitution from the stack will change the fit slightly. Nominal, not exact.
+    2026-10-16 (#423): the stacks are now IBM Plex Sans 700 and IBM Plex Mono 500.
+    Behind <img> this file cannot load the site's @font-face, so Plex renders
+    only where it is installed; the fit above was set for Inter and is nominal.
 
     Colour is currentColor by design: the kit declares dark-surface neutrals only
     (tokens.json > known_gaps.no_light_mode_neutrals), so a hard-coded hex here
     would be an invented token. Inherits from the embedding context instead.
   -->
   <text x="22" y="39" fill="currentColor" font-size="24" xml:space="preserve"><tspan
-      font-family="Inter, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif"
+      font-family="&quot;IBM Plex Sans&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif"
       font-weight="700" letter-spacing="-0.24">MRBINNACLE</tspan><tspan
-      font-family="ui-monospace, &quot;SFMono-Regular&quot;, Consolas, &quot;Liberation Mono&quot;, monospace"
+      font-family="&quot;IBM Plex Mono&quot;, ui-monospace, &quot;Cascadia Mono&quot;, Consolas, monospace"
       font-weight="500"> / skills</tspan></text>
 </svg>
