@@ -1,11 +1,12 @@
 import { isAbsolute, relative, resolve } from "node:path";
+import { fusionReceipt } from "./fusion";
 
 export type RunOutcome = "completed" | "aborted" | "error";
 
 export interface Gate {
   /** A user prompt started a run. Continuations the gate requested are part of the same run. */
   runStarted(): void;
-  toolFinished(toolName: string, input: Record<string, unknown>, isError: boolean): void;
+  toolFinished(toolName: string, input: Record<string, unknown>, isError: boolean, details?: unknown): void;
   /** The continuation prompt to send, or undefined to let the run settle. */
   beforeSettle(outcome: RunOutcome): string | undefined;
 }
@@ -33,11 +34,16 @@ export function createGate(checkCommands: readonly string[], projectRoot?: strin
       unchecked.clear();
       nudged = false;
     },
-    toolFinished(toolName, input, isError) {
-      if ((toolName === "edit" || toolName === "write") && !isError) {
+    toolFinished(toolName, input, isError, details) {
+      const receipt = toolName === "edit" || toolName === "write" ? fusionReceipt(details) : undefined;
+      if ((toolName === "edit" || toolName === "write") && (!isError || receipt)) {
         const path = String(input.path);
         if (projectRoot === undefined || underRoot(projectRoot, path)) unchecked.add(path);
       }
+      // Nested Bash was observed before the parent mutation result. Replay only
+      // a successful follow-up after recording that mutation; failures stay pending.
+      if (receipt?.followUp.status === "succeeded" &&
+          patterns.some((p) => p.test(receipt.followUp.command))) unchecked.clear();
       if ((toolName === "bash" || toolName === "powershell") && patterns.some((p) => p.test(String(input.command)))) {
         unchecked.clear();
       }
