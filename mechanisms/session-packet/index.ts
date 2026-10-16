@@ -3,6 +3,7 @@
  *
  * /packet-close <objective>  measure, refuse, write a scaffold, ask the agent to fill it; the fill
  *                            is validated in produce mode when the agent stops (agent_before_settle).
+ *                            With a branch store, an accepted fill is committed and pushed.
  * /packet-open [path]        validate the latest (or given) packet in receive mode; report the receipt.
  * session_start              same as /packet-open, only when the project declares `sessionPacket`.
  */
@@ -11,8 +12,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadConfig } from "../shared/config";
 import { fillInstructions, type Snapshot, snapshotPacket, validateFilled } from "./close";
-import { type Exec, git, packetFiles } from "./repo";
+import { type Exec, git } from "./repo";
 import { type PacketConfig, parseSessionPacketConfig } from "./settings";
+import { listPackets, type PacketListing, publishPacket } from "./store";
 import { validatePacket } from "./validate";
 
 /** Corrections the agent gets after its first fill before the extension gives up. */
@@ -46,21 +48,34 @@ export default function (pi: ExtensionAPI) {
   const exec: Exec = (command, args, options) => pi.exec(command, args, options);
   let pending: Pending | undefined;
 
-  async function receive(ctx: ExtensionContext, explicitPath: string | undefined): Promise<void> {
+  async function receive(ctx: ExtensionContext, explicitPath: string | undefined, listed?: PacketListing): Promise<void> {
     const loaded = loadPacketConfig(ctx.cwd);
     if (!loaded.ok) return report(ctx, `session-packet: ${loaded.error}`, "error");
     const repoRoot = await git(exec, ctx.cwd, "rev-parse", "--show-toplevel");
-    const packetPath = explicitPath
-      ? resolve(ctx.cwd, explicitPath)
-      : packetFiles(resolve(repoRoot, loaded.config.dir))[0];
-    if (!packetPath) return report(ctx, `session-packet: no packet in ${loaded.config.dir}`, "warning");
+    let packetPath: string;
+    let text: string;
+    let listing: PacketListing | undefined;
+    if (explicitPath) {
+      packetPath = resolve(ctx.cwd, explicitPath);
+      text = readFileSync(packetPath, "utf-8");
+    } else {
+      listing = listed ?? (await listPackets({ repoRoot, config: loaded.config, exec }));
+      const latest = listing.packets[0];
+      if (!latest) {
+        const where = loaded.config.store?.kind === "branch" ? `store branch ${loaded.config.store.ref}` : loaded.config.dir;
+        return report(ctx, `session-packet: no packet in ${where}`, "warning");
+      }
+      packetPath = latest.source;
+      text = await latest.read();
+    }
     const receipt = await validatePacket({
-      text: readFileSync(packetPath, "utf-8"),
+      text,
       packetPath,
       mode: "receive",
       repoRoot,
       config: loaded.declared ? loaded.config : undefined,
       exec,
+      listing,
     });
     const json = JSON.stringify(receipt, null, 2);
     report(ctx, json, receipt.verdict === "ACCEPTED" ? "info" : "error");
@@ -105,11 +120,16 @@ export default function (pi: ExtensionAPI) {
         pending = undefined;
         return report(ctx, `session-packet: run ${event.outcome}; packet not validated: ${current.snapshot.path}`, "warning");
       }
-      const receipt = await validateFilled({ snapshot: current.snapshot, repoRoot: current.repoRoot, config: current.config, exec });
+      // One read: the text validated is the text the branch store commits.
+      const text = readFileSync(current.snapshot.path, "utf-8");
+      const receipt = await validateFilled({ snapshot: current.snapshot, repoRoot: current.repoRoot, config: current.config, exec, text });
       const json = JSON.stringify(receipt, null, 2);
       if (receipt.verdict === "ACCEPTED") {
         pending = undefined;
-        return report(ctx, `Session packet ${current.snapshot.path}\n${json}`, "info");
+        if (current.config.store?.kind !== "branch") return report(ctx, `Session packet ${current.snapshot.path}\n${json}`, "info");
+        const published = await publishPacket({ repoRoot: current.repoRoot, config: current.config, path: current.snapshot.path, text, exec });
+        const level: Level = published.status === "pushed" ? "info" : published.status === "unpushed" ? "warning" : "error";
+        return report(ctx, `Session packet ${current.snapshot.path}\n${json}\n${published.message}`, level);
       }
       // Not gated on event.context.canContinue: on Pi 1.1.0 it read false while a requested
       // continuation still ran (see ../DESIGN.md).
@@ -140,8 +160,9 @@ export default function (pi: ExtensionAPI) {
       if (!loaded.ok) return report(ctx, `session-packet: ${loaded.error}`, "error");
       if (!loaded.declared) return;
       const repoRoot = await git(exec, ctx.cwd, "rev-parse", "--show-toplevel");
-      if (!packetFiles(resolve(repoRoot, loaded.config.dir)).length) return;
-      await receive(ctx, undefined);
+      const listing = await listPackets({ repoRoot, config: loaded.config, exec });
+      if (!listing.packets.length) return;
+      await receive(ctx, undefined, listing);
     } catch (e) {
       report(ctx, `session-packet: startup check failed: ${(e as Error).message}`, "error");
     }
