@@ -25,8 +25,8 @@ repository makes. Most rules below are one application of it:
 
 - **Borrowed state colour is dressing.** A colour that marks success, measurement or verdict on
   the sibling instrument, or any value it declares, dresses this repository's inventory as a
-  measurement. That is the one colour rule stated as an absolute. The moss accent is green and
-  carries no state; it marks focus and hover and nothing else.
+  measurement. That is the one colour rule stated as an absolute. The accent carries no state;
+  it marks focus and hover and nothing else.
 - **Monospace is dressing when it is decorative.** The mono/sans split is semantic: mono marks a
   value that came from somewhere checkable — a count, a verdict, a command, an identifier. Prose
   that merely describes those things stays in the sans face. Setting a claim in mono to make it
@@ -37,6 +37,28 @@ repository makes. Most rules below are one application of it:
 
 Hunt for dressing first when reviewing any asset. It is the failure that passes every other
 check.
+
+---
+
+## Type and palette: the owner's design pack, adopted 2026-10-15
+
+The type is **IBM Plex Sans** (400, 600, 700) and **IBM Plex Mono** (400, 500); the palette is
+the pack's green-grey family. Both came from the owner's design pack and were adopted under
+[#366](https://github.com/MrBinnacle/skills/issues/366), built under
+[#423](https://github.com/MrBinnacle/skills/issues/423). Values are in `tokens.json > type` and
+`tokens.json > color`; contrast figures, measured 2026-10-16, are in each scheme's `$note`.
+
+**Closed: "Inter named, never loaded" (#366).** `tokens.json` named Inter, but the site never
+loaded it, so most visitors saw a system font. The site now loads Plex from `site/fonts/`, its
+own origin, and makes no request to another host.
+
+**Do not subset or convert the font files.** Plex is SIL OFL 1.1 with Reserved Font Name
+"Plex"; a modified file may not ship under that name. `site/fonts/README.md` lists each file's
+package, version and sha256. To change coverage, take another unmodified file from IBM.
+
+**An SVG behind `<img>` cannot load the site's `@font-face`.** The README shows the banners and
+lockups that way, so Plex renders there only where it is installed, and the stacks fall back to
+system fonts. The landing page inlines its SVGs and so does get Plex.
 
 ---
 

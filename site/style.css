@@ -1,44 +1,87 @@
 /* skills landing page.
  *
  * Every colour below is a value declared under assets/tokens.json > color,
- * all of them derived from the owner's field palette. Light mode is the
- * default and uses color.structural_light; dark mode uses color.structural,
- * switched by prefers-color-scheme with no toggle and no script. Each scheme
- * is composed on its own, not inverted from the other.
+ * the owner's green palette (#366, #423). Light mode is the default and uses
+ * color.structural_light; dark mode uses color.structural, switched by
+ * prefers-color-scheme with no toggle and no script. Each scheme is composed
+ * on its own, not inverted from the other.
  *
- * One accent, moss, appears in exactly two state roles: the :focus-visible
- * outline and the :hover underline colour. It never carries text, an icon,
- * a fill or a state. It keeps one hue across the schemes: accent.light
- * #5A613F on light (6.06:1 on light.bg, 5.56:1 on light.surface) and
- * accent.dark #828C5B on dark (5.33:1 on repo.bg, 4.90:1 on repo.surface),
- * lifted because #5A613F measures 2.93:1 on repo.bg. Both clear the 3:1
- * non-text floor.
+ * One accent appears in exactly two state roles: the :focus-visible outline
+ * and the :hover underline colour. It never carries text, an icon, a fill or
+ * a state. accent.on_light #5F614A (5.75:1 on bg, 5.19:1 on surface) and
+ * accent.on_dark #959A76 (5.58:1 on bg, 4.68:1 on surface). Both clear the
+ * 3:1 non-text floor. Measured 2026-10-16.
  *
- * Text pairs, the only four used:
- *   light.ink   on light.bg  14.14    repo.ink   on repo.bg  15.05
- *   light.muted on light.bg   6.27    repo.muted on repo.bg   8.14
+ * Text pairs, the only four used (measured 2026-10-16):
+ *   light ink   on bg  14.78    dark ink   on bg  12.96
+ *   light muted on bg   5.75    dark muted on bg   7.18
+ *
+ * Type: IBM Plex Sans and Mono, self-hosted from site/fonts/ (IBM's unmodified
+ * Latin1 files; see site/fonts/README.md). No request leaves this origin.
  *
  * Radius scale (tokens.json > shape), one documented use per value:
  *   radius.none  0    -> layout, rules, list items, links
  *   radius.small 2px  -> inline <code> (declared; no inline code is on the page today)
  *   radius.panel 4px  -> the install command block (<kbd>)
  *
- * Regions separate with 1px rules (repo.line / light.line), never shadows.
+ * Regions separate with 1px rules (color.structural*.line), never shadows.
  * No gradient, glow, blur, glass, parallax or decorative motion. Motion is
  * hover and focus only, colour and underline thickness, 120ms, behind
  * prefers-reduced-motion: no-preference.
  */
 
-:root {
-  --bg: #FAF6EF;        /* light.bg */
-  --surface: #F2ECE3;   /* light.surface */
-  --ink: #31221E;       /* light.ink */
-  --muted: #6F573F;     /* light.muted */
-  --line: #B8A78B;      /* light.line */
-  --accent: #5A613F;    /* accent.light: focus ring and hover underline only */
+/* unicode-range: the Latin1 block of IBM's matching CSS in each package. */
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/IBMPlexSans-Regular-Latin1.woff2") format("woff2");
+  unicode-range: U+0000, U+000D, U+0020-007E, U+00A0-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2013-2014, U+2018-201A, U+201C-201E, U+2020-2022, U+2026, U+2030, U+2039-203A, U+2044, U+20AC, U+2122, U+2212, U+FB01-FB02;
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("fonts/IBMPlexSans-SemiBold-Latin1.woff2") format("woff2");
+  unicode-range: U+0000, U+000D, U+0020-007E, U+00A0-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2013-2014, U+2018-201A, U+201C-201E, U+2020-2022, U+2026, U+2030, U+2039-203A, U+2044, U+20AC, U+2122, U+2212, U+FB01-FB02;
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/IBMPlexSans-Bold-Latin1.woff2") format("woff2");
+  unicode-range: U+0000, U+000D, U+0020-007E, U+00A0-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2013-2014, U+2018-201A, U+201C-201E, U+2020-2022, U+2026, U+2030, U+2039-203A, U+2044, U+20AC, U+2122, U+2212, U+FB01-FB02;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/IBMPlexMono-Regular-Latin1.woff2") format("woff2");
+  unicode-range: U+0020-007E, U+00A0-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2013-2014, U+2018-201A, U+201C-201E, U+2020-2022, U+2026, U+2030, U+2039-203A, U+2044, U+20AC, U+2122, U+2212, U+FB01-FB02;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/IBMPlexMono-Medium-Latin1.woff2") format("woff2");
+  unicode-range: U+0020-007E, U+00A0-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2013-2014, U+2018-201A, U+201C-201E, U+2020-2022, U+2026, U+2030, U+2039-203A, U+2044, U+20AC, U+2122, U+2212, U+FB01-FB02;
+}
 
-  --font-body: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+:root {
+  --bg: #F2F4EF;        /* structural_light.bg */
+  --surface: #E6E9E2;   /* structural_light.surface */
+  --ink: #1E2020;       /* structural_light.ink */
+  --muted: #5F614A;     /* structural_light.muted */
+  --line: #B4B8A6;      /* structural_light.line */
+  --accent: #5F614A;    /* accent.on_light: focus ring and hover underline only */
+
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
 
   --radius-none: 0;
   --radius-small: 2px;
@@ -57,12 +100,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #140E0C;      /* repo.bg */
-    --surface: #201714; /* repo.surface */
-    --ink: #ECE3D6;     /* repo.ink */
-    --muted: #B8A78B;   /* repo.muted */
-    --line: #6F573F;    /* repo.line */
-    --accent: #828C5B;  /* accent.dark: focus ring and hover underline only */
+    --bg: #1E2020;      /* structural.bg */
+    --surface: #2B2E2C; /* structural.surface */
+    --ink: #E3E6DD;     /* structural.ink */
+    --muted: #A9AE9B;   /* structural.muted */
+    --line: #484C3F;    /* structural.line */
+    --accent: #959A76;  /* accent.on_dark: focus ring and hover underline only */
   }
 }
 
