@@ -126,3 +126,13 @@ above over the consolidated brief regardless of how the returns were wrapped.
 
 **Trigger to replace with [OBSERVED]:** a consolidation where every envelope validated and
 two findings still shared an ID.
+
+## [OBSERVED] Status: the reviewer-local ID collision is a counted occasion
+
+The ID-collision entry above was folded in from a quarantine candidate and never counted.
+It now counts in EVIDENCE.md `Occasions counted`. The occurrence date 2026-06-07 is inferred.
+It is the frontmatter `date:` field of the original quarantine card, which this change deleted;
+it survives in git history at `5da3536:_quarantine/brief-ids/SKILL.md` line 6. That record does
+not date the incident itself, which came earlier by an unrecorded span. It is a separate fire on a separate project from the origin
+contrast, so it is a second occasion and not fan-out. The quarantine copy is now deleted; this
+card holds the incident and the rule.

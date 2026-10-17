@@ -1,12 +1,7 @@
 # Template — Adversarial-Verify Seat (upstream stage: "are the findings real?")
 
-Extracted 2026-07-04 from a mined dispatch pattern (the author's research-project dispatch miner;
-two live variants: Workflow refute-pattern, teammate verifier-seat). The raw transcript count (22) was
-later re-graded as fan-out inflation — true recurrence ≈ 2 occasions; the MERGE disposition stands on
-zero-standing-cost grounds, not recurrence volume (see
-the retired gate card's `gotchas.md` [at `v1.3.0`](https://github.com/MrBinnacle/skills/blob/v1.3.0/skills/meta/skill-necessity-gate/gotchas.md)). SKILL.md's
-disposition schema assumes findings are already verified — this template is how they
-get verified. Same joinability principle, applied one stage earlier.
+SKILL.md's disposition schema assumes findings are already verified. This template is how they
+get verified: the same joinability principle, applied one stage earlier.
 
 ## Six invariants — every verify-seat dispatch carries all six
 
@@ -44,3 +39,29 @@ get verified. Same joinability principle, applied one stage earlier.
 - Verify (this template) and adjudicate (SKILL.md schema) are separate stages — do not
   collapse them into one seat. A seat that both verifies and disposes inherits the
   finder's framing, which is the bias the fresh-context invariant exists to break.
+
+## What a fresh verifier's first verdict looked like, measured once
+
+One private measurement, window 2026-09-28 to 2026-10-04, recorded what a verify seat built on
+these invariants returns after the earlier checks have passed. Agent-built pull requests went
+through an implement step, a same-family self-review, an acceptance gate and CI. A non-author
+verifier then ran each change in a clean checkout. On pull requests whose head had green CI, the
+verifier's first verdict was FAIL on 22 of 34 (65%). Remove the FAILs whose only findings were a
+false or stale PR body, and the findings the verifier located in the ticket itself, and the
+behavioural figure is 19 of 34 (56%). The pull requests named in a gate-green log give 21 of 27
+(78%). That population is more selected, not cleaner.
+
+This is a first-verdict disagreement rate. It is not a catch rate and not an escaped-defect rate.
+Four caveats travel with it:
+
+1. **Unadjudicated.** A FAIL is the verifier's call, not ground truth. Nobody has checked how
+   many of the FAILs were wrong.
+2. **Small n, one week.** 40 pull requests, 35 tickets, 22 pull requests in the key population.
+3. **Model family unseparated.** Most verifiers and builders were Claude. The independence
+   measured is a fresh seat that executes the change, not a different model family.
+4. **Selection.** Only pull requests that someone chose to verify have a verdict. If suspicion
+   triggered verification, every rate is an upper bound. The size of that effect is UNMEASURED.
+
+What the figure shows: in that window a fresh verify seat blocked changes that a green gate and
+green CI had passed, on most pull requests. What it does not show: that those FAILs were right,
+or that the seat is worth its cost.
