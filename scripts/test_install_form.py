@@ -31,9 +31,10 @@ What is asserted, and why these shapes
     `.claude-plugin/marketplace.json`, so a README that names a plugin the
     marketplace does not declare fails even when the CLI is absent. The
     "Verified forms" record is checked against the cold install's own
-    `claude plugin list --json` output and against `claude --version`, so a
-    README that states a stale version fails the same run that would have
-    installed the real one.
+    `claude plugin list --json` output and against `claude --version`. With
+    INSTALL_FORM_STRICT=1, as CI sets it beside its pinned CLI, a README that
+    states a different CLI version fails. Without it, a different local CLI
+    prints a WARN that the dated record is stale for that machine (#425).
 
     A tracked-file scan refuses any install surface, outside
     `docs/design/variants/**` and `.changeset/**`, that still publishes the
@@ -759,11 +760,25 @@ def live_cold_installs(
     version_out = run_cli(claude, ["--version"], env, str(base))
     version_words = (version_out.stdout or version_out.stderr).split()
     cli_version = version_words[0] if version_words else ""
-    check(
-        "README Verified forms Claude Code version matches the installed CLI",
-        bool(readme_claude_version) and readme_claude_version == cli_version,
-        f"README says {readme_claude_version!r}, CLI reports {cli_version!r}",
-    )
+    # The README line is a dated record of the CLI the forms were verified on,
+    # not a claim about whatever CLI is installed (#425). CI installs that
+    # exact version and sets INSTALL_FORM_STRICT=1, so there a mismatch means
+    # the record and the pinned CLI disagree, and it fails. On any other
+    # machine a different CLI means the verification is stale for that
+    # machine: reported, not failed.
+    name = "README Verified forms Claude Code version matches the installed CLI"
+    detail = f"README says {readme_claude_version!r}, CLI reports {cli_version!r}"
+    if not readme_claude_version:
+        check(name, False, detail)
+    elif readme_claude_version == cli_version:
+        check(name, True)
+    elif os.environ.get("INSTALL_FORM_STRICT") == "1":
+        check(name, False, detail + " (INSTALL_FORM_STRICT=1)")
+    else:
+        print(
+            f"WARN {name}: {detail}. The record is stale for this CLI; "
+            "re-verify and re-date it, or set INSTALL_FORM_STRICT=1 to fail"
+        )
     installed_versions = {plugin.get("version") for plugin in installed.values()}
     check(
         "README Verified forms plugin version matches the cold install",
