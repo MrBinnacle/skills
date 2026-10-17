@@ -39,6 +39,8 @@ A project that declares no `close_commit` is unaffected by the marker check; the
 
 ## Procedure
 
+Run the config's `receiver_checks` yourself first. `close_session.py` runs them after its commit, so a red check there costs a second close.
+
 1. Run `close_session.py` with the objective, next action, and `$ARGUMENTS` purpose. This is the only close command: it writes durable state, commits with the `close_commit` marker, runs the receiver checks, and writes the packet scaffold at the post-commit `HEAD`. It runs the checks through the receiver's cache, so a check that declares `cache_inputs` and passes here is served `cached` at the next open on an unchanged tree ([PACKET-FORMAT.md](PACKET-FORMAT.md) → "Receiver-check cache").
 1a. A red receiver check refuses the packet; the state commit stands. Fix the cause now, while this session holds the context, and close again.
 2. Open the generated packet path from the script's JSON output.
@@ -56,6 +58,8 @@ A project that declares no `close_commit` is unaffected by the marker check; the
 13. Return the packet path, packet ID, HEAD, and exact receiver command.
 
 Example close (one command):
+
+`<skill-dir>` is the directory holding this `SKILL.md` and its scripts: the path the card was loaded from. With several installed versions, take one path, printed alone: `ls -d ~/.claude/plugins/cache/mrbinnacle-skills/*/*/im-down | sort -V | tail -n 1`. Never capture stdout that also carries notes.
 
 ```bash
 python <skill-dir>/close_session.py \
@@ -106,13 +110,9 @@ The operator runs `/clear`. The producer owes them a **safe-to-clear** verdict, 
 
 Report residual risk beside the verdict even when it is yes: an unpushed branch, an untracked file, a job whose output lands where the durable state does not name it.
 
-Produce the packet after the session's final commit. A later commit moves HEAD and the receiver rejects the packet as stale. Keep the packet directory out of version control.
-
-`close_commit` checks that the close happened, not that nothing follows it. A commit made after an accepted packet still invalidates it, and the stale-HEAD check is what catches that.
-
 Open [gotchas.md](gotchas.md) when the receiver rejects a packet this producer just wrote, or a close was skipped. It records what went wrong at past closes: packets missing after a skipped close, a commit that moved `HEAD` after the packet, a receiver check that cannot fail.
 
-Do not install a Stop hook in this version. A Stop hook fires after ordinary responses and misses interrupts.
+Do not install a Stop hook in this version. A Stop hook fires after ordinary responses and does not run on a user interrupt (Claude Code hooks docs, `Stop`, checked 2026-10-17).
 
 Native Claude Code transcripts remain the abnormal-exit recovery path. This packet is an audited execution bootstrap.
 

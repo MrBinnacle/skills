@@ -30,6 +30,8 @@ One public entrypoint owns admission: validate the packet, then load durable sta
 
 Example open (one command):
 
+`<skill-dir>` is the directory holding this card's `SKILL.md`, beside its scripts. Use the path the card was loaded from. If several installed copies exist (one per installed version), pick one with a command that prints only a path: `ls -d ~/.claude/plugins/cache/mrbinnacle-skills/*/*/im-up | sort -V | tail -n 1`. Never capture a resolver's stdout as the path if it also prints notes there.
+
 ```bash
 python <skill-dir>/open_session.py <packet.md> \
   --repo-root . \
@@ -74,4 +76,4 @@ A `REJECTED` receipt carries `packet_assertions_held`. When it is `true`, every 
 
 ## Required fixtures
 
-Before adoption, run `test_validate_packet.py`. It covers clean, stale, incomplete, failed-probe, red-check, assertions-held, close-session, and open-session packets.
+Before adoption, run `python test_validate_packet.py` directly, not through pytest, and require its `PASS:` line. Pytest collects no tests from it and reports success. It covers clean, stale, incomplete, failed-probe, red-check, assertions-held, close-session, and open-session packets.
