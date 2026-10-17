@@ -48,6 +48,16 @@ killed. R6-3 pins the parser's other skip -- full-line `#` comments and blank
 lines in frontmatter are not bump declarations -- with a correctly classified
 changeset that must stay silent.
 
+ADR 0005 (docs/adr/0005-the-install-route-is-what-a-consumer-resolves.md) adds
+case 5: the install route is what a consumer resolves -- the marketplace `name`
+and the plugin `name`s in .claude-plugin/marketplace.json. A changeset whose diff
+changes the marketplace name, or drops a plugin name the base carried, must
+declare the ADR 0005 price (major) and may do so although no card moved. A
+plugin name only ADDED takes nothing from an installed user and is not a route
+change. An edit to a description in the same file is not a route change either,
+so case 3 still refuses a major bump for it. The route price is read from ADR
+0005 only when a route change is observed; a missing ADR 0005 then fails closed.
+
 Run: python scripts/test_bump_classification.py
 """
 from __future__ import annotations
@@ -83,6 +93,14 @@ Status: accepted, 2026-08-24.
 **The declared surface is the install path and the card format. The card set is not part of
 it.** Adding or retiring a card is a {admit_retire} change. Changing the install path, or the
 on-disk shape of a card, is a major change. Corrections within a card are a {patch}.
+"""
+
+
+ADR_0005_TEMPLATE = """# The install route is what a consumer resolves
+
+Status: accepted, 2026-10-17.
+
+**Decision. Changing the install route is a {route} change.**
 """
 
 
@@ -188,7 +206,13 @@ def plant_adrs(
     rename: str = "major",
     admit_retire: str = "minor",
     patch: str = "patch",
+    route: str | None = "major",
 ) -> None:
+    if route is not None:
+        write(
+            root / "docs" / "adr" / "0005-the-install-route-is-what-a-consumer-resolves.md",
+            ADR_0005_TEMPLATE.format(route=route),
+        )
     write(
         root / "docs" / "adr" / "0003-a-cards-name-is-part-of-the-declared-surface.md",
         ADR_0003_TEMPLATE.format(rename=rename, admit_retire=admit_retire),
@@ -199,20 +223,28 @@ def plant_adrs(
     )
 
 
-def manifest_lockstep(root: Path, cards: list[str], version: str) -> None:
+def manifest_lockstep(
+    root: Path,
+    cards: list[str],
+    version: str,
+    *,
+    marketplace_name: str = "fixture-skills",
+    plugin_name: str = "fixture-engineering",
+    description: str = "fixture",
+) -> None:
     """Marketplace + bucket plugin.json naming exactly `cards`, version in lockstep."""
     source = f"./skills/{SKILLS_BUCKET}"
     write(
         root / ".claude-plugin" / "marketplace.json",
         json.dumps(
             {
-                "name": "fixture-skills",
+                "name": marketplace_name,
                 "owner": {"name": "fixture", "url": "https://example.invalid"},
                 "plugins": [
                     {
-                        "name": "fixture-engineering",
+                        "name": plugin_name,
                         "source": source,
-                        "description": "fixture",
+                        "description": description,
                     }
                 ],
             },
@@ -224,7 +256,7 @@ def manifest_lockstep(root: Path, cards: list[str], version: str) -> None:
         root / source / ".claude-plugin" / "plugin.json",
         json.dumps(
             {
-                "name": "fixture-engineering",
+                "name": plugin_name,
                 "version": version,
                 "skills": [f"./{c}" for c in cards],
             },
@@ -256,11 +288,16 @@ def make_tree(
       scripts_only - a file outside skills/*/*/ changes
       non_card     - a file under skills/*/*/ but outside any card changes
       modify_card  - a file inside an existing card changes (no rename/add)
+      rename_marketplace - the marketplace `name` changes (ADR 0005 route)
+      rename_plugin      - the plugin `name` changes (ADR 0005 route)
+      describe_plugin    - only a plugin description in marketplace.json changes
+      break_manifest     - marketplace.json at HEAD is not valid JSON
 
     adr:
       real             - ADR 0003 text as shipped (rename=major, admit=minor)
       rename_is_patch  - ADR 0003 text rewritten so rename prices as patch
       missing          - no docs/adr/ files
+      no_0005          - ADR 0002 and 0003 only, as before ADR 0005 existed
 
     release=True sets head_version (default minor bump) so the tree is a release
     ref. `consumed` names the bump(s) the release plan held at the base commit;
@@ -286,6 +323,8 @@ def make_tree(
         pass
     elif adr == "rename_is_patch":
         plant_adrs(root, rename="patch", admit_retire="minor", patch="patch")
+    elif adr == "no_0005":
+        plant_adrs(root, route=None)
     else:
         plant_adrs(root, rename="major", admit_retire="minor", patch="patch")
 
@@ -338,13 +377,23 @@ def make_tree(
             "# gotchas\n\nA dated note.\n",
         )
 
+    route_edit: dict[str, str] = {}
+    if branch_change == "rename_marketplace":
+        route_edit = {"marketplace_name": "renamed-skills"}
+    elif branch_change == "rename_plugin":
+        route_edit = {"plugin_name": "renamed-engineering"}
+    elif branch_change == "describe_plugin":
+        route_edit = {"description": "a reworded description"}
+
     if head is not None:
         # Candidate-only: version bump, lockstep manifests, dated changelog.
-        manifest_lockstep(root, cards_after_change(), head)
+        manifest_lockstep(root, cards_after_change(), head, **route_edit)
         write(root / "package.json", package_json(head))
         write(root / "CHANGELOG.md", changelog_md(head))
     else:
-        manifest_lockstep(root, cards_after_change(), base_version)
+        manifest_lockstep(root, cards_after_change(), base_version, **route_edit)
+    if branch_change == "break_manifest":
+        write(root / ".claude-plugin" / "marketplace.json", "{ not json" + chr(10))
 
     if not release:
         if changeset_text is not None:
@@ -546,6 +595,88 @@ def case_case3_non_card_directory_declared_minor_is_refused(tmp: Path) -> None:
         "G10:",
         "no file under skills/*/*/",
         "minor",
+    )
+
+
+def case_case5_marketplace_rename_declared_major_passes(tmp: Path) -> None:
+    """Case 5: a marketplace rename touches no card, yet ADR 0005 prices it major."""
+    root = make_tree(tmp, declared="major", branch_change="rename_marketplace")
+    expect_pass("case 5: a marketplace rename declared major PASSES", root)
+
+
+def case_case5_marketplace_rename_declared_patch_is_refused(tmp: Path) -> None:
+    """Case 5: an installed user's marketplace name is gone; patch understates it."""
+    root = make_tree(tmp, declared="patch", branch_change="rename_marketplace")
+    expect_g10_refusal(
+        "case 5: a marketplace rename declared patch is refused",
+        root,
+        "G10:",
+        "install route",
+        "renamed-skills",
+        "major",
+    )
+
+
+def case_case5_plugin_rename_declared_minor_is_refused(tmp: Path) -> None:
+    """Case 5: a plugin rename drops the name an installed user resolved."""
+    root = make_tree(tmp, declared="minor", branch_change="rename_plugin")
+    expect_g10_refusal(
+        "case 5: a plugin rename declared minor is refused",
+        root,
+        "G10:",
+        "install route",
+        "fixture-engineering",
+        "major",
+    )
+
+
+def case_case5_plugin_rename_declared_major_passes(tmp: Path) -> None:
+    root = make_tree(tmp, declared="major", branch_change="rename_plugin")
+    expect_pass("case 5: a plugin rename declared major PASSES", root)
+
+
+def case_case3_description_edit_declared_major_is_refused(tmp: Path) -> None:
+    """A description edit in marketplace.json resolves to the same route."""
+    root = make_tree(tmp, declared="major", branch_change="describe_plugin")
+    expect_g10_refusal(
+        "case 3: a marketplace description edit declared major is refused",
+        root,
+        "G10:",
+        "skills/*/*/",
+        "major",
+    )
+
+
+def case_case3_description_edit_declared_patch_passes(tmp: Path) -> None:
+    root = make_tree(tmp, declared="patch", branch_change="describe_plugin")
+    expect_pass("case 3: a marketplace description edit declared patch PASSES", root)
+
+
+def case_case5_missing_adr_0005_fails_closed(tmp: Path) -> None:
+    """A route change needs the ADR 0005 price; without the ADR the gate refuses."""
+    root = make_tree(
+        tmp, declared="major", branch_change="rename_marketplace", adr="no_0005"
+    )
+    expect_g10_refusal(
+        "case 5: a route change with no ADR 0005 fails closed",
+        root,
+        "G10:",
+        "0005",
+    )
+
+
+def case_case5_unparseable_manifest_fails_closed(tmp: Path) -> None:
+    """Case 5 cannot tell whether the route changed, so it refuses rather than crash."""
+    root = make_tree(tmp, declared="patch", branch_change="break_manifest")
+    result = run_gate("--root", str(root))
+    output = result.stdout + result.stderr
+    check(
+        "case 5: an unparseable marketplace.json fails closed under G10",
+        result.returncode == 1
+        and "Traceback" not in output
+        and "G10:" in output
+        and "marketplace.json at HEAD is not valid JSON" in output,
+        output,
     )
 
 
@@ -1459,6 +1590,14 @@ CASES = (
     case_case3_no_surface_declared_major_is_refused,
     case_case3_commented_major_is_refused,
     case_case3_non_card_directory_declared_minor_is_refused,
+    case_case5_marketplace_rename_declared_major_passes,
+    case_case5_marketplace_rename_declared_patch_is_refused,
+    case_case5_plugin_rename_declared_minor_is_refused,
+    case_case5_plugin_rename_declared_major_passes,
+    case_case3_description_edit_declared_major_is_refused,
+    case_case3_description_edit_declared_patch_passes,
+    case_case5_missing_adr_0005_fails_closed,
+    case_case5_unparseable_manifest_fails_closed,
     case_unparseable_yaml_tag_bump_is_refused,
     case_unparseable_multiword_bump_is_refused,
     case_higher_classification_governs_rename_plus_add,
@@ -1510,7 +1649,9 @@ def main() -> int:
         "line are both refused under G10 (R6-1, R6-2), a frontmatter with a "
         "full-line comment and a blank line stays silent (R6-3), the ADR text "
         "on disk drives classification, G10 refuses in its own words when git "
-        "is absent and a declared bump is pending, an unchanged version at "
+        "is absent and a declared bump is pending, case 5 prices an install-route "
+        "name change at the ADR 0005 price and fails closed without it, an "
+        "unchanged version at "
         "explicit --release stays silent when no plan was consumed, and the "
         "CI poison controls carry the inversion, cases 1-4, B2(a-c), B3, and "
         "the R5-2 unparseable-bump refusals"
