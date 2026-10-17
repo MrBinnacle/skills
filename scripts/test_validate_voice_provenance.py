@@ -526,28 +526,62 @@ If your output contradicts an existing ADR, surface it explicitly rather than si
 > _Contradicts ADR-0007 (event-sourced orders), but worth reopening because…_
 """
 
+# #328: the upstream file is MIT-licensed, so the copy carries the source line
+# and the upstream LICENSE text (tag v1.3.1) in place, after the template.
+V131_DOMAIN_LICENSE_FOOTER = """
+## Source and license
+
+This file is copied from [`mattpocock/skills`](https://github.com/mattpocock/skills), file `skills/engineering/setup-matt-pocock-skills/domain.md` at tag `v1.3.1`. Everything above this section is that file, unchanged. It is used under the MIT license of `mattpocock/skills`, which requires this notice in every copy:
+
+```text
+MIT License
+
+Copyright (c) 2026 Matt Pocock
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+"""
+
 
 def case_domain_md_is_v131_template() -> None:
-    """Criterion 2: docs/agents/domain.md is byte-identical to the v1.3.1 template.
+    """Criterion 2: docs/agents/domain.md is the v1.3.1 template plus its license footer.
 
     The fixture V131_DOMAIN_TEMPLATE is the upstream template inlined verbatim.
     This repository's base file was the v1.2.3 template and added nothing on
-    top of it, so nothing is kept and the check is exact equality. A substring
+    top of it, so nothing is kept and the check is exact equality against the
+    template followed by V131_DOMAIN_LICENSE_FOOTER. A substring
     check would pass on a v1.2.3-shaped file that merely renamed CONTEXT.md to
     GLOSSARY.md while keeping the old CONTEXT-MAP.md name and v1.2.3
-    em-dash punctuation; exact equality reds on both.
+    em-dash punctuation; exact equality reds on both, and on a footer whose
+    license text drifts by one byte.
     """
     path = REPO_ROOT / "docs" / "agents" / "domain.md"
     if not path.is_file():
         check("domain.md exists", False, str(path))
         return
     body = path.read_bytes()
-    template = V131_DOMAIN_TEMPLATE.encode("utf-8")
+    template = (V131_DOMAIN_TEMPLATE + V131_DOMAIN_LICENSE_FOOTER).encode("utf-8")
     check("domain.md exists", True)
     check(
-        "domain.md is byte-identical to the v1.3.1 template",
+        "domain.md is byte-identical to the v1.3.1 template plus its license footer",
         body == template,
-        "content differs from the inlined v1.3.1 fixture",
+        "content differs from the inlined v1.3.1 fixture and license footer",
     )
     if body != template:
         # Name the first differing line so a failure is actionable.

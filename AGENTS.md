@@ -121,6 +121,12 @@ files and makes the double-tracking impossible. It is never a filesystem link.
    this wrong without it? — before it is eligible.
 2. Copy it into the correct bucket, **de-personalize** (the gate blocks residue), flatten to the
    per-skill flat layout, and add `EVIDENCE.md` + `gotchas.md`.
+   In the same pass, check the card for **third-party material**: does it reproduce or adapt
+   text or structure from another project? If it does, name the source and its license, and
+   attribute in place wherever that license requires it (MIT, for example, requires its
+   copyright and permission notice in every copy or substantial portion). Record the answer in
+   the card's `EVIDENCE.md` `Origin` row, after the tier word, either as the source and license
+   or as "no third-party material". The step is done when that row states one or the other.
 2a. **Normalize the frontmatter, because `_quarantine/` and `skills/` do not use the same
    keys.** Rewrite the `description` to the published bar in the same pass: ≤ 200 characters,
    written as a router. Measured 2026-08-24, every one of the 22 candidates was over it, from 285
