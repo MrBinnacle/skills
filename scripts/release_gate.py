@@ -1722,6 +1722,9 @@ def write_manifest_versions(root: Path, errors: list[str]) -> bool:
     if errors:
         return False
 
+    # `plugin is not None` only narrows the type: the `if errors` return above
+    # already refused every unreadable manifest. Keep that return first, or an
+    # unreadable manifest would be skipped here instead of refused.
     stale = [
         (path, plugin)
         for path, plugin in plugins
