@@ -179,9 +179,8 @@ _SKIP_DIRS: Final[frozenset[str]] = frozenset({"__pycache__", ".git"})
 # reported stale on the next run.
 _ALLOWLIST_RECORDED: Final[str] = "2026-09-06"
 _ALLOWLIST: Final[frozenset[tuple[str, str]]] = frozenset({
-    # Over the 7,168-byte ceiling. Named in the twelve-card migration;
-    # decision-rights left this list on 2026-10-17 (#385).
-    ("skills/orchestration/subagent-handback", "size"),
+    # No card is over the 7,168-byte ceiling any more: decision-rights (#385)
+    # and subagent-handback (#384) left this list on 2026-10-17.
     # EVIDENCE.md and gotchas.md are not reachable from these cards' SKILL.md.
     # Twelve of fourteen cards, measured 2026-09-06.
     ("skills/engineering/clirunner-env", "reachability"),

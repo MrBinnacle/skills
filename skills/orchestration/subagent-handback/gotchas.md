@@ -38,11 +38,19 @@ stress-test signal.)*
   the agent's schema until fetched, and a scout without them answers from memory** while looking
   exactly like a scout that searched. This sharpens the skill's pre-dispatch check: a `tools:`
   grant naming web tools is necessary but NOT sufficient when the harness defers tool schemas.
+  `promoted: body` — 2026-10-17 (#384): the deferred-web-tools half is now Check 1, "A grant is
+  necessary, not sufficient" (tools-reference.md, read 2026-10-17).
+  status 2026-10-17 (#384): "the idle notification carries nothing" records what was observed,
+  not the platform contract. Current docs say a teammate's idle notification "includes its final
+  answer" (agent-teams.md) and a background subagent's report arrives in its completion
+  notification (sub-agents.md), both read 2026-10-17. SKILL.md Check 0 states the answer once.
 - **2026-08-04 / a personal research project.** A background agent's file is **not final when you
   first read it** — a verifier idled at 253 lines and later reached 494. An md5 that matches current disk
   proves nothing if you only READ half of it. Re-check length before relying on any summary of a
   subagent's file. (Also recorded in `cite-verified-research-sweep/gotchas.md`; kept here too
   because it fires on ANY background-subagent read, not only during a research sweep.)
+  `promoted: body` — 2026-10-17 (#384): SKILL.md Check 0, "A file is not final when you first
+  read it".
 - **2026-08-24 / rotation and harvest pass, a different repository:** four `reader` subagents were
   dispatched to extract origin text from 25 skill cards. The dispatch named no return channel;
   each prompt ended "Your final message IS the data." All four idled without delivering content.
@@ -64,3 +72,13 @@ stress-test signal.)*
   tool grants remain frontmatter-only, not surfaced at dispatch; registered kill criterion not
   fired on the docs half. Claim 4 remains empirical — docs state no large-return ceiling.
   SKILL.md Check 0 repaired to separate platform path from observed empty-handback failure.
+- **2026-08-25 / a personal research project, literature-review fan-out:** four background
+  research agents went idle without returning their contracted verdicts. Restating the output
+  contract failed for the first agent; reading the files they had written recovered the results.
+  A separate working occasion from the 2026-08-24 harvest pass, counted once, not once per agent.
+- **2026-09-12 / a personal research project, enforcement audit:** a subagent searched only the
+  project's hooks folder, found nothing, and reported two guard hooks absent. The caller accepted
+  the negative and wrote it into the always-loaded state file. Both hooks existed in the
+  user-level hooks folder and were registered. A claims-checking script built an hour later caught
+  it. Re-running the agent's search over the same folder would have repeated the miss; only a
+  wider search set finds it. Direct trigger for Check 2's widen-the-search-set rule.
