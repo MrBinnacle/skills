@@ -50,7 +50,7 @@ Verified forms, Claude Code 2.1.287, 2026-10-02, from a clean `CLAUDE_CONFIG_DIR
 
 The cold-install transcript is in the pull request that changed this section (#340).
 
-On Windows, if you set `CLAUDE_CONFIG_DIR` to a path longer than 108 characters, run `git config --global core.longpaths true` before you add the marketplace. At 108 characters or fewer, the HTTPS form installs without it. Measured with Claude Code 2.1.302 on 2026-10-17 (#452).
+On Windows, keep the path of your Claude configuration directory (`CLAUDE_CONFIG_DIR`) at 108 characters or fewer. If it is longer, run `git config --global core.longpaths true` before you add the marketplace; that raises the limit to 157 characters. Above 157, the install fails even with that setting. Measured for this release with Claude Code 2.1.302 on 2026-10-17, with Windows long-path support turned on. Not tested with that support off. Windows long-path support is an opt-in setting.
 
 Each skill adds one line to every session: about 44 to 63 tokens, measured by `skill-harness skill audit` on 2026-09-22. The rest loads only when it is used. The three marked "by hand" cost nothing until you run them.
 
