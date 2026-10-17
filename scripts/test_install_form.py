@@ -35,6 +35,8 @@ What is asserted, and why these shapes
     INSTALL_FORM_STRICT=1, as CI sets it beside its pinned CLI, a README that
     states a different CLI version fails. Without it, a different local CLI
     prints a WARN that the dated record is stale for that machine (#425).
+    The record's plugin version may lag the version the cold install
+    reports, which prints a WARN, but never lead it, which fails (#464).
 
     A tracked-file scan refuses any install surface, outside
     `docs/design/variants/**` and `.changeset/**`, that still publishes the
@@ -798,7 +800,11 @@ def live_cold_installs(
         if len(installed_versions) == 1
         else None
     )
-    if readme_key is None or installed_key is None or readme_key > installed_key:
+    if readme_key is None:
+        check(name, False, detail + "; README version is missing or not a dotted number")
+    elif installed_key is None:
+        check(name, False, detail + "; cold install reports mixed plugin versions")
+    elif readme_key > installed_key:
         check(name, False, detail + "; the receipt claims an install that has not run")
     elif readme_key < installed_key:
         print(f"WARN {name}: {detail}. The receipt is dated; refresh it")
