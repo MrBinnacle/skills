@@ -1,6 +1,17 @@
 # Product thesis: an evidence-governed reliability system for delegated AI work
 
-**Status:** Strategic direction authorized by the owner on 2026-10-13. This is an internal product-design artifact, not approved public copy. It establishes a direction to test; it does not establish market demand, external adoption, or efficacy.
+**Status: historical proposal, not normative.** Retained on 2026-10-17 from the
+2026-10-13 proposal in PR #419. Its original status described the strategic direction
+as owner-authorized. That does not make every architecture choice below an approved
+implementation. The body is preserved as rationale and questions, not as current
+instructions or approved public copy.
+
+Read [PRODUCT.md](../../PRODUCT.md) for maintained product intent. It records one
+Skills product, Pi-first, serving the owner's work and other developers, and the
+repository itself as a knowledge base. Useful knowledge need not become an
+intervention. This thesis's narrower emphasis and proposed sequence do not override
+that account. For delivery facts, read the [runtime delivery matrix](runtime-delivery-matrix.md).
+Nothing here establishes market demand, external adoption or efficacy.
 
 ## Decision
 

@@ -1,6 +1,15 @@
 # Product contract: capability, context, runtime and evidence
 
-**Status:** Proposed internal product contract, 2026-10-14. This is architecture for review, not approved public copy, a frozen cross-repository API, or a claim that the full product exists today.
+**Status: historical proposal, not normative.** Retained on 2026-10-17 from the
+2026-10-14 proposal in PR #419. The text below preserves its proposed architecture
+and questions; it is not an adopted contract, current inventory or approved public
+copy. Its imperative wording describes that proposal, not instructions now in force.
+
+Read [PRODUCT.md](../../PRODUCT.md) for maintained product intent, including the
+repository's knowledge-base role. Read the [runtime delivery matrix](runtime-delivery-matrix.md)
+for the dated delivery inventory; it supersedes this proposal's unresolved inventory
+questions. The schemas, responsibility assignments and sequencing below require their
+own decisions before implementation.
 
 ## 1. Purpose
 
