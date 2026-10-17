@@ -794,18 +794,13 @@ def live_cold_installs(
     # receipt cannot match it yet; the branch check above covers the PR (#464).
     name = "README Verified forms plugin version matches the cold install"
     detail = f"README says {readme_plugin_version!r}, cold install reports {installed_versions!r}"
-    if os.environ.get("GITHUB_EVENT_NAME") == "pull_request":
-        if installed_versions != {readme_plugin_version}:
-            print(f"SKIP {name} on a pull request: {detail}")
-        else:
-            check(name, True)
+    matches = bool(readme_plugin_version) and installed_versions == {
+        readme_plugin_version
+    }
+    if not matches and os.environ.get("GITHUB_EVENT_NAME") == "pull_request":
+        print(f"WARN {name}: {detail}. main still serves the old version")
     else:
-        check(
-            name,
-            bool(readme_plugin_version)
-            and installed_versions == {readme_plugin_version},
-            detail,
-        )
+        check(name, matches, detail)
 
     # Case 2: the tree under test, not only the published default branch.
     local_base = temp_root / "local"
