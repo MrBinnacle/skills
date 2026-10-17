@@ -36,11 +36,11 @@ The second directory is a worktree, not evidence of a second repository or produ
 | Root package at M and P | `mrbinnacle-skills` `3.0.1`, `private: true` | Repository metadata; neither root has a `pi` manifest |
 | Installed Pi runtime | `@earendil-works/pi-coding-agent` `1.3.0` | Installed package and loader used for the offline observations below |
 | Installed Claude Code | `2.1.296` | Output of `claude --version`; not the historical cold-install version |
-| Harness adapter source, called **H** below | `03a8a1e2b5b027cd1e4de911a5bd013cba2d0e75`, package `0.3.0` | Separate measurement repository, not a Skills distribution |
+| Published Harness adapter source, called **H** below | `ee62b2a90d46f8769c499aa292d8c37ba31dc69a`, package `0.3.0` | Separate measurement repository, not a Skills distribution |
 
 Source anchors: [M package](https://github.com/MrBinnacle/skills/blob/206842d7bfdac3dab323207ee1e01749c036027c/package.json),
 [P-equivalent package](https://github.com/MrBinnacle/skills/blob/8abc5e2c1565b5c80fc7173c75ff7fd0cdd28607/package.json),
-and [H package](https://github.com/MrBinnacle/skill-harness/blob/03a8a1e2b5b027cd1e4de911a5bd013cba2d0e75/pyproject.toml).
+and [H package](https://github.com/MrBinnacle/skill-harness/blob/ee62b2a90d46f8769c499aa292d8c37ba31dc69a/pyproject.toml).
 The repository paths below are relative to these roots. User-specific absolute paths are omitted.
 
 ### Card bytes are not interchangeable
@@ -91,7 +91,7 @@ All current observations in this table use the check date above. Historical rece
 | **Pi: distribution package** | Same owner repository; P contains the Pi implementation, while M lacks `pi/` and `mechanisms/` | **VERIFIED:** inspected settings load paths directly; no `skills-pi` package entry was found in the inspected user package settings. The root package has no `pi` manifest. | **UNKNOWN:** no clean-install receipt for a distributable Pi package was located in this investigation. | This is not proof that Pi packaging is impossible. [Pi packages](https://pi.dev/docs/latest/packages) can use conventional resource directories as well as an explicit manifest. Selecting or implementing a package remains outside #420. |
 | **Claude Code: bucket plugins** | M's `.claude-plugin/marketplace.json` points to `skills/engineering`, `skills/orchestration`, and `skills/meta`; each bucket has its own `.claude-plugin/plugin.json`, version `3.0.1` | **VERIFIED:** manifests enumerate 10, 3, and 1 card paths. On Claude Code `2.1.296`, `claude plugin list --json` lists all three installed plugins as enabled at user scope, but reports `projectEnabled: false` for each in the inspected checkout. | **VERIFIED:** the installed index and cache files exist, but use commit `8535dede2d9c42459958898a7300df66f9c0da7b`, not M. [ADR 0004](../adr/0004-a-plugin-is-its-own-root.md) records measured component inventories. [README](../../README.md) records a clean install on `2.1.287`, **2026-10-02**, with all three plugins at `3.0.1`. | An enabled plugin list is not a current provider-delivery capture. Current body invocation and efficacy are **UNMEASURED**. Historical install success does not attest current M bytes. |
 | **`npx skills add MrBinnacle/skills`** | M's README advertises the repository as installer input; M card-set digest above identifies the inspected source, not an installed result | **VERIFIED:** the command is published. **UNKNOWN:** resolved installer version, destination, selected cards, and delivered bytes for a current install | No installer or model was launched. A future receipt must record the resolved installer, destination paths, card hashes, and runtime discovery separately. | Shared `SKILL.md` support does not establish Pi package delivery or equivalent runtime behavior. |
-| **Harness: Pi subject adapter** | H's `src/skill_harness/subject/pi/`; Harness `0.3.0`; parser `0.1.0` | **VERIFIED:** launcher source disables ambient skills, context files, prompt templates and extensions, then supplies explicit baseline/treatment skills and its capture extension. Runtime version is measured before spend. | The adapter records a provider payload, runtime roster, native session, read events and slash input. Parser identities and observation limits are listed below. Existing mutation receipts attest specific refusal checks, not a clean install of Skills. | This adapter is measurement machinery, not the installed Pi runtime or a Skills distribution. No new epoch or database ingest ran. Compatibility with this host's Pi `1.3.0` is **UNMEASURED**. |
+| **Harness: Pi subject adapter** | H's `src/skill_harness/subject/pi/`; Harness `0.3.0`; parser `0.1.0` | **VERIFIED:** launcher source disables ambient skills, context files, prompt templates and extensions, then supplies explicit baseline/treatment skills and its capture extension. Runtime version is measured during pre-spend validation; the caller-supplied-result limitation is described below. | The adapter records a provider payload, runtime roster, native session, read events and slash input. Parser identities and observation limits are listed below. Existing mutation receipts attest specific refusal checks, not a clean install of Skills. | This adapter is measurement machinery, not the installed Pi runtime or a Skills distribution. No new epoch or database ingest ran. Compatibility with this host's Pi `1.3.0` is **UNMEASURED**. |
 
 ### Installed Claude bytes
 
@@ -121,11 +121,11 @@ are the evidence for this collection's bucket layout.
 
 ## Harness observation contract
 
-Read at H: [pin.py](https://github.com/MrBinnacle/skill-harness/blob/03a8a1e2b5b027cd1e4de911a5bd013cba2d0e75/src/skill_harness/subject/pi/pin.py),
-[launcher.py](https://github.com/MrBinnacle/skill-harness/blob/03a8a1e2b5b027cd1e4de911a5bd013cba2d0e75/src/skill_harness/subject/pi/launcher.py),
-[parser.py](https://github.com/MrBinnacle/skill-harness/blob/03a8a1e2b5b027cd1e4de911a5bd013cba2d0e75/src/skill_harness/subject/pi/parser.py),
-[capture.ts](https://github.com/MrBinnacle/skill-harness/blob/03a8a1e2b5b027cd1e4de911a5bd013cba2d0e75/src/skill_harness/subject/pi/capture.ts),
-and [runner.py](https://github.com/MrBinnacle/skill-harness/blob/03a8a1e2b5b027cd1e4de911a5bd013cba2d0e75/src/skill_harness/subject/pi/runner.py).
+Read at H: [pin.py](https://github.com/MrBinnacle/skill-harness/blob/ee62b2a90d46f8769c499aa292d8c37ba31dc69a/src/skill_harness/subject/pi/pin.py),
+[launcher.py](https://github.com/MrBinnacle/skill-harness/blob/ee62b2a90d46f8769c499aa292d8c37ba31dc69a/src/skill_harness/subject/pi/launcher.py),
+[parser.py](https://github.com/MrBinnacle/skill-harness/blob/ee62b2a90d46f8769c499aa292d8c37ba31dc69a/src/skill_harness/subject/pi/parser.py),
+[capture.ts](https://github.com/MrBinnacle/skill-harness/blob/ee62b2a90d46f8769c499aa292d8c37ba31dc69a/src/skill_harness/subject/pi/capture.ts),
+and [runner.py](https://github.com/MrBinnacle/skill-harness/blob/ee62b2a90d46f8769c499aa292d8c37ba31dc69a/src/skill_harness/subject/pi/runner.py).
 These are **VERIFIED source contracts**, not a report that a new evaluation ran.
 
 - **Subject identity:** the shared pin records measured runtime version, provider, model,
@@ -142,7 +142,9 @@ These are **VERIFIED source contracts**, not a report that a new evaluation ran.
   `SKILL.md`, or explicit `/skill:` expansion. Shell-based reads can be missed.
   Invocation is not evidence that the advice was followed.
 - **Identity changes:** parser/capture identity, roster mismatch and mid-epoch subject changes
-  have refusal checks. The runner performs its pre-spend checks on the spec it executes.
+  have refusal checks. At H, the runner calls `validate_pre_spend(spec)` only when the caller
+  does not supply `validated`. A supplied result skips those checks; the runner does not
+  establish that the result belongs to the spec it executes.
 
 Measured with `parser_identity()` from H, without a provider request:
 
@@ -153,13 +155,13 @@ Measured with `parser_identity()` from H, without a provider request:
 | Python semantic digest, `ast-shape-1` | `99692a3315b2d8fa5df674b2e763c34649a02359494c3e4659473e2bec12c6d0` |
 | Capture-extension SHA-256 | `e60b835829e70fe8791bc744b32651e0596f861e2ec547b4a13b0b6e0ccd5392` |
 
-The [adapter refusal receipt](https://github.com/MrBinnacle/skill-harness/blob/03a8a1e2b5b027cd1e4de911a5bd013cba2d0e75/docs/assurance/pi-adapter-refusal-mutation-receipt.md)
-and [driver wiring receipt](https://github.com/MrBinnacle/skill-harness/blob/03a8a1e2b5b027cd1e4de911a5bd013cba2d0e75/docs/assurance/pi-driver-wiring-mutation-receipt.md)
+The [adapter refusal receipt](https://github.com/MrBinnacle/skill-harness/blob/ee62b2a90d46f8769c499aa292d8c37ba31dc69a/docs/assurance/pi-adapter-refusal-mutation-receipt.md)
+and [driver wiring receipt](https://github.com/MrBinnacle/skill-harness/blob/ee62b2a90d46f8769c499aa292d8c37ba31dc69a/docs/assurance/pi-driver-wiring-mutation-receipt.md)
 name three and four hand-chosen mutations respectively. Their attested parser, launcher,
 and runner file hashes match the current H files. That verifies receipt currency by bytes;
 this inventory did not rerun their mutations. It does not establish general adapter correctness or efficacy.
 
-The [description-channel finding](https://github.com/MrBinnacle/skill-harness/blob/03a8a1e2b5b027cd1e4de911a5bd013cba2d0e75/docs/findings/pi-c-detector-blind-to-description-channel.md)
+The [description-channel finding](https://github.com/MrBinnacle/skill-harness/blob/ee62b2a90d46f8769c499aa292d8c37ba31dc69a/docs/findings/pi-c-detector-blind-to-description-channel.md)
 contains a historical refusal and later correction/re-ingest statements. Its retained text
 is not one current verdict. Use it to understand why description exposure and body invocation
 must remain separate; do not turn it into evidence of present Pi package delivery or efficacy.
