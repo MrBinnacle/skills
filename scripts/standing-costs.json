@@ -52,7 +52,7 @@
     },
     "disposition-schema": {
       "standing_cost_tokens": 44,
-      "skill_md_sha256": "18bf7970180dbf41839145420937db4a57493080525450ba494f1cfa3016d130"
+      "skill_md_sha256": "87f5798ac8eb4fbd4063f626ca451d011b48b828cc56773878cef99ef16afd29"
     },
     "subagent-handback": {
       "standing_cost_tokens": 50,

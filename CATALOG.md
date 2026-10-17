@@ -107,7 +107,7 @@ integer that opens the card's `Occasions counted` row.
 | [`pretooluse-prose`](skills/engineering/pretooluse-prose/EVIDENCE.md) | origin-trace | 12 |
 | [`vacuous-check`](skills/engineering/vacuous-check/EVIDENCE.md) | origin-trace | 8 |
 | [`decision-rights`](skills/orchestration/decision-rights/EVIDENCE.md) | origin-trace | 1 |
-| [`disposition-schema`](skills/orchestration/disposition-schema/EVIDENCE.md) | origin-trace | 2 |
+| [`disposition-schema`](skills/orchestration/disposition-schema/EVIDENCE.md) | origin-trace | 3 |
 | [`subagent-handback`](skills/orchestration/subagent-handback/EVIDENCE.md) | origin-trace | 7 |
 | [`dead-predicate`](skills/meta/dead-predicate/EVIDENCE.md) | origin-trace | 5 |
 

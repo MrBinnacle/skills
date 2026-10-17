@@ -194,7 +194,6 @@ _ALLOWLIST: Final[frozenset[tuple[str, str]]] = frozenset({
     ("skills/engineering/vacuous-check", "reachability"),
     ("skills/meta/dead-predicate", "reachability"),
     ("skills/orchestration/decision-rights", "reachability"),
-    ("skills/orchestration/disposition-schema", "reachability"),
 })
 
 

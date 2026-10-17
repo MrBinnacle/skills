@@ -1,6 +1,6 @@
 ---
 name: disposition-schema
-description: Use when dispatching parallel agents to verify/adjudicate findings — adversarial verify, security disposition, design triage, council fires. Shared disposition schema so seat outputs join cleanly.
+description: Use when dispatching parallel agents to verify or adjudicate findings (adversarial verify, security disposition, council fires), or before you consolidate their outputs and risk an ID collision.
 ---
 
 # Parallel Review / Disposition Schema
@@ -25,7 +25,7 @@ comparability after the fact.
 - For the upstream "are the findings real" stage — adversarial VERIFY seats on freshly-found
   findings — use [ADVERSARIAL-VERIFY-SEAT.md](ADVERSARIAL-VERIFY-SEAT.md)
   (refute posture, burden default, verbatim evidence; same joinability principle).
-- Security-audit disposition (file a new ID / fold as sub-item / change severity / defer / WI),
+- Security-audit disposition (file a new ID / fold as sub-item / change severity / defer / track as a work item),
   design or spec review triage, threat-model coverage passes, any "route this finding-set" fire.
 - Symptom you're trying to avoid: a previous multi-agent fire returned good individual analyses
   that you then struggled to synthesize, or produced an "agreement" that was really a
@@ -37,7 +37,7 @@ Put all five of these in EVERY seat's dispatch prompt:
 
 1. **A fixed DECISION VOCABULARY (enum).** Every seat picks its disposition for each owned item
    from the same closed list. For a security audit, e.g.:
-   `NEW-ID | sub-item-of-<existing> | severity-change | scope-change | <non-finding>-WI | evidence-record-only | defer`.
+   `NEW-ID | sub-item-of-<existing> | severity-change | scope-change | track-as-work-item | evidence-record-only | defer`.
    A closed enum forces comparable decisions; free-form "recommendations" don't join.
 
 2. **A shared per-item OUTPUT BLOCK.** One block per item, same fields, e.g.:
@@ -72,37 +72,48 @@ Two discipline notes that pair with the schema:
 - **Don't let the schema substitute for verification.** Tell seats to spot-verify the specific
   claims they rely on (cite file:line), especially if prior passes on this corpus shipped errors.
 - **Bounded cross-builds: the hub verifies inline; large ones re-dispatch.** When one seat's
-  finding re-scopes another's premise (a cross-build), if confirming it is a bounded read
-  (a few files) the hub/synthesizer should verify it DIRECTLY rather than deferring it to a
-  follow-up ticket; only re-dispatch a seat when the corrected scope is large. (Deferring a
-  cross-build to "a later ticket" is the common failure.)
+  finding re-scopes another's premise (a cross-build), the hub reads the few files and confirms
+  it directly; re-dispatch a seat only when the corrected scope is large. Deferring a
+  cross-build to "a later ticket" is the common failure.
 
 ## Verification
 
-A personal production project's phase-2 security-audit lock (2026-05-29): a 12-seat fire (6 security postures + Architect + Planner
-+ 4 domain SMEs) each given the same disposition enum + per-finding block + ownership + status
-line returned outputs that synthesized into one clean 8-section document with five cleanly-classified
-disagreements — because the decisions were directly comparable. Two cross-builds (a wrong entropy
-claim; an un-verified injection-gap) were caught at synthesis and confirmed by bounded hub-reads
-rather than deferred. A prior fire on the same corpus, run with looser prompts, had produced an
-"agreement" that was a shared-word/different-scope collision and deferred a re-scope to a ticket —
-the exact failures this schema removes.
+- [ ] Every seat prompt carries all five elements above, with its own ID prefix.
+- [ ] Every return ends with a status line, and synthesis lists each `degraded` or `blocked` seat.
+- [ ] Count check: distinct findings in the consolidated brief equal the sum of per-seat counts,
+      minus explicit reclassifications (EQUIVALENT, DEFER, discharged). A shortfall is a silent drop.
+- [ ] Raw per-seat returns are kept, so the count check can be rerun.
+- [ ] A Critic pass over all outputs checked each agreement ("4 seats agree") for one word with
+      two meanings.
+- [ ] Each cross-build was confirmed by a bounded hub read or re-dispatched, not deferred.
+
+Origin fire, 2026-05-29: 12 seats given the same enum, block, ownership and status line
+synthesized into one document with five classified disagreements, and two cross-builds were
+confirmed by bounded hub reads. An earlier fire on the same corpus with loose prompts produced a
+false agreement and a deferred re-scope. Later fires: [EVIDENCE.md](EVIDENCE.md).
 
 ## Example
 
-Shared block injected into each seat (compressed): corpus summary + current-state + the enum.
-Then per seat: `YOUR SEAT: <lens>. YOU OWN: <findings + evidence>. For each: {Finding · Verified?(file:line)
-· Disposition(enum) · Severity · Reasoning <=3 · What-would-change-it}. End with: status: ...`.
-Synthesis then groups by enum value, not by re-reading prose.
+Shared block, identical in every seat:
+
+    Corpus: 9 verified findings from a login-service audit. Decide each one.
+    Enum: NEW-ID | sub-item-of-<existing> | severity-change | scope-change | track-as-work-item
+          | evidence-record-only | defer
+
+One seat's prompt, then its return:
+
+    YOUR SEAT: data layer. Prefix your IDs B-. YOU OWN: F-4 (session token stored unhashed,
+    db/session.py:41), F-7 (no rate limit on the password-reset route).
+
+    B-1 · F-4 · Verified: db/session.py:41 writes the raw token · NEW-ID · High ·
+          A leaked table yields live sessions. · Changes if tokens expire within a minute.
+    B-2 · F-7 · Verified: routes/reset.py:12 has no limiter · sub-item-of-AUTH-3 · Medium ·
+          AUTH-3 already covers brute force on login. · Changes if AUTH-3 excludes reset.
+    status: nominal
+
+Synthesis groups B-1 with other seats' NEW-ID returns. The IDs pass through unchanged.
 
 ## Notes
 
 Open [gotchas.md](gotchas.md) when consolidator renumbering drops a seat-local finding ID, or before choosing a namespace strategy. It records the observed ID collision with its mitigations, and the anticipated schema failures.
-
-- The synthesis is only ever as clean as the input schema. Spend the care in the dispatch prompts.
-- Isolation stays the anti-cascade feature — the schema is what makes isolated outputs JOINABLE
-  without letting agents see each other.
-- Round-number agreement counts ("4 seats agree") are suspect until the synthesizer checks they
-  mean the same thing — a single all-outputs lens (a Critic role) catches shared-word collisions
-  that mechanical counting cannot.
 
