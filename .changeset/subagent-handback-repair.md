@@ -2,4 +2,4 @@
 "mrbinnacle-skills": patch
 ---
 
-`subagent-handback` now states what current Claude Code docs promise about a subagent's final text, and separately what has failed in the field. Before dispatch it tells you to load deferred web tools; after an idle agent it tells you to check that its file is complete; and it tells you to widen the search set before trusting a reported negative. Its description now routes on "idle", "no report" and `SendMessage` (#384).
+`subagent-handback` now cites current Claude Code docs that a subagent's or named teammate's final text reaches the agent that spawned it, and keeps the field failures where it did not. It adds three checks (load deferred web tools before dispatch, re-check a background agent's file length before trusting it, widen the search set before trusting a negative), and its description routes on "idle", "no report" and `SendMessage` (#384).
