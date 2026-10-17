@@ -43,6 +43,14 @@ shape of a card, is a major change. Corrections within a card are a patch.
 > renaming eleven cards broke eleven installs that resolved them by name. Read 0003 for the
 > current rule.
 
+> **Amended 2026-10-17 by [ADR 0005](0005-the-install-route-is-what-a-consumer-resolves.md).**
+> The **install path** in the paragraph above is the install route a consumer resolves: the
+> marketplace `name`, the source repository, and the plugin `name`s. Changing any of them
+> remains a major change. The spelling of a command in `README.md` §Install is not the route, so
+> correcting it is a patch. The amendment came from
+> [#447](https://github.com/MrBinnacle/skills/issues/447): this paragraph, the glossary and
+> release gate G10 priced the same change three different ways. Read 0005 for the current rule.
+
 This is a deliberate narrowing, and it is the reverse of the obvious reading. Under the wide
 reading — the card set is the surface — every retirement is a breaking change. This collection
 retires cards on recorded evidence and says so on its front page. A scheme under which the

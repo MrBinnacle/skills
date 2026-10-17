@@ -1,6 +1,6 @@
 ---
 name: subagent-handback
-description: Pre-dispatch, name the return channel — a subagent handback can be empty. Verify tool grants match the task. Post-return, verify every claim, negatives first.
+description: Use before dispatching a subagent, or when one goes idle with no report. Name a return channel (SendMessage or a file), check its tool grant, then verify every claim, negatives first.
 ---
 
 # Subagent Research Reliability
@@ -10,30 +10,21 @@ description: Pre-dispatch, name the return channel — a subagent handback can b
 Dispatching subagents for research has three silent failure modes. Each produces a confident
 result that is worth nothing, and they fail in dispatch order:
 
-1. **The findings are a dead letter.** The agent researches correctly, then finishes with nothing
-   the caller can use. Platform docs (verified 2026-09-06, code.claude.com/docs/en/tools-reference.md,
-   sub-agents.md): intermediate tool calls and outputs stay in the subagent context; only the final
-   text result is the return path — inline for foreground, as a completion notification for
-   background. That path is real, and it is not enough: observed 2026-08-04 and 2026-08-24,
-   background agents complete with an empty handback, and work that lived only in the subagent
-   transcript is gone. Name an explicit payload channel in the dispatch, every time.
+1. **The findings are a dead letter.** The agent finishes with nothing the caller can use.
 2. **The agent can't actually search.** Its `tools:` grant lacks WebSearch/WebFetch even though
-   its description says "performs web research." It returns a no-op or fabricates citations from
-   training data.
-3. **The agent returns claims that do not hold.** Fabricated citations, CVE IDs, arXiv IDs and
-   cross-references are the web case. The general case is wider: a misquoted rule, a line number
-   dressed as a section, and — the dangerous one — **a checked negative that is false**, where the
-   agent reports "zero hits across all five files" and one of the five hits.
+   its description says "performs web research." It returns a no-op or answers from memory.
+3. **The agent returns claims that do not hold.** Fabricated citations and cross-references, a
+   misquoted rule, a line number dressed as a section, and — the dangerous one — **a checked
+   negative that is false**: "zero hits across all five files" when one of the five hits.
 
-All three are invisible if you trust the returned text. Modes 2 and 3 were hit and caught in one
-session (2026-05-28 — see [EVIDENCE.md](EVIDENCE.md)); modes 1 and 3 in another (2026-08-18).
+All three are invisible if you trust the returned text. [EVIDENCE.md](EVIDENCE.md) records the
+catches.
 
 ## Context / Trigger Conditions
 
-- About to call the Agent tool for research of any kind — web, literature, threat-intel, market
-  scan, or a read-only sweep of the local repository.
-- The agent's description claims a capability its frontmatter may not grant.
-- A completion notification arrives from a dispatched agent and carries no findings.
+- About to call the Agent tool for research of any kind — web, literature, market scan, or a
+  read-only sweep of the local repository.
+- A dispatched agent or teammate went idle, or its completion notification carries no findings.
 - Curating anything a research subagent returned — citations, IDs, dates, quoted rules, or a
   reported negative — before acting on it.
 
@@ -41,118 +32,93 @@ session (2026-05-28 — see [EVIDENCE.md](EVIDENCE.md)); modes 1 and 3 in anothe
 
 ### Check 0 — Pre-dispatch: name the return channel in the dispatch itself
 
-**State how findings come back, in the prompt, every time.** The platform delivers one final text
-result (inline for foreground; as a completion notification for background). Intermediate tool
-output never reaches the parent. Relying on that final-result path alone has failed in the field:
-agents complete with an empty handback, and findings that lived only in the subagent transcript
-are a dead letter. Name a payload channel the caller can read without trusting the handback.
+**What the platform promises.** A subagent's intermediate output stays in its own context; its
+final text is the return, inline for a foreground agent and in the completion notification for a
+background one. A named agent that launches as a teammate also delivers its final text: its idle
+notification "includes its final answer" (code.claude.com `sub-agents.md`, `agent-teams.md`, read
+2026-10-17). The `SendMessage` description's "plain text output is NOT visible to other agents"
+covers text written mid-turn, not the final answer, so a named teammate's final text reaches the
+spawner by design.
 
-Give two routes, so one failing is survivable:
+**What happens anyway.** Background agents have stopped with an empty handback (observed
+2026-08-04, 2026-08-24, 2026-08-25), and work that lived only in their transcript was gone. Name a
+payload channel the caller can read without trusting the handback, and give two routes so one
+failing is survivable:
 
-1. **`SendMessage` to `main`**, with the findings in the message body — the primary channel.
-2. **A file at one absolute path you supply**, which you can read directly.
-
-Route 2 needs a **bounded write escalation**, and bounding it is what keeps the read-only default
-intact. Name the exact path, and state what stays read-only:
+1. **`SendMessage` to `main`**, with the findings in the message body.
+2. **A file at one absolute path you supply**, under a bounded write escalation:
 
 > BOUNDED WRITE ESCALATION, this segment only: write exactly ONE file, at `<absolute path>` and
 > nowhere else. The repository stays read-only — create nothing under `<repo>`, and post nothing to
 > the tracker.
 
-**A completion notification means the agent stopped. It does not mean the agent reported.** Docs
-name the background return a completion notification and say it carries the text result — an empty
-one is still a stop signal with no findings. (Older field notes called the same stop signal an
-"idle notification"; that is not the cross-session `notify_when_idle` feature.) Treat stop and
-delivery as different events, and never characterise findings from a notification alone.
+**A stop is not a report.** An idle or completion notification means the agent stopped; it may
+carry nothing. Never characterise findings from a notification alone.
 
-#### Variant — the nudge fails, and the size of the report is why
+**A file is not final when you first read it.** A background agent may still be writing: one
+verifier's file was 253 lines when first read and 494 later. Re-check its length before relying
+on any summary of it.
 
-Recovery from a dead letter is normally one `SendMessage` restating the output contract, and that
-had held every prior time. **On 2026-08-26 it stopped working, and the exception has a shape.**
+#### When the nudge fails, size is why
 
-Two agents in one session finished their work and never delivered, one of them **twice, including
-after a full contract-restating nudge.** Two other agents in the same session delivered first time.
-The variable was not the agent type, the model, or the prompt quality:
-
-| agent | output contract | delivered |
-| --- | --- | --- |
-| single verbatim result + short field list | small | first try |
-| five labelled harvests | medium | first try |
-| **three full inventories, one row per closed child across three boards** | **large** | **never** |
-| **seventeen structured records** | **large** | **only when batched** |
-
-**Ask for the report in explicit batches when the deliverable is large.** Naming the split in the
-nudge recovered seventeen records that a single-message nudge had already failed to extract:
+One `SendMessage` restating the output contract usually recovers a dead letter. It failed on
+2026-08-26 for the two agents with large contracts (three full inventories; seventeen records);
+the two with small or medium contracts delivered first time. The seventeen records came back only
+when the nudge named the split:
 
 > Send them in THREE separate messages, not one. Message 1: items 1-6. Message 2: items 7-12.
 > Message 3: items 13-17.
 
-Two further rules that make the failure cheap:
-
-- **Size the contract at dispatch.** If the return is more than roughly a dozen structured records
-  or more than one independent section, specify the batching in the original prompt rather than
-  discovering the ceiling on recovery.
-- **Always license a partial return, explicitly:** *"send what you have and name the sections you
-  did not reach and why. A partial report that names its own gaps is useful. Silence is not."*
-  Without that line an agent holding a large incomplete result has no sanctioned way to deliver it.
-
-**Do not nudge a third time.** Two failed deliveries is the signal to re-run the work yourself or
-re-dispatch with a batched contract. In the observed case the caller re-ran the sweep directly and
-the result was better than the agent's method would have produced, because a scripted check
-replaced hand-matching.
+- **Size the contract at dispatch.** Above roughly a dozen structured records, or more than one
+  independent section, specify the batching in the original prompt.
+- **License a partial return:** *"send what you have and name the sections you did not reach and
+  why. A partial report that names its own gaps is useful. Silence is not."*
+- **Do not nudge a third time.** Two failed deliveries means re-run the work yourself or
+  re-dispatch with a batched contract.
 
 ### Check 1 — Pre-dispatch: verify the agent's tool grant matches the task
 
-Before dispatching `subagent_type=X` for web research, confirm X actually has the web tools:
+- Read `.claude/agents/X.md` (or `~/.claude/agents/X.md`) frontmatter `tools:`. If it lacks
+  `WebSearch`/`WebFetch`, the agent **cannot web-search** regardless of its description. Observed:
+  a `research-scout` "performs web research ... with citations" had `tools: Read, Bash, Grep`.
+- **A grant is necessary, not sufficient.** When tool search is enabled, deferred tools stay out
+  of the agent's schema until `ToolSearch` loads them (`tools-reference.md`, read 2026-10-17); the
+  web tools were deferred in the observed harness. Make the first step
+  `ToolSearch select:WebSearch,WebFetch`, with a STOP if they are unavailable. A scout without them
+  answers from memory and looks exactly like one that searched.
+- **Fix:** dispatch `general-purpose` with the research protocol in the prompt, or add the web
+  tools to `tools:`. **The description is not the capability — the frontmatter is.**
 
-- Read `.claude/agents/X.md` (or `~/.claude/agents/X.md`) frontmatter `tools:`. If it lists only
-  `Read, Bash, Grep` (no `WebSearch`/`WebFetch`), the agent **cannot web-search** regardless of
-  its description.
-- Observed: a `research-scout` agent described as "Performs web research ... with citations" had
-  `tools: Read, Bash, Grep`. Dispatching it for a live web beat would no-op or fabricate.
-- **Fix:** dispatch `general-purpose` (tools `*`, includes WebSearch/WebFetch) with the research
-  protocol embedded in the prompt; OR add WebSearch/WebFetch to the agent's `tools:`.
-  **The description is not the capability — the frontmatter is.**
+### Check 2 — Post-return: verify every claim you will act on
 
-### Check 2 — Post-return: verify every claim you will act on, not just the citations
+Treat a return as leads: verify each claim against its named source before it reaches an
+artifact.
 
-Treat a subagent's return as a set of leads. **Verify each claim you intend to act on**, against the
-source it names, before it reaches an artifact.
+**For web sources**, dispatch a SEPARATE verification subagent whose only job is to WebFetch each
+URL and report `VERIFIED` / `PARTIAL` / `UNRESOLVED` / `UNCONFIRMABLE` — source existence and
+content match, not quality. It catches dead URLs, fabricated IDs, and **fabricated
+cross-references** (observed: real Cursor CVEs attributed to an arXiv paper that does not cite them).
 
-**For web sources**, dispatch a SEPARATE verification subagent (general-purpose) whose ONLY job is to
-WebFetch each source URL and report, per URL: `VERIFIED` (resolves + content matches) / `PARTIAL`
-(resolves but a detail differs) / `UNRESOLVED` (404) / `UNCONFIRMABLE`. Tell it explicitly: verify
-source existence + content match, do NOT assess the threat/quality.
+**For local-repository research**, re-derive the claim yourself:
 
-- It catches dead URLs, fabricated CVE/arXiv IDs, and **fabricated cross-references** (a real ID
-  bolted onto the wrong source).
-- Observed catch: real Cursor CVEs (CVE-2025-54136/54135) attributed to an arXiv paper that
-  doesn't cite them.
-
-**For local-repository research**, re-run the command yourself. It is one call and it is the whole
-check. Three classes fail here and each has its own re-run:
-
-| Claim | Re-run |
+| Claim | Check |
 | --- | --- |
-| **A checked negative** — "zero hits across these five files" | The grep, over the same set. **Verify negatives first**: a false negative is the one error that looks like a clean result, and it is the reason the sweep was commissioned. |
-| **A quoted rule or constraint** | `grep` the naming file for the quoted phrase. Observed catch: an agent quoted a standing rule as *"unless it blocks a gate"* where the file reads *"unless it blocks a rule"* — inside a draft comment about to be posted. |
-| **A locator** | Open it. A line number written where a section heading belongs sends a reader to a section that does not exist. |
+| **A checked negative** — "zero hits across these five files" | **Verify negatives first**, and **widen the search set**: re-running the agent's grep over the agent's set repeats its blind spot. Search the wider tree, other spellings, and the places the claim implies. Observed: a sweep of the project hooks folder missed two hooks in the user-level folder. |
+| **A quoted rule** | `grep` the naming file for the phrase. Observed: *"unless it blocks a gate"* where the file reads *"unless it blocks a rule"*. |
+| **A locator** | Open it. A line number written where a section belongs points at nothing. |
 
 Only claims that survive become actionable.
 
-Open [gotchas.md](gotchas.md) when a handback arrives empty or a verifier's verdict looks wrong. It records both failure kinds.
+Open [gotchas.md](gotchas.md) when a handback arrives empty or a verifier's verdict looks wrong.
 
 ## Verification
 
-- Pre-dispatch: the prompt names both return routes, and the write escalation names one absolute
-  path. Re-read the prompt for the words `SendMessage` and the path before sending it.
-- Pre-dispatch: the dispatched agent type's `tools:` includes the needed web tool, OR you used
-  `general-purpose`.
-- Post-return: every actioned claim was re-derived from its own source — a fetched URL, a re-run
-  grep, an opened locator. Every reported negative was re-run. Claims that failed are corrected in
-  place, with what the source actually says.
+- Pre-dispatch: the prompt names both return routes, and the escalation names one absolute path.
+- Pre-dispatch: the agent's `tools:` includes the needed web tool, and the prompt loads deferred
+  tools first; or you used `general-purpose`.
+- Post-return: every actioned claim was re-derived from its own source, and every reported
+  negative was re-searched over a wider set. Failed claims are corrected in place.
 
 ## Example
 
-See [EXAMPLES.md](EXAMPLES.md) for worked examples including the dead-letter incident and the
-threat-watch verification pass.
+[EXAMPLES.md](EXAMPLES.md) holds two dead-letter incidents and the threat-watch verification pass.

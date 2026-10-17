@@ -42,7 +42,7 @@ See [`docs/agents/triage-labels.md`](docs/agents/triage-labels.md).
 
 ### Domain docs
 
-Single-context — `CONTEXT.md` and `docs/adr/` at the repo root. See
+Single-context — `GLOSSARY.md` and `docs/adr/` at the repo root. See
 [`docs/agents/domain.md`](docs/agents/domain.md) before exploring the codebase, and use the
 glossary's terms in any output that names a domain concept.
 

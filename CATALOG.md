@@ -107,8 +107,8 @@ integer that opens the card's `Occasions counted` row.
 | [`pretooluse-prose`](skills/engineering/pretooluse-prose/EVIDENCE.md) | origin-trace | 12 |
 | [`vacuous-check`](skills/engineering/vacuous-check/EVIDENCE.md) | origin-trace | 8 |
 | [`decision-rights`](skills/orchestration/decision-rights/EVIDENCE.md) | origin-trace | 1 |
-| [`disposition-schema`](skills/orchestration/disposition-schema/EVIDENCE.md) | origin-trace | 2 |
-| [`subagent-handback`](skills/orchestration/subagent-handback/EVIDENCE.md) | origin-trace | 5 |
+| [`disposition-schema`](skills/orchestration/disposition-schema/EVIDENCE.md) | origin-trace | 3 |
+| [`subagent-handback`](skills/orchestration/subagent-handback/EVIDENCE.md) | origin-trace | 7 |
 | [`dead-predicate`](skills/meta/dead-predicate/EVIDENCE.md) | origin-trace | 5 |
 
 CI checks this table against the records and fails on any disagreement, so the records are the
@@ -242,10 +242,13 @@ that does not follow symbolic links should read `.agents/skills/` directly.
 npx skills add MrBinnacle/skills
 ```
 
+This route has no install receipt since v2.0.0, so what it installs from the current tree is
+untested.
+
 Those two directories are the installer's own convention for agent tools that read one path or
 the other. This collection does not choose them and does not configure them.
 
-It tracks `main` rather than a tag, so it installs the current tip of the collection.
+It tracks `main` rather than a tag.
 
 The same route lists the collection on [skills.sh](https://www.skills.sh/MrBinnacle/skills), the
 directory behind that command, where each card appears by name with its install count. That

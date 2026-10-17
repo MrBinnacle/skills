@@ -18,7 +18,7 @@ The named SME for any in-scope domain MUST be in the swarm. Generic agents do no
 
 Different agent runtimes expose role subagents differently — a plugin like OMC ships them; Claude Code has you define your own in `.claude/agents/`. Map closure-mode roles to your runtime's nearest equivalent.
 
-| Role | OMC plugin (oh-my-claudecode) | Claude Code (define as a project subagent) | Codex / Gemini | Fallback: prompt a general agent into the role |
+| Role | OMC plugin (oh-my-claudecode; ids checked against 5.7.4 `agents/`, 2026-10-17) | Claude Code (define as a project subagent) | Codex / Gemini | Fallback: prompt a general agent into the role |
 |---|---|---|---|---|
 | Architect | `oh-my-claudecode:architect` | `.claude/agents/architect.md` (you define it) | architect mode / role prompt | "You are a strategic architect. Evaluate each candidate for initiative-level risk and cross-fork sequencing. Apply a primary-reference check: is the citation the best work, or the first thing found?" |
 | Security | `oh-my-claudecode:security-reviewer` | `.claude/agents/security-reviewer.md` (you define it) | security review mode | "You are a security lead. Evaluate each candidate's trust-contract clause impact, residual-risk delta, and any pre-flight pressure-test requirement before drafting." |
@@ -33,7 +33,7 @@ Concrete copy-pasteable prompts for each role with brackets for project-specific
 If you have only 2 agents available — single-engineer project, expensive parallel dispatch, runtime limits — the **minimum viable swarm is Critic + Architect**. These two together catch the most common frame failures:
 
 - Critic surfaces phantom claims, missing candidates, and false-precision costs.
-- Architect catches sequencing constraints and Bannister-failure primary references.
+- Architect catches sequencing constraints and primary references that are the first thing found rather than the best work.
 
 The other three roles are valuable but not mandatory. A 2-agent swarm catches most of the failure modes that a 5-agent swarm catches; a 0-agent "let me just pick" closure run catches none of them.
 

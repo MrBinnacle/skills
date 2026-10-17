@@ -67,6 +67,8 @@ a hook can block is a subjective finding a hook has decided.
 
 This format describes returns that arrive. It says nothing about the return that does not, which
 is a different failure with a different control: a subagent answering in plain text emits nothing
-the caller receives, and the only signal is an idle notification that reads like completion.
+the caller receives, and the only signal is a completion notification that reads like a result
+(Claude Code delivers background subagent results as a completion notification; checked
+2026-10-17 against code.claude.com/docs/en/sub-agents).
 Name the return channel in the dispatch itself before relying on any envelope. Call the Skill
 tool with `subagent-handback`.

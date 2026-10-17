@@ -30,3 +30,6 @@
   the checker's complaint was a 429 and the underlying link was genuinely dead. The two look
   alike at the CI log and diverge on the one check that matters — asking the API whether the
   target exists.
+
+  Re-checked 2026-10-06 against the Click 8.5.x stable docs header and published `testing.py`:
+  the version and the signature-backed behaviour claim above still hold.

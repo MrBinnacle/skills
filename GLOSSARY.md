@@ -1,4 +1,4 @@
-# MrBinnacle / skills
+# GLOSSARY.md — vocabulary of record
 
 A small collection of agent skills, kept only while evidence supports keeping them. This
 glossary fixes what each term means, on every surface — public copy, governance files, skill
@@ -56,11 +56,18 @@ word named a tag that delivered nothing, because both install routes track `main
 _Avoid_: tag, publish — a tag records a release and does not constitute one.
 
 **Install path**:
-The route by which the collection is installed — the plugin marketplace commands and the
-installer command in `README.md` §Install. Not a card's directory: that is the card's *name*,
-which is a separate part of the declared surface and is priced differently.
+The route by which the collection is installed, defined by what a consumer resolves: the
+marketplace `name` and the plugin `name`s in `.claude-plugin/marketplace.json`, and the source
+repository the marketplace is added from. Changing any of them is a major change, because an
+installed user who takes no action loses a route that worked. The spelling of a command in
+`README.md` §Install is not the route: two spellings that resolve to the same marketplace,
+repository and plugin names are one route, and correcting the spelling is a patch. Settled by
+[`docs/adr/0005-the-install-route-is-what-a-consumer-resolves.md`](docs/adr/0005-the-install-route-is-what-a-consumer-resolves.md).
+Not a card's directory: that is the card's *name*, which is a separate part of the declared
+surface and is priced differently.
 _Avoid_: using it for `skills/<group>/<name>/`. The undefined phrase carried both senses until
-2026-09-08 and is what made the surface question unanswerable from this glossary.
+2026-09-08 and is what made the surface question unanswerable from this glossary. _Avoid_ also
+using it for the command text in `README.md` §Install, which it named until 2026-10-17.
 
 **Declared surface**:
 What the version number promises: the install path, a card's name, and the on-disk shape of a

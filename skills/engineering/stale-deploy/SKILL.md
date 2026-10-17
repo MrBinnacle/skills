@@ -1,6 +1,6 @@
 ---
 name: stale-deploy
-description: Verify a GitHub Pages (or any CDN-fronted) deploy actually serves new content. Poll on a marker that did not exist pre-deploy; avoid sleep-and-curl chains the agent harness blocks.
+description: 'Use when asking "is it live", a deploy looks stale, or a poll loop exits instantly. Verify a GitHub Pages or CDN deploy serves new content: poll a marker new to this deploy.'
 ---
 
 # GitHub Pages deploy verification
@@ -13,10 +13,10 @@ Three failure modes when verifying that a deploy is live via `curl`:
    succeeds instantly if the selector existed before the deploy too. The loop exits on the OLD
    content; you think you've verified the new state and you haven't.
 
-2. **Blocked timing chain.** `sleep 35 && curl ...` looks reasonable but the Claude Code harness
-   blocks long leading sleeps inside Bash to prevent dead polling. Worse, even short
-   `sleep N && curl` followed by additional pipes can hit "Blocked: sleep N followed by:" errors
-   that cancel parallel tool calls.
+2. **Blocked timing chain.** `sleep 35 && curl ...` was blocked by the Claude Code Bash tool
+   ("Blocked: sleep N followed by:"), cancelling parallel calls (observed 2026-05-27). The
+   docs do not describe that block; they state that a command starting with `sleep` is not
+   moved to the background at its timeout (code.claude.com tools-reference, read 2026-10-17).
 
 3. **Unbounded failure.** A missing marker can mean a slow deploy, failed build, HTTP error, or
    stale content. An endless loop distinguishes none of them and cannot return a useful verdict.
@@ -48,7 +48,8 @@ The string you grep for **must be content that did not exist pre-deploy**. Concr
 - **Avoid:** grep for a token name (`--accent-dim`) when only its *value* changed — the name was there
   before too.
 
-Rule: `git diff HEAD~1 -- . | grep '^+'` produces candidate strings from every changed path.
+Rule: `git diff <deployed-sha>..HEAD -- . | grep '^+'` lists candidates across every commit
+in the deploy, however many there are.
 Pick one unique to the diff and likely to survive the site's build transformations.
 
 ### Avoid blocked timing chains
@@ -97,19 +98,13 @@ poll_deploy "https://your.site/" "<new-content-marker>" 24 &&
 Invoke `poll_deploy "https://your.site/" "<new-content-marker>" 60` with
 `run_in_background: true`. You get a completion notification; do not poll it yourself.
 
-### Three-line template
+### Pick the branch first
 
-```
-# 1. Push and capture the unique marker
-git push origin <branch>
-# (mentally note: which line in the diff is unique to this push?)
-
-# 2. Poll on that exact marker (after defining poll_deploy above)
-poll_deploy "<prod-url>" "<unique-marker>" 24 || exit $?
-
-# 3. Run the broader verification grep
-curl -s <prod-url> | grep -E "(<token>|<class>|<copy-string>)" | head -10
-```
+- **Workflow-built Pages** (`gh api repos/OWNER/REPO/pages -q .build_type` prints `workflow`):
+  `pages/builds/latest` returns 404 (checked on this repository's site, 2026-10-17). The deploy
+  signal is the workflow run: `gh run watch <run-id> --exit-status`, then poll the marker.
+- **Already live** (the change shipped earlier): do not poll. Fetch once and compare the served
+  text to the source at the deployed commit.
 
 ## Verification
 
@@ -150,12 +145,8 @@ Open [gotchas.md](gotchas.md) when a deploy poll exits instantly on content that
 - The `gh api repos/.../pages/builds/latest` endpoint is informational, not authoritative. It
   can read `building` after the site is live, and `built` before the CDN catches up. Always
   verify via `curl <prod-url>` instead.
-- Custom domains and CDN edges can delay propagation further (Cloudflare, Fastly). Set an attempt
+- Custom domains and CDN edges can delay propagation further (Cloudflare, Fastly; observed
+  practice, not a vendor-documented figure, 2026-10-17). Set an attempt
   cap that covers the expected propagation window, and keep the marker deploy-unique.
 - Same pattern works for Netlify, Vercel, Cloudflare Pages, S3+CloudFront, and any other
   static-site CDN. The harness rules apply identically.
-- If the deploy is gated on a CI workflow (not Pages legacy auto-build), poll the workflow
-  status via `gh run watch` before the curl loop, then run the curl loop to confirm content
-  propagation separately.
-- This skill complements harness-level guidance that tells you *not to chain sleeps*; this skill
-  tells you *what to do instead* for deploy verification specifically.

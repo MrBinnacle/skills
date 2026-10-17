@@ -981,6 +981,36 @@ def cache_expand_cases():
         assert validator.check_cache_key({"command": "true"}, repo) is None
 
 
+def cache_inputs_type_cases():
+    """cache_inputs must be a list of strings; anything else is refused (#401)."""
+    import hashlib as _h
+    import subprocess as _s
+    import sys
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp) / "repo"
+        repo.mkdir()
+        _init_repo(repo)
+        (repo / "README.md").write_text("r\n", encoding="utf-8")
+        for bad in ("README.md", [1], ["README.md", None]):
+            try:
+                validator.check_cache_key(
+                    {"command": "true", "cache_inputs": bad}, repo
+                )
+            except validator.PacketError as exc:
+                assert "cache_inputs" in str(exc) and "true" in str(exc), exc
+            else:
+                raise AssertionError(f"cache_inputs={bad!r} must be refused")
+        # A list of strings keys exactly as the documented formula says.
+        target = repo / "README.md"
+        git_v = _s.run(["git", "--version"], text=True, capture_output=True)
+        parts = ["true", sys.version, git_v.stdout.strip() or git_v.stderr.strip(),
+                 f"{target.resolve()}:{_h.sha256(target.read_bytes()).hexdigest()}"]
+        want = _h.sha256("|".join(parts).encode("utf-8")).hexdigest()
+        got = validator.check_cache_key(
+            {"command": "true", "cache_inputs": ["README.md"]}, repo
+        )
+        assert got == want, (got, want)
+
 
 # A check that prints U+0141 (UTF-8 C5 81; 0x81 has no cp1252 mapping)
 # followed by a byte that is not valid UTF-8, then fails so its output is
@@ -1425,6 +1455,7 @@ if __name__ == "__main__":
     cache_weekly_disagreement_cases()
     cache_no_inputs_fields_cases()
     cache_expand_cases()
+    cache_inputs_type_cases()
     cache_close_shares_cases()
     cache_atomic_write_cases()
     cache_path_confined_cases()
@@ -1439,7 +1470,8 @@ if __name__ == "__main__":
               "claimed-head, claimed-head-cli, receive-mode-config, "
               "close-session, open-session, red-check, assertions-held, "
               "cache-hit, cache-outside, cache-directory, cache-fail, "
-              "cache-weekly, cache-no-inputs, cache-expand, cache-close-shared, "
+              "cache-weekly, cache-no-inputs, cache-expand, cache-inputs-type, "
+              "cache-close-shared, "
               "cache-atomic, cache-path-confined, utf8-output, utf8-git-output, "
               "utf8-snapshot, utf8-close-git")
     # no-drift appears in the pass roster only when parity was actually

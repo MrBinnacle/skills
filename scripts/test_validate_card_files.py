@@ -98,6 +98,31 @@ def write_card(
     return card
 
 
+def case_size_counts_lf_normalised_bytes(root: Path) -> None:
+    """#395: the size verdict must not depend on the checkout's line endings."""
+    card = root / "card"
+    card.mkdir()
+    skill = card / "SKILL.md"
+
+    def verdict(lines: int, width: int, eol: bytes) -> list[str]:
+        skill.write_bytes((b"x" * width + eol) * lines)
+        return validate_card_files.size_breaches(card)
+
+    # 100 lines of 70 bytes + LF = 7,100 (under 7,168); in CRLF it is 7,200.
+    check("an in-limit card passes in LF", verdict(100, 70, b"\n") == [])
+    crlf = verdict(100, 70, b"\r\n")
+    check("the same card passes in CRLF (#395)", crlf == [], str(crlf))
+    for eol in (b"\n", b"\r\n"):
+        # 100 x (72 + LF) = 7,300: over the ceiling in both encodings.
+        got = verdict(100, 72, eol)
+        check(f"an over-ceiling card fails ({eol!r})",
+              len(got) == 1 and "7300 bytes" in got[0], str(got))
+        # 5 x (70 + LF) = 355: under the floor in both encodings.
+        got = verdict(5, 70, eol)
+        check(f"an under-floor card fails ({eol!r})",
+              len(got) == 1 and "355 bytes" in got[0], str(got))
+
+
 def case_committed_poison_is_red() -> None:
     result = run_checker(POISON)
     check("committed poison fixture is rejected", result.returncode != 0)
@@ -1535,6 +1560,55 @@ def case_live_cards_carry_gotchas_pointers() -> None:
     )
 
 
+def case_clirunner_env_repair_contract() -> None:
+    """The published card retains the #379 repair's reader-facing contract.
+
+    This reads the shipped card rather than a validator helper. Its checks cover
+    the description branches a user supplies, the dated Click evidence, and the
+    append-only origin record that the repair must not rewrite.
+    """
+    card = REPO_ROOT / "skills" / "engineering" / "clirunner-env"
+    skill = (card / "SKILL.md").read_text(encoding="utf-8")
+    gotchas = (card / "gotchas.md").read_text(encoding="utf-8")
+    evidence = (card / "EVIDENCE.md").read_text(encoding="utf-8")
+    description_match = re.search(r'^description: "(.*)"$', skill, re.MULTILINE)
+    description = description_match.group(1) if description_match else ""
+
+    check(
+        "clirunner-env routes filtered dict, empty env, and monkeypatch cases",
+        all(branch in description for branch in ("filtered-dict", "env={}", "monkeypatch.delenv")),
+        description,
+    )
+    check(
+        "clirunner-env description stays inside the published standing-cost bar",
+        len(description) <= 200,
+        f"description is {len(description)} characters",
+    )
+    check(
+        "clirunner-env removes the private example provenance from its public heading",
+        "from skill-harness" not in skill,
+        "the example heading retains private provenance",
+    )
+    check(
+        "clirunner-env preserves the original append-only gotcha record",
+        "Click has moved to 8.5, and all three of this card's `8.1.x`" in gotchas
+        and "Not an instance of `linkcheck-throttle`: that card is about" in gotchas,
+        "the historical 2026-08-23 ledger entry was rewritten",
+    )
+    check(
+        "clirunner-env appends its Click 8.5.x re-check to the gotcha record",
+        "Re-checked 2026-10-06 against the Click 8.5.x stable docs header" in gotchas,
+        "the current Click re-check is absent from gotchas.md",
+    )
+    check(
+        "clirunner-env dates the Click 8.5.x evidence consistently",
+        skill.count("2026-10-06") == 1
+        and evidence.count("2026-10-06") >= 2
+        and "checked four times on four dates" in evidence,
+        "SKILL.md and EVIDENCE.md do not agree on the current validation record",
+    )
+
+
 def main() -> None:
     case_committed_poison_is_red()
     case_committed_missing_row_fixture_is_red()
@@ -1594,6 +1668,7 @@ def main() -> None:
         case_gotchas_image_is_not_a_pointer,
         case_gotchas_mention_in_another_sentence_is_rejected,
         case_gotchas_pointer_with_when_cue_passes,
+        case_size_counts_lf_normalised_bytes,
     ]
     for func in isolated:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1602,6 +1677,7 @@ def main() -> None:
     case_live_thin_labels_match_the_counts()
     case_house_pointer_reader_refuses_a_mention()
     case_live_cards_carry_gotchas_pointers()
+    case_clirunner_env_repair_contract()
     case_linkcheck_lane_runs_checker()
 
     print("")

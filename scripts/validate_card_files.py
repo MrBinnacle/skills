@@ -187,9 +187,8 @@ _SKIP_DIRS: Final[frozenset[str]] = frozenset({"__pycache__", ".git"})
 # reported stale on the next run.
 _ALLOWLIST_RECORDED: Final[str] = "2026-09-06"
 _ALLOWLIST: Final[frozenset[tuple[str, str]]] = frozenset({
-    # Over the 7,168-byte ceiling. Both are named in the twelve-card migration.
-    ("skills/orchestration/decision-rights", "size"),
-    ("skills/orchestration/subagent-handback", "size"),
+    # No card is over the 7,168-byte ceiling any more: decision-rights (#385)
+    # and subagent-handback (#384) left this list on 2026-10-17.
     # EVIDENCE.md and gotchas.md are not reachable from these cards' SKILL.md.
     # Twelve of fourteen cards, measured 2026-09-06.
     ("skills/engineering/clirunner-env", "reachability"),
@@ -203,7 +202,6 @@ _ALLOWLIST: Final[frozenset[tuple[str, str]]] = frozenset({
     ("skills/engineering/vacuous-check", "reachability"),
     ("skills/meta/dead-predicate", "reachability"),
     ("skills/orchestration/decision-rights", "reachability"),
-    ("skills/orchestration/disposition-schema", "reachability"),
 })
 
 
@@ -668,19 +666,13 @@ def _path_exists_case_exact(path: Path) -> bool:
 def size_breaches(card: Path) -> list[str]:
     """AGENTS.md: SKILL.md within 400–7,168 bytes.
 
-    Measured on the file's CONTENT with CRLF collapsed to LF. A Windows
-    checkout (`core.autocrlf=true`) stores `\r\n` for every newline, which
-    inflates the byte count without changing what a reader holds. Measuring
-    raw on-disk bytes reds two published cards that sit under the ceiling on
-    LF (vacuous-check 7108 B, dead-predicate 7141 B) purely for their line
-    endings — #354's CRLF acceptance run caught that. The bound is about the
-    card's content, not the checkout's EOL convention.
+    Bytes are counted with every CRLF pair normalised to LF (#395), so a
+    Windows checkout with core.autocrlf=true gets the same verdict as CI.
     """
     skill = card / "SKILL.md"
     if not skill.is_file():
         return []
-    raw = skill.read_bytes()
-    size = len(raw.replace(b"\r\n", b"\n"))
+    size = len(skill.read_bytes().replace(b"\r\n", b"\n"))
     if size < SKILL_SIZE_MIN:
         return [
             f"SKILL.md is {size} bytes, below the minimum of {SKILL_SIZE_MIN}. "

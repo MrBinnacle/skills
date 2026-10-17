@@ -1,6 +1,6 @@
 ---
 name: mocked-stub
-description: A test that patches a helper which is itself a production stub reports green on a branch that never ran. Use when reviewing all-green tests on spend guards, idempotency, auth or refusal paths.
+description: Patching a helper that is itself a production stub turns a test green on a branch that never ran. Use when reviewing all-green tests on spend guards, idempotency, auth, refusals or weak asserts.
 ---
 
 # Mock-Masked Stub Trap
@@ -59,12 +59,23 @@ Open [gotchas.md](gotchas.md) when a helper passes this check and still looks ho
 
 ## What good looks like
 
-The falsifying test seeds real state and calls the production function with **no patch on it**:
+The falsifying test seeds real state and calls the production function with **no patch on it**.
+A sketch, assuming the real helper takes a connection and reads a `run_progress` table:
 
 ```python
-_seed_run_progress(rt, "run-001", state="running")      # real DB row
-assert _find_incomplete_run(skill_id, runtime_conn=rt) == "run-001"   # unpatched
+import sqlite3
+
+rt = sqlite3.connect(":memory:")
+rt.execute("CREATE TABLE run_progress (run_id TEXT, skill_id TEXT, state TEXT)")
+rt.executemany("INSERT INTO run_progress VALUES (?, ?, 'running')",
+               [("run-001", "skill-a"), ("run-002", "skill-b")])
+assert _find_incomplete_run("skill-a", runtime_conn=rt) == "run-001"   # unpatched
+assert _find_incomplete_run("skill-b", runtime_conn=rt) == "run-002"
 ```
+
+Assert the specific value the seeded state implies, not `is not None`: a truthiness check
+passes any non-None constant. One specific value still accepts a stub that happens to return
+it; two seeds with different expected values tell a constant from a state-derived result.
 
 If you cannot write such a test without patching the unit, that is the signal the production
 code is a stub — not a reason to patch.

@@ -31,6 +31,10 @@ scripts/vendor/** text eol=lf
 assets/*.svg text eol=lf
 assets/*.png binary
 
+# docs/agents/domain.md is compared byte-for-byte to an inlined template fixture;
+# pin eol=lf so a Windows CRLF checkout cannot fail that exact-bytes test.
+docs/agents/domain.md text eol=lf
+
 # WHY THIS FILE DOES NOT PIN THE WHOLE REPOSITORY, THOUGH IT SHOULD EVENTUALLY.
 #
 # Ten tracked files currently hold CRLF in the index:
@@ -53,3 +57,6 @@ assets/*.png binary
 # Normalizing those ten is a real cleanup with its own diff and its own review.
 # It is not part of consuming a prose style, so it is named here rather than done
 # quietly under an unrelated ticket.
+
+# Fonts are IBM's unmodified files (OFL Reserved Font Name "Plex"); never normalise them.
+site/fonts/*.woff2 binary
