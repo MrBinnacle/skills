@@ -242,6 +242,9 @@ that does not follow symbolic links should read `.agents/skills/` directly.
 npx skills add MrBinnacle/skills
 ```
 
+This route has no install receipt since v3.0.0 changed the install path, so what it installs from
+the current tree is untested.
+
 Those two directories are the installer's own convention for agent tools that read one path or
 the other. This collection does not choose them and does not configure them.
 
