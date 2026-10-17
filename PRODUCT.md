@@ -99,7 +99,7 @@ One maintained intent record does not mean one file contains all knowledge.
 | Question | Source to use |
 | --- | --- |
 | What is this product for, who is it for, and what has the owner prioritized? | This file, recording owner decisions |
-| What knowledge, mechanism or limitation supports a particular engineering decision? | The relevant explanation, research, counterexample or dated record; retain its scope and uncertainty |
+| What knowledge, mechanism or limitation supports a particular engineering decision? | The relevant explanation, research, counterexample or dated record; retain its scope and uncertainty. What three recorded decisions share is described in [Three decisions, and what they share](docs/explanations/three-decisions.md) |
 | What does a published card claim and what evidence supports it? | Its `SKILL.md`, `EVIDENCE.md` and append-only `gotchas.md` |
 | What is packaged and what delivery has been observed? | Runtime manifests and the versioned sources and observations linked by the [delivery matrix](docs/product/runtime-delivery-matrix.md) |
 | What measured result may be claimed? | The cited receipt and its applicability limits, not product intent or installation success |
