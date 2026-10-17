@@ -23,8 +23,8 @@
       "skill_md_sha256": "1c22d03d7a7bdc376ccd68ab4efec905cdf328d0b42d6c923298f8f32b5f8492"
     },
     "mocked-stub": {
-      "standing_cost_tokens": 51,
-      "skill_md_sha256": "02b6bef961c1809fc15da92b4e9eb28b2cb26aa84cba11947edfdd2b865c1dfd"
+      "standing_cost_tokens": 55,
+      "skill_md_sha256": "cda4e41989413f9eeece134ed8c576e4ff63018bb11494bec177c4d4b8b6c2d5"
     },
     "pretooluse-prose": {
       "standing_cost_tokens": 60,

@@ -2,9 +2,9 @@
 
 Append-only. Seeded with `[ANTICIPATED]`; replace/supplement with `[OBSERVED]` as they occur.
 
-- `[OBSERVED 2026-06-06]` Two consecutive tracks (D.2, D.3 of Skill Harness) each returned
+- `[OBSERVED 2026-06-06]` Two consecutive build tracks of a measurement harness each returned
   all-green with a branch the shipped behaviour depends on stubbed and only "tested" via a patch of the stub.
-  D.3's `_find_incomplete_run` was literally `return None`; its A52 double-spend-guard test
+  The second track's `_find_incomplete_run` was literally `return None`; its double-spend-guard test
   patched it to a fake run_id. Independent re-review (read the test for `patch(` + read the
   production body) caught it; the gate did not.
 
@@ -19,6 +19,7 @@ Append-only. Seeded with `[ANTICIPATED]`; replace/supplement with `[OBSERVED]` a
 - `[ANTICIPATED]` A helper that returns a hardcoded constant can pass a weak assertion
   (`assert result is not None`) even unpatched. Require the test to assert the *specific*
   value derived from seeded real state, not mere truthiness.
+  promoted: body, 2026-10-17 (#380): the SKILL.md example now names the specific-value assertion; the description routes on weak asserts.
 
 - `[ANTICIPATED]` Coverage tools report the stub line as "covered" because the patched test
   still imports/touches it. Line coverage ≠ behavior coverage; this trap survives a coverage gate.
