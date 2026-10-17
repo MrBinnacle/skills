@@ -1,6 +1,6 @@
 ---
 name: decision-rights
-description: Framing discipline for artifacts instructing a downstream reader — handoffs, plans, ADRs, subagent prompts. Separates evidence access from decision rights; marks which decisions evidence can reopen.
+description: Use when writing a handoff, plan, ADR or subagent brief, or one says "do not re-litigate" or "final". Separates evidence access from decision rights and marks what is non-negotiable.
 ---
 
 # Downstream-Instruction Framing Discipline
@@ -77,21 +77,22 @@ Label values decisions and explicit user constraints `Non-negotiable`; keep them
 - **Revisable with new evidence:** Phase X expands to include items A, B, C. *Revisit if:*
   repository inspection shows any item is already done,
   duplicative, or has a wrong cost estimate by >2x.
-- **Revisable with new evidence:** Design Y was approved. *Revisit if:* the actual architecture
-  makes it incompatible,
-  or there's a simpler/better way you can see from inside the tree.
 - **Non-negotiable:** Do not send customer data to third parties. This is an explicit user
   constraint; surface any conflict, but do not override it.
 ```
 
 ### 3. Acceptable narrow use of "do not re-litigate"
 
-Use the phrase only for a **specific question** the user explicitly closed in the current
-conversation.
+Use the phrase only for a **specific question** its decision authority explicitly closed.
 
 Acceptable: "User decided 'PostgreSQL not SQLite' in turn 14. Do not re-litigate this choice."
 
 Not acceptable: a blanket "Approved Decisions — Do Not Re-Litigate" header.
+
+**Across sessions.** A handoff may pass on a standing decision settled in an earlier session.
+Cite where it is recorded and the route for contesting it. The receiver inherits it as
+non-negotiable and sends new evidence to that route instead of re-deciding. A ruling the
+handoff cannot point to is a proposal.
 
 ### 4. Imperative → proposal mood
 
@@ -112,8 +113,7 @@ After drafting any downstream-instruction artifact:
 
 - [ ] Each decision tests who can access the evidence that bears on it
 - [ ] Evidence and decision authority are separate
-- [ ] Every evidence-sensitive decision is labeled revisable and has a specific "Revisit if:"
-- [ ] Values decisions and explicit user constraints are labeled non-negotiable and imperative
+- [ ] Each decision carries a section 2 label
 - [ ] Disagreement-with-reasoning is licensed only for revisable instructions
 - [ ] "Do not re-litigate" is absent, OR scoped to a single explicitly-closed question
 - [ ] Revisable recommendations use proposal mood; genuine hard constraints do not
@@ -138,9 +138,6 @@ handoff):**
 ```markdown
 ## User-Approved Directional Decisions (Revisable With New Evidence)
 
-These were approved by the user against the framing this session presented. If reading the
-actual codebase changes the framing, surface the change and let the user re-decide.
-
 - Phase E expands to include E-ADD-1 through E-ADD-5. *Revisit if:* any item is already
   done, duplicative, or has a wrong cost estimate by >2x.
 - The security-item δ-pattern design is drafted. Recommended absorption as E-ADD-6.
@@ -156,9 +153,4 @@ Open [gotchas.md](gotchas.md) when a handoff says "do not re-litigate" wholesale
 
 - **Subagent prompts are riskiest.** Agents read dispatches as near-system-tier and rarely push
   back; make their framing block explicit.
-- **Does not apply to genuine hard constraints.** Security boundaries and user-stated
-  non-negotiables are imperative for legitimate reasons. The skill governs the *default*
-  framing of *proposed* work.
-- **Use "Revisit if:" only when evidence can change the outcome.** Otherwise mark a values
-  decision or explicit user constraint non-negotiable; a fake revisit condition is noise.
 - **Failure prevented:** downstream silently executes a plan its evidence contradicts.

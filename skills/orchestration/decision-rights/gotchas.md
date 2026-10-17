@@ -85,6 +85,10 @@ stress-test signal.)*
   negative-finding run needs. See `vacuous-check` rule 4, which this pass
   added on the same day and then violated in its own instrument.
 
+  `retired` — 2026-10-17 (#385): a harvest log for other cards, not for this one. Its per-card
+  results belong to the records of `stale-deploy`, `closure-mode`, `pull-rebase` and `im-up`; its
+  method lesson lives in `vacuous-check` rule 4. Kept here as history.
+
 - **2026-08-29 / the guard-caught candidates are ruled known negatives**
   ([MrBinnacle/skills#133](https://github.com/MrBinnacle/skills/issues/133)). A 2026-08-24
   harvest surfaced two hook-block events — 2026-08-04 and 2026-08-05, each a draft carrying
