@@ -76,6 +76,8 @@ Each skill adds one line to every session: about 44 to 63 tokens, measured by `s
 |---|---|
 | `dead-predicate` | A hook or router stays silent and you need to know why. |
 
+For what three recorded decisions here have in common underneath the individual traps, read [Three decisions, and what they share](docs/explanations/three-decisions.md).
+
 ## What comes with each skill
 
 You would not ship code that runs on every request without tests. A skill runs in every session you have. So each one here comes with:
