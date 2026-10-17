@@ -13,6 +13,9 @@ import subprocess
 import sys
 import threading
 import queue
+from pathlib import Path
+
+from acceptance_evidence import capture_event
 
 TIMEOUT_S = 600
 
@@ -21,6 +24,10 @@ def main() -> int:
     out_path = sys.argv[1]
     split = sys.argv.index("--")
     pi_args, prompts = sys.argv[2:split], sys.argv[split + 1:]
+    capture_acceptance = "--capture-acceptance" in pi_args
+    if capture_acceptance:
+        pi_args.remove("--capture-acceptance")
+    settled_prompts = 0
     for prompt in prompts:
         # Git Bash rewrites a leading `/command` into a Windows path before Python sees it.
         # A model given the mangled text treats it as a task and wanders (observed 2026-10-10).
@@ -40,6 +47,11 @@ def main() -> int:
 
     def pump() -> None:
         for line in proc.stdout:
+            if capture_acceptance:
+                try:
+                    line = json.dumps(capture_event(json.loads(line), Path.cwd())) + "\n"
+                except json.JSONDecodeError:
+                    pass
             lines.put(line)
         lines.put(None)
 
@@ -86,6 +98,7 @@ def main() -> int:
                     print(f"  NOTIFY {str(msg.get('message'))[:600]}")
                 elif kind == "agent_settled":
                     settled = True
+                    settled_prompts += 1
                 if kind == "response" and msg.get("id") == f"p{i}":
                     responded = True
             print(f"settled after prompt {i}")
@@ -97,7 +110,12 @@ def main() -> int:
     err = proc.stderr.read()
     if err.strip():
         print("STDERR:", err.strip()[:1500])
-    return 0
+    complete = settled_prompts == len(prompts) and proc.returncode == 0
+    if capture_acceptance:
+        with open(out_path, "a", encoding="utf-8", newline="\n") as out:
+            out.write(json.dumps({"type": "acceptance_driver_end", "returncode": proc.returncode,
+                                  "complete": complete}) + "\n")
+    return (0 if complete else 1) if capture_acceptance else 0
 
 
 if __name__ == "__main__":
