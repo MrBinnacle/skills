@@ -47,8 +47,8 @@
       "skill_md_sha256": "51d65de3b384390e3aa9ec7fe0b4fabfadb10b2921bff8641b9633b7fec42d83"
     },
     "decision-rights": {
-      "standing_cost_tokens": 47,
-      "skill_md_sha256": "2d7de62b850dfecc7a8ed5452edbb1d5141c1e439a6231bdf0d1d968eb4325af"
+      "standing_cost_tokens": 55,
+      "skill_md_sha256": "d741e01dd6b65fc28aa8974c09cbc40dbb3e187e760bbe4cdddadced982c326b"
     },
     "disposition-schema": {
       "standing_cost_tokens": 44,
