@@ -248,7 +248,7 @@ the current tree is untested.
 Those two directories are the installer's own convention for agent tools that read one path or
 the other. This collection does not choose them and does not configure them.
 
-It tracks `main` rather than a tag, so it installs the current tip of the collection.
+It tracks `main` rather than a tag.
 
 The same route lists the collection on [skills.sh](https://www.skills.sh/MrBinnacle/skills), the
 directory behind that command, where each card appears by name with its install count. That
