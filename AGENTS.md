@@ -55,7 +55,7 @@ clone.
   records a version and a `gitCommitSha` in `plugins/installed_plugins.json`. That pin is a
   committed statement of which bytes are in use, and it is the thing a link can never make.
   `npx skills add MrBinnacle/skills` is published as a second route, with no install receipt
-  since v3.0.0; it writes a `skills-lock.json` and tracks `main` rather than a tag.
+  since v2.0.0; it writes a `skills-lock.json` and tracks `main` rather than a tag.
 - **A pinned copy lags the clone, and that is correct.** Changing a published card means
   editing the clone, opening a PR, merging, and updating the install. That is the gauntlet
   below. Linking existed to skip it.
