@@ -191,6 +191,76 @@ def case_snapshot_version_is_pinned() -> None:
         )
 
 
+def _load(name: str):
+    import importlib
+    return importlib.import_module(name)
+
+
+class _FakeRun:
+    """Stand-in for subprocess.run: records kwargs, returns a fixed stdout."""
+
+    def __init__(self, stdout):
+        self.stdout = stdout
+        self.calls: list[dict] = []
+
+    def __call__(self, args, **kwargs):
+        self.calls.append(kwargs)
+        return subprocess.CompletedProcess(args, 0, stdout=self.stdout, stderr="")
+
+
+def _with_fake(module, fake, fn):
+    real = module.subprocess.run
+    module.subprocess.run = fake
+    try:
+        return fn()
+    finally:
+        module.subprocess.run = real
+
+
+def case_subprocess_decodes_utf8() -> None:
+    """Every skill-harness call decodes UTF-8, not the locale code page (#359)."""
+    card = Path("SKILL.md")
+    for name in ("validate_standing_costs", "refresh_standing_costs"):
+        module = _load(name)
+        fake = _FakeRun("skill-harness, version 0.3.0")
+        _with_fake(module, fake, module.installed_harness)
+        fake_audit = _FakeRun("")
+        try:
+            _with_fake(module, fake_audit, lambda: module.audit_calibrated(["h"], card))
+        except RuntimeError:
+            pass
+        calls = fake.calls[:1] + fake_audit.calls[:1]
+        check(
+            f"{name}: both subprocess calls pass encoding=utf-8, errors=replace",
+            len(calls) == 2
+            and all(c.get("encoding") == "utf-8" and c.get("errors") == "replace" for c in calls),
+            repr(calls),
+        )
+
+
+def case_none_stdout_is_no_figure() -> None:
+    """A None stdout takes the no-figure path instead of raising TypeError."""
+    card = Path("SKILL.md")
+    v = _load("validate_standing_costs")
+    try:
+        got = (_with_fake(v, _FakeRun(None), v.installed_harness),
+               _with_fake(v, _FakeRun(None), lambda: v.audit_calibrated(["h"], card)))
+        check("validate_standing_costs: None stdout is no figure", got == (None, None), repr(got))
+    except TypeError as exc:
+        check("validate_standing_costs: None stdout is no figure", False, repr(exc))
+    r = _load("refresh_standing_costs")
+    for label, fn in (("installed_harness", r.installed_harness),
+                      ("audit_calibrated", lambda: r.audit_calibrated(["h"], card))):
+        try:
+            _with_fake(r, _FakeRun(None), fn)
+            ok, detail = False, "returned"
+        except RuntimeError:
+            ok, detail = True, ""
+        except TypeError as exc:
+            ok, detail = False, repr(exc)
+        check(f"refresh_standing_costs.{label}: None stdout raises RuntimeError", ok, detail)
+
+
 # --- Run all cases ---
 
 case_committed_poison_is_red()
@@ -199,6 +269,8 @@ case_snapshot_fallback_is_green()
 case_wrong_figure_in_temp_tree()
 case_correct_figure_in_temp_tree()
 case_snapshot_version_is_pinned()
+case_subprocess_decodes_utf8()
+case_none_stdout_is_no_figure()
 
 if FAILURES:
     print(f"\nFAILED: {len(FAILURES)} case(s)")

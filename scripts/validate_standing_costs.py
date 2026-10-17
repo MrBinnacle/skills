@@ -96,11 +96,11 @@ def installed_harness() -> tuple[list[str], str] | None:
     for command in ([sys.executable, "-m", "skill_harness"], ["skill-harness"]):
         try:
             result = subprocess.run(
-                [*command, "--version"], capture_output=True, text=True, timeout=30
+                [*command, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
             )
         except (subprocess.TimeoutExpired, FileNotFoundError):
             continue
-        m = VERSION_RE.search(result.stdout)
+        m = VERSION_RE.search(result.stdout or "")
         if result.returncode == 0 and m:
             return command, m.group(1)
     return None
@@ -113,13 +113,15 @@ def audit_calibrated(command: list[str], skill_md: Path) -> int | None:
             [*command, "skill", "audit", str(skill_md)],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=30,
         )
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return None
     if result.returncode != 0:
         return None
-    m = AUDIT_RE.search(result.stdout)
+    m = AUDIT_RE.search(result.stdout or "")
     if m:
         return int(m.group(1))
     return None
