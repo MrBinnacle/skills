@@ -42,13 +42,13 @@ claude plugin install mrbinnacle-engineering
 
 The HTTPS clone URL is what this README publishes. The GitHub shorthand `MrBinnacle/skills` is also a documented CLI source; on a machine with no working SSH key for github.com it can fail with `git@github.com: Permission denied (publickey)`, which is what a cold install of v3.0.1 recorded. Issue #333 recorded that failure.
 
-Verified forms, Claude Code 2.1.287, 2026-10-02, from a clean `CLAUDE_CONFIG_DIR` with no SSH key:
+Verified forms, Claude Code 2.1.287, from a clean `CLAUDE_CONFIG_DIR` with no SSH key:
 
-- interactive `/plugin marketplace add https://github.com/MrBinnacle/skills.git`
-- shell `claude plugin marketplace add https://github.com/MrBinnacle/skills.git`
-- shell `claude plugin install` of all three plugins, at 3.0.1
+- interactive `/plugin marketplace add https://github.com/MrBinnacle/skills.git` (2026-10-02)
+- shell `claude plugin marketplace add https://github.com/MrBinnacle/skills.git` (CI, 2026-10-17)
+- shell `claude plugin install` of all three plugins, at 3.1.0 (CI run 39073914809, 2026-10-17)
 
-The cold-install transcript is in the pull request that changed this section (#340).
+The 2026-10-02 cold-install transcript is in the pull request that changed this section (#340). The 2026-10-17 shell forms ran in the `Install form` CI job on Ubuntu and Windows.
 
 On Windows, keep the path of your Claude configuration directory (`CLAUDE_CONFIG_DIR`) at 108 characters or fewer. If it is longer, run `git config --global core.longpaths true` before you add the marketplace; that raises the limit to 157 characters. Above 157, the install fails even with that setting. Measured for this release with Claude Code 2.1.302 on 2026-10-17, with Windows long-path support turned on. Not tested with that support off. Windows long-path support is an opt-in setting.
 
