@@ -3,8 +3,8 @@
   "calibrated_on": "2026-09-22",
   "cards": {
     "clirunner-env": {
-      "standing_cost_tokens": 56,
-      "skill_md_sha256": "25c51a2b27a35fc49c57eb8175ba25404eb526ef49b0e3f2b162ea498f1985bf"
+      "standing_cost_tokens": 59,
+      "skill_md_sha256": "f9b8e12a91cfe5ce28a2f4592be5c3991121ffa3fa65f73c51059acc100e2807"
     },
     "closure-mode": {
       "standing_cost_tokens": 0,
@@ -32,7 +32,7 @@
     },
     "pull-rebase": {
       "standing_cost_tokens": 63,
-      "skill_md_sha256": "b8b3c775e37ae592ff9a0024536a4dc928453316b4aede622aff9ac6d85d0a66"
+      "skill_md_sha256": "0fe2c6247989a7c934fcc3f8ad7962369461002127e6bd5d08895f527365bd8b"
     },
     "stale-deploy": {
       "standing_cost_tokens": 50,

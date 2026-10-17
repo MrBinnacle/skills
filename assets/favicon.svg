@@ -10,13 +10,16 @@
     color.structural). The stamped line and seal carry the banners' muted-over-ink
     relationship through stroke-opacity on the same ink, so no third value ships.
     This file sits under assets/ so scripts/validate_brand_kit.py reads both hexes.
+
+    2026-10-16 (#423): the inks are now the green palette, structural_light.ink
+    #1E2020 and structural.ink #E3E6DD. The hexes named above are history.
   -->
   <style>
-    .ink { stroke: #31221e; }
-    .seal { fill: #31221e; }
+    .ink { stroke: #1e2020; }
+    .seal { fill: #1e2020; }
     @media (prefers-color-scheme: dark) {
-      .ink { stroke: #ece3d6; }
-      .seal { fill: #ece3d6; }
+      .ink { stroke: #e3e6dd; }
+      .seal { fill: #e3e6dd; }
     }
   </style>
   <g transform="translate(12 3)" fill="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
