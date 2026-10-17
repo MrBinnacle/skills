@@ -60,6 +60,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 import validate_scoreboard as scoreboard  # noqa: E402
 import validate_skill_formats as formats  # noqa: E402
+from validate_card_files import EVIDENCE_SCOPE_ROW  # noqa: E402
 
 PASS: Final[str] = "PASS"
 FAIL: Final[str] = "FAIL"
@@ -74,6 +75,68 @@ TRIAL_EXIT_DATE: Final[str] = "2026-11-07"
 
 CARD = "card"
 REPO = "repo"
+
+# --- Evidence-scope closed set (#353, consumed by #354) --------------------
+#
+# The row's value is derived from the receipt O5 already resolves from the
+# card's Receipt: clause. Four sentences cover the closed set; nothing else is
+# a valid Evidence scope value on a published card.
+#
+# SCOPE_LINE_TEMPLATE and SCOPE_LINE_CARRIED_TEMPLATE are skill-harness's own
+# KEEP scope-line wording, filled field by field. Source:
+# skill_harness/sitegen/render.py::_scope_line (inline f-strings; no named
+# constant there). The row value is that function's text with the HTML wrapper
+# `<p class="scope-line">…</p>` removed and without HTML escaping. The drift
+# test (test_validate_conformance.py) renders the R2 KEEP fixtures through the
+# harness _scope_line when SKILL_HARNESS_ROOT names a checkout and skips with
+# a named reason when it does not. One word of a constant is a red drift, not
+# a style preference: the constant is what the row must state.
+SCOPE_NO_RECEIPT: Final[str] = "UNMEASURED — no receipt."
+SCOPE_NOT_DEMONSTRATED_FMT: Final[str] = (
+    "NOT DEMONSTRATED — receipt verdict {verdict}; no effect is shown."
+)
+SCOPE_UNSCOPED: Final[str] = (
+    "UNSCOPED — the KEEP receipt carries no verdict_scope (SERS before 1.6.0)."
+)
+# R3-3 / R4-1: when a card links more than one receipt and none is a usable
+# KEEP, the NOT DEMONSTRATED row names every distinct verdict among the
+# linked receipts, in receipt order, deduplicated -- two receipts carrying
+# the same verdict name it once. A public row must not hide a linked
+# verdict, so the row never picks one. One distinct verdict keeps the
+# closed-set single sentence above; several use this parenthetical form.
+# R4-3 gives the multi form the same ending the other sentences carry.
+SCOPE_NOT_DEMONSTRATED_MULTI_FMT: Final[str] = (
+    "NOT DEMONSTRATED ({verdicts}); no effect is shown."
+)
+# R4-2: a card that links a KEEP receipt together with any non-KEEP
+# receipt keeps the KEEP scope sentence and then names every other
+# distinct linked verdict, in receipt order, deduplicated -- a public
+# row must not hide a linked verdict. One suffix covers both halves.
+SCOPE_OTHER_LINKED_FMT: Final[str] = (
+    "{keep_scope} Other linked receipts: {verdicts}."
+)
+# skill_harness/sitegen/render.py::_scope_line standard form, unescaped:
+# Shown here: effect on {task_family}, {model}, {delivery}, measured {tested_at}.
+# Not shown: other task families, models, environments, or real-world incidence.
+# Field defaults mirror the harness's _string_field: a missing or non-string
+# field reads as its placeholder, never as an empty cell and never as the
+# verdict_scope object itself.
+SCOPE_LINE_TEMPLATE: Final[str] = (
+    "Shown here: effect on {task_family}, {model}, {delivery}, "
+    "measured {tested_at}. Not shown: other task families, models, "
+    "environments, or real-world incidence."
+)
+# skill_harness/sitegen/render.py::_scope_line carried-forward form, used when
+# currentness.state == "CARRIED_FORWARD" (SERS receipts carry no
+# scope_carried_forward key):
+# demonstrated on {model}; carried forward to {current_model} under the
+# sentinel rule; not re-validated on {current_model}.
+# {current_model} is subject_identity.subject_model, or "current model" when
+# subject_identity is absent or non-object.
+SCOPE_LINE_CARRIED_TEMPLATE: Final[str] = (
+    "demonstrated on {model}; carried forward to {current_model} "
+    "under the sentinel rule; not re-validated on {current_model}."
+)
 
 
 @dataclass(frozen=True)
@@ -233,9 +296,11 @@ def check_evidence_fields(card: Card) -> Result:
 def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Result:
     """O5: controlled fields must not contradict a published harness receipt.
 
-    Without --harness-root, returns CANNOT-CHECK as before: the measurement
-    sibling's evidence store is private and single-copy, so there is nothing
-    here to compare a controlled field against.
+    Without --harness-root, returns CANNOT-CHECK as before for the receipt
+    comparison itself: the measurement sibling's evidence store is private and
+    single-copy, so there is nothing here to compare a controlled field against.
+    The Evidence-scope row is checked in both modes when its expected sentence
+    is derivable -- the no-receipt case needs no harness (#354).
 
     With --harness-root, reads the receipt file the card's controlled row links
     in its Receipt clause and fails on four conditions:
@@ -252,8 +317,17 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
     contradiction of it. It still counts as linked for condition 4. A receipt
     that fails those conditions in a field making no such declaration stays a
     FAIL, which is the case the check exists for.
+
+    Evidence scope is checked after the receipt comparison when that comparison
+    does not already FAIL, and before a CANNOT-CHECK verdict: a wrong scope
+    sentence is a breach this run can see, and reporting CANT while the card
+    contradicts its own receipts would bury the finding.
     """
+    scope_breaches = evidence_scope_breaches(card, harness_root)
+
     if harness_root is None:
+        if scope_breaches:
+            return Result(FAIL, "; ".join(scope_breaches))
         return Result(
             CANT,
             "no citable published receipt to compare against from inside this "
@@ -323,6 +397,8 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
         linked_skill_ids.append(expected_skill_id)
 
     if not linked_receipts:
+        if scope_breaches:
+            return Result(FAIL, "; ".join(scope_breaches))
         if history_names:
             return Result(
                 PASS,
@@ -367,6 +443,8 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
                     f"(linked receipt dated {lr_date})",
                 )
 
+    if scope_breaches:
+        return Result(FAIL, "; ".join(scope_breaches))
     return Result(PASS, "controlled fields agree with the linked receipt(s)")
 
 
@@ -441,6 +519,183 @@ RECEIPT_CLAUSE_RE: Final[re.Pattern[str]] = re.compile(
     r"[`\"']([^`\"']+?\.json)[`\"']"
     r")"
 )
+
+
+def _string_field(node: object, key: str, default: str) -> str:
+    """Mirror skill_harness/sitegen/render.py::_string_field.
+
+    A missing key, a non-string value, or a non-object node reads as
+    `default`. The harness never prints a non-string field into the scope
+    line, and this derivation must not either.
+    """
+    if not isinstance(node, dict):
+        return default
+    value = node.get(key)
+    return value if isinstance(value, str) else default
+
+
+def expected_evidence_scope(receipts: list[dict]) -> str:
+    """Derive the Evidence scope row from the card's linked receipts.
+
+    Closed set (#353, R1): no receipt -> UNMEASURED; a KEEP receipt without a
+    usable verdict_scope object -> UNSCOPED; a KEEP receipt with a
+    verdict_scope object -> skill-harness's scope line (standard form, or the
+    carried-forward form when currentness.state == "CARRIED_FORWARD"); any
+    other verdict -> NOT DEMONSTRATED naming that verdict.
+
+    R4-1/R3-3: when several receipts are linked and none is a usable KEEP,
+    every distinct verdict appears, in receipt order, deduplicated -- two
+    receipts carrying the same verdict name it once -- and the multi form
+    carries the same "; no effect is shown." ending the single form does.
+    R4-2: a usable KEEP alongside any non-KEEP receipt keeps the KEEP scope
+    sentence and then names every other distinct linked verdict through
+    SCOPE_OTHER_LINKED_FMT, in receipt order, deduplicated. A receipt with no
+    verdict field names nothing: a public row never invents a verdict.
+
+    Carried-forward is decided from currentness.state only. SERS receipts
+    carry no scope_carried_forward key. The verdict_scope object itself is
+    never printed: fields are filled one by one, with the harness's own
+    missing-field defaults. History (not-current) receipts still count here:
+    the row describes what a linked receipt SHOWS, and a currency gate that
+    retires a receipt from disposal does not erase its verdict.
+    """
+    if not receipts:
+        return SCOPE_NO_RECEIPT
+    keeps = [
+        r for r in receipts if str(r.get("verdict") or "").strip().upper() == "KEEP"
+    ]
+    keep_scope: str | None = None
+    for receipt in keeps:
+        scope = receipt.get("verdict_scope")
+        if not isinstance(scope, dict):
+            continue
+        model = _string_field(scope, "model_id", "unknown model")
+        currentness = receipt.get("currentness")
+        if (
+            isinstance(currentness, dict)
+            and currentness.get("state") == "CARRIED_FORWARD"
+        ):
+            current_model = _string_field(
+                receipt.get("subject_identity"), "subject_model", "current model"
+            )
+            keep_scope = SCOPE_LINE_CARRIED_TEMPLATE.format(
+                model=model, current_model=current_model
+            )
+            break
+        task_family = _string_field(scope, "task_family", "unknown task family")
+        delivery = _string_field(scope, "delivery_mechanism", "unknown delivery")
+        tested_at = _string_field(scope, "tested_at", "unknown date")
+        keep_scope = SCOPE_LINE_TEMPLATE.format(
+            task_family=task_family,
+            model=model,
+            delivery=delivery,
+            tested_at=tested_at,
+        )
+        break
+    if keep_scope is None and keeps:
+        keep_scope = SCOPE_UNSCOPED
+    # R4-2: every other distinct linked verdict, in receipt order,
+    # deduplicated. KEEP receipts are the scope sentence, not "other"; a
+    # receipt with no verdict field contributes nothing.
+    other_verdicts: list[str] = []
+    for receipt in receipts:
+        v = str(receipt.get("verdict") or "").strip().upper()
+        if not v or v == "KEEP":
+            continue
+        if v not in other_verdicts:
+            other_verdicts.append(v)
+    if keep_scope is not None:
+        if other_verdicts:
+            return SCOPE_OTHER_LINKED_FMT.format(
+                keep_scope=keep_scope, verdicts=", ".join(other_verdicts)
+            )
+        return keep_scope
+    # R3-3/R4-1: no KEEP receipt. Name every distinct verdict among the
+    # linked receipts, in receipt order, deduplicated. Mutants that pick
+    # receipts[0] or receipts[-1] hide a linked verdict; a mutant that
+    # appends an empty verdict or skips this branch names the wrong row;
+    # each leaves this derivation wrong and a named assertion red.
+    verdicts: list[str] = []
+    for receipt in receipts:
+        v = str(receipt.get("verdict") or "").strip().upper()
+        if v and v not in verdicts:
+            verdicts.append(v)
+    if len(verdicts) > 1:
+        return SCOPE_NOT_DEMONSTRATED_MULTI_FMT.format(verdicts=", ".join(verdicts))
+    if verdicts:
+        return SCOPE_NOT_DEMONSTRATED_FMT.format(verdict=verdicts[0])
+    verdict = str(receipts[0].get("verdict") or "").strip().upper()
+    return SCOPE_NOT_DEMONSTRATED_FMT.format(verdict=verdict)
+
+
+def _linked_receipt_dicts(
+    card: Card, harness_root: Path | None
+) -> tuple[list[dict], bool]:
+    """Receipts O5 can resolve from the card's controlled-field Receipt clauses.
+
+    Returns (receipts, unresolvable). `unresolvable` is True when a clause
+    names a receipt this run cannot load (no harness root, missing file, or
+    unreadable JSON). A caller that needs the derived scope skips the value
+    check when any linked receipt is unresolvable -- the expected sentence is
+    then unknown, and deriving it from only the readable subset would refuse a
+    card for a run that could not see all of its receipts.
+    """
+    evidence = card.folder / "EVIDENCE.md"
+    if not evidence.exists():
+        return [], True
+    fields = scoreboard.evidence_fields(evidence, scoreboard.CONTROLLED_FIELDS)
+    linked: list[dict] = []
+    unresolvable = False
+    for field_name in scoreboard.CONTROLLED_FIELDS:
+        value = fields.get(field_name, "")
+        receipt_filename = _receipt_filename(value)
+        if receipt_filename is None:
+            continue
+        if harness_root is None:
+            unresolvable = True
+            continue
+        receipt_path = _find_receipt(harness_root, receipt_filename)
+        if receipt_path is None:
+            unresolvable = True
+            continue
+        try:
+            linked.append(json.loads(receipt_path.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            unresolvable = True
+    return linked, unresolvable
+
+
+def evidence_scope_breaches(card: Card, harness_root: Path | None) -> list[str]:
+    """The card's Evidence scope row must equal what its receipts show.
+
+    The no-receipt case is checked even without --harness-root: no Receipt
+    clause means the expected sentence is UNMEASURED — no receipt., which this
+    repository can derive from the card alone. O5 used to return CANNOT-CHECK
+    for that case by construction; #354 closes it. A card whose controlled
+    fields name a receipt this run cannot load is left to the receipt check
+    rather than failed here -- the scope sentence depends on every linked file,
+    not only the readable subset.
+    """
+    evidence = card.folder / "EVIDENCE.md"
+    if not evidence.exists():
+        return []
+    rows = scoreboard.evidence_fields(evidence, (EVIDENCE_SCOPE_ROW,))
+    stated = rows.get(EVIDENCE_SCOPE_ROW, "").strip("* `")
+    linked, unresolvable = _linked_receipt_dicts(card, harness_root)
+    if unresolvable:
+        return []
+    expected = expected_evidence_scope(linked)
+    if not stated:
+        return [
+            f"{card.name}: EVIDENCE.md states no {EVIDENCE_SCOPE_ROW} row "
+            "(an empty row is the same refusal: the card has not said)"
+        ]
+    if stated != expected:
+        return [
+            f"{card.name}: {EVIDENCE_SCOPE_ROW} is {stated!r} but the card's "
+            f"linked receipt(s) show {expected!r}"
+        ]
+    return []
 
 
 CARD_CHECKS = {
