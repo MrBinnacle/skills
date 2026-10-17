@@ -12,6 +12,12 @@ refuses an issue carrying neither.
 
 A role says who acts next. An issue carrying a role is still live work.
 
+Source: the left-hand column and this table's layout are adapted from `triage-labels.md` in
+[`mattpocock/skills`](https://github.com/mattpocock/skills/blob/v1.3.1/skills/engineering/setup-matt-pocock-skills/triage-labels.md),
+`Copyright (c) 2026 Matt Pocock`, used under its
+[MIT license](https://github.com/mattpocock/skills/blob/v1.3.1/LICENSE) (license checked
+2026-10-17 at tag `v1.3.1`).
+
 | Label in mattpocock/skills | Label in our tracker | Meaning                                  |
 | -------------------------- | -------------------- | ---------------------------------------- |
 | `needs-triage`             | `needs-triage`       | An evaluation or decision is owed, and an agent adjudication session makes it down the QUESTION ROUTING ladder. Also the role for a decision ticket that is parked. The operator is not the evaluator. |
