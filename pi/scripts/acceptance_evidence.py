@@ -151,20 +151,20 @@ def subtract_test_present(source: str) -> bool:
                     or fn.args.args or fn.args.posonlyargs or fn.args.kwonlyargs or fn.args.vararg
                     or fn.args.kwarg or len(fn.body) != 1):
                 continue
-            for node in fn.body:
-                if not isinstance(node, ast.Assert) or not isinstance(node.test, ast.Compare):
-                    continue
-                comparison = node.test
-                call = comparison.left
-                if (len(comparison.ops) != 1 or not isinstance(comparison.ops[0], ast.Eq)
-                        or not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name)
-                        or call.func.id != "subtract" or len(call.args) != 2 or call.keywords):
-                    continue
-                a, b = (ast.literal_eval(arg) for arg in call.args)
-                expected = ast.literal_eval(comparison.comparators[0])
-                if (type(a) in (int, float) and type(b) in (int, float) and a != b
-                        and type(expected) in (int, float) and expected == a - b):
-                    return True
+            assertion = fn.body[0]
+            if not isinstance(assertion, ast.Assert) or not isinstance(assertion.test, ast.Compare):
+                continue
+            comparison = assertion.test
+            call = comparison.left
+            if (len(comparison.ops) != 1 or not isinstance(comparison.ops[0], ast.Eq)
+                    or not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name)
+                    or call.func.id != "subtract" or len(call.args) != 2 or call.keywords):
+                continue
+            a, b = (ast.literal_eval(arg) for arg in call.args)
+            expected = ast.literal_eval(comparison.comparators[0])
+            if (type(a) in (int, float) and type(b) in (int, float) and a != b
+                    and type(expected) in (int, float) and expected == a - b):
+                return True
         return False
     except (SyntaxError, ValueError, TypeError):
         return False
@@ -189,6 +189,6 @@ def completed_checks(events: list[dict], text_of, counts) -> list[dict]:
                     and before.get("version") == after.get("version") == 1
                     and before.get("snapshot") and before["snapshot"] == after.get("snapshot")
                     and any(passed + failed > 0 for passed, failed in counts(output))):
-                checks.append({"command": command, "index": index, "start_index": start_index,
-                               "snapshot": after["snapshot"], "is_error": event.get("isError", False)})
+                checks.append({"command": command, "start_index": start_index,
+                               "snapshot": after["snapshot"]})
     return checks
