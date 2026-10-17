@@ -43,11 +43,11 @@ def installed_harness() -> list[str]:
     for command in ([sys.executable, "-m", "skill_harness"], ["skill-harness"]):
         try:
             result = subprocess.run(
-                [*command, "--version"], capture_output=True, text=True, timeout=30
+                [*command, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
             )
         except (subprocess.TimeoutExpired, FileNotFoundError):
             continue
-        m = VERSION_RE.search(result.stdout)
+        m = VERSION_RE.search(result.stdout or "")
         if result.returncode == 0 and m:
             if m.group(1) != PINNED_HARNESS_VERSION:
                 raise RuntimeError(
@@ -64,12 +64,14 @@ def audit_calibrated(command: list[str], skill_md: Path) -> int:
             [*command, "skill", "audit", str(skill_md)],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=30,
         )
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
     else:
-        m = AUDIT_RE.search(result.stdout)
+        m = AUDIT_RE.search(result.stdout or "")
         if result.returncode == 0 and m:
             return int(m.group(1))
     raise RuntimeError(f"skill-harness audit failed for {skill_md}")
