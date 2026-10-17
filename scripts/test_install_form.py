@@ -600,6 +600,16 @@ def main() -> int:
         bool(readme_plugin_version),
         "## Install does not state which plugin version was verified",
     )
+    # A version bump changes what the receipt must say. The published-URL
+    # case clones main, not the PR head, so only the tree can catch a bump PR
+    # with a stale receipt before it merges (#464).
+    branch_versions = set(branch_plugin_versions().values())
+    check(
+        "README Verified forms plugin version matches the branch plugin versions",
+        bool(readme_plugin_version) and branch_versions == {readme_plugin_version},
+        f"README says {readme_plugin_version!r}, branch plugin.json files "
+        f"declare {sorted(branch_versions)!r}; re-date the receipt in the bump",
+    )
 
     # --- Criterion 2, requirement 6 and round 2: live cold installs ---------
     # Every directory the live half creates sits under one temporary root,
@@ -780,12 +790,22 @@ def live_cold_installs(
             "re-verify and re-date it, or set INSTALL_FORM_STRICT=1 to fail"
         )
     installed_versions = {plugin.get("version") for plugin in installed.values()}
-    check(
-        "README Verified forms plugin version matches the cold install",
-        bool(readme_plugin_version)
-        and installed_versions == {readme_plugin_version},
-        f"README says {readme_plugin_version!r}, cold install reports {installed_versions!r}",
-    )
+    # On a pull request the published URL still serves main, so a bump PR's
+    # receipt cannot match it yet; the branch check above covers the PR (#464).
+    name = "README Verified forms plugin version matches the cold install"
+    detail = f"README says {readme_plugin_version!r}, cold install reports {installed_versions!r}"
+    if os.environ.get("GITHUB_EVENT_NAME") == "pull_request":
+        if installed_versions != {readme_plugin_version}:
+            print(f"SKIP {name} on a pull request: {detail}")
+        else:
+            check(name, True)
+    else:
+        check(
+            name,
+            bool(readme_plugin_version)
+            and installed_versions == {readme_plugin_version},
+            detail,
+        )
 
     # Case 2: the tree under test, not only the published default branch.
     local_base = temp_root / "local"
