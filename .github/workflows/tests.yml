@@ -507,6 +507,25 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::site-link check emitted no PASS line - it did not run"; exit 1; }
 
+      # #356: a marketplace install clones every tracked file, and git for Windows
+      # without core.longpaths refuses a path past MAX_PATH. The check holds each
+      # tracked path to what the worst default config root and the clone prefix leave.
+      - name: Install-path suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_validate_install_paths.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::install-path suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Install-path check
+        run: |
+          set -euo pipefail
+          out="$(python scripts/validate_install_paths.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::install-path check emitted no PASS line - it did not run"; exit 1; }
+
       # The release-model disclosure (ADR 0002): the changelog preamble states
       # the delivery model and the README's Install section states the declared
       # surface, with no count on either. PYTHONUTF8 for the same reason as the
