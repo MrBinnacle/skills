@@ -35,6 +35,8 @@ What is asserted, and why these shapes
     INSTALL_FORM_STRICT=1, as CI sets it beside its pinned CLI, a README that
     states a different CLI version fails. Without it, a different local CLI
     prints a WARN that the dated record is stale for that machine (#425).
+    The record's plugin version may lag the version the cold install
+    reports, which prints a WARN, but never lead it, which fails (#464).
 
     A tracked-file scan refuses any install surface, outside
     `docs/design/variants/**` and `.changeset/**`, that still publishes the
@@ -228,6 +230,13 @@ def parse_verified_forms(section: str) -> tuple[str | None, str | None]:
     )
     plugin_version = plugin_match.group(1).rstrip(",.;") if plugin_match else None
     return claude_version, plugin_version
+
+
+def version_key(version: str | None) -> tuple[int, ...] | None:
+    """Numeric key for a dotted version, or None when it does not parse."""
+    if not version or not re.fullmatch(r"\d+(\.\d+)*", version):
+        return None
+    return tuple(int(part) for part in version.split("."))
 
 
 def tracked_files() -> list[str]:
@@ -780,12 +789,27 @@ def live_cold_installs(
             "re-verify and re-date it, or set INSTALL_FORM_STRICT=1 to fail"
         )
     installed_versions = {plugin.get("version") for plugin in installed.values()}
-    check(
-        "README Verified forms plugin version matches the cold install",
-        bool(readme_plugin_version)
-        and installed_versions == {readme_plugin_version},
-        f"README says {readme_plugin_version!r}, cold install reports {installed_versions!r}",
+    # The receipt records an install that happened, so it may lag the
+    # published version but never lead it. A bump PR keeps the receipt
+    # equal to main until a main run verifies the new version (#464).
+    name = "README Verified forms plugin version matches the cold install"
+    detail = f"README says {readme_plugin_version!r}, cold install reports {installed_versions!r}"
+    readme_key = version_key(readme_plugin_version)
+    installed_key = (
+        version_key(next(iter(installed_versions)))
+        if len(installed_versions) == 1
+        else None
     )
+    if readme_key is None:
+        check(name, False, detail + "; README version is missing or not a dotted number")
+    elif installed_key is None:
+        check(name, False, detail + "; cold install reports mixed plugin versions")
+    elif readme_key > installed_key:
+        check(name, False, detail + "; the receipt claims an install that has not run")
+    elif readme_key < installed_key:
+        print(f"WARN {name}: {detail}. The receipt is dated; refresh it")
+    else:
+        check(name, True)
 
     # Case 2: the tree under test, not only the published default branch.
     local_base = temp_root / "local"
