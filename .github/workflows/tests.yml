@@ -758,8 +758,9 @@ jobs:
       # behind that section. The weekly conformance-schedule.yml runs the same two
       # commands on a clock; this job runs them at merge time, where they are cheap.
       #
-      # Same caveat as every other check here: this DETECTS breaches. `main` has no
-      # required checks, so a nonzero exit is a signal, not a gate.
+      # This check runs in the required `validator` job: the `protect-main` ruleset
+      # (measured 2026-10-17, `gh api repos/MrBinnacle/skills/rulesets/18688002`)
+      # requires it, so a nonzero exit blocks the merge to `main`.
       - name: Conformance suite
         run: |
           set -euo pipefail
@@ -845,8 +846,9 @@ jobs:
       # clean-context runs exist. The checker never reads or writes an
       # EVIDENCE.md, so it cannot manufacture one.
       #
-      # Same caveat as every other check here: this DETECTS breaches. `main`
-      # has no required checks, so a nonzero exit is a signal, not a gate.
+      # This check runs in the required `validator` job: the `protect-main` ruleset
+      # (measured 2026-10-17, `gh api repos/MrBinnacle/skills/rulesets/18688002`)
+      # requires it, so a nonzero exit blocks the merge to `main`.
       - name: Eval-corpus suite
         run: |
           set -euo pipefail
@@ -905,8 +907,9 @@ jobs:
       # surface needs no new CI step, because the surface list is data the one
       # checker reads.
       #
-      # Same caveat as every other check here: this DETECTS breaches. `main` has
-      # no required checks, so a nonzero exit is a signal, not a gate.
+      # This check runs in the required `validator` job: the `protect-main` ruleset
+      # (measured 2026-10-17, `gh api repos/MrBinnacle/skills/rulesets/18688002`)
+      # requires it, so a nonzero exit blocks the merge to `main`.
       - name: Brand-kit suite
         run: |
           set -euo pipefail

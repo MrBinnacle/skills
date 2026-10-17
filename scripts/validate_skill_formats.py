@@ -79,9 +79,10 @@ WHAT THIS IS AND IS NOT
     why it ships paired with a command the reader runs on their own copy:
     `--print-reader-command`.
 
-    `main` currently has no branch protection and no required checks, so a
-    nonzero exit here is a signal, not a gate. Describe it as detecting
-    violations, never as preventing them.
+    On merges, the `protect-main` ruleset is active (measured 2026-10-17 with
+    `gh api repos/MrBinnacle/skills/rulesets/18688002`): it requires the
+    `validator` job on both runners, and this check runs in that job, so a
+    nonzero exit blocks the merge to `main`.
 """
 from __future__ import annotations
 

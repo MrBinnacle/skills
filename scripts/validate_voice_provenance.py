@@ -71,9 +71,10 @@ ROUGHNESS IS THE PROVENANCE
 Output is ASCII-only so the Windows CI cell does not die on cp1252 when printing
 a status line, matching validate_skill_formats.py and validate_scoreboard.py.
 
-`main` currently has no branch protection and no required checks, so a nonzero
-exit here is a signal, not a gate. Describe it as detecting violations, never as
-preventing them.
+On merges, the `protect-main` ruleset is active (measured 2026-10-17 with
+`gh api repos/MrBinnacle/skills/rulesets/18688002`): it requires the
+`validator` job on both runners, and this check runs in that job, so a
+nonzero exit blocks the merge to `main`.
 """
 from __future__ import annotations
 
