@@ -23,7 +23,7 @@ Your job: initiative-level verdict per candidate.
 For each candidate:
 - FAST / STANDARD / DEEP classification — does this fork need go/no-go pressure-testing before commit?
 - One paragraph (≤120 words) verdict: strategic value, risk, sequencing constraint with other forks.
-- Bannister check: name the primary reference for this fork's design (existing project doc, external paper, prior incident). Is it the best work that exists on this problem, or the first thing found in this codebase?
+- Primary-reference check: name the primary reference for this fork's design (existing project doc, external paper, prior incident). Is it the best work that exists on this problem, or the first thing found in this codebase?
 
 Then rank the candidates 1-N with a paragraph explaining the ordering.
 
@@ -113,7 +113,7 @@ For each candidate:
 - What is the steel-man case AGAINST this fork?
 - What is the false-precision in its cost estimate? (Verify any claim that can be grep'd.)
 - What hidden coupling exists? (Does Fork X's change break a test fixture? Does Fork Y's gate promotion surface 30 new warnings nobody scheduled?)
-- Where is the "first thing I found in this codebase" trap (Bannister)?
+- Where is the "first thing I found in this codebase" trap?
 
 Then meta-critique the FRAME itself:
 - Is the user being offered a real choice or N variants of the same thing?
