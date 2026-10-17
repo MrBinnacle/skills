@@ -4,6 +4,11 @@ Checked **2026-10-17** against `main` at `5da3536ced12c2cf6dce813c3c3450adcba4d2
 Build GO boxes "Claims ledger" and "Consistency sweep" in
 [#443](https://github.com/MrBinnacle/skills/issues/443).
 
+**Amended 2026-10-17** against `main` at `bc28253`. Three entries changed. C6 now cites the
+#452 receipt for the Windows path limit. The S2 Pi candidate uses the C2 third-person wording.
+S9 adds the two remaining `npx skills add` sentences. Every other citation keeps the revision
+above.
+
 This is an internal working record. It is not public copy, and it changes no public surface.
 It has two parts:
 
@@ -98,10 +103,10 @@ ledger cites that list by its path and does not repeat it.
 | Field | Value |
 | --- | --- |
 | Claim | The Claude Code marketplace commands install the three plugins. |
-| Allowed wording | The HTTPS marketplace commands installed all three plugins at 3.0.1 on Claude Code 2.1.287, 2026-10-02, from a clean `CLAUDE_CONFIG_DIR` with no SSH key. |
-| Forbidden wording | An undated or unversioned install claim. A claim that an install supplies the current `main` bytes. A claim that the install works on Windows without the `core.longpaths` setting, while #356 is open. |
-| Evidence | `README.md:39-45`; `docs/product/runtime-delivery-matrix.md:92`: historical install success does not attest current bytes. `docs/product/runtime-delivery-matrix.md:111-116`: a 2.1.296 temporary install found cards in all three plugins, and the suite failed one version assertion. #356 is open. |
-| Status | **SCOPED** to the version and date of the receipt. |
+| Allowed wording | The HTTPS marketplace commands installed all three plugins at 3.0.1 on Claude Code 2.1.287, 2026-10-02, from a clean `CLAUDE_CONFIG_DIR` with no SSH key. On Windows without `core.longpaths`, the HTTPS form installs with a `CLAUDE_CONFIG_DIR` of 108 characters or fewer, measured with Claude Code 2.1.302 on 2026-10-17. For a longer config root, the install text may tell the reader to run `git config --global core.longpaths true` first. |
+| Forbidden wording | An undated or unversioned install claim. A claim that an install supplies the current `main` bytes. A claim that the install works on Windows without the `core.longpaths` setting at a config root over 108 characters. A claim that `core.longpaths` was measured to make a longer root install: no install with that setting has been run. |
+| Evidence | `README.md:39-45`; `docs/product/runtime-delivery-matrix.md:92`: historical install success does not attest current bytes. `docs/product/runtime-delivery-matrix.md:111-116`: a 2.1.296 temporary install found cards in all three plugins, and the suite failed one version assertion. [#452](https://github.com/MrBinnacle/skills/pull/452) (`31fe859`), section *Reproduction, measured on 2026-10-17*: Windows 11, Claude Code 2.1.302, git 2.56.0.windows.1, `core.longpaths` unset at every scope. The HTTPS form, bisected on the config root, succeeds at 108 characters and fails at 109 (108 + 59 + 80 = 247, the directory limit). A cold install from a 37-character root succeeded. `scripts/validate_install_paths.py` fails CI on any tracked path over that budget. #452 closed #356. `core.longpaths` is git for Windows' own setting for paths over `MAX_PATH`. The remedy rests on that setting, not on a receipt from this repository. |
+| Status | **SCOPED** to the version and date of each receipt. |
 
 ### C7. The `npx skills add` route
 
@@ -222,10 +227,10 @@ needs no new owner-authored copy.
 | --- | --- | --- |
 | `README.md:10`: *Claude Code skills for mistakes that report success.* | C1, C2. | CANDIDATE, *agent-drafted*: *Skills for mistakes that report success.* |
 | `README.md:10`: *Any Claude Code user can hit these failures.* | C2: the failures are not specific to Claude Code. | CANDIDATE, *agent-drafted*: *Anyone working with a coding agent can hit these failures.* |
-| No line about Pi. Zero occurrences of the word Pi on 2026-10-17. | C2. | CANDIDATE, *agent-drafted*, placed before the install section: *Pi is the runtime I am building for first. There is no tested Pi install yet. The install below is for Claude Code.* The limit in C3 must stay beside it. |
+| No line about Pi. Zero occurrences of the word Pi on 2026-10-17. | C2. | CANDIDATE, *agent-drafted*, placed before the install section: *Pi is the runtime this work targets first. There is no tested Pi install yet. The install below is for Claude Code, the install route that has a receipt today.* This is the C2 allowed wording with the C3 gap beside it. The first draft of this row was in the first person. `scripts/validate_voice_provenance.py` refuses a first-person public line that `VERBATIM.md` does not record, so the row was changed on 2026-10-17. |
 | No line about the knowledge base. | C14. | CANDIDATE, *agent-drafted*: *The repository is also a record: the evidence, explanations and failures behind each card.* |
 | `README.md:24`: *Or install everything with `npx skills add MrBinnacle/skills`.* | C7. | CANDIDATE, *agent-drafted*: remove the sentence until a current receipt exists, or add *untested since v3.0.0* beside it. |
-| `README.md:37-45`: the 2.1.287 receipt. | None. It agrees with C6. | No change from this ledger. The Windows long-path note belongs to the #443 *Accurate install wording* box. |
+| `README.md:37-45`: the 2.1.287 receipt. | None. It agrees with C6. | No change to the receipt. CANDIDATE, *agent-drafted*, added to the install section for the #443 *Accurate install wording* box: *On Windows, if you set `CLAUDE_CONFIG_DIR` to a path longer than 108 characters, run `git config --global core.longpaths true` before you add the marketplace. At 108 characters or fewer, the HTTPS form installs without it. Measured with Claude Code 2.1.302 on 2026-10-17 (#452).* C6 covers the measured limit. It covers the remedy only as git's setting. |
 | `README.md:47`: the standing cost. | None. | No change. |
 | `README.md:83-87`: what comes with each skill. | None. It agrees with C8. | No change. |
 | `README.md:89`: *No skill claims a measured benefit yet.* | None. | No change. |
@@ -305,6 +310,13 @@ for the owner and makes none.
 | --- | --- | --- |
 | `CATALOG.md:7`: *A skill card is a Markdown file that Claude Code loads as instructions.* | C1, C2. | CANDIDATE, *agent-drafted*: *A skill card is a Markdown file an agent loads as instructions.* |
 | `CATALOG.md:197`: *Models improve, Claude Code changes, and a failure mode can stop occurring.* | C2, minor. | CANDIDATE, *agent-drafted*: *Models improve, runtimes change, and a failure mode can stop occurring.* |
+| `CATALOG.md:235-243`: the *Installer* paragraph and the command `npx skills add MrBinnacle/skills`, with no qualifier. Added to this sweep 2026-10-17 at `bc28253`. | C7. | CANDIDATE, *agent-drafted*: keep the paragraph, and add after the command block: *This route has no install receipt since v3.0.0 changed the install path, so what it installs from the current tree is untested.* |
+
+`AGENTS.md:57` is not a public surface. It is the conventions file for agents working here. It
+still says *`npx skills add MrBinnacle/skills` is the other supported route*, and C7 forbids
+that as a current claim. CANDIDATE, *agent-drafted*: *`npx skills add MrBinnacle/skills` is
+published as a second route, with no install receipt since v3.0.0; it writes a
+`skills-lock.json` and tracks `main` rather than a tag.*
 
 ## What this record does not settle
 
