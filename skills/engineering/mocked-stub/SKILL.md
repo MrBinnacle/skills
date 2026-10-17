@@ -1,6 +1,6 @@
 ---
 name: mocked-stub
-description: A test that patches a helper which is itself a production stub reports green on a branch that never ran. Use when reviewing all-green tests on spend guards, idempotency, auth or refusal paths.
+description: Patching a helper that is itself a production stub turns a test green on a branch that never ran. Use when reviewing all-green tests on spend guards, idempotency, auth, refusals or weak asserts.
 ---
 
 # Mock-Masked Stub Trap
@@ -62,9 +62,14 @@ Open [gotchas.md](gotchas.md) when a helper passes this check and still looks ho
 The falsifying test seeds real state and calls the production function with **no patch on it**:
 
 ```python
-_seed_run_progress(rt, "run-001", state="running")      # real DB row
+rt = sqlite3.connect(":memory:")
+rt.execute("CREATE TABLE run_progress (run_id TEXT, skill_id TEXT, state TEXT)")
+rt.execute("INSERT INTO run_progress VALUES ('run-001', ?, 'running')", (skill_id,))
 assert _find_incomplete_run(skill_id, runtime_conn=rt) == "run-001"   # unpatched
 ```
+
+Assert the specific value the seeded row implies, not `is not None`: a stub returning a
+constant passes a truthiness check unpatched.
 
 If you cannot write such a test without patching the unit, that is the signal the production
 code is a stub — not a reason to patch.
