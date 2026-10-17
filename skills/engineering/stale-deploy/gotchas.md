@@ -36,3 +36,5 @@ stress-test signal.)*
   occurrences outside the 2026-05-27 founding incident**. Diagnosis: **insurance** — the
   situation has not recurred, no deterministic guard covers it, and non-invocation says nothing
   about the card's worth (consistent with its `CANT_TELL_YET` screen shape).
+
+- status 2026-10-17 (#387): `promoted: body` — workflow-built Pages (404 on `pages/builds/latest`) and already-live branches added to SKILL.md; the sleep-block entry above is observed behaviour, not documented (tools-reference read 2026-10-17).
