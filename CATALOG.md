@@ -108,7 +108,7 @@ integer that opens the card's `Occasions counted` row.
 | [`vacuous-check`](skills/engineering/vacuous-check/EVIDENCE.md) | origin-trace | 8 |
 | [`decision-rights`](skills/orchestration/decision-rights/EVIDENCE.md) | origin-trace | 1 |
 | [`disposition-schema`](skills/orchestration/disposition-schema/EVIDENCE.md) | origin-trace | 2 |
-| [`subagent-handback`](skills/orchestration/subagent-handback/EVIDENCE.md) | origin-trace | 5 |
+| [`subagent-handback`](skills/orchestration/subagent-handback/EVIDENCE.md) | origin-trace | 7 |
 | [`dead-predicate`](skills/meta/dead-predicate/EVIDENCE.md) | origin-trace | 5 |
 
 CI checks this table against the records and fails on any disagreement, so the records are the
