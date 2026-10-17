@@ -450,6 +450,13 @@ def check_cache_key(check: dict, repo_root: Path) -> str | None:
     inputs = check.get("cache_inputs")
     if not inputs:
         return None
+    # A string is iterable, so it would key one character per path, and "."
+    # covers the whole tree. Only a list of strings is a list of paths.
+    if not isinstance(inputs, list) or not all(isinstance(i, str) for i in inputs):
+        raise PacketError(
+            f"receiver check {check.get('command', '')!r}: cache_inputs must be "
+            f"a list of path strings, got {inputs!r}"
+        )
     parts: list[str] = [str(check.get("command", "")), sys.version]
     git_version = subprocess.run(
         ["git", "--version"], text=True, capture_output=True
