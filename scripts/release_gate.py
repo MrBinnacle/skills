@@ -101,8 +101,18 @@ Checks (all must pass; failures are listed, not first-fail):
         2. A branch-added changeset whose diff adds or removes a directory
            under ``skills/*/*/`` and declares the patch price.
         3. A branch-added changeset whose diff touches no file under
-           ``skills/*/*/`` and declares minor or major -- nothing outside the
-           cards changes the declared surface.
+           ``skills/*/*/``, changes no install-route name (case 5), and
+           declares minor or major -- nothing else changes the declared
+           surface.
+        5. A branch-added changeset whose diff changes the install route and
+           declares anything less than the route price ADR 0005 states
+           (major). ADR 0005 defines the route by what a consumer resolves:
+           the route changes when the marketplace ``name`` in
+           ``.claude-plugin/marketplace.json`` differs from the merge-base, or
+           a plugin ``name`` the merge-base carried is gone. A plugin name
+           only added, or an edit to any other field, is not a route change.
+           The route price is read from ADR 0005 only when a route change is
+           observed, and a missing or unreadable ADR 0005 then fails closed.
         4. (--release only) A release version that differs from the exact
            SemVer result the changesets this release CONSUMED declare. A
            release PR runs
@@ -113,7 +123,7 @@ Checks (all must pass; failures are listed, not first-fail):
            spends a version number
            permanently (ADR 0002), so this blocks rather than reports.
 
-      Cases 1-3 judge only the changesets THIS BRANCH adds -- new
+      Cases 1, 2, 3 and 5 judge only the changesets THIS BRANCH adds -- new
       ``.changeset/*.md`` in ``merge-base..HEAD`` -- never every pending file
       on disk. Pending changesets that main already holds were classified when
       their own branch ran this gate; a later PR must not be refused for them.
@@ -836,6 +846,7 @@ def gate_clean_tree(root: Path, errors: list[str]) -> None:
 
 ADR_0003_REL = Path("docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md")
 ADR_0002_REL = Path("docs/adr/0002-a-release-is-a-delivery-event.md")
+ADR_0005_REL = Path("docs/adr/0005-the-install-route-is-what-a-consumer-resolves.md")
 
 # Decision sentences, as the ADRs write them (line breaks allowed inside).
 _RENAME_PRICE_RE = re.compile(
@@ -846,6 +857,9 @@ _ADMIT_PRICE_RE = re.compile(
 )
 _PATCH_PRICE_RE = re.compile(
     r"Corrections within a card\s+are a\s+(\w+)", re.IGNORECASE
+)
+_ROUTE_PRICE_RE = re.compile(
+    r"Changing the install route\s+is a\s+(\w+)\s+change", re.IGNORECASE
 )
 
 # The changesets vocabulary, used only to RANK words the ADRs supply. The rule
@@ -902,6 +916,73 @@ def derive_bump_prices(root: Path) -> dict[str, str]:
                 f"bump type (expected one of {sorted(BUMP_RANK)})"
             )
     return prices
+
+
+def derive_route_price(root: Path) -> str:
+    """The bump word ADR 0005 gives an install-route change.
+
+    Read only when a route change is observed, so a tree that never changes a
+    route name does not depend on ADR 0005. Raises ValueError when the ADR is
+    missing, unreadable, or no longer carries the decision sentence.
+    """
+    adr5 = _read_text_or_raise(root / ADR_0005_REL, ADR_0005_REL.as_posix())
+    match = _ROUTE_PRICE_RE.search(adr5)
+    if match is None:
+        raise ValueError(
+            f"{ADR_0005_REL.as_posix()} carries no 'Changing the install route is a "
+            "... change' decision sentence, so the route price cannot be derived"
+        )
+    word = match.group(1).lower()
+    if word not in BUMP_RANK:
+        raise ValueError(
+            f"{ADR_0005_REL.as_posix()} prices a route change as {word!r}, which is "
+            f"not a changesets bump type (expected one of {sorted(BUMP_RANK)})"
+        )
+    return word
+
+
+def _route_names_at(root: Path, rev: str) -> tuple[str, set[str]] | None:
+    """(marketplace name, plugin names) at `rev`, or None when no manifest exists.
+
+    A manifest that exists but does not parse raises ValueError: the gate
+    cannot say whether the route changed, so it fails closed.
+    """
+    ok, blob = _git_ok(root, ["show", f"{rev}:{MANIFEST_REL}"])
+    if not ok:
+        return None
+    try:
+        data = json.loads(blob)
+    except ValueError as exc:
+        raise ValueError(f"{MANIFEST_REL} at {rev} is not valid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError(f"{MANIFEST_REL} at {rev} is not a JSON object")
+    plugins = data.get("plugins")
+    names = {
+        entry["name"]
+        for entry in (plugins if isinstance(plugins, list) else [])
+        if isinstance(entry, dict) and isinstance(entry.get("name"), str)
+    }
+    name = data.get("name")
+    return (name if isinstance(name, str) else "", names)
+
+
+def classify_route_change(root: Path, base_rev: str) -> str | None:
+    """What the branch did to the install route (ADR 0005), or None.
+
+    The route changes when the marketplace name differs, or a plugin name the
+    base carried is gone at HEAD. An added plugin name loses nobody anything.
+    """
+    base = _route_names_at(root, base_rev)
+    if base is None:
+        return None
+    head = _route_names_at(root, "HEAD")
+    if head is None:
+        return f"{MANIFEST_REL} removed"
+    details: list[str] = []
+    if base[0] != head[0]:
+        details.append(f"marketplace name {base[0]!r} -> {head[0]!r}")
+    details.extend(f"plugin name {name!r} removed" for name in sorted(base[1] - head[1]))
+    return "; ".join(details) if details else None
 
 
 def _rank(level: str) -> int:
@@ -1364,22 +1445,42 @@ def _gate_bump_classification_inner(
     assert merge_base is not None
     try:
         diff = classify_surface_diff(root, merge_base)
+        route = classify_route_change(root, merge_base) if need_changesets else None
     except ValueError as exc:
         errors.append(f"G10: {exc}")
         return
     required = required_price_for_diff(diff, prices)
+    route_price: str | None = None
+    if route is not None:
+        try:
+            route_price = derive_route_price(root)
+        except ValueError as exc:
+            errors.append(f"G10: cannot derive the install-route price from the ADRs: {exc}")
+            return
 
     if need_changesets:
         for filename, declared in sorted(branch_bumps.items()):
+            if route_price is not None:
+                # Case 5: the install route changed (ADR 0005).
+                if _rank(declared) < _rank(route_price):
+                    errors.append(
+                        f"G10: {filename} declares {declared}, but the diff changes the "
+                        f"install route, which {ADR_0005_REL.as_posix()} prices as "
+                        f"{route_price}: {route}"
+                    )
+                    continue
+                if not diff["touched"]:
+                    continue
             if not diff["touched"]:
-                # Case 3: nothing under skills/*/*/, so the declared surface is
-                # untouched. Only the patch price (or an empty plan) may stand.
+                # Case 3: nothing under skills/*/*/ and no route name changed, so
+                # the declared surface is untouched. Only the patch price (or an
+                # empty plan) may stand.
                 if _rank(declared) > _rank(prices["patch"]):
                     errors.append(
                         f"G10: {filename} declares {declared}, but the change touches "
-                        f"no file under skills/*/*/, so it cannot change the declared "
-                        f"surface (ADR 0002 prices work that reaches no card as "
-                        f"{prices['patch']})"
+                        f"no file under skills/*/*/ and no install-route name, so it "
+                        f"cannot change the declared surface (ADR 0002 prices work "
+                        f"that reaches no card as {prices['patch']})"
                     )
                 continue
             assert required is not None
