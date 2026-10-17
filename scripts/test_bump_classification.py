@@ -291,6 +291,7 @@ def make_tree(
       rename_marketplace - the marketplace `name` changes (ADR 0005 route)
       rename_plugin      - the plugin `name` changes (ADR 0005 route)
       describe_plugin    - only a plugin description in marketplace.json changes
+      break_manifest     - marketplace.json at HEAD is not valid JSON
 
     adr:
       real             - ADR 0003 text as shipped (rename=major, admit=minor)
@@ -391,6 +392,8 @@ def make_tree(
         write(root / "CHANGELOG.md", changelog_md(head))
     else:
         manifest_lockstep(root, cards_after_change(), base_version, **route_edit)
+    if branch_change == "break_manifest":
+        write(root / ".claude-plugin" / "marketplace.json", "{ not json" + chr(10))
 
     if not release:
         if changeset_text is not None:
@@ -659,6 +662,21 @@ def case_case5_missing_adr_0005_fails_closed(tmp: Path) -> None:
         root,
         "G10:",
         "0005",
+    )
+
+
+def case_case5_unparseable_manifest_fails_closed(tmp: Path) -> None:
+    """Case 5 cannot tell whether the route changed, so it refuses rather than crash."""
+    root = make_tree(tmp, declared="patch", branch_change="break_manifest")
+    result = run_gate("--root", str(root))
+    output = result.stdout + result.stderr
+    check(
+        "case 5: an unparseable marketplace.json fails closed under G10",
+        result.returncode == 1
+        and "Traceback" not in output
+        and "G10:" in output
+        and "marketplace.json at HEAD is not valid JSON" in output,
+        output,
     )
 
 
@@ -1579,6 +1597,7 @@ CASES = (
     case_case3_description_edit_declared_major_is_refused,
     case_case3_description_edit_declared_patch_passes,
     case_case5_missing_adr_0005_fails_closed,
+    case_case5_unparseable_manifest_fails_closed,
     case_unparseable_yaml_tag_bump_is_refused,
     case_unparseable_multiword_bump_is_refused,
     case_higher_classification_governs_rename_plus_add,
