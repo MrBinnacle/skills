@@ -658,11 +658,15 @@ def _path_exists_case_exact(path: Path) -> bool:
 
 
 def size_breaches(card: Path) -> list[str]:
-    """AGENTS.md: SKILL.md within 400–7,168 bytes."""
+    """AGENTS.md: SKILL.md within 400–7,168 bytes.
+
+    Bytes are counted with every CRLF pair normalised to LF (#395), so a
+    Windows checkout with core.autocrlf=true gets the same verdict as CI.
+    """
     skill = card / "SKILL.md"
     if not skill.is_file():
         return []
-    size = skill.stat().st_size
+    size = len(skill.read_bytes().replace(b"\r\n", b"\n"))
     if size < SKILL_SIZE_MIN:
         return [
             f"SKILL.md is {size} bytes, below the minimum of {SKILL_SIZE_MIN}. "

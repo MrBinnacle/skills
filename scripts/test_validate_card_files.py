@@ -97,6 +97,31 @@ def write_card(
     return card
 
 
+def case_size_counts_lf_normalised_bytes(root: Path) -> None:
+    """#395: the size verdict must not depend on the checkout's line endings."""
+    card = root / "card"
+    card.mkdir()
+    skill = card / "SKILL.md"
+
+    def verdict(lines: int, width: int, eol: bytes) -> list[str]:
+        skill.write_bytes((b"x" * width + eol) * lines)
+        return validate_card_files.size_breaches(card)
+
+    # 100 lines of 70 bytes + LF = 7,100 (under 7,168); in CRLF it is 7,200.
+    check("an in-limit card passes in LF", verdict(100, 70, b"\n") == [])
+    crlf = verdict(100, 70, b"\r\n")
+    check("the same card passes in CRLF (#395)", crlf == [], str(crlf))
+    for eol in (b"\n", b"\r\n"):
+        # 100 x (72 + LF) = 7,300: over the ceiling in both encodings.
+        got = verdict(100, 72, eol)
+        check(f"an over-ceiling card fails ({eol!r})",
+              len(got) == 1 and "7300 bytes" in got[0], str(got))
+        # 5 x (70 + LF) = 355: under the floor in both encodings.
+        got = verdict(5, 70, eol)
+        check(f"an under-floor card fails ({eol!r})",
+              len(got) == 1 and "355 bytes" in got[0], str(got))
+
+
 def case_committed_poison_is_red() -> None:
     result = run_checker(POISON)
     check("committed poison fixture is rejected", result.returncode != 0)
@@ -1518,6 +1543,7 @@ def main() -> None:
         case_gotchas_image_is_not_a_pointer,
         case_gotchas_mention_in_another_sentence_is_rejected,
         case_gotchas_pointer_with_when_cue_passes,
+        case_size_counts_lf_normalised_bytes,
     ]
     for func in isolated:
         with tempfile.TemporaryDirectory() as tmp:
