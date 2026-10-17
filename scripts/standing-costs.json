@@ -36,7 +36,7 @@
     },
     "stale-deploy": {
       "standing_cost_tokens": 50,
-      "skill_md_sha256": "54e35bb416166b1c6751f295fc58ea0c9380ae936724512ab67a0a72fd6dfe10"
+      "skill_md_sha256": "03ce5497da29431bbbd5d38d4910428c8a1cf39388017b56ba12f1cad91042df"
     },
     "vacuous-check": {
       "standing_cost_tokens": 53,
