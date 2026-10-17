@@ -2406,6 +2406,8 @@ jobs:
           claude --version
 
       - name: Cold install the README shell form without SSH
+        env:
+          INSTALL_FORM_STRICT: "1"
         run: |
           set -euo pipefail
           python scripts/test_install_form.py
