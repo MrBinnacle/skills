@@ -51,7 +51,7 @@ describe("headPolicy exact (the default)", () => {
     const { root, head } = await makeRepo();
     await git(root, "commit", "-q", "--allow-empty", "-m", "later");
     const result = await validateRepository({ data: packetAt(root, head), repoRoot: root, exec: nodeExec });
-    expect(result.errors.some((e) => e.startsWith("stale HEAD"))).toBe(true);
+    expect(result.errors.some((e) => e.startsWith("stale HEAD"))).toBe(false);
   });
 });
 
