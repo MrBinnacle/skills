@@ -41,8 +41,11 @@ A card that passes all four questions must still take the published form:
 frontmatter, size bounds, the evidence rows, and harness neutrality (its
 `SKILL.md` names the action, not one harness's tool, hook or path; the
 harness-specific recipe lives in a sibling file). Those rules live in
-[`AGENTS.md`](AGENTS.md) under "Authoring conventions" and are checked by the
-validators named there. They decide form, not worth, and adding one does not
+[`AGENTS.md`](AGENTS.md): frontmatter, sizes and harness neutrality under
+"Authoring conventions", the evidence rows under "Repository layout".
+`scripts/validate_card_files.py` checks the description length, the size
+bounds and the evidence rows; `scripts/validate_harness_neutrality.py`
+checks harness neutrality. They decide form, not worth, and adding one does not
 bump this policy's version: the four questions are unchanged. [pointer added
 2026-10-10]
 
