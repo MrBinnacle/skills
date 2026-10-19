@@ -28,3 +28,16 @@ python scripts/release_gate.py --write
 `## <version>` section of `CHANGELOG.md`. `release_gate.py --write` stamps every plugin
 version in `.claude-plugin/marketplace.json` from `package.json` and reports release fitness
 (every stale surface in one run). Commit the result and merge only when the gate is green.
+
+**After the bump merges**, the README install receipt still names the previous version: the
+install it would cite has not run yet, and the `Install form` check warns rather than fails
+while the receipt lags. Once the first push run of `tests.yml` on `main` passes at the new
+version, run:
+
+```bash
+python scripts/refresh_install_receipt.py          # print the diff
+python scripts/refresh_install_receipt.py --write  # apply it
+```
+
+It cites that run's id and date, and needs `gh` authenticated against the repository. Open the
+result as its own pull request.

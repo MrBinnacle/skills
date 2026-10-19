@@ -803,7 +803,7 @@ def live_cold_installs(
     if readme_key is None:
         check(name, False, detail + "; README version is missing or not a dotted number")
     elif installed_key is None:
-        check(name, False, detail + "; cold install reports mixed plugin versions")
+        check(name, False, detail + "; cold install does not report one dotted plugin version")
     elif readme_key > installed_key:
         check(name, False, detail + "; the receipt claims an install that has not run")
     elif readme_key < installed_key:
