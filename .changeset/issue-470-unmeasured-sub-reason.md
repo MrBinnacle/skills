@@ -1,0 +1,5 @@
+---
+"mrbinnacle-skills": patch
+---
+
+Every bare `UNMEASURED` on a published card now carries a sub-reason from skill-harness's closed `UnmeasuredSubReason` vocabulary. The thirteen cards with no receipt read `UNMEASURED (mechanical_vacuous)` in their Screen result, Paired verdict and Evidence scope rows, and each Screen result row names the axis-registry fact behind that choice. No verdict changes. `CATALOG.md` defines the qualified form and states that a card-level sub-reason extends the harness's clause-level meaning. The conformance check refuses a bare `UNMEASURED`, an unknown sub-reason and a card whose rows name different sub-reasons, and its suite checks the vocabulary against the skill-harness commit CI pins. This is a patch for the reason `.changeset/issue-354-evidence-scope.md` gives: an installed user loses nothing, and every card keeps its name, its directory and its files.

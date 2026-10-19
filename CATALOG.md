@@ -165,7 +165,25 @@ What has been measured:
 |---|---|
 | `CONTROLLED` | A defined with-and-without evaluation produced a result. |
 | `OBSERVED IN USE` | A documented event occurred during actual use. |
-| `UNMEASURED` | No qualifying measurement exists yet. |
+| `UNMEASURED` | No qualifying measurement exists yet. Always written with a sub-reason, as `UNMEASURED (<sub_reason>)`. |
+
+`UNMEASURED` is a word from [`skill-harness`](https://github.com/MrBinnacle/skill-harness), and
+the harness never writes it bare. It always carries one value of its closed `UnmeasuredSubReason`
+vocabulary, and a card's Screen result, Paired verdict and Evidence scope rows reuse that
+vocabulary, spelled as the harness spells it. The harness assigns a sub-reason to one clause of a
+skill. A card row assigns one to the whole card, which extends the harness's meaning. Two values
+apply to a card with no receipt:
+
+- `mechanical_vacuous` means that no axis in the harness's axis registry is a claimed axis of the
+  card, so no registered scorer can measure the card and more sampling cannot change that. The
+  harness checks this first. It is registry-dependent: a scorer registered for the card's axis
+  would move the card off it.
+- `no_data` means that a registered axis is a claimed axis of the card, and no run has reached it.
+  A run would resolve it.
+
+Each card's Screen result row names the registry fact behind its choice.
+`scripts/validate_conformance.py` refuses a bare `UNMEASURED` and any sub-reason outside the
+harness vocabulary. Its test suite checks that vocabulary against the harness commit CI pins.
 
 Each card states its own state in its own record, and that record is the only place the state is
 asserted. This page states no tally of the card set, deliberately: a number written here would
