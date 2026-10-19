@@ -21,8 +21,9 @@ What it does
     The interactive form keeps its own date; CI does not exercise it. The date
     is the run's `createdAt`, in UTC.
 
-    This is the receipt step of the release-step script #330 describes; that
-    script chains it after the bump merges.
+    It is the receipt step for the release-step script #330 describes. That
+    script does not exist yet; until it does, run this by hand after the bump
+    merges (.changeset/README.md).
 
 Run
     python scripts/refresh_install_receipt.py           # print the diff
@@ -42,12 +43,15 @@ import re
 import subprocess
 import sys
 from collections.abc import Callable, Iterable
-from typing import Any
 from pathlib import Path
+from typing import Any
+
+from test_install_form import branch_plugin_versions
 
 ROOT = Path(__file__).resolve().parent.parent
 README = ROOT / "README.md"
 WORKFLOW = "tests.yml"
+RUN_LIMIT = 100
 INSTALL_JOB_PREFIX = "Install form"
 DATE = r"\d{4}-\d{2}-\d{2}"
 
@@ -100,42 +104,47 @@ def rewrite_receipt(text: str, version: str, run_id: int, date: str) -> str:
     return text
 
 
-def tree_versions() -> set[str]:
-    return {
-        json.loads(path.read_text(encoding="utf-8")).get("version", "")
-        for path in sorted(ROOT.glob("skills/*/.claude-plugin/plugin.json"))
-    }
+class ReceiptError(Exception):
+    """A lookup the receipt depends on could not be made."""
+
+
+def run_tool(argv: list[str]) -> str:
+    try:
+        out = subprocess.run(argv, capture_output=True, text=True, cwd=str(ROOT))
+    except FileNotFoundError as exc:
+        raise ReceiptError(f"{argv[0]} is not on PATH") from exc
+    if out.returncode != 0:
+        raise ReceiptError(f"{' '.join(argv)} exited {out.returncode}: {out.stderr.strip()}")
+    return out.stdout
 
 
 def versions_at(sha: str) -> set[str]:
-    """Version every plugin.json declares at commit `sha`."""
+    """Version every plugin.json declares at commit `sha`.
+
+    A commit missing from this clone is an error, not a skip: skipping it
+    would cite a later run than the first one that passed.
+    """
+    run_tool(["git", "cat-file", "-e", f"{sha}^{{commit}}"])
     versions: set[str] = set()
     for path in sorted(ROOT.glob("skills/*/.claude-plugin/plugin.json")):
         relative = path.relative_to(ROOT).as_posix()
-        shown = subprocess.run(
-            ["git", "show", f"{sha}:{relative}"],
-            capture_output=True,
-            text=True,
-            cwd=str(ROOT),
-        )
-        if shown.returncode != 0:
-            return set()
-        versions.add(json.loads(shown.stdout).get("version", ""))
+        try:
+            shown = run_tool(["git", "show", f"{sha}:{relative}"])
+        except ReceiptError:
+            return set()  # the plugin did not exist yet at that commit
+        versions.add(json.loads(shown).get("version", ""))
     return versions
 
 
 def gh_json(args: list[str]) -> Any:
-    out = subprocess.run(
-        ["gh", *args], capture_output=True, text=True, check=True, cwd=str(ROOT)
-    )
-    return json.loads(out.stdout)
+    return json.loads(run_tool(["gh", *args]))
 
 
 def main_push_runs() -> list[dict]:
     return gh_json(
         [
             "run", "list", "--workflow", WORKFLOW, "--branch", "main",
-            "--event", "push", "--limit", "100",
+            "--event", "push", "--limit", str(RUN_LIMIT),
             "--json", "databaseId,headSha,conclusion,createdAt",
         ]
     )
@@ -154,13 +163,28 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--write", action="store_true", help="apply the rewrite")
     args = parser.parse_args(argv)
 
-    versions = tree_versions()
+    versions = set(branch_plugin_versions().values())
     if len(versions) != 1:
         print(f"FAIL plugin.json files declare {sorted(versions)}, expected one version")
         return 1
     target = versions.pop()
 
-    run = select_receipt_run(main_push_runs(), target, versions_at, install_jobs_passed)
+    try:
+        runs = main_push_runs()
+        # A full window whose oldest run is already at the target may have
+        # cut off an earlier qualifying run.
+        if len(runs) >= RUN_LIMIT:
+            oldest = min(runs, key=lambda r: r["createdAt"])
+            if versions_at(oldest["headSha"]) == {target}:
+                print(
+                    f"FAIL all {RUN_LIMIT} listed runs may postdate the first run at "
+                    f"{target}; raise RUN_LIMIT"
+                )
+                return 1
+        run = select_receipt_run(runs, target, versions_at, install_jobs_passed)
+    except ReceiptError as exc:
+        print(f"FAIL {exc}")
+        return 1
     if run is None:
         print(
             f"FAIL no passing push run of {WORKFLOW} on main installs {target} yet; "
