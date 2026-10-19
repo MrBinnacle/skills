@@ -1,6 +1,6 @@
 # Linear object model and tool contract
 
-Official references: [MCP](https://linear.app/docs/mcp), [Projects](https://linear.app/docs/projects), [Initiatives](https://linear.app/docs/initiatives), [Cycles](https://linear.app/docs/cycles), [Issue relations](https://linear.app/docs/issue-relations), [Project milestones](https://linear.app/docs/project-milestones), [Templates](https://linear.app/docs/templates). Workspace data establishes current configuration; docs establish product semantics.
+Official references: [MCP](https://linear.app/docs/mcp), [Projects](https://linear.app/docs/projects), [Initiatives](https://linear.app/docs/initiatives), [Cycles](https://linear.app/docs/use-cycles), [Issue relations](https://linear.app/docs/issue-relations), [Project milestones](https://linear.app/docs/project-milestones), [Issue templates](https://linear.app/docs/issue-templates), [Project templates](https://linear.app/docs/project-templates). Workspace data establishes current configuration; docs establish product semantics.
 
 | Object | Use | Avoid | Relationships / constraints |
 |---|---|---|---|
