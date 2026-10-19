@@ -17,7 +17,9 @@ Two paths:
      the JSON was last written, the script reports staleness and fails.
 
 In both cases the stated figure in EVIDENCE.md is compared against the
-calibrated figure, and disagreement fails the check.
+calibrated figure, and disagreement fails the check.  The README and the
+claims ledger state the measurement date of the range; each must carry the
+snapshot's `calibrated_on` date (MrBinnacle/skills#472).
 
 Output is ASCII-only, matching the other validators.
 """
@@ -45,6 +47,12 @@ VERSION_RE = re.compile(r"version\s+(\d+\.\d+\.\d+)")
 # The full audit line: "Standing cost (mechanical): raw N tokens · calibrated M tokens"
 AUDIT_RE = re.compile(
     r"Standing cost \(mechanical\):.*?calibrated\s+(\d+)\s+tokens"
+)
+# Prose surfaces that state the measurement date of the standing-cost range.
+# Each must carry the snapshot's calibrated_on date (MrBinnacle/skills#472).
+DATED_PROSE_SURFACES = ("README.md", "docs/product/claims-ledger.md")
+PROSE_DATE_RE = re.compile(
+    r"measured by `skill-harness skill audit` on (\d{4}-\d{2}-\d{2})"
 )
 
 
@@ -144,12 +152,38 @@ def file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
+def prose_date_disagreements(root: Path, calibrated_on: object) -> list[str]:
+    """Each dated prose surface present in the tree must state calibrated_on."""
+    blocking: list[str] = []
+    for rel in DATED_PROSE_SURFACES:
+        path = root / rel
+        if not path.is_file():
+            continue
+        found = [
+            (n, m.group(1))
+            for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+            for m in PROSE_DATE_RE.finditer(line)
+        ]
+        if not found:
+            blocking.append(
+                f"  - {rel}: no dated standing-cost sentence "
+                "(measured by `skill-harness skill audit` on YYYY-MM-DD)"
+            )
+        for n, stated in found:
+            if stated != calibrated_on:
+                blocking.append(
+                    f"  - {rel}:{n}: prose says {stated}, "
+                    f"standing-costs.json calibrated_on says {calibrated_on}"
+                )
+    return blocking
+
+
 def validate(root: Path, *, use_snapshot: bool = False) -> None:
     cards = iter_skill_dirs(root)
     snapshot = load_standing_costs(root)
     harness = None if use_snapshot else installed_harness()
 
-    blocking: list[str] = []
+    blocking = prose_date_disagreements(root, snapshot.get("calibrated_on"))
 
     if harness is None:
         snapshot_version = snapshot.get("skill_harness_version")

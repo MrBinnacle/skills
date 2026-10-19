@@ -8,9 +8,11 @@ conforming baseline runs against the live published tree.
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import date
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -261,6 +263,75 @@ def case_none_stdout_is_no_figure() -> None:
         check(f"refresh_standing_costs.{label}: None stdout raises RuntimeError", ok, detail)
 
 
+DATE_POISON = SCRIPT_DIR / "fixtures" / "standing-cost-date-drift"
+
+
+def case_stale_prose_date_is_red() -> None:
+    """A README date that differs from calibrated_on is the single rejection (#472)."""
+    for use_snapshot in (False, True):
+        result = run_checker(DATE_POISON, use_snapshot=use_snapshot)
+        lines = [l for l in result.stderr.splitlines() if l.startswith("  - ")]
+        check(
+            f"stale prose date fixture is rejected for that reason alone (snapshot={use_snapshot})",
+            result.returncode != 0
+            and lines == [
+                "  - README.md:3: prose says 2026-09-22, "
+                "standing-costs.json calibrated_on says 2026-10-19"
+            ],
+            result.stderr,
+        )
+
+
+def case_matching_prose_date_is_green() -> None:
+    """The same fixture passes once its README carries calibrated_on."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "tree"
+        shutil.copytree(DATE_POISON, root)
+        readme = root / "README.md"
+        readme.write_bytes(readme.read_bytes().replace(b"2026-09-22", b"2026-10-19"))
+        result = run_checker(root, use_snapshot=True)
+        check(
+            "matching prose date passes",
+            result.returncode == 0,
+            f"stdout: {result.stdout}, stderr: {result.stderr}",
+        )
+
+
+def case_undated_prose_surface_is_red() -> None:
+    """A prose surface that drops the dated sentence cannot silently pass."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "tree"
+        shutil.copytree(DATE_POISON, root)
+        (root / "README.md").write_text("# fixture\n", encoding="utf-8", newline="")
+        result = run_checker(root, use_snapshot=True)
+        check(
+            "undated prose surface is rejected",
+            result.returncode != 0
+            and "README.md: no dated standing-cost sentence" in result.stderr,
+            result.stderr,
+        )
+
+
+def case_refresher_writes_run_date() -> None:
+    """The refresher stamps calibrated_on with the day it ran, not a literal."""
+    r = _load("refresh_standing_costs")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write_card(root, "clirunner-env", REAL_CLIRUNNER_EVIDENCE_LINE, REAL_CLIRUNNER_SKILL_MD)
+        (root / "scripts").mkdir()
+        fake = _FakeRun(
+            "skill-harness, version 0.3.0\n"
+            "Standing cost (mechanical): raw 40 tokens, calibrated 45 tokens\n"
+        )
+        _with_fake(r, fake, lambda: r.refresh(root))
+        written = json.loads((root / "scripts" / "standing-costs.json").read_text(encoding="utf-8"))
+        check(
+            "refresher writes today's date as calibrated_on",
+            written.get("calibrated_on") == date.today().isoformat(),
+            repr(written.get("calibrated_on")),
+        )
+
+
 # --- Run all cases ---
 
 case_committed_poison_is_red()
@@ -271,6 +342,10 @@ case_correct_figure_in_temp_tree()
 case_snapshot_version_is_pinned()
 case_subprocess_decodes_utf8()
 case_none_stdout_is_no_figure()
+case_stale_prose_date_is_red()
+case_matching_prose_date_is_green()
+case_undated_prose_surface_is_red()
+case_refresher_writes_run_date()
 
 if FAILURES:
     print(f"\nFAILED: {len(FAILURES)} case(s)")

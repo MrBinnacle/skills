@@ -171,7 +171,7 @@ ledger cites that list by its path and does not repeat it.
 | Field | Value |
 | --- | --- |
 | Claim | Each model-invocable card adds a cost to every session. |
-| Allowed wording | Each skill adds one line to every session, about 44 to 63 tokens, measured by `skill-harness skill audit` on 2026-09-22. |
+| Allowed wording | Each skill adds one line to every session, about 44 to 63 tokens, measured by `skill-harness skill audit` on 2026-10-19. |
 | Forbidden wording | A cost figure with no instrument or date. A claim that a card costs nothing until it fires. |
 | Evidence | `README.md:47`; `CATALOG.md:12-14`; CI job `validate_standing_costs.py`. |
 | Status | **SCOPED** to the audit date. |
