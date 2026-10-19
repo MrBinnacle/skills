@@ -69,6 +69,7 @@ A screen is not due merely because a model was released. A release that changes 
 | Required files present, required evidence rows present | **Gated** by `scripts/validate_card_files.py`. |
 | `description` at or under 200 characters | **Gated.** |
 | Every published `SKILL.md` carries a when-to-open pointer to its `gotchas.md` | **Gated** by `scripts/validate_card_files.py` (skills#327). |
+| `SKILL.md` names the action, not one harness's tool, hook or path (harness neutrality) | **Gated** by `scripts/validate_harness_neutrality.py`, with a shrink-only allowlist of the (card, pattern) pairs that breached on 2026-10-10. The rule's reader claim — that a reader in another harness cannot tell which sentences are for them — is `UNMEASURED`; no screen has run. |
 | The opening names the incident's evidentiary role | Partly syntax-checkable; the honesty of the classification is not. Judgement. |
 | Size disposition recorded above the target | Judgement. |
 | Plain writing | Judgement. A word-count test cannot establish it. |

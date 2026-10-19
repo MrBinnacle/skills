@@ -149,7 +149,7 @@ handoff):**
 
 ## Notes
 
-Open [gotchas.md](gotchas.md) when a handoff says "do not re-litigate" wholesale, or a hook catch needs classifying. It records catches and rulings.
+Open [gotchas.md](gotchas.md) when a handoff says "do not re-litigate" wholesale, or a guard catch needs classifying. It records catches and rulings.
 
 - **Subagent prompts are riskiest.** Agents read dispatches as near-system-tier and rarely push
   back; make their framing block explicit.

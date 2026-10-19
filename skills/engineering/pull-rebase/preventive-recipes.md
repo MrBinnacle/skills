@@ -16,7 +16,7 @@ Do not evaluate config except for an actual `pull`. Config reads/writes and text
 
 ## Required acceptance table
 
-Both recipes below MUST pass this table before use.
+Every recipe below MUST pass this table before use. One section per harness; the shell wrapper covers no harness at all.
 
 | Expected | Case |
 |---|---|
@@ -48,6 +48,41 @@ For every pass or error, exit zero silently. Do not rely on the optional `if` fi
 
 Verified 2026-08-12 against the live [Claude Code hooks reference](https://code.claude.com/docs/en/hooks): `PreToolUse`, Bash input, deny output, and silent exit-zero behavior.
 
+## Pi extension `tool_call` handler
+
+Put a TypeScript file in `~/.pi/agent/extensions/` (all projects) or `.pi/extensions/` (one project). The handler runs before each tool call, ignores every tool except `bash`, and returns `{ block: true, reason }` only for the block case. For every pass it returns nothing. It covers the default shell tool only: a setup that swaps in Pi's optional `powershell` tool (`docs/windows.md`) must match that tool name as well, or its pulls pass unchecked.
+
+```typescript
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+// Implement the Shared predicate above: parse the shell syntax and Git arguments,
+// then read the effective rebase config in `cwd`. Never scan the raw string.
+async function isBlockedPull(command: string, cwd: string): Promise<boolean> {
+  return false;
+}
+
+export default function (pi: ExtensionAPI) {
+  pi.on("tool_call", async (event, ctx) => {
+    if (event.toolName !== "bash") return undefined;
+    try {
+      if (await isBlockedPull(event.input.command as string, ctx.cwd)) {
+        return {
+          block: true,
+          reason: "Bare git pull blocked: effective rebase config is enabled; pass --rebase or --no-rebase explicitly.",
+        };
+      }
+    } catch {
+      // Fail open: a throwing handler would block the call.
+    }
+    return undefined;
+  });
+}
+```
+
+The `try`/`catch` is required, not defensive. In Pi a `tool_call` handler that throws blocks the tool as a fail-safe, which is the opposite of what the predicate requires. The handler must catch its own errors to fail open. This is loop-native because `tool_call` fires before every tool call, including calls another tool makes through `ctx.executeTool()`.
+
+Written against Pi 1.1.0's `extensions.md` (the `tool_call` return shape, the fail-safe block on a throwing handler, and nested calls passing through `tool_call`), re-read 2026-10-10; `event.input.command` and `ctx.cwd` taken from the bundled `permission-gate.ts` example and the exported extension types. Not executed.
+
 ## Shell wrapper without an agent harness
 
 Put a function named `git` in the operator or automation shell startup. Preserve the real Git path before defining it. Inspect the argument vector: if the subcommand is not `pull`, exec real Git unchanged; otherwise apply the predicate, refuse only the block case, and exec real Git for every pass/error. Never rebuild and rescan a string.
@@ -56,4 +91,4 @@ This covers that shell, not programs invoking real Git directly or non-loading s
 
 Verified 2026-08-12 against Git 2.54.0's live [`githooks`](https://git-scm.com/docs/githooks/2.54.0), [`pull`](https://git-scm.com/docs/git-pull/2.54.0), and [`config`](https://git-scm.com/docs/git-config/2.54.0) manuals. Re-checked 2026-10-05 against git 2.56.0: the `githooks` manual is unchanged since 2.54.0 and still lists no pre-pull hook, and the `git config` manual still lists `true`, `merges` and `interactive` as the rebasing values of `pull.rebase` and `branch.<name>.rebase`.
 
-No repository test executes adopter-owned enforcement. Before relying on either form, run every table row in a disposable repository.
+No repository test executes adopter-owned enforcement. Before relying on any of the three, run every table row in a disposable repository.

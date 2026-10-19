@@ -48,9 +48,9 @@ git rebase origin/<branch>   # explicit rebase — at least the intent is record
 
 ## Preventive versus reactive enforcement
 
-A reactive hook surfaces this card after an error or bad pull; it helps recovery but cannot preserve the old SHAs. Prevention must run before the pull itself. Model invocation cannot guarantee that check. A prompt-triggered hook does fire on each `/loop` iteration, but it fires on the prompt, not on the `git pull`, so it cannot guarantee the check either; only a `PreToolUse` hook on the command can (Claude Code hooks docs, read 2026-10-15).
+A reactive hook surfaces this card after an error or bad pull; it helps recovery but cannot preserve the old SHAs. Prevention must run before the pull itself. Model invocation cannot guarantee that check. A prompt-triggered hook does fire on each iteration of a prompt loop, but it fires on the prompt, not on the `git pull`, so it cannot guarantee the check either; only a pre-tool-call guard on the command can (the enforcement note in [EVIDENCE.md](EVIDENCE.md) records the hooks documentation this was checked against).
 
-Install an adopter-owned guard using [the runtime recipes and required case table](preventive-recipes.md). Claude Code can block the Bash tool call with `PreToolUse`; a shell wrapper covers interactive and automated shells without an agent harness. Native Git hooks do not provide a pre-pull interception point, so `pre-rebase` is too late for this policy (the `githooks` manual, last changed in git 2.54.0, re-checked 2026-10-05).
+Install an adopter-owned guard using [the runtime recipes and required case table](preventive-recipes.md). An agent harness can refuse the shell tool call from a pre-tool-call guard (one recipe per harness in that file); a shell wrapper covers interactive and automated shells without an agent harness. Native Git hooks do not provide a pre-pull interception point, so `pre-rebase` is too late for this policy (the `githooks` manual, last changed in git 2.54.0, re-checked 2026-10-05).
 
 Open [gotchas.md](gotchas.md) when a guard you installed blocks a command that merely names this skill, or the pre-flight reads clean and a pull still rebases. It records the guard's observed false positives and the config scopes and values the pre-flight can miss.
 
