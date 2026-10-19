@@ -1283,6 +1283,18 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::release-gate suite emitted no PASS line - it did not run"; exit 1; }
 
+      # #475: G11 reads CI state at HEAD's SHA and skips inside an Actions run,
+      # because this run is the one still in progress. The suite strips
+      # GITHUB_ACTIONS from the gate's env and serves a fake API on localhost,
+      # so here it exercises the real refusals, not the skip.
+      - name: Release-gate CI-state suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_release_gate_ci_state.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::release-gate CI-state suite emitted no PASS line - it did not run"; exit 1; }
+
       # No arguments here or locally, on purpose: both surfaces must run the
       # same command so neither can grow flags the other lacks and drift into
       # verifying different contracts. The grep is the house rule from the

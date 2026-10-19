@@ -142,10 +142,27 @@ Checks (all must pass; failures are listed, not first-fail):
       a skip and never a pass. When git itself cannot run, G10 refuses in its
       own words rather than dying with a traceback (#342 / #347).
 
+  G11 (--release only) Every required workflow is green at HEAD's commit
+      (#475). The gate reads ``actions/runs?head_sha=<HEAD>`` on the
+      repository ``origin`` names, follows every page, and takes the newest
+      run of each workflow in REQUIRED_WORKFLOWS: it must exist, be completed,
+      and conclude success. It never reads state through a branch, event or
+      workflow filter: on 2026-10-05 ``?branch=main`` returned runs three weeks
+      old as the newest while the commit's own runs showed a failure. A
+      missing, unfinished or failed run, an unreadable response, an origin
+      that is not GitHub and an empty required set are each a listed failure.
+      It skips, and the summary says it did not run, inside a GitHub Actions
+      run (the run at this commit is the one in progress, and a pull request
+      checkout is a merge commit no run is keyed to) and in a tree with no
+      HEAD or no ``origin`` (the seeded fixtures). Its moment is the
+      maintainer's ``--release`` run before the release merges.
+      ``RELEASE_GATE_GITHUB_API_URL`` overrides the API base for tests;
+      ``GITHUB_TOKEN`` authenticates when set.
+
 Mode detection (#153):
   A release ref is one whose ``package.json`` version CHANGED relative to its
   merge-base with the default branch. The release-only checks (G3, G5, G6, G7,
-  G8, G9) run when the gate declares itself a release -- either via the
+  G8, G9, G11) run when the gate declares itself a release -- either via the
   ``--release`` flag (the override a fixture or an explicit run uses) or via
   this auto-detection. Release-only checks false on an ordinary pull request:
   ``changesets consumed`` is untrue of every ordinary PR that adds a changeset,
@@ -192,9 +209,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -835,6 +854,151 @@ def gate_clean_tree(root: Path, errors: list[str]) -> None:
             "G9: the working tree is not clean at release time - "
             f"{len(dirty)} uncommitted change(s): {preview}"
         )
+
+
+# ------------------------------------------------------------------ G11 CI state
+#
+# The workflows whose jobs the protect-main ruleset requires (linkcheck,
+# residue-check, spec-conformance, validator, Release gate). vale.yml runs on
+# every pull request but no ruleset context requires it, so it is not here.
+# Revisit if: the ruleset's required status checks change.
+REQUIRED_WORKFLOWS = (
+    ".github/workflows/tests.yml",
+    ".github/workflows/links.yml",
+    ".github/workflows/depersonalization-gate.yml",
+)
+GITHUB_API_DEFAULT = "https://api.github.com"
+_GITHUB_REMOTE_RE = re.compile(r"github\.com[:/]([^/\s]+/[^/\s]+?)(?:\.git)?/?$")
+_NEXT_LINK_RE = re.compile(r'<([^>]+)>;\s*rel="next"')
+
+
+def _api_base() -> str:
+    return os.environ.get("RELEASE_GATE_GITHUB_API_URL", GITHUB_API_DEFAULT).rstrip("/")
+
+
+def _get_json_page(url: str) -> tuple[object, str | None]:
+    """GET one JSON page; return (body, next-page URL or None).
+
+    Authenticates with GITHUB_TOKEN when it is set. Raises OSError or
+    ValueError on any failure; urllib's HTTPError is an OSError.
+    """
+    headers = {"Accept": "application/vnd.github+json"}
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(url, headers=headers)  # noqa: S310 - fixed API origin or test localhost
+    with urllib.request.urlopen(request, timeout=15) as response:  # noqa: S310
+        link = response.headers.get("Link") or ""
+        body = json.load(response)
+    match = _NEXT_LINK_RE.search(link)
+    return body, match.group(1) if match else None
+
+
+def _runs_at_sha(slug: str, sha: str) -> list[dict]:
+    """Every workflow run at `sha`, following Link rel="next" to the end.
+
+    Reads by head_sha only. A branch, event or workflow filter is never used
+    to read state: on 2026-10-05 `?branch=main` returned runs three weeks old
+    as the newest (#475).
+    """
+    url: str | None = f"{_api_base()}/repos/{slug}/actions/runs?head_sha={sha}&per_page=100"
+    runs: list[dict] = []
+    while url:
+        body, url = _get_json_page(url)
+        page = body.get("workflow_runs") if isinstance(body, dict) else None
+        if not isinstance(page, list):
+            raise ValueError("response carries no workflow_runs list")
+        runs.extend(run for run in page if isinstance(run, dict))
+    return runs
+
+
+def _newest_run_per_path(runs: list[dict], sha: str) -> dict[str, dict]:
+    """The newest run of each workflow at `sha`; a run object already
+    reflects its latest attempt."""
+    newest: dict[str, dict] = {}
+    for run in runs:
+        path = run.get("path")
+        if run.get("head_sha") != sha or not isinstance(path, str):
+            continue
+        key = (str(run.get("created_at", "")), int(run.get("id") or 0))
+        held = newest.get(path)
+        if held is None or key > (str(held.get("created_at", "")), int(held.get("id") or 0)):
+            newest[path] = run
+    return newest
+
+
+def _skip_g11(reason: str) -> str:
+    print(f"G11: SKIPPED, {reason}.")
+    return reason
+
+
+def gate_ci_state(root: Path, errors: list[str]) -> str | None:
+    """G11 (--release): every required workflow is green at HEAD's SHA.
+
+    Queries ``actions/runs?head_sha=<HEAD>`` on the repository ``origin``
+    names, paginated, and takes the newest run of each workflow at that
+    commit. Each workflow in REQUIRED_WORKFLOWS must have one, and it must be
+    completed with conclusion success. A missing run, an unfinished run, a
+    failed run, an unreadable response and an empty required set are each a
+    listed failure.
+
+    Two skips, each printed:
+    - inside a GitHub Actions run (GITHUB_ACTIONS=true). The gate runs in
+      tests.yml, so the run at this commit is still in progress, and on a
+      pull request the checkout is a merge commit no run is keyed to. An
+      Actions run cannot certify the commit it is part of. G11 is for the
+      maintainer's ``--release`` run before the release merges.
+    - no ``origin`` remote, the seeded-fixture state: there is no repository
+      to read. An origin that is not a GitHub repository fails closed.
+    - git cannot run. G9 already refuses the release for that, in its own
+      words (#342), so G11 does not repeat the refusal.
+
+    Returns the skip reason when G11 did not run, so the summary can say so;
+    None when it ran, whatever it found.
+    """
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        return _skip_g11("inside a GitHub Actions run, which cannot certify the commit it is part of")
+    try:
+        head_ok, head = _git_ok(root, ["rev-parse", "--verify", "HEAD"])
+        if not head_ok:
+            return _skip_g11("the tree has no HEAD commit, so no CI run can be keyed to it")
+        remote_ok, remote = _git_ok(root, ["remote", "get-url", "origin"])
+    except GitUnavailableError:
+        # G9 runs beside G11 in every release run and already refuses on
+        # missing git, so the release is blocked; a second refusal for the same
+        # cause would only bury it.
+        return _skip_g11("git could not be run, which G9 reports as the refusal")
+    if not remote_ok:
+        return _skip_g11("no origin remote, so there is no repository whose CI state to read")
+    match = _GITHUB_REMOTE_RE.search(remote.strip())
+    if match is None:
+        errors.append(f"G11: origin {remote.strip()!r} is not a GitHub repository - CI state cannot be read")
+        return
+    if not REQUIRED_WORKFLOWS:
+        errors.append("G11: no required workflow is declared - a check over nothing checks nothing")
+        return
+    slug, sha = match.group(1), head.strip()
+    try:
+        runs = _runs_at_sha(slug, sha)
+    except (OSError, ValueError) as exc:
+        errors.append(f"G11: workflow runs at {sha} could not be read from {slug}: {exc}")
+        return
+    newest = _newest_run_per_path(runs, sha)
+    for path in REQUIRED_WORKFLOWS:
+        run = newest.get(path)
+        name = path.rsplit("/", 1)[-1]
+        if run is None:
+            errors.append(f"G11: required workflow {name} has no run at {sha}")
+        elif run.get("status") != "completed":
+            errors.append(
+                f"G11: required workflow {name} has not finished at {sha} "
+                f"(status {run.get('status')}): {run.get('html_url')}"
+            )
+        elif run.get("conclusion") != "success":
+            errors.append(
+                f"G11: required workflow {name} concluded {run.get('conclusion')} "
+                f"at {sha}: {run.get('html_url')}"
+            )
 
 
 # --------------------------------------------------------------------- G10 bump
@@ -1772,7 +1936,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="force release mode: run the release-time checks (G3 unconsumed "
         "changesets, G5 manifest/tree, G6 external spec validator, G7 workflow "
-        "pins, G8 tag normal form, G9 clean tree) in addition to the everyday "
+        "pins, G8 tag normal form, G9 clean tree, G11 CI state at HEAD) in addition to the everyday "
         "ones. Without --release the gate auto-detects release mode: a ref "
         "whose package.json version changed relative to its merge-base with "
         "the default branch is a release ref and runs the release-time checks "
@@ -1807,6 +1971,7 @@ def main(argv: list[str] | None = None) -> int:
     # dependency under their own check IDs, rather than skipping every
     # release-only check on a host where they cannot run (#342).
     release_mode = args.release
+    ci_state_skip: str | None = None
     if not release_mode:
         try:
             release_mode = detect_release_ref(root, declared)
@@ -1819,6 +1984,7 @@ def main(argv: list[str] | None = None) -> int:
         gate_workflow_pins(root, errors)
         gate_tag_normal_form(root, errors, declared)
         gate_clean_tree(root, errors)
+        ci_state_skip = gate_ci_state(root, errors)
     # G10 runs in both modes: cases 1-3 classify branch-added changesets
     # against the surface diff on every run; case 4 prices the version delta
     # against the changesets the release consumes.
@@ -1841,7 +2007,12 @@ def main(argv: list[str] | None = None) -> int:
             "changelog section dated, no unconsumed changesets, manifest and "
             "published tree agree, external spec validator clean, workflow "
             "actions pinned, release tag is SemVer normal form, working tree "
-            "clean, changeset bump types match the declared surface."
+            "clean, changeset bump types match the declared surface, "
+            + (
+                f"(not run: G11 CI state - {ci_state_skip})."
+                if ci_state_skip
+                else "required workflows green at HEAD."
+            )
         )
     else:
         print(
