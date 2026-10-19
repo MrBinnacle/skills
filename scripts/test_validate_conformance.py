@@ -181,7 +181,7 @@ def case_unnamed_shipped_script_is_red(root: Path) -> None:
     )
     check(
         "the rejection line says which edition rejected",
-        "conformance v4" in result.stderr,
+        "conformance v5" in result.stderr,
         result.stderr.strip(),
     )
 
@@ -2843,13 +2843,13 @@ def case_o5_is_not_promised_as_ci() -> None:
 def case_live_tree_is_checked_and_conforms() -> None:
     result = run_checker(REPO_ROOT)
     check(
-        "the live tree passes conformance v4",
+        "the live tree passes conformance v5",
         result.returncode == 0,
         result.stdout + result.stderr,
     )
     check(
         "the live run emits a PASS line",
-        "PASS: conformance v4" in result.stdout,
+        "PASS: conformance v5" in result.stdout,
         result.stdout,
     )
     check(
@@ -2958,7 +2958,7 @@ def main() -> None:
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} case(s): {', '.join(FAILURES)}", file=sys.stderr)
         raise SystemExit(1)
-    print("PASS: conformance v4 suite, all cases correct")
+    print("PASS: conformance v5 suite, all cases correct")
 
 
 if __name__ == "__main__":

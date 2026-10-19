@@ -82,14 +82,14 @@ them, and commitment 3 says exactly when they are fine.) Installing one:
 Review the diff of any update as you would a pull request — that is the intended trust
 mechanism, not a substitute for it.
 
-## Standing obligations — `conformance v4`
+## Standing obligations — `conformance v5`
 
 The commitments above are what this collection promises. This section is what a card owes for as
 long as it stays published, stated as the list a checker is written against, so that the prose
 and the check cannot drift apart quietly. Admission is a separate contract on a separate cadence:
 `ADMISSION.md` governs getting in, this section governs staying.
 
-**Version.** This edition is `conformance v4`, declared here and nowhere else. A material change
+**Version.** This edition is `conformance v5`, declared here and nowhere else. A material change
 to the obligations, or to what counts as meeting one, bumps the version. Editorial changes —
 wording, ordering, examples — do not.
 
@@ -115,9 +115,14 @@ reported as a pass.
 - **O5 — controlled fields do not contradict a published receipt.** A card's controlled fields must
   not contradict a published measurement receipt for the same card. **This is checked on the
   maintainer's clock and is not, and will not be, promised as a CI check from this repository** —
-  the measurement store is private, so there is nothing here to compare against. The conformance
-  run reports it `CANNOT-CHECK` on every card, by construction rather than by neglect. The durable
-  fix is citable, published receipts, and that work does not live in this repository.
+  the measurement store is private, so there is nothing here to compare against. Without a
+  harness checkout, the conformance run reports the receipt comparison `CANNOT-CHECK`, by
+  construction rather than by neglect. It still reports `FAIL` for what it can derive from the
+  card alone: on a card that links no receipt, an Evidence scope row other than the no-receipt
+  sentence, and on any card, an `UNMEASURED` row that is bare, names a sub-reason outside skill-harness's
+  `UnmeasuredSubReason` vocabulary, or names a different sub-reason from the card's other
+  `UNMEASURED` rows. The durable fix is citable, published receipts, and that work does not live in
+  this repository.
 - **O6 — scoreboard lockstep.** The front-page counts stay derivable from the cards. Checked by
   `scripts/validate_scoreboard.py`.
 - **O7 — plugin manifest and published tree agree.** `.claude-plugin/marketplace.json` lists
