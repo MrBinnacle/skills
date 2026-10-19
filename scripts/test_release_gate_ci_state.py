@@ -85,9 +85,13 @@ class FakeApi:
     gate asking for something unexpected fails rather than passes.
     """
 
-    def __init__(self, pages: list[list[dict]], *, status: int = 200) -> None:
+    def __init__(
+        self, pages: list[list[dict]], *, status: int = 200, next_link: str | None = None
+    ) -> None:
         self.pages = pages
         self.status = status
+        self.next_link = next_link
+        self.auth: list[str | None] = []
         self.queries: list[dict[str, list[str]]] = []
         api = self
 
@@ -96,6 +100,7 @@ class FakeApi:
                 url = urlparse(self.path)
                 query = parse_qs(url.query)
                 api.queries.append(query)
+                api.auth.append(self.headers.get("Authorization"))
                 if url.path != f"/repos/{SLUG}/actions/runs":
                     self._send(404, {"message": "Not Found"})
                 elif api.status != 200:
@@ -105,8 +110,8 @@ class FakeApi:
                 elif "head_sha" in query:
                     page = int(query.get("page", ["1"])[0])
                     runs = api.pages[page - 1] if page <= len(api.pages) else []
-                    link = None
-                    if page < len(api.pages):
+                    link = api.next_link
+                    if link is None and page < len(api.pages):
                         link = f'<{api.base}/repos/{SLUG}/actions/runs?head_sha={query["head_sha"][0]}&per_page=100&page={page + 1}>; rel="next"'
                     total = sum(len(p) for p in api.pages)
                     self._send(200, {"total_count": total, "workflow_runs": runs}, link)
@@ -347,6 +352,67 @@ def case_skips_are_printed() -> None:
         )
 
 
+def case_hostile_responses_fail_closed() -> None:
+    """A run id that is not a number, a Link header that leaves the API
+    origin, and a Link header that never ends are each a listed refusal,
+    never a traceback, a leaked token or a hang."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        sha = release_tree(root)
+        runs = green(sha)
+        runs.append(dict(wf_run(0, REQUIRED[0], sha), id="not-a-number"))
+        with FakeApi([runs]) as api:
+            odd_id = run_gate(root, api)
+        check(
+            "a non-numeric run id does not crash the gate",
+            "Traceback" not in odd_id.stderr and "RELEASE GATE:" in odd_id.stdout,
+            odd_id.stdout + odd_id.stderr,
+        )
+        away = "http://example.invalid/repos/x/actions/runs?page=2"
+        with FakeApi([green(sha)], next_link=f'<{away}>; rel="next"') as api:
+            leaked = run_gate(root, api, GITHUB_TOKEN="fixture-token")
+        check(
+            "a next link to another origin is refused, and the token is sent only to the API",
+            leaked.returncode == 1
+            and any("leaves the API origin" in line for line in g11_lines(leaked))
+            and api.auth == ["Bearer fixture-token"],
+            f"auth={api.auth}\n{leaked.stdout}{leaked.stderr}",
+        )
+        with FakeApi([green(sha)]) as api:
+            api.next_link = f'<{api.base}/repos/{SLUG}/actions/runs?head_sha={sha}&page=1>; rel="next"'
+            endless = run_gate(root, api)
+        check(
+            "an endless next link stops at the page cap and refuses",
+            endless.returncode == 1
+            and any("more than" in line and "pages" in line for line in g11_lines(endless)),
+            endless.stdout[-600:] + endless.stderr[-600:],
+        )
+
+
+def case_empty_required_set_fails_closed() -> None:
+    """The spec: an empty required set fails the gate. REQUIRED_WORKFLOWS is a
+    module constant, so this case empties it in process."""
+    import release_gate as gate  # noqa: E402
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        release_tree(root)
+        saved, gate.REQUIRED_WORKFLOWS = gate.REQUIRED_WORKFLOWS, ()
+        saved_env = os.environ.pop("GITHUB_ACTIONS", None)
+        errors: list[str] = []
+        try:
+            gate.gate_ci_state(root, errors)
+        finally:
+            gate.REQUIRED_WORKFLOWS = saved
+            if saved_env is not None:
+                os.environ["GITHUB_ACTIONS"] = saved_env
+        check(
+            "an empty required-workflow set is a refusal",
+            any("no required workflow is declared" in e for e in errors),
+            repr(errors),
+        )
+
+
 def main() -> None:
     cases = (
         case_sha_failure_blocks_although_branch_filter_is_green,
@@ -358,6 +424,8 @@ def main() -> None:
         case_unreadable_api_fails_closed,
         case_non_github_origin_fails_closed,
         case_skips_are_printed,
+        case_hostile_responses_fail_closed,
+        case_empty_required_set_fails_closed,
     )
     for case in cases:
         case()

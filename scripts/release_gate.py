@@ -208,11 +208,13 @@ Run locally: ``python scripts/release_gate.py [--root <repo-root>] [--write]
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import re
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -868,6 +870,9 @@ REQUIRED_WORKFLOWS = (
     ".github/workflows/depersonalization-gate.yml",
 )
 GITHUB_API_DEFAULT = "https://api.github.com"
+# actions/runs returns at most 1,000 results for a head_sha query: ten pages
+# of 100. A next link past that is a response the gate cannot trust.
+MAX_RUN_PAGES = 10
 _GITHUB_REMOTE_RE = re.compile(r"github\.com[:/]([^/\s]+/[^/\s]+?)(?:\.git)?/?$")
 _NEXT_LINK_RE = re.compile(r'<([^>]+)>;\s*rel="next"')
 
@@ -876,11 +881,22 @@ def _api_base() -> str:
     return os.environ.get("RELEASE_GATE_GITHUB_API_URL", GITHUB_API_DEFAULT).rstrip("/")
 
 
+def _origin_of(url: str) -> tuple[str, str]:
+    parsed = urllib.parse.urlparse(url)
+    return parsed.scheme, parsed.netloc
+
+
+def _ascii(value: object) -> str:
+    """Remote text made safe for the ASCII-only output contract."""
+    return str(value).encode("ascii", "backslashreplace").decode("ascii")
+
+
 def _get_json_page(url: str) -> tuple[object, str | None]:
     """GET one JSON page; return (body, next-page URL or None).
 
-    Authenticates with GITHUB_TOKEN when it is set. Raises OSError or
-    ValueError on any failure; urllib's HTTPError is an OSError.
+    Authenticates with GITHUB_TOKEN when it is set. Raises OSError,
+    ValueError or http.client.HTTPException on any failure; urllib's
+    HTTPError is an OSError.
     """
     headers = {"Accept": "application/vnd.github+json"}
     token = os.environ.get("GITHUB_TOKEN")
@@ -899,35 +915,49 @@ def _runs_at_sha(slug: str, sha: str) -> list[dict]:
 
     Reads by head_sha only. A branch, event or workflow filter is never used
     to read state: on 2026-10-05 `?branch=main` returned runs three weeks old
-    as the newest (#475).
+    as the newest (#475). A next link is followed only on the API's own
+    origin, so the token never leaves it, and only up to MAX_RUN_PAGES.
     """
-    url: str | None = f"{_api_base()}/repos/{slug}/actions/runs?head_sha={sha}&per_page=100"
+    base = _api_base()
+    url: str | None = f"{base}/repos/{slug}/actions/runs?head_sha={sha}&per_page=100"
     runs: list[dict] = []
-    while url:
+    for _ in range(MAX_RUN_PAGES):
+        if url is None:
+            return runs
+        if _origin_of(url) != _origin_of(base):
+            raise ValueError(f"a next-page link leaves the API origin: {url}")
         body, url = _get_json_page(url)
         page = body.get("workflow_runs") if isinstance(body, dict) else None
         if not isinstance(page, list):
             raise ValueError("response carries no workflow_runs list")
         runs.extend(run for run in page if isinstance(run, dict))
+    if url is not None:
+        raise ValueError(f"the run listing runs to more than {MAX_RUN_PAGES} pages")
     return runs
 
 
+def _run_order(run: dict) -> tuple[str, int]:
+    """Sort key: creation time, then id. A malformed id sorts first."""
+    run_id = run.get("id")
+    return str(run.get("created_at", "")), run_id if isinstance(run_id, int) else -1
+
+
 def _newest_run_per_path(runs: list[dict], sha: str) -> dict[str, dict]:
-    """The newest run of each workflow at `sha`; a run object already
-    reflects its latest attempt."""
+    """The newest run of each workflow at `sha`. A run object carries its
+    latest attempt (`run_attempt`), so a re-run is read as it now stands."""
     newest: dict[str, dict] = {}
     for run in runs:
         path = run.get("path")
         if run.get("head_sha") != sha or not isinstance(path, str):
             continue
-        key = (str(run.get("created_at", "")), int(run.get("id") or 0))
         held = newest.get(path)
-        if held is None or key > (str(held.get("created_at", "")), int(held.get("id") or 0)):
+        if held is None or _run_order(run) > _run_order(held):
             newest[path] = run
     return newest
 
 
 def _skip_g11(reason: str) -> str:
+    """Print G11's skip line and hand the reason to the summary."""
     print(f"G11: SKIPPED, {reason}.")
     return reason
 
@@ -939,22 +969,22 @@ def gate_ci_state(root: Path, errors: list[str]) -> str | None:
     names, paginated, and takes the newest run of each workflow at that
     commit. Each workflow in REQUIRED_WORKFLOWS must have one, and it must be
     completed with conclusion success. A missing run, an unfinished run, a
-    failed run, an unreadable response and an empty required set are each a
-    listed failure.
+    failed run, an unreadable or untrustworthy response, an origin that is not
+    a GitHub repository and an empty required set are each a listed failure.
 
-    Two skips, each printed:
+    Four skips, each printed and named in the summary as not run:
     - inside a GitHub Actions run (GITHUB_ACTIONS=true). The gate runs in
       tests.yml, so the run at this commit is still in progress, and on a
       pull request the checkout is a merge commit no run is keyed to. An
       Actions run cannot certify the commit it is part of. G11 is for the
       maintainer's ``--release`` run before the release merges.
-    - no ``origin`` remote, the seeded-fixture state: there is no repository
-      to read. An origin that is not a GitHub repository fails closed.
-    - git cannot run. G9 already refuses the release for that, in its own
-      words (#342), so G11 does not repeat the refusal.
+    - no HEAD commit, or no ``origin`` remote: the seeded-fixture states,
+      with no commit or no repository to read.
+    - git cannot run. G9 runs beside G11 in every release run and already
+      refuses for that, in its own words (#342), so G11 does not repeat it.
 
-    Returns the skip reason when G11 did not run, so the summary can say so;
-    None when it ran, whatever it found.
+    Returns the skip reason when G11 did not run; None when it ran, whatever
+    it found.
     """
     if os.environ.get("GITHUB_ACTIONS") == "true":
         return _skip_g11("inside a GitHub Actions run, which cannot certify the commit it is part of")
@@ -964,25 +994,27 @@ def gate_ci_state(root: Path, errors: list[str]) -> str | None:
             return _skip_g11("the tree has no HEAD commit, so no CI run can be keyed to it")
         remote_ok, remote = _git_ok(root, ["remote", "get-url", "origin"])
     except GitUnavailableError:
-        # G9 runs beside G11 in every release run and already refuses on
-        # missing git, so the release is blocked; a second refusal for the same
-        # cause would only bury it.
         return _skip_g11("git could not be run, which G9 reports as the refusal")
     if not remote_ok:
         return _skip_g11("no origin remote, so there is no repository whose CI state to read")
     match = _GITHUB_REMOTE_RE.search(remote.strip())
     if match is None:
-        errors.append(f"G11: origin {remote.strip()!r} is not a GitHub repository - CI state cannot be read")
-        return
+        errors.append(
+            f"G11: origin {_ascii(remote.strip())!r} is not a GitHub repository - "
+            "CI state cannot be read"
+        )
+        return None
     if not REQUIRED_WORKFLOWS:
         errors.append("G11: no required workflow is declared - a check over nothing checks nothing")
-        return
+        return None
     slug, sha = match.group(1), head.strip()
     try:
         runs = _runs_at_sha(slug, sha)
-    except (OSError, ValueError) as exc:
-        errors.append(f"G11: workflow runs at {sha} could not be read from {slug}: {exc}")
-        return
+    except (OSError, ValueError, http.client.HTTPException) as exc:
+        errors.append(
+            f"G11: workflow runs at {sha} could not be read from {_ascii(slug)}: {_ascii(exc)}"
+        )
+        return None
     newest = _newest_run_per_path(runs, sha)
     for path in REQUIRED_WORKFLOWS:
         run = newest.get(path)
@@ -992,13 +1024,14 @@ def gate_ci_state(root: Path, errors: list[str]) -> str | None:
         elif run.get("status") != "completed":
             errors.append(
                 f"G11: required workflow {name} has not finished at {sha} "
-                f"(status {run.get('status')}): {run.get('html_url')}"
+                f"(status {_ascii(run.get('status'))}): {_ascii(run.get('html_url'))}"
             )
         elif run.get("conclusion") != "success":
             errors.append(
-                f"G11: required workflow {name} concluded {run.get('conclusion')} "
-                f"at {sha}: {run.get('html_url')}"
+                f"G11: required workflow {name} concluded {_ascii(run.get('conclusion'))} "
+                f"at {sha}: {_ascii(run.get('html_url'))}"
             )
+    return None
 
 
 # --------------------------------------------------------------------- G10 bump
@@ -2007,11 +2040,11 @@ def main(argv: list[str] | None = None) -> int:
             "changelog section dated, no unconsumed changesets, manifest and "
             "published tree agree, external spec validator clean, workflow "
             "actions pinned, release tag is SemVer normal form, working tree "
-            "clean, changeset bump types match the declared surface, "
+            "clean, changeset bump types match the declared surface"
             + (
-                f"(not run: G11 CI state - {ci_state_skip})."
+                f"; not run: G11 CI state, {ci_state_skip}."
                 if ci_state_skip
-                else "required workflows green at HEAD."
+                else ", required workflows green at HEAD."
             )
         )
     else:
