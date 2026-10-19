@@ -1,6 +1,8 @@
 {
   "checkCommands": [
-    "\\bpython3? +(\\S+/)?(validate_\\w+|test_\\w+|check_\\w+|release_gate)\\.py\\b",
+    "\\bpython3? +(\\S+/)?(validate_\\w+|test_\\w+|check_\\w+)\\.py\\b",
+    "\\bpython3? +(\\S+/)?release_gate\\.py\\b(?![^\\n]*--write)",
+    "\\bbun test\\b",
     "\\bpre-commit run\\b"
   ]
 }
