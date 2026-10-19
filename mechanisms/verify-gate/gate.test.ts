@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { createGate, underRoot } from "./gate";
 
 const CHECKS = ["\\bbun test\\b", "\\bpytest\\b"];
@@ -95,5 +99,55 @@ describe("verification gate", () => {
     expect(underRoot("/r/p", "/r/p2/a")).toBe(false);
     expect(underRoot("/r/p", "/r")).toBe(false);
     expect(underRoot("/r/p", "../q")).toBe(false);
+  });
+
+  const win = process.platform === "win32";
+
+  function shortSpelling(dir: string): string {
+    return execFileSync("cmd", ["/d", "/s", "/c", `"for %I in ("${dir}") do @echo %~sI"`], {
+      encoding: "utf8",
+      windowsVerbatimArguments: true,
+    }).trim();
+  }
+
+  function withSpellings(body: (long: string, short: string) => void): void {
+    const long = realpathSync.native(mkdtempSync(join(tmpdir(), "verify-gate-longname-")));
+    try {
+      const short = shortSpelling(long);
+      expect(short).not.toBe(long);
+      body(long, short);
+    } finally {
+      rmSync(long, { recursive: true, force: true });
+    }
+  }
+
+  test.skipIf(!win)("underRoot matches a short-name root against a long-name path, and the reverse", () => {
+    withSpellings((long, short) => {
+      mkdirSync(join(long, "src"));
+      writeFileSync(join(long, "src", "a.ts"), "");
+      expect(underRoot(short, join(long, "src", "a.ts"))).toBe(true);
+      expect(underRoot(long, join(short, "src", "a.ts"))).toBe(true);
+      expect(underRoot(short, join(dirname(long), "elsewhere.ts"))).toBe(false);
+    });
+  });
+
+  test.skipIf(!win)("underRoot matches a short-name root against a long-name file that does not exist yet", () => {
+    withSpellings((long, short) => {
+      expect(underRoot(short, join(long, "new", "dir", "b.ts"))).toBe(true);
+      expect(underRoot(long, join(short, "new", "dir", "b.ts"))).toBe(true);
+    });
+  });
+
+  test("underRoot still counts a file reached through a link inside the root that points outside it", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "verify-gate-link-"));
+    try {
+      const root = join(tmp, "repo");
+      mkdirSync(root);
+      mkdirSync(join(tmp, "outside"));
+      symlinkSync(join(tmp, "outside"), join(root, "linked"), "junction");
+      expect(underRoot(root, join(root, "linked", "x.ts"))).toBe(true);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
