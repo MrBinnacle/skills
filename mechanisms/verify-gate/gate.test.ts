@@ -68,17 +68,20 @@ describe("verification gate", () => {
   });
 
   test("a file outside the project root is not tracked; one inside it, by any spelling, is", () => {
-    const root = "C:/work/repo";
+    // An absolute path is absolute only in the host's own spelling: on POSIX,
+    // "C:/work/repo" is relative and resolves inside the root.
+    const win = process.platform === "win32";
+    const root = win ? "C:/work/repo" : "/work/repo";
     const gate = createGate(CHECKS, root);
     gate.runStarted();
-    gate.toolFinished("write", { path: "C:/Users/me/.pi/handoffs/note.md" }, false);
-    gate.toolFinished("write", { path: "C:/work/repo-other/x.ts" }, false);
+    gate.toolFinished("write", { path: win ? "C:/Users/me/.pi/handoffs/note.md" : "/home/me/.pi/handoffs/note.md" }, false);
+    gate.toolFinished("write", { path: win ? "C:/work/repo-other/x.ts" : "/work/repo-other/x.ts" }, false);
     expect(gate.beforeSettle("completed")).toBeUndefined();
 
     gate.runStarted();
     gate.toolFinished("edit", { path: "src/a.ts" }, false);
-    gate.toolFinished("edit", { path: "C:/work/repo/src/b.ts" }, false);
-    gate.toolFinished("edit", { path: "C:\\work\\repo\\src\\c.ts" }, false);
+    gate.toolFinished("edit", { path: win ? "C:/work/repo/src/b.ts" : "/work/repo/src/b.ts" }, false);
+    gate.toolFinished("edit", { path: win ? "C:\\work\\repo\\src\\c.ts" : "/work/repo/src/c.ts" }, false);
     const nudge = gate.beforeSettle("completed");
     expect(nudge).toContain("src/a.ts");
     expect(nudge).toContain("src/b.ts");

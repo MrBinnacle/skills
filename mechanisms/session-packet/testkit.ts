@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Exec } from "./repo";
@@ -30,7 +30,7 @@ export async function git(cwd: string, ...args: string[]): Promise<string> {
 
 /** A temp repo on branch main with README.md committed under `message`. */
 export async function makeRepo(message = "fixture"): Promise<{ root: string; head: string }> {
-  const root = mkdtempSync(join(tmpdir(), "session-packet-"));
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), "session-packet-")));
   await git(root, "init", "-b", "main");
   await git(root, "config", "user.email", "test@example.com");
   await git(root, "config", "user.name", "Test");
@@ -43,7 +43,7 @@ export async function makeRepo(message = "fixture"): Promise<{ root: string; hea
 
 /** A bare repository in a temp dir, added to `root` as `origin` with main pushed and origin/HEAD set. */
 export async function makeRemote(root: string): Promise<string> {
-  const bare = mkdtempSync(join(tmpdir(), "session-packet-remote-"));
+  const bare = realpathSync.native(mkdtempSync(join(tmpdir(), "session-packet-remote-")));
   await git(bare, "init", "--bare", "-b", "main");
   await git(root, "remote", "add", "origin", bare);
   await git(root, "push", "-q", "-u", "origin", "main");
@@ -53,7 +53,7 @@ export async function makeRemote(root: string): Promise<string> {
 
 /** A second working clone of `bare`, standing in for another machine. */
 export async function cloneRepo(bare: string): Promise<string> {
-  const root = join(mkdtempSync(join(tmpdir(), "session-packet-clone-")), "clone");
+  const root = join(realpathSync.native(mkdtempSync(join(tmpdir(), "session-packet-clone-"))), "clone");
   await git(tmpdir(), "clone", "-q", bare, root);
   await git(root, "config", "user.email", "test@example.com");
   await git(root, "config", "user.name", "Test");
