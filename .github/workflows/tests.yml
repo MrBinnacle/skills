@@ -518,6 +518,18 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::install-path suite emitted no PASS line - it did not run"; exit 1; }
 
+      # #464: after a bump merges, refresh_install_receipt.py rewrites the README
+      # receipt to cite the first passing main run at the new version. This suite
+      # feeds it fake runs, including a failed run at the target version that it
+      # must skip, and pins that every shell-form receipt site moves together.
+      - name: Install receipt refresh suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_refresh_install_receipt.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::install-receipt suite emitted no PASS line - it did not run"; exit 1; }
+
       - name: Install-path check
         run: |
           set -euo pipefail

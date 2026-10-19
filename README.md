@@ -46,7 +46,7 @@ Verified forms, Claude Code 2.1.287, from a clean `CLAUDE_CONFIG_DIR` with no SS
 
 - interactive `/plugin marketplace add https://github.com/MrBinnacle/skills.git` (2026-10-02)
 - shell `claude plugin marketplace add https://github.com/MrBinnacle/skills.git` (CI, 2026-10-17)
-- shell `claude plugin install` of all three plugins, at 3.1.0 (CI run 39073914809, 2026-10-17)
+- shell `claude plugin install` of all three plugins, at 3.1.0 (CI run 39075732554, 2026-10-17)
 
 The 2026-10-02 cold-install transcript is in the pull request that changed this section (#340). The 2026-10-17 shell forms ran in the `Install form` CI job on Ubuntu and Windows.
 
