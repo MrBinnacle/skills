@@ -1,0 +1,10 @@
+{
+  "skill_harness_version": "0.3.0",
+  "calibrated_on": "2026-10-19",
+  "cards": {
+    "standing-cost-date-drift-card": {
+      "standing_cost_tokens": 29,
+      "skill_md_sha256": "8a02129067003b74b80ca87cea9f30c01002b4396a80e6d921c0cfd4ca4ffb3c"
+    }
+  }
+}

@@ -18,6 +18,7 @@ import json
 import re
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -99,7 +100,7 @@ def refresh(root: Path) -> None:
     out = root / "scripts" / "standing-costs.json"
     snapshot = {
         "skill_harness_version": PINNED_HARNESS_VERSION,
-        "calibrated_on": "2026-09-22",
+        "calibrated_on": date.today().isoformat(),
         "cards": data,
     }
     out.write_text(json.dumps(snapshot, indent=2) + "\n", encoding="utf-8", newline="")
