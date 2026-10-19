@@ -480,6 +480,20 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::README admission-lead suite emitted no PASS line - it did not run"; exit 1; }
 
+      # skills.sh still lists the names the v2.0.0 rename retired, and an
+      # install command with one of them finds nothing (#474). This suite
+      # reads the rename table from CHANGELOG.md and requires RETIRED.md to
+      # map each old name to a card directory that exists. No network.
+      - name: Renamed-cards suite
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_renamed_cards.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::renamed-cards suite emitted no PASS line - it did not run"; exit 1; }
+
       # The standing-cost check: each card's EVIDENCE.md states a calibrated
       # token count for its description; this verifies it matches the
       # skill-harness audit (or the committed standing-costs.json when
