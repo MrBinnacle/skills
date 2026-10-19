@@ -17,10 +17,6 @@ function textuallyUnder(root: string, path: string): boolean {
   return rel !== "" ? !rel.startsWith("..") && !isAbsolute(rel) : true;
 }
 
-/**
- * The real spelling of an absolute path. A path that does not exist yet keeps its missing
- * tail, appended to the real spelling of its nearest existing ancestor.
- */
 function realSpelling(path: string): string {
   try {
     return realpathSync.native(path);
@@ -33,8 +29,7 @@ function realSpelling(path: string): string {
 /**
  * True when `path` (absolute or relative to `root`) lies under `root`, compared both as
  * written and by real spelling. Windows spells one directory as a long name or an 8.3 short
- * name, so a cwd and a tool's path can disagree as text (#487). The text comparison stays so
- * a symlink inside the root that points outside it is still tracked.
+ * name, so a cwd and a tool's path can disagree as text.
  */
 export function underRoot(root: string, path: string): boolean {
   const base = resolve(root);

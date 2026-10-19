@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createGate, underRoot } from "./gate";
@@ -101,8 +101,6 @@ describe("verification gate", () => {
     expect(underRoot("/r/p", "../q")).toBe(false);
   });
 
-  // Windows spells one directory two ways: the long name and the 8.3 short name.
-  // A root in one spelling must still contain a path in the other.
   const win = process.platform === "win32";
 
   function shortSpelling(dir: string): string {
@@ -138,5 +136,18 @@ describe("verification gate", () => {
       expect(underRoot(short, join(long, "new", "dir", "b.ts"))).toBe(true);
       expect(underRoot(long, join(short, "new", "dir", "b.ts"))).toBe(true);
     });
+  });
+
+  test("underRoot still counts a file reached through a link inside the root that points outside it", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "verify-gate-link-"));
+    try {
+      const root = join(tmp, "repo");
+      mkdirSync(root);
+      mkdirSync(join(tmp, "outside"));
+      symlinkSync(join(tmp, "outside"), join(root, "linked"), "junction");
+      expect(underRoot(root, join(root, "linked", "x.ts"))).toBe(true);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
