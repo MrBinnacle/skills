@@ -830,7 +830,7 @@ jobs:
             || { echo "::error::inline-quotation fixture failed for the wrong reason"; cat "$log"; exit 1; }
           echo "control: inline italic quotation rejected as expected"
 
-      # SECURITY.md's "Standing obligations" section (`conformance v4`) states what
+      # SECURITY.md's "Standing obligations" section (`conformance v5`) states what
       # a card owes for as long as it stays published. These steps are the check
       # behind that section. The weekly conformance-schedule.yml runs the same two
       # commands on a clock; this job runs them at merge time, where they are cheap.
@@ -890,13 +890,22 @@ jobs:
             exit 1
           fi
           echo "control: scope-line drift ran against the skill-harness checkout"
+          # #470: the pinned UNMEASURED sub-reasons must equal the harness enum
+          # at this same commit, and that case must have RUN.
+          echo "$out" | grep -q '^ok   pinned sub-reasons equal skill-harness UnmeasuredSubReason' \
+            || { echo "::error::the sub-reason drift case did not run against the harness checkout"; exit 1; }
+          if echo "$out" | grep -q 'sub-reason drift skipped'; then
+            echo "::error::the sub-reason drift case skipped despite SKILL_HARNESS_ROOT"
+            exit 1
+          fi
+          echo "control: sub-reason drift ran against the skill-harness checkout"
 
       - name: Standing obligations sweep
         run: |
           set -euo pipefail
           out="$(python scripts/validate_conformance.py)" || { echo "$out"; exit 1; }
           echo "$out"
-          echo "$out" | grep -q '^PASS: conformance v4' \
+          echo "$out" | grep -q '^PASS: conformance v5' \
             || { echo "::error::conformance sweep emitted no PASS line - it did not run"; exit 1; }
 
       # A sweep that cannot fail guards nothing. This is the historical breach

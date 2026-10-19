@@ -51,7 +51,7 @@ A screen is not due merely because a model was released. A release that changes 
 
 - `NO CHANGE` — the rule was tested against the named surface and held. Requires the evidence, not an assertion that nothing looked different.
 - `REVISE` — the rule was tested and did not hold. Names what failed and what replaces it.
-- `UNMEASURED` — no test surface existed, or the test could not run. Names the search that established that, and what would close it. This is a typed refusal and it is a legitimate outcome. A screen consisting entirely of `UNMEASURED` rows is an honest screen.
+- `UNMEASURED` — no test surface existed, or the test could not run. Names the search that established that, and what would close it. This is a typed refusal and it is a legitimate outcome. A screen consisting entirely of `UNMEASURED` rows is an honest screen. This disposition belongs to a rule and is this file's own word. A card's evidence rows use the `skill-harness` form instead, `UNMEASURED (<sub_reason>)`, which [`CATALOG.md`](../CATALOG.md#evidence-records) defines.
 
 **Record.** One dated section per screen, appended below. Never rewritten — a screen is a record of what was found on a date, and editing it destroys the only property it has. A correction is a new entry naming the earlier one.
 

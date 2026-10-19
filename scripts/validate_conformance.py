@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the standing obligations (`conformance v4`) against the published tree.
+"""Run the standing obligations (`conformance v5`) against the published tree.
 
 SECURITY.md declares eight standing obligations a published card owes for as long
 as it stays published. This script is the driver behind that section. It reports
@@ -66,7 +66,7 @@ PASS: Final[str] = "PASS"
 FAIL: Final[str] = "FAIL"
 CANT: Final[str] = "CANNOT-CHECK"
 
-CONFORMANCE_VERSION: Final[str] = "conformance v4"
+CONFORMANCE_VERSION: Final[str] = "conformance v5"
 
 # The SECURITY.md section states this date as the trial's pre-registered exit.
 # It is asserted equal by the suite so the workflow header, the policy section
@@ -91,7 +91,7 @@ REPO = "repo"
 # harness _scope_line when SKILL_HARNESS_ROOT names a checkout and skips with
 # a named reason when it does not. One word of a constant is a red drift, not
 # a style preference: the constant is what the row must state.
-SCOPE_NO_RECEIPT: Final[str] = "UNMEASURED — no receipt."
+SCOPE_NO_RECEIPT_FMT: Final[str] = "UNMEASURED ({sub_reason}) — no receipt."
 SCOPE_NOT_DEMONSTRATED_FMT: Final[str] = (
     "NOT DEMONSTRATED — receipt verdict {verdict}; no effect is shown."
 )
@@ -136,6 +136,41 @@ SCOPE_LINE_TEMPLATE: Final[str] = (
 SCOPE_LINE_CARRIED_TEMPLATE: Final[str] = (
     "demonstrated on {model}; carried forward to {current_model} "
     "under the sentinel rule; not re-validated on {current_model}."
+)
+
+# --- UNMEASURED sub-reasons (#470) ------------------------------------------
+#
+# skill-harness never writes a bare UNMEASURED. It always carries one value of
+# the closed enum UnmeasuredSubReason (src/skill_harness/aggregation/status.py),
+# and a card's Screen result, Paired verdict and Evidence scope rows reuse that
+# vocabulary as `UNMEASURED (<sub_reason>)`, spelled as the enum spells it.
+# This tuple is the enum's values, in enum order, at the skill-harness commit
+# tests.yml pins as SKILL_HARNESS_REF. The drift case in
+# test_validate_conformance.py compares it with the enum itself when
+# SKILL_HARNESS_ROOT names a checkout.
+UNMEASURED_SUB_REASONS: Final[tuple[str, ...]] = (
+    "no_data",
+    "inadmissible",
+    "underpowered",
+    "falsifying_case_missing",
+    "budget_exhausted",
+    "falsifying_case_stale",
+    "fdr_correction_failed",
+    "mechanical_vacuous",
+    "tier2_uncalibrated",
+    "external_check_missing",
+    "length_confounded",
+    "HAZARD_NOT_MET",
+)
+UNMEASURED_ROWS: Final[tuple[str, ...]] = (
+    *scoreboard.CONTROLLED_FIELDS,
+    EVIDENCE_SCOPE_ROW,
+)
+UNMEASURED_QUALIFIED_RE: Final[re.Pattern[str]] = re.compile(
+    r"UNMEASURED \(([^)]*)\)"
+)
+SCOPE_NO_RECEIPT_RE: Final[re.Pattern[str]] = re.compile(
+    re.escape(SCOPE_NO_RECEIPT_FMT).replace(re.escape("{sub_reason}"), "([^)]*)")
 )
 
 
@@ -300,7 +335,8 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
     comparison itself: the measurement sibling's evidence store is private and
     single-copy, so there is nothing here to compare a controlled field against.
     The Evidence-scope row is checked in both modes when its expected sentence
-    is derivable -- the no-receipt case needs no harness (#354).
+    is derivable -- the no-receipt case needs no harness (#354). So is the
+    sub-reason every UNMEASURED row carries (#470).
 
     With --harness-root, reads the receipt file the card's controlled row links
     in its Receipt clause and fails on four conditions:
@@ -323,7 +359,9 @@ def check_receipt_agreement(card: Card, harness_root: Path | None = None) -> Res
     sentence is a breach this run can see, and reporting CANT while the card
     contradicts its own receipts would bury the finding.
     """
-    scope_breaches = evidence_scope_breaches(card, harness_root)
+    scope_breaches = evidence_scope_breaches(card, harness_root) + unmeasured_breaches(
+        card
+    )
 
     if harness_root is None:
         if scope_breaches:
@@ -537,7 +575,11 @@ def _string_field(node: object, key: str, default: str) -> str:
 def expected_evidence_scope(receipts: list[dict]) -> str:
     """Derive the Evidence scope row from the card's linked receipts.
 
-    Closed set (#353, R1): no receipt -> UNMEASURED; a KEEP receipt without a
+    The caller passes at least one receipt. The no-receipt row carries the
+    card's own sub-reason, which no receipt can supply, so
+    no_receipt_scope_breaches checks that case instead.
+
+    Closed set (#353, R1): a KEEP receipt without a
     usable verdict_scope object -> UNSCOPED; a KEEP receipt with a
     verdict_scope object -> skill-harness's scope line (standard form, or the
     carried-forward form when currentness.state == "CARRIED_FORWARD"); any
@@ -559,8 +601,6 @@ def expected_evidence_scope(receipts: list[dict]) -> str:
     the row describes what a linked receipt SHOWS, and a currency gate that
     retires a receipt from disposal does not erase its verdict.
     """
-    if not receipts:
-        return SCOPE_NO_RECEIPT
     keeps = [
         r for r in receipts if str(r.get("verdict") or "").strip().upper() == "KEEP"
     ]
@@ -669,8 +709,8 @@ def evidence_scope_breaches(card: Card, harness_root: Path | None) -> list[str]:
     """The card's Evidence scope row must equal what its receipts show.
 
     The no-receipt case is checked even without --harness-root: no Receipt
-    clause means the expected sentence is UNMEASURED — no receipt., which this
-    repository can derive from the card alone. O5 used to return CANNOT-CHECK
+    clause means the expected sentence is SCOPE_NO_RECEIPT_FMT with a known
+    sub-reason, which this repository can check from the card alone. O5 used to return CANNOT-CHECK
     for that case by construction; #354 closes it. A card whose controlled
     fields name a receipt this run cannot load is left to the receipt check
     rather than failed here -- the scope sentence depends on every linked file,
@@ -684,18 +724,91 @@ def evidence_scope_breaches(card: Card, harness_root: Path | None) -> list[str]:
     linked, unresolvable = _linked_receipt_dicts(card, harness_root)
     if unresolvable:
         return []
-    expected = expected_evidence_scope(linked)
     if not stated:
         return [
             f"{card.name}: EVIDENCE.md states no {EVIDENCE_SCOPE_ROW} row "
             "(an empty row is the same refusal: the card has not said)"
         ]
+    if not linked:
+        return no_receipt_scope_breaches(card.name, stated)
+    expected = expected_evidence_scope(linked)
     if stated != expected:
         return [
             f"{card.name}: {EVIDENCE_SCOPE_ROW} is {stated!r} but the card's "
             f"linked receipt(s) show {expected!r}"
         ]
     return []
+
+
+def unmeasured_sub_reason(value: str) -> str | None:
+    """The sub-reason a row's opening UNMEASURED carries.
+
+    None when the row does not open with UNMEASURED, and "" when it opens with
+    a bare one. The opening uses the scoreboard's startswith rule, so a row the
+    scoreboard counts as UNMEASURED is never skipped here.
+    """
+    opening = value.lstrip("* `_")
+    if not opening.upper().startswith(scoreboard.UNMEASURED_VERDICTS):
+        return None
+    match = UNMEASURED_QUALIFIED_RE.match(opening)
+    return match.group(1) if match else ""
+
+
+def _sub_reason_breach(card_name: str, row: str, sub_reason: str) -> str | None:
+    if not sub_reason:
+        return (
+            f"{card_name}: {row} writes a bare UNMEASURED; skill-harness "
+            "requires UNMEASURED (<sub_reason>) from UnmeasuredSubReason"
+        )
+    if sub_reason not in UNMEASURED_SUB_REASONS:
+        return (
+            f"{card_name}: {row} names sub-reason {ascii(sub_reason)}, which "
+            "skill-harness's UnmeasuredSubReason does not define: "
+            + ", ".join(UNMEASURED_SUB_REASONS)
+        )
+    return None
+
+
+def no_receipt_scope_breaches(card_name: str, stated: str) -> list[str]:
+    """A card with no linked receipt states SCOPE_NO_RECEIPT_FMT, qualified."""
+    match = SCOPE_NO_RECEIPT_RE.fullmatch(stated)
+    if match is None:
+        return [
+            f"{card_name}: {EVIDENCE_SCOPE_ROW} is {ascii(stated)} but a card "
+            f"with no linked receipt states {ascii(SCOPE_NO_RECEIPT_FMT)}"
+        ]
+    breach = _sub_reason_breach(card_name, EVIDENCE_SCOPE_ROW, match.group(1))
+    return [breach] if breach else []
+
+
+def unmeasured_breaches(card: Card) -> list[str]:
+    """Every UNMEASURED controlled field carries a known sub-reason (#470).
+
+    The Evidence scope row's own shape is no_receipt_scope_breaches's job.
+    This also refuses a card whose UNMEASURED rows name different
+    sub-reasons: the three rows describe one card's one state.
+    """
+    evidence = card.folder / "EVIDENCE.md"
+    if not evidence.exists():
+        return []
+    rows = scoreboard.evidence_fields(evidence, UNMEASURED_ROWS)
+    breaches: list[str] = []
+    named: dict[str, str] = {}
+    for row in UNMEASURED_ROWS:
+        sub_reason = unmeasured_sub_reason(rows.get(row, ""))
+        if sub_reason is None:
+            continue
+        breach = _sub_reason_breach(card.name, row, sub_reason)
+        if breach is None:
+            named[row] = sub_reason
+        elif row != EVIDENCE_SCOPE_ROW:
+            breaches.append(breach)
+    if len(set(named.values())) > 1:
+        breaches.append(
+            f"{card.name}: UNMEASURED rows name different sub-reasons: "
+            + ", ".join(f"{row}={value}" for row, value in named.items())
+        )
+    return breaches
 
 
 CARD_CHECKS = {
