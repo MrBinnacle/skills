@@ -94,7 +94,7 @@ You would not ship code that runs on every request without tests. A skill runs i
 - **An evidence record** (`EVIDENCE.md`): the real failure it came from, and what has been measured. So you know why it is there.
 - **A retirement condition**: the change that would make it unnecessary. So you know when to take it out.
 
-Controlled tests, with and without each skill, run in [skill-harness](https://github.com/MrBinnacle/skill-harness). The first, on `pull-rebase`, completed on 2026-09-03 and returned `CANT_TELL_YET`: the failure did not occur in either arm, so the run could not tell whether the skill helps. No second run is funded yet. The [evidence record](skills/engineering/pull-rebase/EVIDENCE.md) has the details. No skill claims a measured benefit yet.
+Controlled tests, with and without each skill, run in [skill-harness](https://github.com/MrBinnacle/skill-harness). The first, on `pull-rebase`, completed on 2026-09-03 and returned `CANT_TELL_YET`: the failure did not occur in either arm, so the run could not tell whether the skill helps. Two later reads left the verdict at `CANT_TELL_YET`. On 2026-09-21, screens without the skill ran 8 times on each of two models and never reached the trap, so the task did not qualify. On 2026-10-02, a run that compared the skill, a placebo skill and no skill stopped at its cap of 97 looks with neither a pass nor a cut. The [evidence record](skills/engineering/pull-rebase/EVIDENCE.md) has the details. No skill claims a measured benefit yet.
 
 ## How skills get in and out
 

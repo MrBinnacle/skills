@@ -224,7 +224,56 @@ def case_public_copy_avoids_banned_vocabulary() -> None:
         check(f"{label} contains no banned vocabulary", not banned, str(sorted(set(banned))))
 
 
+def case_controlled_tests_paragraph_names_the_latest_read() -> None:
+    """The README's controlled-tests paragraph keeps up with the paired record.
+
+    On 2026-10-19 (#469) the paragraph still said "No second run is funded yet."
+    while the card's Paired verdict row held two later reads, the latest dated
+    2026-10-02. The verdict and the latest date are derived from that row, so a
+    new read reopens this case without an edit here.
+    """
+    paragraph = next(
+        (
+            block
+            for block in README.read_text(encoding="utf-8").split("\n\n")
+            if block.startswith("Controlled tests,")
+        ),
+        "",
+    )
+    evidence = ROOT / "skills" / "engineering" / "pull-rebase" / "EVIDENCE.md"
+    row = scoreboard.evidence_fields(evidence, ("Paired verdict",)).get("Paired verdict", "")
+    verdict = re.match(r"[A-Z_]+", row.lstrip("* `_"))
+    # Only the dates that open a read. The row also carries rotation and
+    # currency-gate stamps ("checked 2026-09-30"), which are not reads.
+    latest = max(
+        re.findall(r"(?:ran on|readout,|dated|measured) (\d{4}-\d{2}-\d{2})", row),
+        default="",
+    )
+    check(
+        "the controlled-tests paragraph names the paired verdict",
+        verdict is not None and f"`{verdict.group(0)}`" in paragraph,
+        f"verdict {verdict.group(0) if verdict else None!r}; paragraph {paragraph!r}",
+    )
+    check(
+        "the controlled-tests paragraph names the latest paired read",
+        bool(latest) and latest in paragraph,
+        f"latest read {latest!r}; paragraph {paragraph!r}",
+    )
+    denial = re.search(r"No (?:second|later|further) (?:run|read)[^.]*\.", paragraph)
+    check(
+        "the controlled-tests paragraph denies no read the record holds",
+        denial is None,
+        denial.group(0) if denial else "",
+    )
+    check(
+        "the controlled-tests paragraph claims no measured benefit",
+        "No skill claims a measured benefit yet." in paragraph,
+        paragraph,
+    )
+
+
 def main() -> None:
+    case_controlled_tests_paragraph_names_the_latest_read()
     case_admission_method_leads()
     case_three_instruments_are_referenced()
     case_card_map_names_four_types()
