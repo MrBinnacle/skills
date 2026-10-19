@@ -70,6 +70,23 @@ SESSION-PACKET-V1 -->
 - `skills_dispatched.source` states whether telemetry or model recall supplied the list.
 - The receiver accepts or rejects the packet with an explicit receipt.
 
+## Optional fields
+
+A producer may add two keys to the manifest. The scripts in this package
+neither write nor check them, and a manifest without them is complete.
+
+- `previous_packet_id`: the `packet_id` of the newest stored packet when this
+  packet was closed, or `null` for the first packet. It links packets into a
+  chain. Two packets with the same `previous_packet_id` are two heads. A
+  receiver that supports the chain reports both and keeps both.
+- `parked`: an array of `{"kind", "ref", "reason"}` entries, one for each
+  piece of work set aside. `kind` is `branch-exists`, `remote-branch-exists`,
+  `stash-exists` or `worktree-exists`. `ref` is a branch name, a branch name on
+  `origin`, a stash commit SHA, or a path relative to the repository root. A
+  stash is recorded by SHA and never as `stash@{n}`, because that index
+  renumbers. A receiver that supports `parked` probes every entry and rejects
+  the packet when one no longer holds.
+
 ## Receipt
 
 The receiver prints one JSON receipt: `verdict` (`ACCEPTED` or `REJECTED`),
