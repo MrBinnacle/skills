@@ -11,9 +11,10 @@ The rule this suite enforces, per workflow step that acquires skill-harness:
 
 - a `pip install` names a released version with `==`, and that version equals
   PINNED_HARNESS_VERSION in validate_standing_costs.py;
-- a git acquisition never uses `git clone` (it checks out the default branch).
-  The step declares SKILL_HARNESS_REF as a full 40-hex commit SHA and fetches
-  exactly "$SKILL_HARNESS_REF".
+- a git acquisition never clones (`git clone` and `gh repo clone` check out
+  the default branch). An actions/checkout of the harness carries a full
+  40-hex `ref:`. A fetch step declares SKILL_HARNESS_REF as a full 40-hex
+  commit SHA, and every fetch of the harness fetches "$SKILL_HARNESS_REF".
 
 The SHA form is the interim. `_scope_line`, which the drift step compares
 against, is in no skill-harness release yet; 0.3.0 predates it. When a release
@@ -38,11 +39,16 @@ from validate_standing_costs import PINNED_HARNESS_VERSION  # noqa: E402
 
 FAILURES: list[str] = []
 
-STEP_SPLIT_RE = re.compile(r"(?m)^\s*- (?=name:|uses:)")
-HARNESS_GIT_RE = re.compile(r"github\.com[/:]MrBinnacle/skill-harness\b")
-HARNESS_PIP_RE = re.compile(r"pip install[^\n]*?\bskill-harness\b(==(\S+))?")
+STEP_SPLIT_RE = re.compile(r"(?m)^\s*- (?=name:|uses:|run:)")
+# The repository named as a git URL, a `gh repo clone` argument or an
+# actions/checkout `repository:` input. GitHub owner names ignore case.
+HARNESS_REPO_RE = re.compile(r"(?i)(?:github\.com[/:]|repository:\s*|gh repo clone\s+)MrBinnacle/skill-harness\b")
+HARNESS_PIP_RE = re.compile(r"(?i)pip install[^\n]*?\bskill[-_]harness\b(==(\S+))?")
+CLONE_RE = re.compile(r"(?i)(?:git\b[^\n]*\bclone|gh repo clone)\b[^\n]*skill-harness")
+HARNESS_FETCH_RE = re.compile(r"(?i)git\b[^\n]*\bfetch\b[^\n]*skill-harness[^\n]*")
+CHECKOUT_REPO_RE = re.compile(r"(?i)repository:\s*MrBinnacle/skill-harness\b")
+CHECKOUT_REF_RE = re.compile(r"(?m)^\s*ref:\s*(\S+)\s*$")
 REF_DECL_RE = re.compile(r"(?m)^\s*SKILL_HARNESS_REF:\s*(\S+)\s*$")
-REF_FETCH_RE = re.compile(r'git\b[^\n]*\bfetch\b[^\n]*"\$SKILL_HARNESS_REF"')
 FULL_SHA_RE = re.compile(r"[0-9a-f]{40}")
 
 
@@ -63,28 +69,51 @@ def harness_pin_violations(workflow: str, pinned_version: str) -> tuple[int, lis
     for step in STEP_SPLIT_RE.split(code):
         name = step.splitlines()[0].strip() if step.strip() else "?"
         pips = list(HARNESS_PIP_RE.finditer(step))
-        git = HARNESS_GIT_RE.search(step)
+        git = HARNESS_REPO_RE.search(step)
         if not pips and not git:
             continue
         acquiring += 1
-        for pip in pips:
-            if pip.group(2) is None:
-                violations.append(f"{name}: pip installs skill-harness with no == version")
-            elif pip.group(2) != pinned_version:
-                violations.append(
-                    f"{name}: pip installs skill-harness=={pip.group(2)}, "
-                    f"PINNED_HARNESS_VERSION is {pinned_version}"
-                )
-        if not git:
-            continue
-        if re.search(r"git\b[^\n]*\bclone\b[^\n]*skill-harness", step):
-            violations.append(f"{name}: git clone checks out the skill-harness default branch")
+        violations.extend(f"{name}: {v}" for v in _pip_violations(pips, pinned_version))
+        if git:
+            violations.extend(f"{name}: {v}" for v in _git_violations(step))
+    return acquiring, violations
+
+
+def _pip_violations(pips: list[re.Match[str]], pinned_version: str) -> list[str]:
+    found = []
+    for pip in pips:
+        if pip.group(2) is None:
+            found.append("pip installs skill-harness with no == version")
+        elif pip.group(2) != pinned_version:
+            found.append(
+                f"pip installs skill-harness=={pip.group(2)}, "
+                f"PINNED_HARNESS_VERSION is {pinned_version}"
+            )
+    return found
+
+
+def _git_violations(step: str) -> list[str]:
+    """A git acquisition is pinned only to a full SHA, through every path."""
+    found = []
+    if CLONE_RE.search(step):
+        found.append("a clone checks out the skill-harness default branch")
+    if CHECKOUT_REPO_RE.search(step):
+        ref = CHECKOUT_REF_RE.search(step)
+        if ref is None or not FULL_SHA_RE.fullmatch(ref.group(1)):
+            found.append("actions/checkout of skill-harness has no full-SHA ref")
+    fetches = HARNESS_FETCH_RE.findall(step)
+    if fetches or not (CLONE_RE.search(step) or CHECKOUT_REPO_RE.search(step)):
         ref = REF_DECL_RE.search(step)
         if ref is None or not FULL_SHA_RE.fullmatch(ref.group(1)):
-            violations.append(f"{name}: SKILL_HARNESS_REF is not declared as a full commit SHA")
-        if not REF_FETCH_RE.search(step):
-            violations.append(f'{name}: no git fetch of "$SKILL_HARNESS_REF"')
-    return acquiring, violations
+            found.append("SKILL_HARNESS_REF is not declared as a full commit SHA")
+        if not fetches:
+            found.append('no git fetch of "$SKILL_HARNESS_REF"')
+        found.extend(
+            f"a fetch does not use the pin: {f.strip()}"
+            for f in fetches
+            if not f.rstrip().endswith('"$SKILL_HARNESS_REF"')
+        )
+    return found
 
 
 SHA = "0123456789abcdef0123456789abcdef01234567"
@@ -101,12 +130,35 @@ FIXTURES: list[tuple[str, str, int]] = [
         "the pre-#468 unpinned clone",
         "      - name: drift\n        run: |\n"
         "          git clone --depth 1 https://github.com/MrBinnacle/skill-harness.git \"$d\"\n",
-        3,
+        1,
+    ),
+    (
+        "a clone with a lower-case owner",
+        "      - run: git clone https://github.com/mrbinnacle/skill-harness \"$d\"\n",
+        1,
+    ),
+    ("a gh repo clone", "      - run: gh repo clone MrBinnacle/skill-harness \"$d\"\n", 1),
+    (
+        "actions/checkout with no ref",
+        "      - uses: actions/checkout@v4\n        with:\n          repository: MrBinnacle/skill-harness\n",
+        1,
+    ),
+    (
+        "actions/checkout at a full SHA",
+        f"      - uses: actions/checkout@v4\n        with:\n          repository: MrBinnacle/skill-harness\n          ref: {SHA}\n",
+        0,
+    ),
+    (
+        "a pinned fetch followed by a branch fetch",
+        PINNED_STEP
+        + "          git -C \"$d\" fetch --depth 1 https://github.com/MrBinnacle/skill-harness.git main\n",
+        1,
     ),
     ("a branch name as the ref", PINNED_STEP.replace(SHA, "main"), 1),
     ("a short SHA as the ref", PINNED_STEP.replace(SHA, SHA[:12]), 1),
     ("a declared ref that is never fetched", PINNED_STEP.replace('"$SKILL_HARNESS_REF"', "main"), 1),
     ("an unversioned pip install", "      - name: i\n        run: pip install skill-harness\n", 1),
+    ("an unversioned install, underscore spelling", "      - run: pip install skill_harness\n", 1),
     ("a released version that disagrees", "      - name: i\n        run: pip install skill-harness==0.0.1\n", 1),
     ("a full-SHA fetch", PINNED_STEP, 0),
     ("a comment that quotes an install", "      # then pip install skill-harness\n" + PINNED_STEP, 0),
@@ -143,7 +195,7 @@ def case_suite_is_wired_into_tests_yml() -> None:
     text = (WORKFLOWS / "tests.yml").read_text(encoding="utf-8")
     check(
         "tests.yml runs this suite and requires its PASS line",
-        bool(re.search(r"test_harness_pin\.py.*\n(?:.*\n){0,5}.*\^PASS:", text)),
+        bool(re.search(r"\$\(python scripts/test_harness_pin\.py\)\".*\n(?:.*\n){0,5}.*\^PASS:", text)),
         "no invocation followed by a PASS-line grep",
     )
 
