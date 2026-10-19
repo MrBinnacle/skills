@@ -1,0 +1,162 @@
+{
+  "skill_name": "linear-power-user",
+  "note": "Structural contract only; no model run or score is claimed. Use mocked tools or an isolated workspace, never disposable production objects.",
+  "cases": [
+    {
+      "id": 1,
+      "input": "multi-workstream project",
+      "expected_tool_sequence": "Discover duplicates; model outcome and acceptance; plan before broad writes; create justified workstreams and milestones; read back all links.",
+      "postconditions": "No duplicate; verified relationships; no invented owners/dates/dependencies.",
+      "mutations": "Only as explicitly authorized and justified by the case.",
+      "failure_conditions": [
+        "Invented IDs or relationships",
+        "Mutation before required discovery",
+        "False success claim",
+        "Unrelated fields changed"
+      ]
+    },
+    {
+      "id": 2,
+      "input": "small project",
+      "expected_tool_sequence": "Choose issue or project based on coordination needs; omit initiative/milestones absent justification.",
+      "postconditions": "Smallest useful structure; no unnecessary hierarchy.",
+      "mutations": "Only as explicitly authorized and justified by the case.",
+      "failure_conditions": [
+        "Invented IDs or relationships",
+        "Mutation before required discovery",
+        "False success claim",
+        "Unrelated fields changed"
+      ]
+    },
+    {
+      "id": 3,
+      "input": "restructure existing",
+      "expected_tool_sequence": "Read project and children; compare before/after; reuse issues; preserve relationships; verify.",
+      "postconditions": "No duplicate issues; unrelated fields preserved.",
+      "mutations": "Only as explicitly authorized and justified by the case.",
+      "failure_conditions": [
+        "Invented IDs or relationships",
+        "Mutation before required discovery",
+        "False success claim",
+        "Unrelated fields changed"
+      ]
+    },
+    {
+      "id": 4,
+      "input": "vague feature request",
+      "expected_tool_sequence": "Search first; create scoped discovery issue only if next action and decision output are clear; otherwise ask one question.",
+      "postconditions": "No invented product intent, KPI, owner or date.",
+      "mutations": "Only as explicitly authorized and justified by the case.",
+      "failure_conditions": [
+        "Invented IDs or relationships",
+        "Mutation before required discovery",
+        "False success claim",
+        "Unrelated fields changed"
+      ]
+    },
+    {
+      "id": 5,
+      "input": "missing dependencies and acceptance",
+      "expected_tool_sequence": "Inspect issues and relations; distinguish evidence from candidates; report gaps before mutation.",
+      "postconditions": "No speculative blocking edges; missing criteria surfaced.",
+      "mutations": "Only as explicitly authorized and justified by the case.",
+      "failure_conditions": [
+        "Invented IDs or relationships",
+        "Mutation before required discovery",
+        "False success claim",
+        "Unrelated fields changed"
+      ]
+    },
+    {
+      "id": 6,
+      "input": "summary-only update",
+      "expected_tool_sequence": "Read current project; inspect patch semantics; update only summary; read back.",
+      "postconditions": "Summary changed; unrelated fields unchanged.",
+      "mutations": "Only as explicitly authorized and justified by the case.",
+      "failure_conditions": [
+        "Invented IDs or relationships",
+        "Mutation before required discovery",
+        "False success claim",
+        "Unrelated fields changed"
+      ]
+    },
+    {
+      "id": 7,
+      "input": "invalid status or label",
+      "expected_tool_sequence": "Resolve issue team, team statuses and correct label class; do not invent missing references.",
+      "postconditions": "No invalid references or unintended label replacement.",
+      "mutations": "Only as explicitly authorized and justified by the case.",
+      "failure_conditions": [
+        "Invented IDs or relationships",
+        "Mutation before required discovery",
+        "False success claim",
+        "Unrelated fields changed"
+      ]
+    },
+    {
+      "id": 8,
+      "input": "failed prerequisite",
+      "expected_tool_sequence": "Stop dependent writes; inspect possible partial result; report failure.",
+      "postconditions": "No dangling children; no false success claim.",
+      "mutations": "Only as explicitly authorized and justified by the case.",
+      "failure_conditions": [
+        "Invented IDs or relationships",
+        "Mutation before required discovery",
+        "False success claim",
+        "Unrelated fields changed"
+      ]
+    },
+    {
+      "id": 9,
+      "input": "verify created project",
+      "expected_tool_sequence": "Read project and child objects after writes; check teams, initiative, milestones and issue membership.",
+      "postconditions": "Every relationship verified or explicitly marked unknown.",
+      "mutations": "Only as explicitly authorized and justified by the case.",
+      "failure_conditions": [
+        "Invented IDs or relationships",
+        "Mutation before required discovery",
+        "False success claim",
+        "Unrelated fields changed"
+      ]
+    },
+    {
+      "id": 10,
+      "input": "missing evidence interpreted as complete/non-use",
+      "expected_tool_sequence": "Inspect available evidence and coverage; report unknowns rather than inferring completion or non-use.",
+      "postconditions": "No unsupported absence or completion claim.",
+      "mutations": "Only as explicitly authorized and justified by the case.",
+      "failure_conditions": [
+        "Invented IDs or relationships",
+        "Mutation before required discovery",
+        "False success claim",
+        "Unrelated fields changed"
+      ]
+    },
+    {
+      "id": 11,
+      "input": "unnecessary configuration",
+      "expected_tool_sequence": "Inspect existing status/label conventions and actual usage; recommend no change if sufficient.",
+      "postconditions": "No decorative configuration churn.",
+      "mutations": "Only as explicitly authorized and justified by the case.",
+      "failure_conditions": [
+        "Invented IDs or relationships",
+        "Mutation before required discovery",
+        "False success claim",
+        "Unrelated fields changed"
+      ]
+    },
+    {
+      "id": 12,
+      "input": "consequential ambiguity",
+      "expected_tool_sequence": "Inspect teams and initiatives; present a proposed model and ask one focused question before mutation.",
+      "postconditions": "No guessed owner/team/initiative; no broad questionnaire.",
+      "mutations": "Only as explicitly authorized and justified by the case.",
+      "failure_conditions": [
+        "Invented IDs or relationships",
+        "Mutation before required discovery",
+        "False success claim",
+        "Unrelated fields changed"
+      ]
+    }
+  ]
+}
