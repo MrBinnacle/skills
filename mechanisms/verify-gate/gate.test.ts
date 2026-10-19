@@ -101,6 +101,12 @@ describe("verification gate", () => {
     expect(underRoot("/r/p", "../q")).toBe(false);
   });
 
+  test("underRoot counts a child directory whose name starts with two dots as inside", () => {
+    expect(underRoot("/r/p", "/r/p/..foo/a.ts")).toBe(true);
+    expect(underRoot("/r/p", "..foo/a.ts")).toBe(true);
+    expect(underRoot("/r/p", "/r/p/..")).toBe(false);
+  });
+
   const win = process.platform === "win32";
 
   function shortSpelling(dir: string): string {
