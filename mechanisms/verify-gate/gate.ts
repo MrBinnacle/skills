@@ -1,5 +1,5 @@
 import { realpathSync } from "node:fs";
-import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fusionReceipt } from "./fusion";
 
 export type RunOutcome = "completed" | "aborted" | "error";
@@ -14,7 +14,7 @@ export interface Gate {
 
 function textuallyUnder(root: string, path: string): boolean {
   const rel = relative(root, path);
-  return rel !== "" ? !rel.startsWith("..") && !isAbsolute(rel) : true;
+  return rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
 }
 
 function realSpelling(path: string): string {
