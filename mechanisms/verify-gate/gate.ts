@@ -1,4 +1,5 @@
-import { isAbsolute, relative, resolve } from "node:path";
+import { realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fusionReceipt } from "./fusion";
 
 export type RunOutcome = "completed" | "aborted" | "error";
@@ -11,10 +12,34 @@ export interface Gate {
   beforeSettle(outcome: RunOutcome): string | undefined;
 }
 
-/** True when `path` (absolute or relative to `root`) lies under `root`. */
-export function underRoot(root: string, path: string): boolean {
-  const rel = relative(resolve(root), resolve(root, path));
+function textuallyUnder(root: string, path: string): boolean {
+  const rel = relative(root, path);
   return rel !== "" ? !rel.startsWith("..") && !isAbsolute(rel) : true;
+}
+
+/**
+ * The real spelling of an absolute path. A path that does not exist yet keeps its missing
+ * tail, appended to the real spelling of its nearest existing ancestor.
+ */
+function realSpelling(path: string): string {
+  try {
+    return realpathSync.native(path);
+  } catch {
+    const parent = dirname(path);
+    return parent === path ? path : join(realSpelling(parent), basename(path));
+  }
+}
+
+/**
+ * True when `path` (absolute or relative to `root`) lies under `root`, compared both as
+ * written and by real spelling. Windows spells one directory as a long name or an 8.3 short
+ * name, so a cwd and a tool's path can disagree as text (#487). The text comparison stays so
+ * a symlink inside the root that points outside it is still tracked.
+ */
+export function underRoot(root: string, path: string): boolean {
+  const base = resolve(root);
+  const target = resolve(root, path);
+  return textuallyUnder(base, target) || textuallyUnder(realSpelling(base), realSpelling(target));
 }
 
 /**
