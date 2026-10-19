@@ -60,8 +60,8 @@ import validate_card_files as card_files  # noqa: E402
 
 # (pattern id, regex, what a neutral card says instead). Every id names ONE
 # harness, so a reader of a finding knows which harness's word leaked. The
-# Claude Code set is the porting lint's list (pi/scripts/lint_pi_skills.py,
-# 2026-10-10), which found zero residue on twelve ported cards; the Pi set
+# Claude Code set is the porting lint's list (pi/scripts/lint_pi_skills.py on
+# the pi-port branch, not on main; 2026-10-10), which found zero residue on twelve ported cards; the Pi set
 # is the reverse direction, because a card neutralised BY a Pi port is the
 # obvious way to trade one harness's words for another's.
 PATTERNS: Final[tuple[tuple[str, str, str], ...]] = (
