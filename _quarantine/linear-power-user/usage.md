@@ -4,7 +4,7 @@ Use this candidate with an agent that has Linear MCP tools available. It is an o
 
 ## Example prompts
 
-- “Inspect Linear and propose a project structure for FOSSE. Do not mutate anything until you show me workstreams, milestones, dependencies and unresolved decisions.”
+- “Inspect Linear and propose a project structure for the payments product. Do not mutate anything until you show me workstreams, milestones, dependencies and unresolved decisions.”
 - “Create a small project for this isolated deliverable. Skip an initiative or milestones unless they add real value.”
 - “Audit the existing project before restructuring it. Preserve useful issues and relationships; show the before/after plan first.”
 - “Turn this feature request into one actionable issue with acceptance criteria. Search for duplicates first.”
