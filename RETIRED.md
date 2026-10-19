@@ -90,6 +90,30 @@ two agreed. That lockstep is gone with the card. What survives is the stronger h
 file must still carry exactly one canonical version declaration, so a partial bump cannot be
 expressed in the file that binds.
 
+## Renamed in 2.0.0
+
+These eleven cards were renamed, not retired. Each one still ships under its current name. The
+2.0.0 release replaced names that stated a whole finding with the word a reader reaches for. The
+[v2.0.0 changelog entry](CHANGELOG.md#v200---2026-09-13) records the reason for each name.
+
+Third-party directories such as [skills.sh](https://www.skills.sh/MrBinnacle/skills) can still
+list an old name. An install command that uses an old name finds no skill. Use the current name
+in its place.
+
+| Old name | Current card |
+|---|---|
+| `click-clirunner-env-none-deletes` | [`clirunner-env`](skills/engineering/clirunner-env/SKILL.md) |
+| `closure-mode-at-boundaries` | [`closure-mode`](skills/engineering/closure-mode/SKILL.md) |
+| `git-pull-rebase-trap` | [`pull-rebase`](skills/engineering/pull-rebase/SKILL.md) |
+| `github-pages-deploy-verification` | [`stale-deploy`](skills/engineering/stale-deploy/SKILL.md) |
+| `mock-masked-stub-trap` | [`mocked-stub`](skills/engineering/mocked-stub/SKILL.md) |
+| `pretooluse-bash-guard-prose-false-positive` | [`pretooluse-prose`](skills/engineering/pretooluse-prose/SKILL.md) |
+| `success-test-accepts-any-output` | [`vacuous-check`](skills/engineering/vacuous-check/SKILL.md) |
+| `router-skill-predicate-gap` | [`dead-predicate`](skills/meta/dead-predicate/SKILL.md) |
+| `downstream-instruction-framing` | [`decision-rights`](skills/orchestration/decision-rights/SKILL.md) |
+| `parallel-review-disposition-schema` | [`disposition-schema`](skills/orchestration/disposition-schema/SKILL.md) |
+| `subagent-research-reliability` | [`subagent-handback`](skills/orchestration/subagent-handback/SKILL.md) |
+
 ## Screened out at the gate — July 2026
 
 The same test that will someday retire skills also decides what gets in. It has already fired.

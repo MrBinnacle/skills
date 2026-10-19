@@ -114,6 +114,14 @@ files and makes the double-tracking impossible. It is never a filesystem link.
    than at its start. Nothing stated this until 2026-08-24 and the next person to cut a release
    discovered it mid-run. Export a token with `public_repo` scope before running it.
 
+   **After the release merges, compare the skills.sh listing with the card names.** Open
+   <https://www.skills.sh/MrBinnacle/skills> and compare each listed name with the directory
+   names under `skills/<bucket>/`. A listed name with no directory is stale: its
+   `npx skills add` command finds no skill. Record each stale name on the release pull request.
+   A stale name that a rename caused also gets a row in the `Renamed in` section of
+   [`RETIRED.md`](RETIRED.md). This step is manual, not a gate, because it reads a third-party
+   page over the network. skills.sh gives an owner no way to delist a name.
+
 **Promotion of a new skill** (private → published):
 
 1. Author and prove the skill privately. It must pass the [admission policy](ADMISSION.md) and
