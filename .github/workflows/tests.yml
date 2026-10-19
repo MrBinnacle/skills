@@ -55,6 +55,17 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::captured-exit suite emitted no PASS line - it did not run"; exit 1; }
 
+      # #468: CI acquires skill-harness only at a pinned point - a released
+      # version equal to PINNED_HARNESS_VERSION, or a full commit SHA - never
+      # at the harness default branch.
+      - name: Harness pin suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_harness_pin.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::harness pin suite emitted no PASS line - it did not run"; exit 1; }
+
       # #255 (compiling #243, #244, #249): three commit gates were checking the
       # wrong surface. Each suite below builds poison trees in a temp dir and
       # proves its gate goes red on them; none commits a poison fixture.
@@ -805,16 +816,29 @@ jobs:
       # skill_harness.sitegen.render._scope_line from <root>/src, renders the
       # R2 KEEP fixtures through it, and compares the unescaped scope line
       # with this repository's derivation. It does not look for named
-      # constants in the harness. The harness is checked out at its default
-      # branch on ubuntu-latest only: the Windows cell would re-download the
-      # same bytes to answer the same question.
+      # constants in the harness. It runs on ubuntu-latest only: the Windows
+      # cell would re-download the same bytes to answer the same question.
+      #
+      # #468: the harness is fetched at the commit SKILL_HARNESS_REF names,
+      # never at its default branch, so a harness change cannot move this CI.
+      # A commit, not a release: _scope_line is in no skill-harness release
+      # yet (0.3.0 predates it). When a release carries it, this step becomes
+      # `pip install skill-harness==<version>` with PINNED_HARNESS_VERSION
+      # moved to match (skill-harness#572). test_harness_pin.py enforces both.
       - name: Evidence scope drift against skill-harness
         if: matrix.os == 'ubuntu-latest'
+        env:
+          SKILL_HARNESS_REF: ee62b2a90d46f8769c499aa292d8c37ba31dc69a
         run: |
           set -euo pipefail
           harness_dir="$RUNNER_TEMP/skill-harness"
           rm -rf "$harness_dir"
-          git clone --depth 1 https://github.com/MrBinnacle/skill-harness.git "$harness_dir"
+          git init --quiet "$harness_dir"
+          git -C "$harness_dir" fetch --quiet --depth 1 https://github.com/MrBinnacle/skill-harness.git "$SKILL_HARNESS_REF"
+          git -C "$harness_dir" checkout --quiet --detach FETCH_HEAD
+          fetched="$(git -C "$harness_dir" rev-parse HEAD)"
+          [ "$fetched" = "$SKILL_HARNESS_REF" ] \
+            || { echo "::error::fetched skill-harness $fetched, pinned $SKILL_HARNESS_REF"; exit 1; }
           # Importing render.py pulls skill_harness package modules; install
           # the harness in this step only so the drift import works the same
           # way here as it does in a maintainer checkout.
