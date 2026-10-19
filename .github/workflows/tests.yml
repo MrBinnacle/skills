@@ -890,6 +890,15 @@ jobs:
             exit 1
           fi
           echo "control: scope-line drift ran against the skill-harness checkout"
+          # #470: the pinned UNMEASURED sub-reasons must equal the harness enum
+          # at this same commit, and that case must have RUN.
+          echo "$out" | grep -q '^ok   pinned sub-reasons equal skill-harness UnmeasuredSubReason' \
+            || { echo "::error::the sub-reason drift case did not run against the harness checkout"; exit 1; }
+          if echo "$out" | grep -q 'sub-reason drift skipped'; then
+            echo "::error::the sub-reason drift case skipped despite SKILL_HARNESS_ROOT"
+            exit 1
+          fi
+          echo "control: sub-reason drift ran against the skill-harness checkout"
 
       - name: Standing obligations sweep
         run: |
