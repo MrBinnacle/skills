@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { createGate, underRoot } from "./gate";
 
 const CHECKS = ["\\bbun test\\b", "\\bpytest\\b"];
@@ -95,5 +99,44 @@ describe("verification gate", () => {
     expect(underRoot("/r/p", "/r/p2/a")).toBe(false);
     expect(underRoot("/r/p", "/r")).toBe(false);
     expect(underRoot("/r/p", "../q")).toBe(false);
+  });
+
+  // Windows spells one directory two ways: the long name and the 8.3 short name.
+  // A root in one spelling must still contain a path in the other.
+  const win = process.platform === "win32";
+
+  function shortSpelling(dir: string): string {
+    return execFileSync("cmd", ["/d", "/s", "/c", `"for %I in ("${dir}") do @echo %~sI"`], {
+      encoding: "utf8",
+      windowsVerbatimArguments: true,
+    }).trim();
+  }
+
+  function withSpellings(body: (long: string, short: string) => void): void {
+    const long = realpathSync.native(mkdtempSync(join(tmpdir(), "verify-gate-longname-")));
+    try {
+      const short = shortSpelling(long);
+      expect(short).not.toBe(long);
+      body(long, short);
+    } finally {
+      rmSync(long, { recursive: true, force: true });
+    }
+  }
+
+  test.skipIf(!win)("underRoot matches a short-name root against a long-name path, and the reverse", () => {
+    withSpellings((long, short) => {
+      mkdirSync(join(long, "src"));
+      writeFileSync(join(long, "src", "a.ts"), "");
+      expect(underRoot(short, join(long, "src", "a.ts"))).toBe(true);
+      expect(underRoot(long, join(short, "src", "a.ts"))).toBe(true);
+      expect(underRoot(short, join(dirname(long), "elsewhere.ts"))).toBe(false);
+    });
+  });
+
+  test.skipIf(!win)("underRoot matches a short-name root against a long-name file that does not exist yet", () => {
+    withSpellings((long, short) => {
+      expect(underRoot(short, join(long, "new", "dir", "b.ts"))).toBe(true);
+      expect(underRoot(long, join(short, "new", "dir", "b.ts"))).toBe(true);
+    });
   });
 });
