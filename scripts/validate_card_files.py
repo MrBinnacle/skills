@@ -190,9 +190,9 @@ _ALLOWLIST: Final[frozenset[tuple[str, str]]] = frozenset({
     # No card is over the 7,168-byte ceiling any more: decision-rights (#385)
     # and subagent-handback (#384) left this list on 2026-10-17.
     # EVIDENCE.md and gotchas.md are not reachable from these cards' SKILL.md.
-    # Twelve of fourteen cards, measured 2026-09-06.
+    # Twelve of fourteen cards, measured 2026-09-06. pull-rebase left on
+    # 2026-10-19 (#467 slice A): its SKILL.md now links EVIDENCE.md.
     ("skills/engineering/clirunner-env", "reachability"),
-    ("skills/engineering/pull-rebase", "reachability"),
     ("skills/engineering/stale-deploy", "reachability"),
     ("skills/engineering/halt-as-deliverable", "reachability"),
     ("skills/engineering/im-down", "reachability"),
