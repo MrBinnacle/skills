@@ -34,3 +34,8 @@ tmp/
 # AGENTS.md/CLAUDE.md block claiming this repo is indexed -- false for anyone who
 # clones it, and this collection's bar is that a public claim survives being pulled on.
 .gitnexus/
+
+# Pi remote relay config (#471). Machine-local: it names this checkout's relay
+# agent and starts the relay on launch. Untracked, it dirties the tree that
+# `release_gate.py --release` requires clean. `.pi/engineering-env.json` stays tracked.
+.pi/remote-pi/
