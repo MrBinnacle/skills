@@ -12,6 +12,19 @@ npx changeset
 Pick the bump (patch / minor / major) and write a short, human-readable summary. The file it
 creates in this folder is committed with your PR and merged to `main` alongside the change.
 
+**A `major` changeset tells installed users what to do.** When the bump is `major` for any
+package, the last line of the summary has this exact form:
+
+```text
+Action for installed users: <text>
+```
+
+Write `None.` as the text when an installed user has nothing to do. A release headed "Major
+Changes" sends a user looking for a break, and this line answers whether there is one. The
+line is optional for `minor` and `patch`. CI runs `python scripts/check_installed_user_action.py`,
+which refuses a major changeset whose last non-blank line does not start with
+`Action for installed users:` and carry text after the colon, and names the file.
+
 **Cutting a release** is a deliberate step (there is no auto-release CI). The merge of the
 version-bump pull request is the delivery event — changed cards reach installed users then,
 not when a tag is pushed. See [AGENTS.md](../AGENTS.md) step 4 and

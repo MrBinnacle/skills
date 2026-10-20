@@ -25,6 +25,8 @@ issue template. The short version of the gauntlet:
 - Branch from `main`; keep each PR to one skill or one coherent change.
 - CI must pass: the de-personalization gate (no private residue in any `.md`) and the link check.
 - Add a changeset: `npx changeset`, pick the bump, write a one-paragraph human-readable summary.
+  A changeset whose bump is `major` for any package ends with a line of the exact form
+  `Action for installed users: <text>`, where `None.` is valid text.
   The changeset file is committed with your PR and becomes the changelog entry when a maintainer
   cuts the next release (`npm run version` — a manual step, no auto-release CI).
 

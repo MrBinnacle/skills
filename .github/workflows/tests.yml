@@ -566,6 +566,26 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::changelog finish suite emitted no PASS line - it did not run"; exit 1; }
 
+      # #364: a major changeset ends with an "Action for installed users:" line,
+      # so a release headed "Major Changes" says whether a user must act. The
+      # suite pins the verdicts on planted changesets; the check reads the real
+      # .changeset/ folder.
+      - name: Installed-user action suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_check_installed_user_action.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::installed-user action suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Installed-user action check
+        run: |
+          set -euo pipefail
+          out="$(python scripts/check_installed_user_action.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::installed-user action check emitted no PASS line - it did not run"; exit 1; }
+
       - name: Install-path check
         run: |
           set -euo pipefail
