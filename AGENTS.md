@@ -644,8 +644,8 @@ mechanism working. An evolving ecosystem, not a chop list.
      counterfixture — because that is the only shape the harness can return a real verdict
      on. No candidate qualifies today. `mocked-stub` has the shape but no tracked fixture
      pair (its `EVIDENCE.md` Screen result row), and `_quarantine/walk-the-recipe/` holds
-     `SKILL.md` alone; skills#215 holds the decision to rebuild `walk-the-recipe`. A tracked
-     fixture pair restores a card to this list.
+     `SKILL.md` alone. skills#215 is the open decision on rebuilding `walk-the-recipe`. A
+     tracked fixture pair restores a card to this list.
    - **Read existing verdicts read-only** rather than running anything, from two sources.
      First, the harness's evidence store: `python -m skill_harness screen verdict
      --evidence-db <path>/evidence.db`. Checked 2026-08-23: that store answered "No
