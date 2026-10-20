@@ -96,11 +96,15 @@ NAME_LINE_RE: Final[re.Pattern[str]] = re.compile(r"^name:\s*(\S.*?)\s*$", re.MU
 # A card's prose that names its corpus and states a case count must state the
 # corpus's real count (#523: usage.md said 12 cases while evals.json held 20).
 # Only a line that names evals.json is read, so "two cases" in an unrelated
-# sentence is never taken as a claim about the corpus.
+# sentence is never taken as a claim about the corpus. Only the digit form
+# "N [up to two words] cases" is read; ranges ("cases 1-20") and spelled-out
+# numbers are not. EVIDENCE.md is skipped, keeping the promise above that this
+# script never reads one.
 COUNT_CLAIM_RE: Final[re.Pattern[str]] = re.compile(
-    r"\b(\d+) (?:[a-z-]+ )?cases\b", re.IGNORECASE
+    r"\b(\d+) (?:[a-z-]+ ){0,2}cases\b", re.IGNORECASE
 )
 QUARANTINE_DIR: Final[str] = "_quarantine"
+EVIDENCE_FILE: Final[str] = "EVIDENCE.md"
 
 
 def quote(value: object, limit: int = 60) -> str:
@@ -285,18 +289,30 @@ def corpus_breaches(card: Path) -> list[str]:
     return breaches
 
 
-def count_claim_breaches(card: Path) -> list[str]:
-    """Prose lines naming evals.json whose stated case count is not the corpus's."""
+def count_claim_breaches(card: Path, *, report_unreadable: bool) -> list[str]:
+    """Prose lines naming evals.json whose stated case count is not the corpus's.
+
+    A published card's unreadable corpus is already reported by
+    corpus_breaches; a quarantined one is reported here, because nothing else
+    reads it and a silent skip would switch the check off.
+    """
+    unreadable = [f"{CORPUS_PATH} has no readable cases list, so its prose counts cannot be checked"]
     try:
         data = json.loads((card / CORPUS_DIR / CORPUS_FILE).read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return []
+        return unreadable if report_unreadable else []
     cases = data.get("cases") if isinstance(data, dict) else None
     if not isinstance(cases, list):
-        return []
+        return unreadable if report_unreadable else []
     breaches = []
     for prose in sorted(card.glob("*.md")):
-        lines = prose.read_text(encoding="utf-8").splitlines()
+        if prose.name == EVIDENCE_FILE:
+            continue
+        try:
+            lines = prose.read_text(encoding="utf-8").splitlines()
+        except UnicodeDecodeError as error:
+            breaches.append(f"{prose.name} is not UTF-8: {error}")
+            continue
         for number, line in enumerate(lines, start=1):
             if CORPUS_FILE not in line:
                 continue
@@ -331,11 +347,11 @@ def validate(root: Path) -> None:
     breaches = [
         f"  - {card.relative_to(root).as_posix()}: {detail}"
         for card in cards
-        for detail in corpus_breaches(card) + count_claim_breaches(card)
+        for detail in corpus_breaches(card) + count_claim_breaches(card, report_unreadable=False)
     ] + [
         f"  - {card.relative_to(root).as_posix()}: {detail}"
         for card in quarantine_cards(root)
-        for detail in count_claim_breaches(card)
+        for detail in count_claim_breaches(card, report_unreadable=True)
     ]
     if breaches:
         for line in breaches:

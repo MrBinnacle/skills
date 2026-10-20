@@ -1,6 +1,6 @@
 # Craft floor for text written to Linear
 
-Read this immediately before a write that creates or edits an issue, project, milestone, document or status update. Do not read it for read-only work.
+Read this immediately before any write that puts text into Linear: an issue, comment, project, initiative, milestone, document or status update. Do not read it for read-only work.
 
 ## Incumbent conventions first
 
@@ -22,9 +22,9 @@ The workspace's existing labels, templates, workflow states and naming patterns 
 ## Never
 
 - Never write an issue whose title does not say what the task is.
-- Never create an issue that is not a task with a defined outcome. Put the observation in an existing issue or project description instead.
-- Never create a project, label or milestone before the search and the deletion test in [project-method.md](project-method.md).
+- Never create an issue for a vague observation with no next action. Put it in an existing issue or project description instead.
+- Never create an object before the search for existing work and the deletion test in [project-method.md](project-method.md).
 
 ## Bounded verification
 
-Read the written objects back once. Fix every gap the read-back shows in one batch. Read the fixed fields back once more, then stop and report any gap that remains.
+Read the written objects back once, as a fresh query. Fix the gaps it shows in one batch, inside the fields the request named. Read the fixed fields back once more, then stop and report any gap that remains.

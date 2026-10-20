@@ -329,6 +329,15 @@ def case_quarantine_521_state_rejected(root: Path) -> None:
     expect_rejection(root, "the #521 quarantine state", "states '12 structural cases' but evals/evals.json holds 20")
 
 
+def case_quarantine_unreadable_corpus_rejected(root: Path) -> None:
+    """A malformed quarantined corpus must not switch the count check off."""
+    write_tree(root)
+    candidate = root / corpora.QUARANTINE_DIR / "probe-candidate" / corpora.CORPUS_DIR
+    candidate.mkdir(parents=True)
+    (candidate / corpora.CORPUS_FILE).write_text('{"cases": [,]}', encoding="utf-8")
+    expect_rejection(root, "an unreadable quarantined corpus", "has no readable cases list")
+
+
 # --------------------------------------------------------------- the live tree
 
 
@@ -417,6 +426,7 @@ def main() -> None:
         case_prose_count_drift_rejected,
         case_prose_count_match_passes,
         case_quarantine_521_state_rejected,
+        case_quarantine_unreadable_corpus_rejected,
     )
     for case in in_tempdir:
         with tempfile.TemporaryDirectory() as tmp:
