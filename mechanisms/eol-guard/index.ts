@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { readFile } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { createEolGuard, type EolGuard } from "./eol";
+import { join, resolve } from "node:path";
+import { createEolGuard, type EolGuard, repoRelativePath } from "./eol";
 
 function report(ctx: ExtensionContext, message: string): void {
   if (ctx.hasUI) ctx.ui.notify(message, "warning");
@@ -24,7 +24,6 @@ export default function (pi: ExtensionAPI) {
       return;
     }
     const root = resolve(top.stdout.trim());
-    const posix = (p: string) => p.split(sep).join("/");
 
     guard = createEolGuard({
       async readWorking(rel) {
@@ -44,9 +43,7 @@ export default function (pi: ExtensionAPI) {
         return r.code === 0 ? r.stdout.split(/\r?\n/).filter((l) => l.length > 0) : [];
       },
       toRepoPath(path) {
-        const rel = relative(root, resolve(ctx.cwd, path));
-        if (rel === "" || rel.startsWith("..") || isAbsolute(rel)) return undefined;
-        return posix(rel);
+        return repoRelativePath(root, ctx.cwd, path);
       },
     });
   });

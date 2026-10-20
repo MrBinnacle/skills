@@ -6,6 +6,8 @@
  * tests run on bytes.
  */
 
+import { isAbsolute, relative, resolve, sep } from "node:path";
+
 export interface EolCount {
   crlf: number;
   lf: number;
@@ -110,4 +112,11 @@ export function createEolGuard(deps: EolGuardDeps): EolGuard {
       return undefined;
     },
   };
+}
+
+/** `path` (relative to `cwd`) as a slash-form path inside `root`, or undefined when it is not inside. */
+export function repoRelativePath(root: string, cwd: string, path: string): string | undefined {
+  const rel = relative(root, resolve(cwd, path));
+  if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return undefined;
+  return rel.split(sep).join("/");
 }
