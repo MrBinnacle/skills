@@ -1,6 +1,6 @@
 # Project method
 
-Choose the smallest useful structure. Before creating an initiative, milestone, label, template, cycle or project, name the capability that deleting it would destroy. If the answer is a future benefit ("could", "might", "for later"), put the content in an existing issue or an existing project's description instead. [object-model.md](object-model.md) states what each object is for.
+Choose the smallest useful structure. Before creating an initiative, milestone, label, template, cycle or project, name the capability that deleting it would destroy. If the answer is a future benefit ("could", "might", "for later"), put the content in an existing issue or an existing project's description instead. [object-model.md](object-model.md) states what each object is for. When you create or change work, treat facts the request asserts about the workspace ("X already has a milestone", "Y is a duplicate") as premises, and read each one before planning against it.
 
 ## Diagnose before choosing an intervention
 
@@ -48,7 +48,7 @@ For a project described as at risk, overdue, or blocked, validate the signal and
 
 ## Create work
 
-Search for existing work before creating anything. Treat facts the request asserts about the workspace ("X already has a milestone", "Y is a duplicate") as premises, and read each one before planning against it. Inspect the target team, statuses, labels, templates, cycles, milestones, issues and relationships. Define outcome, problem evidence, scope, exclusions, observable acceptance criteria, dependencies and ownership. Keep unknown product intent explicit.
+Search for existing work before creating anything. Inspect the target team, statuses, labels, templates, cycles, milestones, issues and relationships. Define outcome, problem evidence, scope, exclusions, observable acceptance criteria, dependencies and ownership. Keep unknown product intent explicit.
 
 For a project, create issues only for actionable deliverables. Add milestones only for meaningful gates and dependencies only when one task must finish before another can proceed. Set dates, owners, priority, labels and cycles only when supported by the request or workspace evidence.
 
