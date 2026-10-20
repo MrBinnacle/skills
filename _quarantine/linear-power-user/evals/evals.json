@@ -148,7 +148,7 @@
     {
       "id": 12,
       "input": "consequential ambiguity",
-      "expected_tool_sequence": "Inspect teams and initiatives; present a proposed model and ask one focused question before mutation.",
+      "expected_tool_sequence": "Inspect teams and initiatives; present the open choice as named options with their trade-off and ask one focused question before mutation.",
       "postconditions": "No guessed owner/team/initiative; no broad questionnaire.",
       "mutations": "Only as explicitly authorized and justified by the case.",
       "failure_conditions": [
