@@ -642,8 +642,15 @@ mechanism working. An evolving ecosystem, not a chop list.
      is an honest label, not a gap to close.
    - **Screen only a candidate carrying a frozen empirical contract** — a fixture AND a
      counterfixture — because that is the only shape the harness can return a real verdict
-     on. Two candidates qualify today: `mocked-stub` and
-     `walk-the-recipe`.
+     on. One candidate qualifies today: the quarantined `frontend-slop`. Its
+     `_quarantine/frontend-slop/fixtures.json` holds expect-pass and expect-fail cases for
+     its oracle, and its `EVIDENCE.md` Screen result row records that no admissible run
+     exists yet. `mocked-stub` has the shape but no tracked fixture pair (its `EVIDENCE.md`
+     Screen result row), and `_quarantine/walk-the-recipe/` holds `SKILL.md` alone; skills#215
+     is the open decision on rebuilding it. The `fixture-*.md` files under `im-up` and
+     `im-down` are test inputs for their packet validators, and both cards' Screen result
+     rows record no harness axis to measure, so neither card qualifies. A tracked fixture
+     pair adds a card to this list.
    - **Read existing verdicts read-only** rather than running anything, from two sources.
      First, the harness's evidence store: `python -m skill_harness screen verdict
      --evidence-db <path>/evidence.db`. Checked 2026-08-23: that store answered "No
