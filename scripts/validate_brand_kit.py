@@ -541,7 +541,7 @@ def pair_violations(root: Path, pairs: list[Any]) -> list[str]:
 # --------------------------------------------------------------------------
 # Raster icons (#448). A PNG carries no hex, so its pixels are read instead.
 # --------------------------------------------------------------------------
-def png_chunks(blob: bytes, label: str) -> tuple[bytes, bytes]:
+def png_header_and_data(blob: bytes, label: str) -> tuple[bytes, bytes]:
     """The IHDR payload and the concatenated IDAT payload of a PNG."""
     if not blob.startswith(PNG_SIGNATURE):
         raise Refusal(f"{label} is not a PNG file: its signature is wrong")
@@ -576,12 +576,12 @@ def unfilter(raw: bytes, height: int, stride: int, bpp: int) -> list[bytearray]:
     previous = bytearray(stride)
     for y in range(height):
         start = y * (stride + 1)
-        kind, row = raw[start], bytearray(raw[start + 1 : start + 1 + stride])
+        filter_type, row = raw[start], bytearray(raw[start + 1 : start + 1 + stride])
         for i in range(stride):
             left = row[i - bpp] if i >= bpp else 0
             up_left = previous[i - bpp] if i >= bpp else 0
             predictor = (0, left, previous[i], (left + previous[i]) // 2,
-                         paeth(left, previous[i], up_left))[kind]
+                         paeth(left, previous[i], up_left))[filter_type]
             row[i] = (row[i] + predictor) & 0xFF
         rows.append(row)
         previous = row
@@ -590,7 +590,7 @@ def unfilter(raw: bytes, height: int, stride: int, bpp: int) -> list[bytearray]:
 
 def png_opaque_colours(blob: bytes, label: str) -> Counter[Rgb]:
     """How many opaque pixels of each colour. RGB has no alpha, so every pixel counts."""
-    header, data = png_chunks(blob, label)
+    header, data = png_header_and_data(blob, label)
     width, height, depth, colour_type, _, _, interlace = struct.unpack(">IIBBBBB", header)
     channels = PNG_CHANNELS.get(colour_type)
     if depth != 8 or channels is None or interlace != 0:
@@ -654,10 +654,25 @@ def palette_blends(palette: list[Rgb]) -> set[Rgb]:
     for index, first in enumerate(palette):
         for second in palette[index + 1 :]:
             for step in range(256):
-                blends.add(tuple(  # type: ignore[arg-type]
-                    round(a + (b - a) * step / 255) for a, b in zip(first, second)
+                (r1, g1, b1), (r2, g2, b2) = first, second
+                blends.add((
+                    round(r1 + (r2 - r1) * step / 255),
+                    round(g1 + (g2 - g1) * step / 255),
+                    round(b1 + (b2 - b1) * step / 255),
                 ))
     return blends
+
+
+def raster_surface_violations(
+    root: Path, spec: dict[str, Any], paths: list[Path], declared: set[str]
+) -> list[str]:
+    """One message per icon on a raster_icon surface that leaves the palette."""
+    palette, tolerance = raster_palette(spec, declared)
+    messages = (
+        raster_violation(path.relative_to(root).as_posix(), path.read_bytes(), palette, tolerance)
+        for path in paths
+    )
+    return [message for message in messages if message]
 
 
 def raster_violation(relative: str, blob: bytes, palette: list[Rgb], tolerance: int) -> str | None:
@@ -774,12 +789,7 @@ def undeclared_hex_violations(
             )
         files += len(paths)
         if kind == "raster_icon":
-            palette, tolerance = raster_palette(spec, declared)
-            for path in paths:
-                relative = path.relative_to(root).as_posix()
-                message = raster_violation(relative, path.read_bytes(), palette, tolerance)
-                if message:
-                    violations.append(message)
+            violations.extend(raster_surface_violations(root, spec, paths, declared))
             continue
         for path in paths:
             relative = path.relative_to(root).as_posix()

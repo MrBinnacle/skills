@@ -1087,6 +1087,19 @@ def case_raster_icon_unsupported_png_refused(tmp: Path) -> None:
         _tree_with_icon(tmp / "b", b"GIF89a"),
         "is not a PNG file",
     )
+    expect_refusal(
+        "a PNG cut off before its image data refused",
+        _tree_with_icon(tmp / "c", _icon(INK)[:33]),
+        "has no readable IHDR or IDAT chunk",
+    )
+    whole = _icon(INK)
+    header_end = len(kit.PNG_SIGNATURE) + 25
+    short = encode_png([[INK] * 10 for _ in range(9)])[header_end:]
+    expect_refusal(
+        "a PNG whose image data is the wrong size refused",
+        _tree_with_icon(tmp / "d", whole[:header_end] + short),
+        "wrong size or an unknown row filter",
+    )
 
 
 def case_png_decoder_reads_every_filter() -> None:
