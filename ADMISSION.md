@@ -35,6 +35,16 @@ A candidate enters only when all four are true:
 
 Default answer: not admitted.
 
+## Authorship is a precondition, not an admission question
+
+A candidate enters this repository's tree, under `skills/`, `_quarantine/` or
+anywhere else, only when this collection authored it; another author's skill is
+composed by name from its own source and never held here, as
+[ADR 0006](docs/adr/0006-the-collection-holds-only-what-it-authored.md) records.
+A candidate that fails this precondition never reaches the four questions, so
+the precondition does not change them or what counts as answering them, and
+adding it does not bump this policy's version. [precondition added 2026-10-20]
+
 ## Form constraints are not admission questions
 
 A card that passes all four questions must still take the published form:

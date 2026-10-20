@@ -38,6 +38,15 @@ instrument's *evidence admissibility*, which gates whether an observation may fe
 aggregation — a card can be admissible while every observation about it is inadmissible.
 Qualify on contact when both senses are near: "admissible card" vs "admissible evidence".
 
+**Hold (a package)**:
+To keep a skill package's files anywhere in this repository's tree, as a published card, a
+candidate under `_quarantine/`, a fixture or a vendored copy, promoted or not. The collection
+holds only packages it authored, because the tree is public and possession reads as provenance.
+Settled by
+[`docs/adr/0006-the-collection-holds-only-what-it-authored.md`](docs/adr/0006-the-collection-holds-only-what-it-authored.md).
+_Avoid_: compose, which is to invoke another author's skill by name from its own source and is
+permitted. Avoid also reading "unpromoted" as "not held": a candidate in `_quarantine/` is held.
+
 **Occasion**:
 One independent occurrence of the failure a card addresses, counted and dated after the fact.
 Two is the threshold below which a card carries `RECURRENCE-THIN`.
