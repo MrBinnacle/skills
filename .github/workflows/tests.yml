@@ -563,7 +563,8 @@ jobs:
           set -euo pipefail
           out="$(python scripts/test_finish_changelog.py)" || { echo "$out"; exit 1; }
           echo "$out"
-          echo "$out" | grep -q '^PASS:'             || { echo "::error::changelog finish suite emitted no PASS line - it did not run"; exit 1; }
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::changelog finish suite emitted no PASS line - it did not run"; exit 1; }
 
       - name: Install-path check
         run: |
