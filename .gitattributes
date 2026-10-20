@@ -35,28 +35,13 @@ assets/*.png binary
 # pin eol=lf so a Windows CRLF checkout cannot fail that exact-bytes test.
 docs/agents/domain.md text eol=lf
 
-# WHY THIS FILE DOES NOT PIN THE WHOLE REPOSITORY, THOUGH IT SHOULD EVENTUALLY.
-#
-# Ten tracked files currently hold CRLF in the index:
-#
-#   .claude-plugin/marketplace.json          scripts/validate_conformance.py
-#   SECURITY.md                              scripts/validate_eval_corpora.py
-#   dispositions/2026-08-15-S295-admission-triage.md
-#   skills/engineering/pull-rebase/SKILL.md
-#   skills/engineering/im-down/test_validate_packet.py
-#   skills/engineering/im-up/test_validate_packet.py
-#   skills/orchestration/disposition-schema/SKILL.md
-#   skills/orchestration/disposition-schema/gotchas.md
-#
-# A repository-wide `* text=auto eol=lf` marks every one of them for
-# renormalization at once. Measured on this branch: that makes `changeset status
-# --since` report changed packages where none changed, which turned the
-# spec-conformance poison control red - the control was correct and the rule was
-# too wide for the change carrying it.
-#
-# Normalizing those ten is a real cleanup with its own diff and its own review.
-# It is not part of consuming a prose style, so it is named here rather than done
-# quietly under an unrelated ticket.
+# Every other text file is LF in the index. The CRLF files were normalized in
+# #278 first, so this rule renormalizes nothing.
+* text=auto eol=lf
+
+# Kept CRLF on purpose: IBM's licence, copied byte for byte from the font
+# package (site/fonts/README.md). Normalizing it would make that claim false.
+site/fonts/LICENSE.txt -text
 
 # Fonts are IBM's unmodified files (OFL Reserved Font Name "Plex"); never normalise them.
 site/fonts/*.woff2 binary
