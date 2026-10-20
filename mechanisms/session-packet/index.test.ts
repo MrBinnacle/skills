@@ -45,6 +45,10 @@ function fillLatest(root: string) {
     .replaceAll("__REQUIRED__", "Filled in."));
 }
 
+// Each test below spawns several git processes. On a green Windows CI run the slowest took 1531 ms;
+// on a slow one these tests took 4 to 6 s and four passed bun's 5000 ms default (#501).
+const GIT_TIMEOUT = 30_000;
+
 const settle = { type: "agent_before_settle", outcome: "completed", entries: [], continue: false, context: { canContinue: true } };
 
 describe("session-packet adapter", () => {
@@ -63,7 +67,7 @@ describe("session-packet adapter", () => {
     expect(sent).toEqual([]);
     expect(notes[0]?.level).toBe("error");
     expect(notes[0]?.message).toContain("objective");
-  });
+  }, GIT_TIMEOUT);
 
   test("/packet-close writes the scaffold, asks the agent to fill it, and validates the fill when the agent stops", async () => {
     const { root } = await makeRepo();
@@ -79,7 +83,7 @@ describe("session-packet adapter", () => {
     // Validated once; the next settle has nothing pending.
     expect(await events.get("agent_before_settle")!(settle, ctx)).toBeUndefined();
     expect(notes).toHaveLength(1);
-  });
+  }, GIT_TIMEOUT);
 
   test("an unfilled packet sends the agent back with the errors, then gives up loudly", async () => {
     const { root } = await makeRepo();
@@ -94,7 +98,7 @@ describe("session-packet adapter", () => {
     expect(last).toBeUndefined();
     expect(notes.at(-1)?.level).toBe("error");
     expect(notes.at(-1)?.message).toContain('"verdict": "REJECTED"');
-  });
+  }, GIT_TIMEOUT);
 
   test("/packet-close refuses on a red receiver check and writes nothing", async () => {
     const { root } = await makeRepo();
@@ -104,7 +108,7 @@ describe("session-packet adapter", () => {
     await commands.get("packet-close")!("Ship", ctx);
     expect(sent).toEqual([]);
     expect(notes[0]?.message).toContain("a receiver check is red");
-  });
+  }, GIT_TIMEOUT);
 
   test("/packet-open validates the latest packet in receive mode and reports the receipt", async () => {
     const { root } = await makeRepo();
@@ -119,7 +123,7 @@ describe("session-packet adapter", () => {
     expect(receipt.verdict).toBe("ACCEPTED");
     expect(receipt.checks[0].name).toBe("head");
     expect(messages).toHaveLength(1);
-  });
+  }, GIT_TIMEOUT);
 
   test("/packet-open without a sessionPacket config rejects instead of skipping checks", async () => {
     const { root } = await makeRepo();
@@ -130,7 +134,7 @@ describe("session-packet adapter", () => {
     await events.get("agent_before_settle")!(settle, ctx);
     await commands.get("packet-open")!("", ctx);
     expect(JSON.parse(notes.at(-1)!.message).errors).toContain("receive mode requires a sessionPacket config");
-  });
+  }, GIT_TIMEOUT);
 
   test("session_start checks the latest packet only when the project declares sessionPacket", async () => {
     const { root } = await makeRepo();
@@ -146,7 +150,7 @@ describe("session-packet adapter", () => {
     writeConfig(root, {});
     await events.get("session_start")!({ type: "session_start", reason: "startup" }, ctx);
     expect(notes.at(-1)?.message).toContain("ACCEPTED");
-  });
+  }, GIT_TIMEOUT);
 
   test("with a branch store, the accepted fill is committed and pushed, and open reads it back from the store", async () => {
     const { root } = await makeRepo();
@@ -165,7 +169,7 @@ describe("session-packet adapter", () => {
     await events.get("session_start")!({ type: "session_start", reason: "startup" }, ctx);
     const receipt = JSON.parse(notes.at(-1)!.message);
     expect(receipt.verdict).toBe("ACCEPTED");
-  }, 30_000);
+  }, GIT_TIMEOUT);
 
   test("session_start never throws: a failure is reported, on stderr when there is no UI", async () => {
     const root = join(import.meta.dir, "fixtures");
@@ -185,5 +189,5 @@ describe("session-packet adapter", () => {
     } finally {
       spy.mockRestore();
     }
-  });
+  }, GIT_TIMEOUT);
 });
