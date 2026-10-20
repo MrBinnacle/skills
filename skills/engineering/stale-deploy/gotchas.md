@@ -38,3 +38,4 @@ stress-test signal.)*
   about the card's worth (consistent with its `CANT_TELL_YET` screen shape).
 
 - status 2026-10-17 (#387): `promoted: body` — workflow-built Pages (404 on `pages/builds/latest`) and already-live branches added to SKILL.md; the sleep-block entry above is observed behaviour, not documented (tools-reference read 2026-10-17).
+- status 2026-10-20 (#337): no `promoted` status for the 2026-05-27 `sleep 35 && curl` entry. Claude Code's Bash harness still blocks the pattern on 2026-10-20: `sleep 35 && echo` was refused with "Blocked: sleep 35 followed by:", and `sleep 2 && echo` ran. This repository does not own that block. A platform release can change it without notice, so the entry stays live (owner ruling, 2026-10-15).
