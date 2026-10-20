@@ -2707,6 +2707,20 @@ def case_o9_collision_with_published_card_is_red(root: Path) -> None:
     check("the collision names skills/ and the manifest", "skills/" in line and "plugin.json" in line, line)
 
 
+def case_o9_collision_with_skills_dir_alone_is_red(root: Path) -> None:
+    plant_retired(root, watch_row("gamma-card", "2027-01-01"))
+    write(root / "skills" / "engineering" / "gamma-card" / "SKILL.md", "# gamma-card\n")
+    verdict, line = o9_result(root)
+    check("O9 is FAIL when a watched card is under skills/ and in no manifest", verdict == "FAIL", line)
+    check(
+        "the breach names skills/ and no manifest",
+        "gamma-card: still present in skills/" in line
+        and "plugin.json" not in line
+        and "marketplace.json" not in line,
+        line,
+    )
+
+
 def case_o9_collision_with_retired_table_is_red(root: Path) -> None:
     plant_retired(
         root, watch_row("gone-card", "2027-01-01"), "| `gone-card` | 2026-08 | why | link |\n"
@@ -3048,6 +3062,7 @@ def main() -> None:
         case_o9_malformed_row_is_red,
         case_o9_current_row_is_green,
         case_o9_collision_with_published_card_is_red,
+        case_o9_collision_with_skills_dir_alone_is_red,
         case_o9_collision_with_retired_table_is_red,
         case_o9_empty_section_is_green,
         case_o9_missing_section_is_red,
