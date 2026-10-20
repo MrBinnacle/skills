@@ -70,6 +70,11 @@ export function shell(exec: Exec, cwd: string, command: string): Promise<ExecRes
   return exec("sh", ["-c", command], { cwd });
 }
 
+/** True when `rel`, a slash-form `relative()` result, names a path strictly inside its base. */
+export function isInsideRelative(rel: string): boolean {
+  return rel !== "" && rel !== ".." && !rel.startsWith("../") && !isAbsolute(rel);
+}
+
 /**
  * `git status --porcelain`, excluding the packet directory (and the branch store's worktree): a
  * packet written into the tree after the snapshot must not make itself stale. The text is
@@ -81,7 +86,7 @@ export async function statusPorcelain(exec: Exec, repoRoot: string, packetDir?: 
   const excludes: string[] = [];
   for (const dir of typeof packetDir === "string" ? [packetDir] : packetDir ?? []) {
     const rel = relative(repoRoot, resolve(repoRoot, dir)).split(sep).join("/");
-    if (rel && !rel.startsWith("..") && !isAbsolute(rel)) excludes.push(`:(exclude)${rel}`);
+    if (isInsideRelative(rel)) excludes.push(`:(exclude)${rel}`);
   }
   if (excludes.length) args.push("--", ".", ...excludes);
   const result = await exec("git", args, { cwd: repoRoot });

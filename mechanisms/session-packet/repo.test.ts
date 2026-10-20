@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { extract } from "./packet";
-import { type Exec, validateCloseCommit, validateRepository, validateUnclaimedHead } from "./repo";
+import { type Exec, isInsideRelative, validateCloseCommit, validateRepository, validateUnclaimedHead } from "./repo";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fixture, makeRepo, nodeExec } from "./testkit";
@@ -182,5 +182,19 @@ describe("validateUnclaimedHead", () => {
     const { head, dir, check } = await setup();
     const own = join(dir, prior(dir, "20260105T000000Z-eeee.md", head));
     expect(await check(own)).toEqual([]);
+  });
+});
+
+describe("isInsideRelative", () => {
+  test("a child directory whose name starts with two dots is inside", () => {
+    expect(isInsideRelative("..foo")).toBe(true);
+    expect(isInsideRelative("..foo/packets")).toBe(true);
+    expect(isInsideRelative("...")).toBe(true);
+  });
+
+  test("the base itself, its parent and anything above are not", () => {
+    expect(isInsideRelative("")).toBe(false);
+    expect(isInsideRelative("..")).toBe(false);
+    expect(isInsideRelative("../x")).toBe(false);
   });
 });

@@ -4,9 +4,9 @@
  * reaches the next machine without entering the code history. No Pi imports.
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { publishScan } from "./packet";
-import { dirPackets, type Exec, type ExecResult, git, networkGit, type StoredPacket } from "./repo";
+import { dirPackets, type Exec, type ExecResult, git, isInsideRelative, networkGit, type StoredPacket } from "./repo";
 import type { PacketConfig } from "./settings";
 
 export type ResolvedStore = { kind: "dir"; dir: string } | { kind: "branch"; ref: string; worktree: string };
@@ -97,7 +97,7 @@ async function requireOrphanCapableGit(exec: Exec, repoRoot: string): Promise<vo
 /** Keep a worktree inside the repository out of `git status` and out of a `git add -A`. */
 async function excludeLocally(exec: Exec, repoRoot: string, worktree: string): Promise<void> {
   const rel = relative(repoRoot, worktree).split(sep).join("/");
-  if (!rel || rel.startsWith("..") || isAbsolute(rel)) return;
+  if (!isInsideRelative(rel)) return;
   const file = join(resolve(repoRoot, await git(exec, repoRoot, "rev-parse", "--git-common-dir")), "info", "exclude");
   const line = `/${rel}/`;
   const current = existsSync(file) ? readFileSync(file, "utf-8") : "";

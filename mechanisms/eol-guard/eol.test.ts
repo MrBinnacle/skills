@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { countEol, createEolGuard, isUniformConversion, kindOf, type EolGuardDeps } from "./eol";
+import { countEol, createEolGuard, isUniformConversion, kindOf, repoRelativePath, type EolGuardDeps } from "./eol";
 
 const enc = (s: string) => new TextEncoder().encode(s);
 const LF3 = "a\nb\nc\n";
@@ -77,5 +77,22 @@ describe("eol guard", () => {
     guard.runStarted();
     expect(await guard.toolFinished("write", { path: "a.md" }, true)).toBeUndefined();
     expect(await guard.toolFinished("read", { path: "a.md" }, false)).toBeUndefined();
+  });
+});
+
+describe("repoRelativePath", () => {
+  test("a child directory whose name starts with two dots is inside the repository", () => {
+    expect(repoRelativePath("/r/p", "/r/p", "..foo/a.ts")).toBe("..foo/a.ts");
+    expect(repoRelativePath("/r/p", "/r/p/src", "../..foo/a.ts")).toBe("..foo/a.ts");
+  });
+
+  test("the root, its parent and a sibling are not repository files", () => {
+    expect(repoRelativePath("/r/p", "/r/p", ".")).toBeUndefined();
+    expect(repoRelativePath("/r/p", "/r/p", "..")).toBeUndefined();
+    expect(repoRelativePath("/r/p", "/r/p", "../p2/a.ts")).toBeUndefined();
+  });
+
+  test("a nested file comes back in slash form", () => {
+    expect(repoRelativePath("/r/p", "/r/p", "src/a.ts")).toBe("src/a.ts");
   });
 });
