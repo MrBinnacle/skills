@@ -47,7 +47,12 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
+from validate_conformance import local_source  # noqa: E402
+
+REPO = SCRIPT_DIR.parent
 MANIFEST_REL = ".claude-plugin/marketplace.json"
 PLUGIN_MANIFEST_REL = ".claude-plugin/plugin.json"
 BASE_REFS = ("origin/main", "main")
@@ -188,22 +193,21 @@ def plugin_errors(root: Path, name: object, path: object, release: Release) -> l
     return errors
 
 
-def check(root: Path) -> list[str]:
+def check(root: Path) -> tuple[Release, list[str]]:
     release = expected_release(root)
     url = repo_url(root)
     errors = [e for entry in read_manifest(root)["plugins"] for e in entry_errors(root, entry, release, url)]
     declared = json.loads((root / "package.json").read_text(encoding="utf-8")).get("version")
     if not release.pending and declared != release.version:
         errors.append(f"package.json declares {declared}, the pinned release is {release.version}")
-    return errors
+    return release, errors
 
 
 def bucket_path(source: object) -> str:
-    if isinstance(source, dict) and isinstance(source.get("path"), str):
-        return source["path"]
-    if isinstance(source, str):
-        return source.removeprefix("./")
-    raise PinError(f"source {source!r} names no bucket path")
+    path = local_source(source)
+    if path is None:
+        raise PinError(f"source {source!r} names no bucket path")
+    return path.removeprefix("./")
 
 
 def write(root: Path) -> str:
@@ -239,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.write:
             print(f"MARKETPLACE PIN: WRITE - pinned every entry to {write(args.root)}")
-        errors = check(args.root)
+        release, errors = check(args.root)
     except (PinError, OSError, ValueError) as exc:
         errors = [str(exc)]
     if errors:
@@ -247,7 +251,6 @@ def main(argv: list[str] | None = None) -> int:
         for error in errors:
             print(f"  FAIL  {error}")
         return 1
-    release = expected_release(args.root)
     state = " (release ref: the pin stays on the previous release until this merges)" if release.pending else ""
     print(f"MARKETPLACE PIN: PASS - every entry pins v{release.version} {release.sha}{state}")
     return 0

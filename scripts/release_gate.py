@@ -4,8 +4,8 @@
 Why this exists: ADR 0002 (docs/adr/0002-a-release-is-a-delivery-event.md)
 made a version bump's merge the act of delivering changed cards to installed
 users, and obliged each plugin to carry a `version`. Since #314 that value
-lives in each plugin's own `.claude-plugin/plugin.json`, under the `source`
-its marketplace entry names, because the loader reads it there and reported
+lives in each plugin's own `.claude-plugin/plugin.json`, under the bucket
+its marketplace entry's `source` names (a `git-subdir` `path` since #444), because the loader reads it there and reported
 `unknown` for a version held only in the marketplace. The value is GENERATED
 from `package.json` and asserted equal by this script -- never typed twice. A hand-maintained second copy of a
 derived value is the manual synchronisation this project has already ruled a
