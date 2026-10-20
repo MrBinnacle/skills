@@ -438,6 +438,64 @@ top-level README; add a row + a short narrative to
 file's removal. If a general lesson outlives the skill, name it in the retirement note as
 ordinary hygiene rather than resurrecting the card.
 
+### Staged retirement (ADR 0007)
+
+Three of the exits above pass through a watch before they become final, per
+[ADR 0007](docs/adr/0007-retirement-is-staged-for-three-exits.md). The routes are `CUT(subsumed)`,
+the pre-registered platform-fix and withdrawn-on-the-policy. `CUT(no_lift)` and `CUT(harmful)`
+delete at once, as before, because a field occasion cannot reverse a measured no-lift and a card
+measured to make outcomes worse is not held in limbo (ADR 0007, Decision 4 and the route table).
+No watch is opened retroactively on `claude-code-stop-hook-envelope` or `skill-necessity-gate`,
+because pre-registration cannot be backdated (ADR 0007, Release arithmetic).
+
+**Deprecate step.** The retiring changeset does everything the paragraph above lists: it removes
+`skills/<bucket>/<card>/` and drops the card from its bucket `plugin.json`, its bucket README and
+the top-level README. It then opens a row in `RETIRED.md` under `## On watch`, in place of a row
+under `## Retired from the collection`. The directory stays recoverable from the last release
+tag. Only the rotation pass edits the row afterwards (ADR 0007, Decision 5). Deprecate is a minor
+release (ADR 0007, Release arithmetic).
+
+**Clock start.** The clock starts on the day the maintainer's install receipt records a
+`gitCommitSha` at or after the retiring merge, not at the merge. A served card acts through its
+description with no invocation, so a card still installed keeps protecting the model and the
+window would read zero (ADR 0007, Frozen). The row records that SHA. Ticket-level detail from
+#512, not part of ADR 0007: a row with no install SHA is not an open watch.
+
+**Signal.** An independent occasion of the card's origin failure in the maintainer's session
+records, counted exactly as "Recording a new occurrence" counts occasions (ADR 0007, Decision 2).
+The failure predicate is the card's `Origin` row and its `gotchas.md` `[OBSERVED]` entry, quoted
+into the row when the watch opens. A dispatch or invocation, and an install or download count,
+are not signals. A guard-blocked hazard entry is not a signal on the platform-fix and policy
+routes. It does count on the `CUT(subsumed)` route, because that verdict claims the model handles
+the hazard unaided (ADR 0007, Decision 2 and Frozen).
+
+**Window.** The window is 90 calendar days and at least 180 observed sessions, whichever closes
+later, with one extension of 90 days (ADR 0007, Decision 3). Ticket-level details from #512, not
+part of ADR 0007: the extension applies when, at the floor date, the session floor is unmet or
+exactly one event is recorded; the hard cap of 180 days is counted from the clock start; and the
+second event restores the card the day it is counted. The floors, the extension and the cap are
+tunable by a dated edit here that cites closed watches (ADR 0007, Tunable with recorded evidence).
+
+**Exit table.** The exits are frozen (ADR 0007, Exit table). With 0 events, the row moves to
+`## Retired from the collection`, its narrative states `0 occasions in N sessions, <start> to
+<close>`, and no release follows. With 1 event, extend once, then retire, dating the single event
+in the narrative. With 2 events, restore: take the card from the last release tag, re-add it to
+`plugin.json` and both READMEs, add a `Watch record` row to its `EVIDENCE.md`, delete the
+`## On watch` row and cut a minor release. A restore is a re-admission on `ADMISSION.md`
+criterion 2, and no new bar is invented. A completed failure goes to `gotchas.md` and
+`Occasions counted`. A guard firing is a hazard entry and never an occasion. It goes to the
+`Watch record` row and a `Hazard incidence` row. Re-admission after a closed watch is the full
+`_quarantine/` admission ritual with no shortcut. The `RETIRED.md` row stays and gains
+`Re-admitted <date>, see skills/<bucket>/<card>`.
+
+**Guarded cards.** A card whose failure an independent guard blocks in the observing
+environment (today, `pull-rebase`) is unobservable on the platform-fix and policy routes. On
+those routes the watch is not opened. The `RETIRED.md` row reads `watch not opened: unobservable
+(guard <name>)` and the exit runs as before. On the `CUT(subsumed)` route the watch opens
+normally. Guards are not disarmed during a watch; to change that default, say so in the retiring
+PR, and the row then records `guard disarmed <date>, re-armed <date>` (ADR 0007, Frozen and the
+guard `[values decision]`).
+
 The banner no longer states counts (owner ruling 2026-08-23, skill-harness #216: a static
 graphic that must track repository state is a maintenance tax). Instead it carries one ruled
 line, asserted **byte-identically in five places across three files** — keep them in lockstep:
@@ -518,7 +576,12 @@ mechanism working. An evolving ecosystem, not a chop list.
    `Screen result`, and any `RECURRENCE-THIN`. For each thin card, search the session
    records for a second independent occurrence of the card's origin failure, and land any
    find per "Recording a new occurrence" above — the dated entry first, then the count.
-   Done when every thin card has been searched and every found occasion is recorded.
+   Widen the same search to every `## On watch` row and every `## Retired from the collection`
+   row in `RETIRED.md`: a watch row is searched for events in its window (ADR 0007, Decision 2),
+   and a retired row is searched for a late recurrence of its origin failure. A watch row is the
+   only place this pass edits `## On watch`.
+   Done when every thin card, every watch row and every retired row has been searched and every
+   found occasion is recorded.
 2. **Scan the usage signal.** Report per-card invocation baseline, latest, and delta from
    the telemetry. Registry practice (Homebrew's 90-day install floor, Debian's
    cruft-report, npm's download floor) separates the mechanical scan that surfaces
@@ -736,7 +799,9 @@ mechanism working. An evolving ecosystem, not a chop list.
    through its first route (see "Retirement" above), widened from "Screen null" to
    **"Harness cut — a current receipt carries `CUT` with its `cut_sub_reason`"**; the
    `RETIRED.md` "What made it unnecessary" cell opens with the `cut_sub_reason` word. The
-   route's evidence is the receipt.
+   route's evidence is the receipt. Dispatch `CUT` by `cut_sub_reason` (ADR 0007, route
+   table): `subsumed` opens a watch per "Staged retirement" above, while `no_lift` and
+   `harmful` delete at once, as before.
 8. **Reconcile, then validate.** Propagate each count or label change to every derived
    surface, walking the consequence chain before the edit — a one-integer change
    legitimately breaks several pins at once, and each break is the guard working: fix the
