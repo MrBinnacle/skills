@@ -190,7 +190,7 @@
       "input": "This project is at risk. Fix it.",
       "expected_tool_sequence": "Read current project health/status updates, target date, milestones, progress and relevant issue states/blockers; test whether signals agree; identify the supported cause or state that it remains unknown; propose corrective options; execute only the changes clearly authorized and justified.",
       "postconditions": "Health signal is not treated as root cause; risk diagnosis cites evidence and coverage; any changed fields are read back; unresolved causes remain explicit.",
-      "mutations": "The phrase 'at risk' alone does not authorize changing health, dates, ownership, scope or assignments.",
+      "mutations": "The phrase 'at risk' alone does not authorize changing health, dates, ownership, scope or assignments, and 'Fix it' authorizes no specific write. A write counts as authorized only when the user names the field or object and its new value, or explicitly approves a plan that names them. Without that, pass requires a read-only diagnosis plus proposed options; any write fails the case.",
       "failure_conditions": [
         "Blindly changes project health/status",
         "Invents a recovery date or reassignment",
