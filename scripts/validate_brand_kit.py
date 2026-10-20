@@ -30,6 +30,35 @@ THE THREE CHECKS
        failed on both banners until the two colour gaps closed, so landing it
        earlier meant landing a permanently red check that would be disabled.
 
+       A `raster_icon` surface extends the same check to PNG files, which
+       carry no hex to scan. Until #448 the check read SVG and CSS only, so the
+       two site icons kept the palette #429 retired while this script reported
+       PASS. See WHY A RASTER ICON IS CHECKED AS BLENDS below.
+
+WHY A RASTER ICON IS CHECKED AS BLENDS
+    A rendered icon holds few exact token colours. On an opaque ground, every
+    anti-aliased edge pixel and every pixel of a stroke drawn at partial
+    opacity is fully opaque and is a mix of ink and ground: the glyph's
+    0.55-opacity line over the light ground lands near #7d7f7d, which no token
+    declares. A check that required every opaque pixel to equal a token would
+    refuse every honest render. So a `raster_icon` surface lists its colours,
+    and each opaque pixel must lie within `tolerance` per channel of a listed
+    colour or of an 8-bit blend of two listed colours. A pixel of a retired
+    ink or a retired ground lies off every such blend, and the file is named.
+
+    A pixel counts as opaque at alpha MIN_OPAQUE_ALPHA (128) or more. On a
+    transparent ground an anti-aliased edge has partial alpha and its stored
+    colour is the ink itself, so its colour is still a fair test. Full alpha
+    alone is too narrow: the glyph's strokes are one pixel wide at 32 pixels,
+    and the favicon rendered for #448 has no pixel above alpha 241. Below 128
+    the stored colour carries the rounding of premultiplied alpha, which grows
+    as alpha falls, so those pixels are not read.
+
+    The PNG is decoded here with zlib and struct, not with an imaging library:
+    CI installs no Python package for this job, and the subset decoded (8-bit
+    RGB or RGBA, no interlace) is the subset the icons use. Any other PNG is
+    refused by name rather than read wrongly.
+
 WHY THE SCOPE RULE IS DATA, AND WHAT THE SCOPE NOW IS
     `copy.words_to_avoid_scope` states the rule for a human;
     `copy.words_to_avoid_surfaces` states the same rule for this script.
@@ -123,9 +152,12 @@ import fnmatch
 import hashlib
 import json
 import re
+import struct
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+import zlib
+from collections import Counter
 from pathlib import Path
 from typing import Any, Final
 
@@ -153,6 +185,13 @@ DIGEST_FIELD_RE: Final[re.Pattern[str]] = re.compile(
 KNOWN_KINDS: Final[frozenset[str]] = frozenset(
     {"svg_copy", "markdown_headings", "markdown_prose", "json_string_field"}
 )
+HEX_SURFACE_KINDS: Final[tuple[str, ...]] = ("svg_hex", "css_hex", "raster_icon")
+PNG_SIGNATURE: Final[bytes] = b"\x89PNG\r\n\x1a\n"
+# PNG colour type -> channels per pixel, for the 8-bit subset decoded here.
+PNG_CHANNELS: Final[dict[int, int]] = {2: 3, 6: 4}
+MAX_RASTER_TOLERANCE: Final[int] = 16
+MIN_OPAQUE_ALPHA: Final[int] = 128
+Rgb = tuple[int, int, int]
 
 
 class Refusal(Exception):
@@ -500,6 +539,170 @@ def pair_violations(root: Path, pairs: list[Any]) -> list[str]:
 
 
 # --------------------------------------------------------------------------
+# Raster icons (#448). A PNG carries no hex, so its pixels are read instead.
+# --------------------------------------------------------------------------
+def png_header_and_data(blob: bytes, label: str) -> tuple[bytes, bytes]:
+    """The IHDR payload and the concatenated IDAT payload of a PNG."""
+    if not blob.startswith(PNG_SIGNATURE):
+        raise Refusal(f"{label} is not a PNG file: its signature is wrong")
+    header = b""
+    data = bytearray()
+    offset = len(PNG_SIGNATURE)
+    while offset + 8 <= len(blob):
+        length, kind = struct.unpack(">I4s", blob[offset : offset + 8])
+        payload = blob[offset + 8 : offset + 8 + length]
+        if kind == b"IHDR":
+            header = payload
+        elif kind == b"IDAT":
+            data.extend(payload)
+        elif kind == b"IEND":
+            break
+        offset += 12 + length
+    if len(header) != 13 or not data:
+        raise Refusal(f"{label} has no readable IHDR or IDAT chunk")
+    return header, bytes(data)
+
+
+def paeth(left: int, up: int, up_left: int) -> int:
+    """The PNG Paeth predictor (PNG specification, section 9.4)."""
+    estimate = left + up - up_left
+    distances = (abs(estimate - left), abs(estimate - up), abs(estimate - up_left))
+    return (left, up, up_left)[distances.index(min(distances))]
+
+
+def unfilter(raw: bytes, height: int, stride: int, bpp: int) -> list[bytearray]:
+    """Undo the five PNG scanline filters, one row at a time."""
+    rows: list[bytearray] = []
+    previous = bytearray(stride)
+    for y in range(height):
+        start = y * (stride + 1)
+        filter_type, row = raw[start], bytearray(raw[start + 1 : start + 1 + stride])
+        for i in range(stride):
+            left = row[i - bpp] if i >= bpp else 0
+            up_left = previous[i - bpp] if i >= bpp else 0
+            predictor = (0, left, previous[i], (left + previous[i]) // 2,
+                         paeth(left, previous[i], up_left))[filter_type]
+            row[i] = (row[i] + predictor) & 0xFF
+        rows.append(row)
+        previous = row
+    return rows
+
+
+def png_opaque_colours(blob: bytes, label: str) -> Counter[Rgb]:
+    """How many opaque pixels of each colour. RGB has no alpha, so every pixel counts."""
+    header, data = png_header_and_data(blob, label)
+    width, height, depth, colour_type, _, _, interlace = struct.unpack(">IIBBBBB", header)
+    channels = PNG_CHANNELS.get(colour_type)
+    if depth != 8 or channels is None or interlace != 0:
+        raise Refusal(
+            f"{label} is a PNG of bit depth {depth}, colour type {colour_type}, "
+            f"interlace {interlace}. This script decodes 8-bit RGB or RGBA with no "
+            "interlace, and refuses any other PNG rather than reading it wrongly."
+        )
+    try:
+        raw = zlib.decompress(data)
+    except zlib.error as error:
+        raise Refusal(f"{label} has image data that does not inflate: {error}") from error
+    stride = width * channels
+    if len(raw) != height * (stride + 1) or any(raw[y * (stride + 1)] > 4 for y in range(height)):
+        raise Refusal(f"{label} has image data of the wrong size or an unknown row filter")
+    opaque: Counter[Rgb] = Counter()
+    for row in unfilter(raw, height, stride, channels):
+        for x in range(0, stride, channels):
+            if channels == 3 or row[x + 3] >= MIN_OPAQUE_ALPHA:
+                opaque[(row[x], row[x + 1], row[x + 2])] += 1
+    return opaque
+
+
+def hex_to_rgb(colour: str) -> Rgb:
+    digits = normalise_hex(colour)[1:]
+    return (int(digits[0:2], 16), int(digits[2:4], 16), int(digits[4:6], 16))
+
+
+def raster_palette(spec: dict[str, Any], declared: set[str]) -> tuple[list[Rgb], int]:
+    """The colours a raster_icon surface allows, each one a declared token value."""
+    glob = spec.get("glob")
+    colours = spec.get("colors")
+    tolerance = spec.get("tolerance")
+    if not isinstance(colours, list) or not colours or not all(
+        isinstance(colour, str) and HEX_RE.fullmatch(colour) for colour in colours
+    ):
+        raise Refusal(
+            f"raster_icon surface {ascii(glob)} lists no colours. Each opaque pixel "
+            "is checked against the listed colours, so an empty list checks nothing."
+        )
+    undeclared = sorted({normalise_hex(c) for c in colours} - declared)
+    if undeclared:
+        raise Refusal(
+            f"raster_icon surface {ascii(glob)} lists {undeclared}, which "
+            "assets/tokens.json does not declare as a token value."
+        )
+    if not isinstance(tolerance, int) or isinstance(tolerance, bool) or not (
+        0 <= tolerance <= MAX_RASTER_TOLERANCE
+    ):
+        raise Refusal(
+            f"raster_icon surface {ascii(glob)} states tolerance {ascii(tolerance)}. "
+            f"It must be a whole number from 0 to {MAX_RASTER_TOLERANCE}: a wider "
+            "tolerance accepts a different colour as anti-aliasing."
+        )
+    return [hex_to_rgb(colour) for colour in colours], tolerance
+
+
+def palette_blends(palette: list[Rgb]) -> set[Rgb]:
+    """Every listed colour, and every 8-bit blend of two listed colours."""
+    blends = set(palette)
+    for index, first in enumerate(palette):
+        for second in palette[index + 1 :]:
+            for step in range(256):
+                (r1, g1, b1), (r2, g2, b2) = first, second
+                blends.add((
+                    round(r1 + (r2 - r1) * step / 255),
+                    round(g1 + (g2 - g1) * step / 255),
+                    round(b1 + (b2 - b1) * step / 255),
+                ))
+    return blends
+
+
+def raster_surface_violations(
+    root: Path, spec: dict[str, Any], paths: list[Path], declared: set[str]
+) -> list[str]:
+    """One message per icon on a raster_icon surface that leaves the palette."""
+    palette, tolerance = raster_palette(spec, declared)
+    messages = (
+        raster_violation(path.relative_to(root).as_posix(), path.read_bytes(), palette, tolerance)
+        for path in paths
+    )
+    return [message for message in messages if message]
+
+
+def raster_violation(relative: str, blob: bytes, palette: list[Rgb], tolerance: int) -> str | None:
+    """One message naming the file when any opaque pixel is off the palette."""
+    opaque = png_opaque_colours(blob, relative)
+    if not opaque:
+        raise Refusal(
+            f"{relative} has no pixel at alpha {MIN_OPAQUE_ALPHA} or more. A raster "
+            "icon with nothing opaque gives the palette check nothing to read."
+        )
+    blends = palette_blends(palette)
+    off = Counter({
+        colour: count
+        for colour, count in opaque.items()
+        if min(max(abs(c - b) for c, b in zip(colour, blend)) for blend in blends) > tolerance
+    })
+    if not off:
+        return None
+    worst = ", ".join(
+        f"#{r:02x}{g:02x}{b:02x} x{count}" for (r, g, b), count in off.most_common(3)
+    )
+    return (
+        f"{relative}: {sum(off.values())} of {sum(opaque.values())} opaque pixels lie "
+        f"more than {tolerance} per channel from every listed colour and every blend "
+        f"of two of them. Most frequent: {worst}. Re-render the icon from its source "
+        "in the current palette, or change the surface's colors in assets/tokens.json."
+    )
+
+
+# --------------------------------------------------------------------------
 # Declared hexes.
 # --------------------------------------------------------------------------
 def declared_hexes(node: Any, into: set[str]) -> set[str]:
@@ -570,11 +773,11 @@ def undeclared_hex_violations(
         glob = spec.get("glob")
         if not isinstance(glob, str) or not glob:
             raise Refusal("a declared_hex_surfaces entry names no glob")
-        if kind not in ("svg_hex", "css_hex"):
+        if kind not in HEX_SURFACE_KINDS:
             raise Refusal(
                 f"declared_hex_surfaces kind {ascii(kind)} is not one this script "
-                "implements. Kinds are svg_hex and css_hex. A surface kind nothing "
-                "reads is a declared check that never runs."
+                "implements. Kinds are svg_hex, css_hex and raster_icon. A surface "
+                "kind nothing reads is a declared check that never runs."
             )
         paths = tracked_matches(root, glob, tracked)
         if not paths:
@@ -585,6 +788,9 @@ def undeclared_hex_violations(
                 "the copy surfaces use."
             )
         files += len(paths)
+        if kind == "raster_icon":
+            violations.extend(raster_surface_violations(root, spec, paths, declared))
+            continue
         for path in paths:
             relative = path.relative_to(root).as_posix()
             text = path.read_text(encoding="utf-8")

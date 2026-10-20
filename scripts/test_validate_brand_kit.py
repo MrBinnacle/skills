@@ -40,9 +40,11 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import struct
 import subprocess
 import sys
 import tempfile
+import zlib
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -897,6 +899,238 @@ def case_live_stylesheet_surface_is_not_vacuous() -> None:
     )
 
 
+# --------------------------------------------------------------------------
+# Raster icons (#448). The fixtures are PNGs built here by an encoder written
+# independently of the checker's decoder, so the two agree only if both follow
+# the PNG specification. Rows cycle through all five filter types, because the
+# decoder undoes each one and a mistake in one filter would misread a colour.
+# --------------------------------------------------------------------------
+INK = (0x1E, 0x20, 0x20)
+GROUND = (0xF2, 0xF4, 0xEF)
+RETIRED_INK = (0x1F, 0x23, 0x28)
+
+
+def _png_chunk(kind: bytes, payload: bytes) -> bytes:
+    crc = zlib.crc32(kind + payload) & 0xFFFFFFFF
+    return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", crc)
+
+
+def _filter_row(kind: int, row: bytes, previous: bytes, bpp: int) -> bytes:
+    out = bytearray()
+    for i, value in enumerate(row):
+        left = row[i - bpp] if i >= bpp else 0
+        up = previous[i]
+        up_left = previous[i - bpp] if i >= bpp else 0
+        estimate = left + up - up_left
+        pa, pb, pc = abs(estimate - left), abs(estimate - up), abs(estimate - up_left)
+        paeth = left if pa <= pb and pa <= pc else (up if pb <= pc else up_left)
+        predictor = (0, left, up, (left + up) // 2, paeth)[kind]
+        out.append((value - predictor) & 0xFF)
+    return bytes(out)
+
+
+def encode_png(pixels: list[list[tuple[int, ...]]], depth: int = 8) -> bytes:
+    """An RGB or RGBA PNG; the tuple length of the first pixel picks which."""
+    channels = len(pixels[0][0])
+    colour_type = {3: 2, 4: 6}[channels]
+    height, width = len(pixels), len(pixels[0])
+    raw = bytearray()
+    previous = bytes(width * channels)
+    for y, line in enumerate(pixels):
+        row = bytes(value for pixel in line for value in pixel)
+        kind = y % 5
+        raw.append(kind)
+        raw.extend(_filter_row(kind, row, previous, channels))
+        previous = row
+    header = struct.pack(">IIBBBBB", width, height, depth, colour_type, 0, 0, 0)
+    return (
+        kit.PNG_SIGNATURE
+        + _png_chunk(b"IHDR", header)
+        + _png_chunk(b"IDAT", zlib.compress(bytes(raw)))
+        + _png_chunk(b"IEND", b"")
+    )
+
+
+def _blend(first: tuple[int, ...], second: tuple[int, ...], weight: float) -> tuple[int, ...]:
+    return tuple(round(a + (b - a) * weight) for a, b in zip(first, second))
+
+
+def _icon(*colours: tuple[int, ...], size: int = 10) -> bytes:
+    """A square icon of GROUND with the given colours along its first row."""
+    pixels = [[GROUND] * size for _ in range(size)]
+    for x, colour in enumerate(colours):
+        pixels[0][x] = colour
+    return encode_png(pixels)
+
+
+def _tokens_with_raster_surface(**overrides: Any) -> dict[str, Any]:
+    tokens = baseline_tokens()
+    tokens["color"]["structural_light"] = {
+        "ink": {"value": "#1E2020"},
+        "bg": {"value": "#F2F4EF"},
+    }
+    spec = {
+        "kind": "raster_icon",
+        "glob": "site/icon.png",
+        "colors": ["#1E2020", "#F2F4EF"],
+        "tolerance": 3,
+    }
+    spec.update(overrides)
+    tokens["color"]["declared_hex_surfaces"]["surfaces"].append(spec)
+    return tokens
+
+
+def _tree_with_icon(tmp: Path, blob: bytes, **overrides: Any) -> Path:
+    root = baseline_tree(tmp, tokens=_tokens_with_raster_surface(**overrides))
+    site = root / "site"
+    site.mkdir(parents=True, exist_ok=True)
+    (site / "icon.png").write_bytes(blob)
+    stage(root)
+    return root
+
+
+def case_raster_icon_in_palette_passes(tmp: Path) -> None:
+    """Ink, ground, and the blends anti-aliasing makes between them all pass."""
+    icon = _icon(INK, _blend(INK, GROUND, 0.45), _blend(INK, GROUND, 0.9), INK)
+    expect_pass("a raster icon of ink, ground and their blends passes", _tree_with_icon(tmp, icon))
+
+
+def case_raster_icon_retired_ink_rejected(tmp: Path) -> None:
+    """The defect #448 found: the retired ink, 8 from the current one in blue."""
+    expect_one_breach(
+        "a raster icon drawn in the retired ink rejected",
+        _tree_with_icon(tmp, _icon(RETIRED_INK, RETIRED_INK)),
+        "site/icon.png: 2 of 100 opaque pixels",
+        "#1f2328 x2",
+    )
+
+
+def case_raster_icon_retired_ground_rejected(tmp: Path) -> None:
+    """A white ground lies off the ink-to-ground blend line."""
+    pixels = [[(255, 255, 255)] * 4 for _ in range(4)]
+    expect_one_breach(
+        "a raster icon on a retired white ground rejected",
+        _tree_with_icon(tmp, encode_png(pixels)),
+        "site/icon.png: 16 of 16 opaque pixels",
+        "#ffffff x16",
+    )
+
+
+def case_raster_icon_tolerance_is_the_boundary(tmp: Path) -> None:
+    """3 off in one channel passes at tolerance 3; 4 off is refused.
+
+    The shift is DOWN in red, away from the ground, so the nearest blend is the
+    ink itself. A shift up in every channel would move along the blend line
+    toward the ground and stay inside it.
+    """
+    near = (INK[0] - 3, INK[1], INK[2])
+    far = (INK[0] - 4, INK[1], INK[2])
+    expect_pass("a pixel at the tolerance passes", _tree_with_icon(tmp / "a", _icon(near)))
+    expect_one_breach(
+        "a pixel one step past the tolerance rejected",
+        _tree_with_icon(tmp / "b", _icon(far)),
+        "1 of 100 opaque pixels",
+    )
+
+
+def case_raster_icon_faint_pixel_not_read(tmp: Path) -> None:
+    """Below alpha 128 the stored colour is rounding, so it is not read."""
+    pixels = [[INK + (255,)] * 4 for _ in range(4)]
+    pixels[0][0] = (255, 0, 0, 127)
+    expect_pass("a pixel below alpha 128 is not read", _tree_with_icon(tmp / "a", encode_png(pixels)))
+    pixels[0][0] = (255, 0, 0, 128)
+    expect_one_breach(
+        "the same pixel at alpha 128 is read and rejected",
+        _tree_with_icon(tmp / "b", encode_png(pixels)),
+        "#ff0000 x1",
+    )
+
+
+def case_raster_icon_with_nothing_opaque_refused(tmp: Path) -> None:
+    pixels = [[INK + (0,)] * 4 for _ in range(4)]
+    expect_refusal(
+        "a raster icon with no opaque pixel refused",
+        _tree_with_icon(tmp, encode_png(pixels)),
+        "has no pixel at alpha 128 or more",
+    )
+
+
+def case_raster_icon_undeclared_colour_refused(tmp: Path) -> None:
+    """A listed colour must be a token value, or the list widens the palette."""
+    expect_refusal(
+        "a raster_icon colour the token file does not declare refused",
+        _tree_with_icon(tmp, _icon(INK), colors=["#1E2020", "#FFFFFF"]),
+        "does not declare as a token value",
+    )
+
+
+def case_raster_icon_bad_tolerance_refused(tmp: Path) -> None:
+    for value in (17, -1, "3", True):
+        expect_refusal(
+            f"raster_icon tolerance {value!r} refused",
+            _tree_with_icon(tmp / str(value), _icon(INK), tolerance=value),
+            "states tolerance",
+        )
+
+
+def case_raster_icon_unsupported_png_refused(tmp: Path) -> None:
+    """A PNG outside the decoded subset is refused by name, not misread."""
+    blob = bytearray(_icon(INK))
+    blob[24] = 16  # IHDR bit depth; the CRC is not checked
+    expect_refusal(
+        "a 16-bit PNG refused rather than misread",
+        _tree_with_icon(tmp / "a", bytes(blob)),
+        "bit depth 16",
+    )
+    expect_refusal(
+        "a file that is not a PNG refused",
+        _tree_with_icon(tmp / "b", b"GIF89a"),
+        "is not a PNG file",
+    )
+    expect_refusal(
+        "a PNG cut off before its image data refused",
+        _tree_with_icon(tmp / "c", _icon(INK)[:33]),
+        "has no readable IHDR or IDAT chunk",
+    )
+    whole = _icon(INK)
+    header_end = len(kit.PNG_SIGNATURE) + 25
+    short = encode_png([[INK] * 10 for _ in range(9)])[header_end:]
+    expect_refusal(
+        "a PNG whose image data is the wrong size refused",
+        _tree_with_icon(tmp / "d", whole[:header_end] + short),
+        "wrong size or an unknown row filter",
+    )
+
+
+def case_png_decoder_reads_every_filter() -> None:
+    """Exact counts through all five filters, RGB and RGBA."""
+    rows = [[_blend(INK, GROUND, (x + y) / 12) for x in range(7)] for y in range(6)]
+    expected: dict[tuple[int, ...], int] = {}
+    for line in rows:
+        for pixel in line:
+            expected[pixel] = expected.get(pixel, 0) + 1
+    got_rgb = dict(kit.png_opaque_colours(encode_png(rows), "rgb"))
+    rgba = [[pixel + (200,) for pixel in line] for line in rows]
+    got_rgba = dict(kit.png_opaque_colours(encode_png(rgba), "rgba"))
+    check("the PNG decoder reads RGB through all five filters", got_rgb == expected, str(got_rgb))
+    check("the PNG decoder reads RGBA through all five filters", got_rgba == expected, str(got_rgba))
+
+
+def case_live_raster_icons_are_checked() -> None:
+    """Non-vacuity against what ships: both site icons are named and decode."""
+    tokens = json.loads((REPO_ROOT / "assets" / "tokens.json").read_text(encoding="utf-8"))
+    globs = {
+        spec.get("glob")
+        for spec in tokens["color"]["declared_hex_surfaces"]["surfaces"]
+        if spec.get("kind") == "raster_icon"
+    }
+    for name in ("site/favicon-32.png", "site/apple-touch-icon.png"):
+        matched = any(glob and (REPO_ROOT / name) in REPO_ROOT.glob(glob) for glob in globs)
+        check(f"a raster_icon surface covers {name}", matched, str(sorted(globs)))
+        opaque = kit.png_opaque_colours((REPO_ROOT / name).read_bytes(), name)
+        check(f"{name} has opaque pixels to check", sum(opaque.values()) > 0, str(opaque))
+
+
 def case_prose_naming_a_hex_declares_nothing(tmp: Path) -> None:
     """The defect the CI poison control found before this suite did.
 
@@ -1248,6 +1482,15 @@ def main() -> None:
         case_unknown_hex_surface_kind_refused,
         case_hex_surface_matching_nothing_refused,
         case_missing_hex_surface_block_refused,
+        case_raster_icon_in_palette_passes,
+        case_raster_icon_retired_ink_rejected,
+        case_raster_icon_retired_ground_rejected,
+        case_raster_icon_tolerance_is_the_boundary,
+        case_raster_icon_faint_pixel_not_read,
+        case_raster_icon_with_nothing_opaque_refused,
+        case_raster_icon_undeclared_colour_refused,
+        case_raster_icon_bad_tolerance_refused,
+        case_raster_icon_unsupported_png_refused,
         case_prose_naming_a_hex_declares_nothing,
         case_declared_hex_is_case_insensitive,
         case_three_digit_hex_normalised,
@@ -1271,6 +1514,8 @@ def main() -> None:
     case_live_banners_carry_no_instrument_palette()
     case_live_light_neutrals_are_declared()
     case_live_stylesheet_surface_is_not_vacuous()
+    case_png_decoder_reads_every_filter()
+    case_live_raster_icons_are_checked()
     case_live_notes_grant_no_permission_no_checker_implements()
     case_workflow_runs_the_checker()
 
@@ -1283,7 +1528,8 @@ def main() -> None:
         "an exact breach count, the scope boundary is pinned by the fixture that "
         "was inverted when it moved, both exclusions have a fixture, the published "
         "word-list digest is checked against the shipped list, and the SVG, "
-        "prose and stylesheet scanners are proven non-vacuous against what ships."
+        "prose and stylesheet scanners and the raster icon decoder are proven "
+        "non-vacuous against what ships."
     )
 
 
