@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
-"""Suite for validate_site_links.py: the live site passes, and each broken form is refused."""
+"""Suite for validate_site_links.py: the live site passes, and each broken form is refused.
+
+It also pins the footer to the content column (#365): no rule that reaches the
+footer list may reset the inline margins that .wrap sets.
+"""
 from __future__ import annotations
 
+import re
 import shutil
 import sys
 import tempfile
@@ -27,8 +32,35 @@ def _copy_with_href(href: str) -> Path:
     return tmp
 
 
+INLINE_MARGIN = re.compile(r"^margin(-inline(-start|-end)?|-left|-right)?$")
+
+
+def footer_margin_resets(css: str) -> list[str]:
+    """Rules that reach `.foot ul` and declare an inline margin, which beats .wrap's auto."""
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    hits = []
+    for selectors, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        if not any(s.strip().endswith(".foot ul") for s in selectors.split(",")):
+            continue
+        for decl in body.split(";"):
+            if INLINE_MARGIN.match(decl.split(":", 1)[0].strip()):
+                hits.append(f"{' '.join(selectors.split())} {{ {decl.strip()} }}")
+    return hits
+
+
+def footer_column_failures() -> list[str]:
+    html = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+    if not re.search(r'<footer class="foot">\s*<ul class="wrap">', html):
+        return ["footer list no longer carries .wrap; the footer-column check would prove nothing"]
+    css = (ROOT / "site" / "style.css").read_text(encoding="utf-8")
+    failures = [f"footer list inline-margin reset beats .wrap: {hit}" for hit in footer_margin_resets(css)]
+    if not footer_margin_resets(".isnt ul,\n.foot ul { list-style: none; margin: 0; padding: 0; }"):
+        failures.append("footer-column check accepted the #365 reset")
+    return failures
+
+
 def main() -> int:
-    failures: list[str] = []
+    failures: list[str] = footer_column_failures()
 
     if sl.check(ROOT):
         failures.append(f"live site should pass, got {sl.check(ROOT)}")
@@ -57,7 +89,7 @@ def main() -> int:
         print(f"FAIL: {failure}")
     if failures:
         return 1
-    print(f"PASS: site link suite, {len(broken) + 3} checks")
+    print(f"PASS: site link suite, {len(broken) + 5} checks")
     return 0
 
 
