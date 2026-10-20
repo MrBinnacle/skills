@@ -555,6 +555,16 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::install-receipt suite emitted no PASS line - it did not run"; exit 1; }
 
+      # #330: `npm run version` chains finish_changelog.py after changeset
+      # version. This suite pins the dated heading and the preamble order on a
+      # captured changesets output, and that release gate G4 accepts the result.
+      - name: Changelog finish suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_finish_changelog.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:'             || { echo "::error::changelog finish suite emitted no PASS line - it did not run"; exit 1; }
+
       - name: Install-path check
         run: |
           set -euo pipefail

@@ -10,7 +10,7 @@
   "license": "MIT",
   "scripts": {
     "changeset": "changeset",
-    "version": "changeset version"
+    "version": "changeset version && python scripts/finish_changelog.py"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.1",
