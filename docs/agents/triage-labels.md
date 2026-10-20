@@ -51,9 +51,12 @@ the board reads in the same terms as the instrument that judges the work. The ve
 | no counterpart           | `wontfix`            | Terminal. Not actioned, not watched, and requiring no registry row. |
 
 `declined`, `subsumed` and `cant-tell-yet` are non-terminal. Each one requires a row in the
-revisit-conditions registry, `.claude/state/revisit-conditions.json` in the steering repository,
-naming the condition that would reverse the decision. A decline with no registry row is a decision nothing
-is watching, which is the failure this axis exists to prevent.
+revisit-conditions registry, the `board_declines` array in
+`MrBinnacle/ai-knowledge/.claude/state/revisit-conditions.json`, naming the condition that would
+reverse the decision. Rows are appended by the AI Knowledge session. No checker evaluates the rows
+automatically: `scripts/check_revisit_conditions.py` was not ported from the frozen former
+steering repository. A decline with no registry row is a decision nothing is watching, which is the
+failure this axis exists to prevent.
 
 `wontfix` is terminal. It records that the work will not be done and that nothing will reopen it. It
 requires no registry row, and that is the whole difference between it and `declined`.
