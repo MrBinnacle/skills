@@ -40,4 +40,3 @@ Schema facts observed: project creation requires name and at least one team via 
 - Duplicating content in project description, document and status update: competing sources of truth.
 - Speculative cycle or dependency: apparent commitment or false critical path.
 - Missing acceptance criteria: subjective completion.
-- Missing evidence treated as non-use or completion: lack of observation mistaken for proof.
