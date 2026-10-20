@@ -13,4 +13,4 @@ Use this candidate with an agent that has Linear MCP tools available. It is an o
 
 ## Validation
 
-evals/evals.json defines 12 structural cases and their expected sequences, mutation boundaries, postconditions and failure conditions. This is a specification, not a model benchmark. Use a mocked adapter or isolated test workspace, never disposable production objects. Before promotion, follow ADMISSION.md and AGENTS.md, measure skill cost, run controlled with/without-skill evaluations, and record independent failure occasions.
+evals/evals.json defines 20 structural cases and their expected sequences, mutation boundaries, postconditions and failure conditions. This is a specification, not a model benchmark. Use a mocked adapter or isolated test workspace, never disposable production objects. Before promotion, follow ADMISSION.md and AGENTS.md, measure skill cost, run controlled with/without-skill evaluations, and record independent failure occasions.

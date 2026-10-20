@@ -1,6 +1,6 @@
 ---
 name: linear-power-user
-description: Project planning, diagnosis, and safe workspace operations in Linear. Use to evaluate projects, choose views or monitoring, structure work, or report delivery health.
+description: Create projects, structure issues, inspect conventions, and run safe operations in Linear. Use to evaluate projects, choose views or monitoring, or report delivery health.
 ---
 
 # Linear power user
