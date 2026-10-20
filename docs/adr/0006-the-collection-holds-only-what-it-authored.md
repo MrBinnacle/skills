@@ -21,6 +21,14 @@ The line between the two is the tree. This repository is public, and a package i
 as this collection's work, so possession states provenance whether or not anyone promotes the
 package.
 
+The rule is about whole skill packages. A card this collection wrote may still reproduce or
+adapt text from another project under that project's license. `AGENTS.md` §"Source of truth &
+maintainer workflow", promotion step 2, already governs that case: name the source and license,
+and attribute in place ([`AGENTS.md:132-137`](../../AGENTS.md)). This record does not change
+that step. The rule also does not reach the non-skill files vendored from the owner's own
+`MrBinnacle/skill-harness` repository, `styles/Taste/` and `scripts/vendor/`. They are not skills,
+and their source of truth is this collection's owner.
+
 ## What happened
 
 The `self-documenting-code` candidate was written by theswerd and taken from the public
