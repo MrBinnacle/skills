@@ -47,15 +47,25 @@ every commit you want credited first. `release_gate.py --write` stamps every plu
 version in `.claude-plugin/marketplace.json` from `package.json` and reports release fitness
 (every stale surface in one run). Commit the result and merge only when the gate is green.
 
-**After the bump merges**, the README install receipt still names the previous version: the
-install it would cite has not run yet, and the `Install form` check warns rather than fails
-while the receipt lags. Once the first push run of `tests.yml` on `main` passes at the new
-version, run:
+**After the bump merges**, two workflows finish the release with `GITHUB_TOKEN` (#517). Each
+opens a pull request; a maintainer selects **Approve workflows to run** on it, then merges it.
+
+1. `release-pin.yml` runs on the push that changes `package.json` and opens the marketplace pin
+   PR (`python scripts/check_marketplace_pin.py --write`). The release gate is red on `main` and
+   on every PR until that PR merges.
+2. `release-receipt.yml` refreshes the README install receipt and opens it as its own PR. It
+   runs after each passing push run of `tests.yml` on `main`, and does nothing while the
+   receipt is current. It waits for the pin merge because the receipt cites the first passing
+   push run at the new version, and `tests.yml` stays red on `main` until the pin lands. Until
+   then the `Install form` check warns rather than fails while the receipt lags.
+
+The workflows need the repository setting "Allow GitHub Actions to create and approve pull
+requests" turned on. To run the receipt step by hand:
 
 ```bash
 python scripts/refresh_install_receipt.py          # print the diff
 python scripts/refresh_install_receipt.py --write  # apply it
 ```
 
-It cites that run's id and date, and needs `gh` authenticated against the repository. Open the
-result as its own pull request.
+It cites that run's id and date, and needs `gh` authenticated against the repository.
+Open the result as its own pull request.

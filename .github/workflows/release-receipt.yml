@@ -1,0 +1,74 @@
+# Post-release stage 2 of 2: open the install-receipt PR (#517).
+#
+# The README install receipt cites the first passing push run of tests.yml on main at the
+# current version (scripts/refresh_install_receipt.py, #464). That run exists only after the
+# stage 1 pin PR (release-pin.yml) merges, because tests.yml is red on main until the pin
+# lands. So this job waits for a passing tests.yml push run on main, refreshes the receipt,
+# and opens a PR when the receipt changed.
+#
+# Idempotent: every passing push run on main starts this job, and most find the receipt
+# already current, so `--write` changes nothing and the job stops. It also stops when the
+# branch it would push already exists (an open or closed earlier receipt PR); delete that
+# branch to run it again.
+#
+# GITHUB_TOKEN only. A PR it opens starts its pull_request checks in an approval-required
+# state: a maintainer selects "Approve workflows to run" on the PR. The repository setting
+# "Allow GitHub Actions to create and approve pull requests" must be on for `gh pr create`.
+name: release-receipt
+
+on:
+  workflow_run:
+    workflows: [tests]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: release-receipt
+  cancel-in-progress: false
+
+jobs:
+  open-receipt-pr:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read # the receipt script lists tests.yml runs and reads their jobs
+      contents: write # push the receipt branch
+      pull-requests: write # open the receipt PR
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0 # the receipt script reads plugin versions at each run's head commit
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Refresh the receipt and open a PR when it changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          python scripts/refresh_install_receipt.py --write
+          if git diff --quiet -- README.md; then
+            echo "The receipt is current; nothing to open."
+            exit 0
+          fi
+          version=$(python -c "import json; print(json.load(open('package.json'))['version'])")
+          branch="automation/install-receipt-v${version}"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "Branch $branch already exists; not opening a second receipt PR."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add README.md
+          git commit -m "docs(readme): refresh install receipt to v${version}"
+          git push origin "HEAD:refs/heads/${branch}"
+          gh pr create --repo "$REPO" --base main --head "$branch" \
+            --title "docs(readme): refresh install receipt to v${version}" \
+            --body "Automated by release-receipt.yml (#517). Cites the first passing push run of tests.yml on main at v${version} (\`scripts/refresh_install_receipt.py --write\`). Select **Approve workflows to run** to start this PR's checks."
