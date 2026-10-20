@@ -295,6 +295,28 @@ jobs:
             || { echo "::error::origin-tier-drift fixture failed for the wrong reason"; cat control-origin.log; exit 1; }
           echo "control: drifted origin tiering rejected as expected"
 
+      # #355: the Applicability scope row has a fixed two-part form,
+      # `For: <situations>. Not established for: <situations>.` This fixture's
+      # card states every required file and row, and its applicability row
+      # states the `For:` part only, so the only thing it can fail on is the
+      # form check. The card-file suite runs in links.yml; this control sits
+      # here beside the other committed-fixture controls.
+      - name: Poison control - an applicability row without its second part must be rejected
+        run: |
+          set -euo pipefail
+          if python scripts/validate_card_files.py \
+               --root scripts/fixtures/card-malformed-applicability-row \
+               > control-applicability.log 2>&1; then
+            echo "::error::malformed-applicability fixture was ACCEPTED - the Applicability scope form is not enforced"
+            cat control-applicability.log
+            exit 1
+          fi
+          grep -q "unbounded-card: Applicability scope has no 'Not established for:' part" control-applicability.log \
+            || { echo "::error::malformed-applicability fixture failed for the wrong reason"; cat control-applicability.log; exit 1; }
+          grep -q 'REJECTED: 1 card contract breach' control-applicability.log \
+            || { echo "::error::malformed-applicability fixture failed for more than one reason"; cat control-applicability.log; exit 1; }
+          echo "control: applicability row without its second part rejected as expected"
+
       # The front page's "Admission method" paragraph restates counts the S295
       # disposition record owns: how many cards it triaged, stood, called thin,
       # and called ceiling-likely. Those were hand-maintained prose -- the same

@@ -13,9 +13,16 @@ Skills are organized into bucket folders under `skills/`:
 Shipped skills carry an `EVIDENCE.md` provenance record (origin incident, occasions counted,
 validated-against, screen/paired result with UNMEASURED first-class, standing cost,
 re-screen trigger). New promotions MUST include one; see top-level README → "The receipts, explained".
-Three of those rows are contract rather than convention — `Occasions counted`,
-`Dispatches recorded` and `Re-screen trigger` — and `scripts/validate_card_files.py` refuses a
-published card that does not state all three; see "Recording a new occurrence" below.
+Five of those rows are contract rather than convention: `Occasions counted`,
+`Dispatches recorded`, `Re-screen trigger`, and the two scope rows, `Evidence scope` and
+`Applicability scope`. `scripts/validate_card_files.py` refuses a published card that does not
+state all five; see "Recording a new occurrence" below. `Evidence scope` says what the evidence
+demonstrated. Its value is derived from the card's linked receipt and never written freehand,
+and conformance O5 checks it against that receipt. `Applicability scope` says which situations
+the card is for. The card's author writes it in the form
+`For: <situations>. Not established for: <situations>.`, and the validator checks only that
+form: both labels, case-sensitive, each followed by text. The row must not name a situation the
+card's `description` does not route to.
 
 `Dispatches recorded` (added 2026-08-24) is the measured-demand row, and it is required so it
 cannot be silently dropped. Its form is checked, not just its presence: the row opens with a
@@ -144,6 +151,11 @@ files and makes the double-tracking impossible. It is never a filesystem link.
    this wrong without it? — before it is eligible.
 2. Copy it into the correct bucket, **de-personalize** (the gate blocks residue), flatten to the
    per-skill flat layout, and add `EVIDENCE.md` + `gotchas.md`.
+   The `EVIDENCE.md` states both scope rows: `Evidence scope`, derived from the linked receipt
+   (`UNMEASURED (<sub-reason>) — no receipt.` when there is none), and `Applicability scope`, written by the
+   author as `For: <situations>. Not established for: <situations>.`
+   **The `description` makes no claim wider than the evidence scope.** Review checks this, not a
+   gate, because no validator reads description wording.
    In the same pass, check the card for **third-party material**: does it reproduce or adapt
    text or structure from another project? If it does, name the source and its license, and
    attribute in place wherever that license requires it (MIT, for example, requires its
@@ -811,7 +823,7 @@ mechanism working. An evolving ecosystem, not a chop list.
 
    | Validator | Suite | What a pass most often breaks here |
    |---|---|---|
-   | `scripts/validate_card_files.py` | `scripts/test_validate_card_files.py` | the three contract rows, and the occasions check in both directions |
+   | `scripts/validate_card_files.py` | `scripts/test_validate_card_files.py` | the five contract rows, the applicability-scope form, and the occasions check in both directions |
    | `scripts/validate_scoreboard.py` | `scripts/test_readme_admission_lead.py` | derived counts, the banner line, origin tiering |
    | `scripts/validate_eval_corpora.py` | `scripts/test_validate_eval_corpora.py` | a renamed card breaks its corpus's `skill_name` |
    | `scripts/validate_skill_formats.py` | `scripts/test_validate_skill_formats.py` | a card file whose extension is outside `.md`/`.txt`/`.py`/`.json`, or a `__pycache__` bytecode file with no source beside it. Size bounds live in `validate_card_files.py`, not here |

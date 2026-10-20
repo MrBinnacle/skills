@@ -11,3 +11,4 @@ failing for exactly one reason.
 | **Dispatches recorded** | No recorded dispatch, fixture counter, measured 2026-01-01. |
 | **Re-screen trigger** | Fixture; never screened, never re-screened. |
 | **Evidence scope** | UNMEASURED — no receipt. |
+| **Applicability scope** | For: fixture trees that test the card contract. Not established for: any published card. |
