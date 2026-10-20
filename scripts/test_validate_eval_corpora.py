@@ -298,6 +298,37 @@ def case_second_file_in_evals_rejected(root: Path) -> None:
     expect_rejection(root, "a second file beside the corpus", "file(s) beside the corpus")
 
 
+# The usage.md line #521 shipped while its evals.json held 20 cases (#523).
+LINE_521 = "evals/evals.json defines 12 structural cases and their expected sequences.\n"
+
+
+def case_prose_count_drift_rejected(root: Path) -> None:
+    card = write_tree(root)
+    (card / "usage.md").write_text("# Usage\n\nevals/evals.json defines 4 cases.\n", encoding="utf-8")
+    expect_rejection(root, "prose stating a wrong corpus case count", "states '4 cases' but evals/evals.json holds 3")
+
+
+def case_prose_count_match_passes(root: Path) -> None:
+    card = write_tree(root)
+    (card / "usage.md").write_text(
+        "# Usage\n\nevals/evals.json defines 3 structural cases.\n\nA line that skips the corpus may say 2 cases.\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check("prose stating the right corpus count passes", result.returncode == 0, (result.stdout + result.stderr).strip())
+
+
+def case_quarantine_521_state_rejected(root: Path) -> None:
+    """The #521 shape: a quarantined candidate, usage.md says 12, the corpus holds 20."""
+    write_tree(root)
+    candidate = root / corpora.QUARANTINE_DIR / "probe-candidate"
+    (candidate / corpora.CORPUS_DIR).mkdir(parents=True)
+    (candidate / "usage.md").write_text(LINE_521, encoding="utf-8")
+    corpus = {"skill_name": "probe-candidate", "cases": [{"id": n} for n in range(1, 21)]}
+    (candidate / corpora.CORPUS_DIR / corpora.CORPUS_FILE).write_text(json.dumps(corpus), encoding="utf-8")
+    expect_rejection(root, "the #521 quarantine state", "states '12 structural cases' but evals/evals.json holds 20")
+
+
 # --------------------------------------------------------------- the live tree
 
 
@@ -383,6 +414,9 @@ def main() -> None:
         case_unknown_case_key_rejected,
         case_nameless_frontmatter_rejected,
         case_second_file_in_evals_rejected,
+        case_prose_count_drift_rejected,
+        case_prose_count_match_passes,
+        case_quarantine_521_state_rejected,
     )
     for case in in_tempdir:
         with tempfile.TemporaryDirectory() as tmp:

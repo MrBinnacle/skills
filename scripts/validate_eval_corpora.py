@@ -93,6 +93,15 @@ FRONTMATTER_NAME_RE: Final[re.Pattern[str]] = re.compile(
 )
 NAME_LINE_RE: Final[re.Pattern[str]] = re.compile(r"^name:\s*(\S.*?)\s*$", re.MULTILINE)
 
+# A card's prose that names its corpus and states a case count must state the
+# corpus's real count (#523: usage.md said 12 cases while evals.json held 20).
+# Only a line that names evals.json is read, so "two cases" in an unrelated
+# sentence is never taken as a claim about the corpus.
+COUNT_CLAIM_RE: Final[re.Pattern[str]] = re.compile(
+    r"\b(\d+) (?:[a-z-]+ )?cases\b", re.IGNORECASE
+)
+QUARANTINE_DIR: Final[str] = "_quarantine"
+
 
 def quote(value: object, limit: int = 60) -> str:
     """ASCII-safe, bounded rendering of untrusted corpus text."""
@@ -276,6 +285,39 @@ def corpus_breaches(card: Path) -> list[str]:
     return breaches
 
 
+def count_claim_breaches(card: Path) -> list[str]:
+    """Prose lines naming evals.json whose stated case count is not the corpus's."""
+    try:
+        data = json.loads((card / CORPUS_DIR / CORPUS_FILE).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return []
+    cases = data.get("cases") if isinstance(data, dict) else None
+    if not isinstance(cases, list):
+        return []
+    breaches = []
+    for prose in sorted(card.glob("*.md")):
+        lines = prose.read_text(encoding="utf-8").splitlines()
+        for number, line in enumerate(lines, start=1):
+            if CORPUS_FILE not in line:
+                continue
+            for match in COUNT_CLAIM_RE.finditer(line):
+                if int(match.group(1)) != len(cases):
+                    breaches.append(
+                        f"{prose.name}:{number} states {quote(match.group(0))} but "
+                        f"{CORPUS_PATH} holds {len(cases)} case(s). Prose that "
+                        "restates the corpus count must match it"
+                    )
+    return breaches
+
+
+def quarantine_cards(root: Path) -> list[Path]:
+    """Quarantined candidates that carry a corpus. A corpus is optional there."""
+    folder = root / QUARANTINE_DIR
+    if not folder.is_dir():
+        return []
+    return sorted(p.parent.parent for p in folder.glob(f"*/{CORPUS_PATH}"))
+
+
 def validate(root: Path) -> None:
     cards = card_files.find_cards(root)
     if not cards:
@@ -289,7 +331,11 @@ def validate(root: Path) -> None:
     breaches = [
         f"  - {card.relative_to(root).as_posix()}: {detail}"
         for card in cards
-        for detail in corpus_breaches(card)
+        for detail in corpus_breaches(card) + count_claim_breaches(card)
+    ] + [
+        f"  - {card.relative_to(root).as_posix()}: {detail}"
+        for card in quarantine_cards(root)
+        for detail in count_claim_breaches(card)
     ]
     if breaches:
         for line in breaches:
