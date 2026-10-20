@@ -43,9 +43,15 @@ NOT_A_CHANGESET = "README.md"
 
 
 def body_last_line(text: str) -> str:
-    """The last non-blank line after the closing frontmatter fence, stripped."""
+    """The last non-blank line after the closing frontmatter fence, stripped.
+
+    "" when the frontmatter never closes, so a major changeset is refused for a
+    missing action line whatever ran before this.
+    """
     lines = text.splitlines()
-    closing = next(i for i in range(1, len(lines)) if lines[i].strip() == "---")
+    closing = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+    if closing is None:
+        return ""
     body = [line.strip() for line in lines[closing + 1:] if line.strip()]
     return body[-1] if body else ""
 
