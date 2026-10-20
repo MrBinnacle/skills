@@ -117,3 +117,38 @@ publication rather than advise it, and a model with no publication act has nothi
 
 *Revisit if:* the install routes stop tracking the default branch by default. That would change
 what a consumer receives without any decision here having been revisited.
+
+## Amendment, 2026-10-20: delivery happens at the pin commit
+
+This append comes from [#444](https://github.com/MrBinnacle/skills/issues/444). It rewrites no
+text above. The closing Revisit-if fired: the install route stops tracking the default branch by
+default.
+
+**What was wrong.** Each plugin entry used a relative-path source, which resolves to whatever
+the marketplace checkout holds. A fresh install therefore received the tip of `main` under the
+version label of the last release. Measured 2026-10-18: one host's installed 3.0.1 sat four
+commits past the `v3.0.1` tag, on bytes no release contained. "Delivery happens when a version
+bump merges to `main`" held only for users who installed at that exact commit.
+
+**What changes.** Each entry in `.claude-plugin/marketplace.json` is a `git-subdir` source with
+the HTTPS URL of this repository, the bucket `path`, `ref` set to the release tag, and `sha` set
+to the release squash commit. Claude Code checks out `sha` when both are set, so a fresh install
+receives the released bytes whatever `main` holds.
+
+**When delivery happens.** A commit cannot contain its own SHA, and the release pull request
+stays a squash merge. The pin therefore lands as a separate commit after the release squash
+merges. **Delivery happens when that pin commit merges to `main`.** The version-bump merge
+records the release, and the pin commit delivers it. `scripts/check_marketplace_pin.py` asserts
+the pin and generates it with `--write`, under the Consequences rule above that a derived value
+is never typed twice. Until the pin lands, the check refuses every run.
+
+**What it costs.** The docs auto-fetch only relative-path sources onto a new machine. A project
+that enables these plugins in a committed `.claude/settings.json` no longer installs them by
+itself on a fresh clone. Its users run the install command once.
+
+**Within the decision status.** The non-negotiable clause above allows a different
+implementation of a release as a delivery event. This append moves the delivery moment by one
+commit, and it makes the version number describe exactly what a fresh install receives.
+
+*Revisit if:* a release ships with its pin commit missing or stale. If that happens once,
+automate the pin commit, or reconsider squash merges for release pull requests.

@@ -1608,7 +1608,7 @@ def case_live_tree_in_lockstep() -> None:
         p["name"]
         for p in manifest["plugins"]
         if json.loads(
-            (REPO_ROOT / p["source"] / PLUGIN_MANIFEST_PATH).read_text(encoding="utf-8")
+            (REPO_ROOT / p["source"]["path"] / PLUGIN_MANIFEST_PATH).read_text(encoding="utf-8")
         ).get("version")
         != package["version"]
     ]
