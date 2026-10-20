@@ -450,6 +450,48 @@ top-level README; add a row + a short narrative to
 file's removal. If a general lesson outlives the skill, name it in the retirement note as
 ordinary hygiene rather than resurrecting the card.
 
+The banner no longer states counts (owner ruling 2026-08-23, skill-harness #216: a static
+graphic that must track repository state is a maintenance tax). Instead it carries one ruled
+line, asserted **byte-identically in five places across three files** — keep them in lockstep:
+
+1. `assets/banner-light.svg` — `aria-label`
+2. `assets/banner-light.svg` — rendered banner-line `<text>`
+3. `assets/banner-dark.svg` — `aria-label`
+4. `assets/banner-dark.svg` — rendered banner-line `<text>`
+5. `README.md` — banner `<img alt>`
+
+The ruled line is `Each card states the condition that would retire it.` — a site may
+prefix it (the aria-label and alt lead with `skills — `) but not alter a byte of it, so a
+softened restatement ("are not", a dropped period, a straightened apostrophe) fails.
+
+`scripts/validate_scoreboard.py` (run in the `validator` job) asserts that line, and still
+derives the inventory counts from the records as a conformance check even though no page
+site states them: **admitted** from the skill directories, **retired** and **solutions
+looking for a problem** from `RETIRED.md`, and **measured** from each card's own `EVIDENCE.md`
+controlled fields — a card counts as measured when `Screen result` or `Paired verdict` states
+anything other than `UNMEASURED`. A card with no `EVIDENCE.md`, or with a controlled field
+missing, is refused rather than counted as unmeasured: deriving a zero from an absent record
+invents the number the derivation exists to keep honest. The derived counts appear in the
+PASS line, which is where to read the inventory state from.
+
+The same script also derives the front page's **origin tiering** from each card's `EVIDENCE.md`
+`Origin` field, over a closed vocabulary of `OBSERVED` (a dated real incident), `DESIGNED` (built
+on purpose) and `DISTILLED` (written from research, no triggering incident). An Origin field
+opening with a word outside the vocabulary is refused rather than guessed at, on the same rule as
+the controlled fields: a card that has not said which tier it is cannot be counted into either.
+
+**The page states no tally of cards, of tiers, or of anything else that tracks repository
+state. Owner ruling 2026-08-24: do not add one back.** The rule now reads in one direction only —
+any tally the page *does* state must agree with the records, and zero tallies is the expected
+case. An earlier edition required `README.md` to state the tiering in exactly two places, which
+made the page's arithmetic mandatory: every admission and every retirement turned the build red
+until someone re-derived two numbers by hand, in prose no reader had asked for. That is the same
+maintenance tax the banner's counts were retired for on 2026-08-23, and the same one that had
+pinned `9 published card(s)` inside `scripts/test_validate_card_files.py`. Prose that must be
+re-checked whenever a card moves is a liability, not a receipt; the receipts live in the cards.
+
+A miss turns the build red; do not treat any single prose line as the checklist.
+
 ### Staged retirement (ADR 0007)
 
 Three of the exits above pass through a watch before they become final, per
@@ -507,48 +549,6 @@ those routes the watch is not opened. The `RETIRED.md` row reads `watch not open
 normally. Guards are not disarmed during a watch; to change that default, say so in the retiring
 PR, and the row then records `guard disarmed <date>, re-armed <date>` (ADR 0007, Frozen and the
 guard `[values decision]`).
-
-The banner no longer states counts (owner ruling 2026-08-23, skill-harness #216: a static
-graphic that must track repository state is a maintenance tax). Instead it carries one ruled
-line, asserted **byte-identically in five places across three files** — keep them in lockstep:
-
-1. `assets/banner-light.svg` — `aria-label`
-2. `assets/banner-light.svg` — rendered banner-line `<text>`
-3. `assets/banner-dark.svg` — `aria-label`
-4. `assets/banner-dark.svg` — rendered banner-line `<text>`
-5. `README.md` — banner `<img alt>`
-
-The ruled line is `Each card states the condition that would retire it.` — a site may
-prefix it (the aria-label and alt lead with `skills — `) but not alter a byte of it, so a
-softened restatement ("are not", a dropped period, a straightened apostrophe) fails.
-
-`scripts/validate_scoreboard.py` (run in the `validator` job) asserts that line, and still
-derives the inventory counts from the records as a conformance check even though no page
-site states them: **admitted** from the skill directories, **retired** and **solutions
-looking for a problem** from `RETIRED.md`, and **measured** from each card's own `EVIDENCE.md`
-controlled fields — a card counts as measured when `Screen result` or `Paired verdict` states
-anything other than `UNMEASURED`. A card with no `EVIDENCE.md`, or with a controlled field
-missing, is refused rather than counted as unmeasured: deriving a zero from an absent record
-invents the number the derivation exists to keep honest. The derived counts appear in the
-PASS line, which is where to read the inventory state from.
-
-The same script also derives the front page's **origin tiering** from each card's `EVIDENCE.md`
-`Origin` field, over a closed vocabulary of `OBSERVED` (a dated real incident), `DESIGNED` (built
-on purpose) and `DISTILLED` (written from research, no triggering incident). An Origin field
-opening with a word outside the vocabulary is refused rather than guessed at, on the same rule as
-the controlled fields: a card that has not said which tier it is cannot be counted into either.
-
-**The page states no tally of cards, of tiers, or of anything else that tracks repository
-state. Owner ruling 2026-08-24: do not add one back.** The rule now reads in one direction only —
-any tally the page *does* state must agree with the records, and zero tallies is the expected
-case. An earlier edition required `README.md` to state the tiering in exactly two places, which
-made the page's arithmetic mandatory: every admission and every retirement turned the build red
-until someone re-derived two numbers by hand, in prose no reader had asked for. That is the same
-maintenance tax the banner's counts were retired for on 2026-08-23, and the same one that had
-pinned `9 published card(s)` inside `scripts/test_validate_card_files.py`. Prose that must be
-re-checked whenever a card moves is a liability, not a receipt; the receipts live in the cards.
-
-A miss turns the build red; do not treat any single prose line as the checklist.
 
 ## The rotation and harvest pass
 
