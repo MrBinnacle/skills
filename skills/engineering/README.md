@@ -1,6 +1,6 @@
 # Engineering skills
 
-Workflow disciplines for shipping software. This bucket installs as the `mrbinnacle-engineering` plugin, and its [`plugin.json`](.claude-plugin/plugin.json) is the authoritative list of what it installs. The cards fall under the three headings that manifest names. Each card's `EVIDENCE.md` records where the card came from and what has and has not been measured; an installed card is not thereby shown to work. The cards are written for Claude Code. For what has been observed on other runtimes, read the [runtime delivery matrix](../../docs/product/runtime-delivery-matrix.md).
+Workflow disciplines for shipping software. This bucket installs as the `mrbinnacle-engineering` plugin, and its [`plugin.json`](.claude-plugin/plugin.json) is the authoritative list of what it installs. The cards fall under the three headings that manifest names. Each card's `EVIDENCE.md` records where the card came from and what has and has not been measured; an installed card is not thereby shown to work. `im-down`, `im-up`, `pretooluse-prose` and `stale-deploy` name Claude Code mechanisms. For what delivery has been observed on each runtime, read the [runtime delivery matrix](https://github.com/MrBinnacle/skills/blob/main/docs/product/runtime-delivery-matrix.md).
 
 ### Mistakes that report success
 
@@ -20,5 +20,5 @@ Workflow disciplines for shipping software. This bucket installs as the `mrbinna
 These three are procedures: each sets `disable-model-invocation: true`, so it runs only when you invoke it by name.
 
 - [**closure-mode**](closure-mode/SKILL.md) — when a sprint, phase or vertical slice locks, or a "what next" decision has several candidates, dispatch a parallel review swarm, execute the action list it produces, and only then present a single pick or the values axis that separates the survivors ([the receipt](closure-mode/EVIDENCE.md)).
-- [**im-down**](im-down/SKILL.md) — the producer side of a Claude Code session boundary: one close command commits durable state, runs the receiver's checks, and writes a packet that must validate as `ACCEPTED` before the session claims it is safe to clear ([the receipt](im-down/EVIDENCE.md)).
-- [**im-up**](im-up/SKILL.md) — the receiver side: a fresh Claude Code session treats the `im-down` packet as untrusted data, verifies branch, HEAD and every verified claim against the repository, runs the configured checks, and reports an acceptance receipt before any work starts ([the receipt](im-up/EVIDENCE.md)).
+- [**im-down**](im-down/SKILL.md) — the producer side of a Claude Code session boundary: one close command commits durable state, runs the receiver's checks, and writes a packet that must validate as `ACCEPTED`, the first of the five checks behind a safe-to-clear verdict ([the receipt](im-down/EVIDENCE.md)).
+- [**im-up**](im-up/SKILL.md) — the receiver side: a fresh Claude Code session treats the `im-down` packet as untrusted data, verifies branch, HEAD and every verified claim against the repository, runs the configured checks or reuses a cached pass on an unchanged tree, and reports an acceptance receipt before any work starts ([the receipt](im-up/EVIDENCE.md)).
