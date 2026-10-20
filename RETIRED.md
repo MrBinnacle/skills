@@ -27,6 +27,13 @@ Turning away your own work costs something: it makes the collection look smaller
 point. A list that shrinks when the models improve is the one telling you the truth about which
 skills the model still needs. Model progress becomes collection history, not silent rot.
 
+## On watch
+
+A card on a staged exit leaves the served set at once and is watched here before the removal is final. The rules are in [`AGENTS.md`](AGENTS.md) under "Staged retirement" and in [ADR 0007](docs/adr/0007-retirement-is-staged-for-three-exits.md). The retiring changeset opens a row. Only the rotation pass edits it afterwards.
+
+| Card | Removed (release, install SHA, clock start) | Route | Signal (quoted predicate) | Watch closes | Sessions observed | Events (dated) | Status |
+|---|---|---|---|---|---|---|---|
+
 ## Retired from the collection
 
 | Skill | Retired | What made it unnecessary | Evidence |
