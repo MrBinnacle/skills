@@ -93,7 +93,11 @@ files and makes the double-tracking impossible. It is never a filesystem link.
 2. Open a PR. CI runs the **de-personalization gate** (residue scan, fail-closed) and the **link
    check**. A PR that trips the residue gate is told the file, line, and generic replacement.
 3. Add a **changeset** (`npx changeset`) describing the change — this generates the changelog
-   entry and the version bump.
+   entry and the version bump. A changeset whose bump is `major` for any package ends with a
+   line of the exact form `Action for installed users: <text>`, where `None.` is valid text.
+   The line is optional for `minor` and `patch`. CI refuses a major changeset whose last
+   non-blank line lacks that prefix or the text after it
+   (`scripts/check_installed_user_action.py`; see `.changeset/README.md`).
 4. The maintainer merges the version-bump pull request to `main`. The merge is the
    delivery event — changed cards reach installed users when a version bump merges to
    `main`, not when a tag is pushed. There is no auto-release CI: the maintainer runs
