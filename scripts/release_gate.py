@@ -1827,8 +1827,8 @@ def plugin_manifest_paths(root: Path, errors: list[str]) -> list[tuple[str, Path
     targets: list[tuple[str, Path]] = []
     for index, entry in enumerate(entries):
         name = str(entry.get("name", f"plugins[{index}]"))
-        source = entry.get("source")
-        if not isinstance(source, str):
+        source = conformance.local_source(entry.get("source"))
+        if source is None:
             errors.append(
                 f"G1: {MANIFEST_REL} plugin {name!r} names no local source - "
                 "there is no plugin.json to read its version from"

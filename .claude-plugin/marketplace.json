@@ -10,17 +10,17 @@
   "plugins": [
     {
       "name": "mrbinnacle-engineering",
-      "source": "./skills/engineering",
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/engineering", "ref": "v3.1.0", "sha": "5c68213e4772f97673d4f7fa83e739d92c2ab8a5"},
       "description": "Workflow disciplines for shipping software: mistakes that report success, guards and gates that stop your work, and the rituals at phase and session boundaries."
     },
     {
       "name": "mrbinnacle-orchestration",
-      "source": "./skills/orchestration",
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/orchestration", "ref": "v3.1.0", "sha": "5c68213e4772f97673d4f7fa83e739d92c2ab8a5"},
       "description": "Disciplines for multi-agent work - dispatch, joinability, and synthesis across parallel agents."
     },
     {
       "name": "mrbinnacle-meta",
-      "source": "./skills/meta",
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/meta", "ref": "v3.1.0", "sha": "5c68213e4772f97673d4f7fa83e739d92c2ab8a5"},
       "description": "Skills about the skill system itself: whether a skill can be reached."
     }
   ]

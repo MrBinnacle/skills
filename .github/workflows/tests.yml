@@ -1388,6 +1388,23 @@ jobs:
           echo "$out" | grep -q '^RELEASE GATE: PASS' \
             || { echo "::error::release gate refused this tree"; exit 1; }
 
+      # #444: every marketplace entry pins the latest release commit. Its own
+      # script, not a release_gate.py check, because the poison controls below
+      # seed relative-source trees that must stay green, and a relative source
+      # is exactly what this check refuses. Red by design between a release
+      # squash merge and its pin commit (ADR 0002, 2026-10-20 append).
+      - name: Marketplace pin
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_check_marketplace_pin.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::marketplace pin suite emitted no PASS line - it did not run"; exit 1; }
+          out="$(python scripts/check_marketplace_pin.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^MARKETPLACE PIN: PASS' \
+            || { echo "::error::marketplace pin refused this tree"; exit 1; }
+
       # A gate that cannot fail guards nothing. The breach shape here is one
       # plugin entry declaring a version package.json does not - the exact
       # staleness ADR 0002 refuses, and the reason a hand-typed manifest

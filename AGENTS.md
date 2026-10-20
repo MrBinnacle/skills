@@ -108,6 +108,16 @@ files and makes the double-tracking impossible. It is never a filesystem link.
    [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) records the decision and
    the narrow surface a version promises.
 
+   **After the release squash merges, land the pin commit next.** Tag the squash commit
+   `v<version>`, branch from `main`, run `python scripts/check_marketplace_pin.py --write`, and
+   merge the result as its own pull request. The script sets each `.claude-plugin/marketplace.json`
+   entry's `ref` to the tag and `sha` to the squash commit; never type them. A fresh install
+   receives the pinned commit, so the release reaches new users only when this commit lands. A
+   squash commit cannot contain its own SHA, which is why the pin is a second commit
+   ([ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md), 2026-10-20 append). Until it
+   lands, the `Marketplace pin` step fails on `main` and on every pull request. That failure is
+   the reminder, not a fault.
+
    **`npm run version` fails closed without a `GITHUB_TOKEN` in the environment.** The
    changelog generator is `@changesets/changelog-github`, which resolves pull-request and author
    links through the GitHub API, so a run with no token stops partway through a release rather
@@ -279,7 +289,8 @@ judgement in it. Any other grouping needs a hand-maintained card-to-plugin mappi
 second census to keep in sync.
 
 - **`.claude-plugin/marketplace.json` lists the plugins.** Each entry carries a `name`, a
-  `source` of `./skills/<bucket>`, and a `description`. Nothing else.
+  `git-subdir` `source` whose `path` is `skills/<bucket>` at the pinned release commit, and a
+  `description`. Nothing else.
 - **`skills/<bucket>/.claude-plugin/plugin.json` states the plugin.** It carries the plugin's
   `name` (equal to its marketplace entry's), its `version`, and its exact `skills` list as
   `./<card>` paths relative to the bucket. The loader reads the name, version and skills from

@@ -959,14 +959,29 @@ def marketplace_entries(root: Path) -> list[PluginEntry]:
             raise ManifestShapeError(
                 f"plugins[{index}] is {type(plugin).__name__}, not an object"
             )
-        source = plugin.get("source")
-        if not isinstance(source, str):
+        source = local_source(plugin.get("source"))
+        if source is None:
             raise ManifestShapeError(
-                f"plugins[{index}].source is {type(source).__name__}, not a "
-                "local path string"
+                f"plugins[{index}].source is neither a local path string nor a "
+                "git-subdir source with a string path"
             )
         entries.append(PluginEntry(str(plugin.get("name")), source))
     return entries
+
+
+def local_source(source: object) -> str | None:
+    """The tree path a marketplace source installs from, or None.
+
+    A `git-subdir` source pins a release commit of this same repository (#444),
+    so its `path` names the bucket in this tree; scripts/check_marketplace_pin.py
+    asserts the URL and the commit. Any other object form names nothing here.
+    """
+    if isinstance(source, str):
+        return source
+    if isinstance(source, dict) and source.get("source") == "git-subdir":
+        path = source.get("path")
+        return f"./{path}" if isinstance(path, str) else None
+    return None
 
 
 def plugin_root(root: Path, entry: PluginEntry) -> Path | None:
