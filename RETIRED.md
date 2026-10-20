@@ -33,6 +33,7 @@ A card on a staged exit leaves the served set at once and is watched here before
 
 | Card | Removed (release, install SHA, clock start) | Route | Signal (quoted predicate) | Watch closes | Sessions observed | Events (dated) | Status |
 |---|---|---|---|---|---|---|---|
+| fixture-card | v0.0.0 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 2026-01-01 | x | y | 2026-02-01 | 0 | - | open |
 
 ## Retired from the collection
 
