@@ -21,6 +21,7 @@ CHECKER = SCRIPT_DIR / "validate_card_files.py"
 REPO_ROOT = SCRIPT_DIR.parent
 POISON = SCRIPT_DIR / "fixtures" / "card-missing-gotchas"
 ROWLESS = SCRIPT_DIR / "fixtures" / "card-missing-evidence-row"
+MALFORMED_APPLICABILITY = SCRIPT_DIR / "fixtures" / "card-malformed-applicability-row"
 
 sys.path.insert(0, str(SCRIPT_DIR))
 import validate_card_files  # noqa: E402
@@ -44,6 +45,18 @@ def run_checker(root: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+# #355: the author-written applicability row. Each refusal case below swaps
+# the value for one that breaks exactly one part of the two-part form.
+def applicability_row(value: str) -> str:
+    return f"| **Applicability scope** | {value} |\n"
+
+
+APPLICABILITY_ROW = applicability_row(
+    "For: fixture trees that test the card contract. "
+    "Not established for: any published card."
+)
+
+
 # The rows a conforming card states. Written out here rather than imported from
 # the checker: a fixture built from the checker's own constants would pass by
 # construction and stop being evidence that the contract is the one AGENTS.md
@@ -55,6 +68,7 @@ CONFORMING_EVIDENCE = (
     "| **Dispatches recorded** | 5 dispatches, fixture counter, measured 2026-03-05. |\n"
     "| **Re-screen trigger** | A platform fix that makes the failure impossible. |\n"
     "| **Evidence scope** | UNMEASURED — no receipt. |\n"
+    + APPLICABILITY_ROW
 )
 CONFORMING_GOTCHAS = "# gotchas\n\n[OBSERVED 2026-03-04] the one incident.\n"
 
@@ -264,7 +278,7 @@ def case_quarantine_card_with_no_row_is_exempt(root: Path) -> None:
     )
     result = run_checker(root)
     check(
-        "a quarantine card with no Evidence scope row does not fail the gate",
+        "a quarantine card with no Evidence scope or Applicability scope row does not fail the gate",
         result.returncode == 0,
         result.stdout + result.stderr,
     )
@@ -292,6 +306,127 @@ def case_scoreboard_passes_a_card_carrying_evidence_scope(root: Path) -> None:
         "the scoreboard PASS line still derives the counts",
         "records derive" in live.stdout,
         live.stdout.strip(),
+    )
+
+
+def refusal_line(stderr: str, card: str, *needles: str) -> str:
+    """The one refusal line naming this card and every needle, or ''."""
+    for line in stderr.splitlines():
+        if f"skills/engineering/{card}:" in line and all(n in line for n in needles):
+            return line
+    return ""
+
+
+def check_applicability_refused(root: Path, card: str, value: str, reason: str) -> None:
+    evidence = CONFORMING_EVIDENCE.replace(APPLICABILITY_ROW, applicability_row(value))
+    write_card(root, card, evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        f"{card}: the applicability row {value!r} is rejected",
+        result.returncode != 0,
+        result.stdout + result.stderr,
+    )
+    check(
+        f"{card}: one refusal line names the card, the row and {reason!r}",
+        bool(refusal_line(result.stderr, card, "Applicability scope", reason)),
+        result.stderr.strip(),
+    )
+    check(
+        f"{card}: the card is red for that reason alone",
+        "REJECTED: 1 card contract breach(es)" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_missing_applicability_row_is_rejected(root: Path) -> None:
+    """#355: a published card that states no Applicability scope row."""
+    evidence = CONFORMING_EVIDENCE.replace(APPLICABILITY_ROW, "")
+    write_card(root, "unscoped-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a card without the Applicability scope row is rejected",
+        result.returncode != 0,
+        result.stdout + result.stderr,
+    )
+    check(
+        "the refusal names the card and the missing Applicability scope row",
+        bool(refusal_line(result.stderr, "unscoped-card", "states no Applicability scope row")),
+        result.stderr.strip(),
+    )
+
+
+def case_applicability_without_not_established_is_rejected(root: Path) -> None:
+    check_applicability_refused(
+        root, "half-scoped-card",
+        "For: fixture trees that test the card contract.",
+        "has no 'Not established for:' part",
+    )
+
+
+def case_applicability_with_empty_for_part_is_rejected(root: Path) -> None:
+    check_applicability_refused(
+        root, "empty-for-card",
+        "For: . Not established for: any published card.",
+        "'For:' part is empty",
+    )
+
+
+def case_applicability_with_empty_not_established_part_is_rejected(root: Path) -> None:
+    check_applicability_refused(
+        root, "empty-not-card",
+        "For: fixture trees. Not established for: .",
+        "'Not established for:' part is empty",
+    )
+
+
+def case_applicability_first_label_is_case_sensitive(root: Path) -> None:
+    check_applicability_refused(
+        root, "lower-for-card",
+        "for: fixture trees. Not established for: any published card.",
+        "does not open with 'For:'",
+    )
+
+
+def case_applicability_second_label_is_case_sensitive(root: Path) -> None:
+    check_applicability_refused(
+        root, "lower-not-card",
+        "For: fixture trees. not established for: any published card.",
+        "has no 'Not established for:' part",
+    )
+
+
+def case_applicability_row_present_clears_it(root: Path) -> None:
+    """The green half: CONFORMING_EVIDENCE carries a well-formed row and passes."""
+    write_card(root, "applicable-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a card stating a well-formed Applicability scope passes",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+    check(
+        "the pass line names Applicability scope among the checked rows",
+        "Applicability scope" in result.stdout,
+        result.stdout.strip(),
+    )
+
+
+def case_committed_malformed_applicability_fixture_is_red() -> None:
+    """The committed fixture tests.yml's poison control runs, proven here too."""
+    result = run_checker(MALFORMED_APPLICABILITY)
+    check("committed malformed-applicability fixture is rejected", result.returncode != 0)
+    check(
+        "the fixture's refusal names the card, the row and the missing part",
+        bool(refusal_line(
+            result.stderr, "unbounded-card", "Applicability scope",
+            "has no 'Not established for:' part",
+        )),
+        result.stderr.strip(),
+    )
+    check(
+        "the malformed-applicability fixture is red for exactly one reason",
+        "REJECTED: 1 card contract breach(es)" in result.stderr,
+        result.stderr.strip(),
     )
 
 
@@ -1216,6 +1351,7 @@ def _observed_evidence(locator_part: str) -> str:
         "| **Dispatches recorded** | 5 dispatches, fixture counter, measured 2026-01-02. |\n"
         "| **Re-screen trigger** | A platform fix that makes the failure impossible. |\n"
         "| **Evidence scope** | UNMEASURED — no receipt. |\n"
+        + APPLICABILITY_ROW
     )
 
 
@@ -1229,6 +1365,7 @@ def _absent_evidence() -> str:
         "| **Dispatches recorded** | No recorded dispatch, fixture counter, measured 2026-01-02. |\n"
         "| **Re-screen trigger** | A platform fix that makes the failure impossible. |\n"
         "| **Evidence scope** | UNMEASURED — no receipt. |\n"
+        + APPLICABILITY_ROW
     )
 
 
@@ -1612,10 +1749,18 @@ def case_clirunner_env_repair_contract() -> None:
 def main() -> None:
     case_committed_poison_is_red()
     case_committed_missing_row_fixture_is_red()
+    case_committed_malformed_applicability_fixture_is_red()
     isolated = [
         case_stating_the_rows_clears_it,
         case_missing_evidence_scope_row_is_rejected,
         case_evidence_scope_row_present_clears_it,
+        case_missing_applicability_row_is_rejected,
+        case_applicability_without_not_established_is_rejected,
+        case_applicability_with_empty_for_part_is_rejected,
+        case_applicability_with_empty_not_established_part_is_rejected,
+        case_applicability_first_label_is_case_sensitive,
+        case_applicability_second_label_is_case_sensitive,
+        case_applicability_row_present_clears_it,
         case_skill_size_uses_normalized_line_endings,
         case_quarantine_card_with_no_row_is_exempt,
         case_scoreboard_passes_a_card_carrying_evidence_scope,

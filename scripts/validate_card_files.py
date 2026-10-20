@@ -99,11 +99,21 @@ DISPATCH_MEASURED_RE: Final[re.Pattern[str]] = re.compile(
 # nothing -- the same boundary every other contract row already sits behind.
 EVIDENCE_SCOPE_ROW: Final[str] = "Evidence scope"
 
+# #355: the applicability-scope row, written by the card's author in the form
+# `For: <situations>. Not established for: <situations>.` Only the FORM is
+# checked: both labels, case-sensitive, each followed by something. Whether the
+# situations are honest, and whether the description claims more than them, is
+# review (AGENTS.md promotion step 2); no check here reads their wording.
+APPLICABILITY_ROW: Final[str] = "Applicability scope"
+APPLICABILITY_FOR: Final[str] = "For:"
+APPLICABILITY_NOT: Final[str] = "Not established for:"
+
 REQUIRED_EVIDENCE_ROWS: Final[tuple[str, ...]] = (
     OCCASIONS_ROW,
     DISPATCH_ROW,
     RESCREEN_ROW,
     EVIDENCE_SCOPE_ROW,
+    APPLICABILITY_ROW,
 )
 
 # ADMISSION.md criterion 2: the failure recurs independently, "it is not a
@@ -341,6 +351,22 @@ def description_breaches(card: Path) -> list[str]:
     return []
 
 
+def applicability_breach(value: str) -> str | None:
+    """The first way an Applicability scope value breaks the two-part form."""
+    text = value.strip()
+    form = f"'{APPLICABILITY_FOR} <situations>. {APPLICABILITY_NOT} <situations>.'"
+    if not text.startswith(APPLICABILITY_FOR):
+        return f"{APPLICABILITY_ROW} does not open with '{APPLICABILITY_FOR}'; the form is {form}"
+    head, found, tail = text[len(APPLICABILITY_FOR):].partition(APPLICABILITY_NOT)
+    if not found:
+        return f"{APPLICABILITY_ROW} has no '{APPLICABILITY_NOT}' part; the form is {form}"
+    if not head.strip(" ."):
+        return f"{APPLICABILITY_ROW} '{APPLICABILITY_FOR}' part is empty; the form is {form}"
+    if not tail.strip(" ."):
+        return f"{APPLICABILITY_ROW} '{APPLICABILITY_NOT}' part is empty; the form is {form}"
+    return None
+
+
 def evidence_breaches(card: Path) -> list[str]:
     """Contract breaches in one card's EVIDENCE.md rows, in report order."""
     evidence = card / "EVIDENCE.md"
@@ -355,6 +381,11 @@ def evidence_breaches(card: Path) -> list[str]:
         for name in REQUIRED_EVIDENCE_ROWS
         if not rows.get(name, "").strip("* `")
     ]
+    applicability = rows.get(APPLICABILITY_ROW, "")
+    if applicability.strip("* `"):
+        malformed = applicability_breach(applicability)
+        if malformed:
+            breaches.append(malformed)
     dispatch = rows.get(DISPATCH_ROW, "")
     if dispatch.strip("* `"):
         if not DISPATCH_OPEN_RE.match(dispatch):

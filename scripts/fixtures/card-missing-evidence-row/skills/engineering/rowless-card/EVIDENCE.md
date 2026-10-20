@@ -8,5 +8,6 @@
 | **Screen result** | UNMEASURED. |
 | **Paired verdict** | UNMEASURED. |
 | **Evidence scope** | UNMEASURED — no receipt. |
+| **Applicability scope** | For: fixture trees that test the card contract. Not established for: any published card. |
 
 The deliberately absent `Re-screen trigger` row is the poison under test.
