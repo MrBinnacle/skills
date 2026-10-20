@@ -13,4 +13,4 @@ Do not invent IDs, statuses, labels, assignees, dates, or dependencies. Reuse ex
 
 For broad work, use DISCOVER → MODEL → PLAN → EXECUTE → VERIFY → REPORT. For small edits, keep this proportionate. Ask one targeted question when consequential ambiguity cannot be resolved from the workspace; otherwise execute.
 
-Workspace reconnaissance on 2026-10-19 observed a workspace named mrbinnacle and one team Mrbinnacle (MRB), plus initiatives and projects for skills, skill-harness, and company internals. The visible project-template query returned none. These are snapshots; always re-read live state. The candidate is quarantined because no empirical unaided-failure and recurrence evidence supports admission.
+Workspace facts change. Re-read live state rather than trusting any recorded snapshot of teams, statuses, labels or templates.
