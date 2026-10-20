@@ -911,6 +911,92 @@ jobs:
           fi
           echo "control: sub-reason drift ran against the skill-harness checkout"
 
+      # #360: cross-product agreement against the real skill-harness, not only
+      # the committed snapshot. The Standing-cost check above runs before any
+      # harness is installed, so it takes the standing-costs.json path; and no
+      # other step passes --harness-root, so O5 never read a harness receipt.
+      # These steps reuse the drift step's checkout at SKILL_HARNESS_REF (and
+      # its editable install), so they acquire nothing and the pin suite's
+      # rule holds unchanged.
+      - name: Cross-product agreement against skill-harness
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -euo pipefail
+          harness_dir="$RUNNER_TEMP/skill-harness"
+          # An empty or wrong root makes O5 pass vacuously on history-only
+          # receipt links, so require the checkout's receipt store first.
+          [ -n "$(find "$harness_dir/docs/sers/receipts" -name '*.json' -print -quit 2>/dev/null || true)" ] \
+            || { echo "::error::no skill-harness receipts under $harness_dir - the drift step's checkout is missing"; exit 1; }
+          out="$(PYTHONUTF8=1 python scripts/validate_standing_costs.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::live standing-cost check emitted no PASS line - it did not run"; exit 1; }
+          if echo "$out" | grep -q 'skill-harness not available'; then
+            echo "::error::the standing-cost check fell back to the snapshot despite the installed harness"
+            exit 1
+          fi
+          out="$(python scripts/validate_conformance.py --harness-root "$harness_dir")" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS: conformance v5' \
+            || { echo "::error::conformance sweep with --harness-root emitted no PASS line"; exit 1; }
+          # pull-rebase's O5 is CANNOT-CHECK without a harness root and PASS
+          # with one; the flip shows --harness-root reached the validator.
+          echo "$out" | grep -A5 '^pull-rebase$' | grep -q '^  PASS         O5 ' \
+            || { echo "::error::pull-rebase O5 did not PASS under --harness-root - the flag did not reach O5"; exit 1; }
+          echo "control: standing costs and O5 ran against the skill-harness checkout"
+
+      # The live path must be able to fail. Each fixture is a copy of this tree
+      # with one planted disagreement; each grep matches a message only the
+      # real-harness path can print (the snapshot says "standing-costs.json
+      # says"; an empty root says "not found under harness root").
+      - name: Poison control - a standing cost the real harness disagrees with must be rejected
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/standing-cost-poison"
+          log="$RUNNER_TEMP/control-standing-cost-live.log"
+          rm -rf "$tree"
+          mkdir -p "$tree"
+          git archive HEAD | tar -x -C "$tree"
+          evidence="$tree/skills/engineering/clirunner-env/EVIDENCE.md"
+          stated="$(grep -o 'Description: [0-9]* tokens' "$evidence" | grep -o '[0-9]*' || true)"
+          [ "$(echo "$stated" | grep -c .)" = 1 ] \
+            || { echo "::error::expected one 'Description: N tokens' figure in clirunner-env EVIDENCE.md, found: $stated"; exit 1; }
+          sed -i "s/Description: $stated tokens/Description: $((stated + 1)) tokens/" "$evidence"
+          if PYTHONUTF8=1 python scripts/validate_standing_costs.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a standing-cost figure off by one was ACCEPTED by the live audit"
+            cat "$log"
+            exit 1
+          fi
+          grep -q "clirunner-env: stated $((stated + 1)) tokens, audit says $stated tokens" "$log" \
+            || { echo "::error::standing-cost fixture failed for the wrong reason"; cat "$log"; exit 1; }
+          cat "$log"
+          echo "control: off-by-one standing cost rejected by the live audit"
+
+      - name: Poison control - a receipt link the real harness contradicts must be rejected
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -euo pipefail
+          harness_dir="$RUNNER_TEMP/skill-harness"
+          tree="$RUNNER_TEMP/receipt-poison"
+          log="$RUNNER_TEMP/control-receipt-live.log"
+          rm -rf "$tree"
+          mkdir -p "$tree"
+          git archive HEAD | tar -x -C "$tree"
+          # Strip pull-rebase's "not current:" history markers, so O5 must
+          # load the linked receipts from the checkout and compare them.
+          sed -i 's/[Nn]ot current:/formerly:/g' "$tree/skills/engineering/pull-rebase/EVIDENCE.md"
+          if python scripts/validate_conformance.py --root "$tree" --harness-root "$harness_dir" > "$log" 2>&1; then
+            echo "::error::a receipt link contradicting the real harness receipt was ACCEPTED by O5"
+            cat "$log"
+            exit 1
+          fi
+          o5="$(grep -A5 '^pull-rebase$' "$log" | grep 'O5 ' || true)"
+          echo "$o5"
+          echo "$o5" | grep -q '^  FAIL .*receipt .*\(no subject_identity\|skill_id\|verdict\)' \
+            || { echo "::error::O5 fixture did not fail on a loaded harness receipt"; cat "$log"; exit 1; }
+          echo "control: O5 rejected a row its real harness receipt contradicts"
+
       - name: Standing obligations sweep
         run: |
           set -euo pipefail
