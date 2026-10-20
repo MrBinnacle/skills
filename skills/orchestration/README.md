@@ -1,25 +1,7 @@
-# Orchestration Skills
+# Orchestration skills
 
-Disciplines for multi-agent work: dispatching parallel subagents, keeping isolated
-outputs joinable, and synthesizing them into one decision without groupthink or
-false agreement. Ordered by how soon the failure is likely to bite you.
+Disciplines for multi-agent work: dispatch, joinability, and synthesis across parallel agents. This bucket installs as the `mrbinnacle-orchestration` plugin, and its [`plugin.json`](.claude-plugin/plugin.json) is the authoritative list of what it installs. Each card's `EVIDENCE.md` records where the card came from and what has and has not been measured; an installed card is not thereby shown to work.
 
-### Skills
-
-- [**decision-rights**](decision-rights/SKILL.md) — when one
-  session writes instructions for a downstream reader (handoff, plan, subagent prompt), command
-  framing strips the judgment of the better-informed executor. Frame prior decisions as
-  informed proposals from a less-informed reviewer, with a per-decision "Revisit if:" clause
-  ([the receipt](decision-rights/EVIDENCE.md)).
-
-- [**subagent-handback**](subagent-handback/SKILL.md) — subagent
-  research fails three ways silently: a dead letter (plain text never reaches the main session),
-  a tool grant that can't actually search, and post-return claims that don't hold. Pre-dispatch:
-  name the return channel and verify tool grants. Post-return: verify every claim, negatives first
-  ([the receipt](subagent-handback/EVIDENCE.md)).
-
-- [**disposition-schema**](disposition-schema/SKILL.md) —
-  dispatch discipline for 3+ parallel agents adjudicating a shared finding-set: a fixed
-  decision-vocabulary enum, a shared per-item output block, explicit item ownership, and
-  a mandatory status line, so isolated outputs JOIN at synthesis instead of returning
-  N strong reviews that don't compose. Includes the adversarial-verify seat template.
+- [**decision-rights**](decision-rights/SKILL.md) — when you write a handoff, plan, ADR or subagent brief, or one says "do not re-litigate" or "final", test per decision who holds the evidence that bears on it: frame revisable decisions as proposals with a "Revisit if:" clause, and keep values decisions and explicit constraints non-negotiable, since better evidence licenses a revisit request and not a scope change ([the receipt](decision-rights/EVIDENCE.md)).
+- [**disposition-schema**](disposition-schema/SKILL.md) — when parallel agents verify or adjudicate a shared set of findings, give every seat the same closed decision vocabulary, per-item output block, item ownership, status line and namespaced finding IDs, so their isolated outputs join at synthesis without a silently dropped finding; includes the adversarial-verify seat template ([the receipt](disposition-schema/EVIDENCE.md)).
+- [**subagent-handback**](subagent-handback/SKILL.md) — before dispatching a subagent, name a return channel you can read without trusting the handback (`SendMessage` or a file at one path) and check that its tool grant can do the task; when it returns, verify every claim you will act on, negatives first and over a wider search than the agent used ([the receipt](subagent-handback/EVIDENCE.md)).

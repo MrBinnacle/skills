@@ -1,63 +1,24 @@
 # Engineering skills
 
-Workflow disciplines for shipping software. Each one fires at a specific moment — before a
-risky `git pull`, at the end of a work phase — rather than sitting in every conversation.
-Ordered by how soon the failure is likely to bite you.
+Workflow disciplines for shipping software. This bucket installs as the `mrbinnacle-engineering` plugin, and its [`plugin.json`](.claude-plugin/plugin.json) is the authoritative list of what it installs. The cards fall under the three headings that manifest names. Each card's `EVIDENCE.md` records where the card came from and what has and has not been measured; an installed card is not thereby shown to work. The cards are written for Claude Code. For what has been observed on other runtimes, read the [runtime delivery matrix](../../docs/product/runtime-delivery-matrix.md).
 
-- [**pull-rebase**](pull-rebase/SKILL.md) — if git is configured with
-  `pull.rebase=true`, then `git pull --no-ff` silently ignores your flag and rewrites every
-  local commit with a new ID. This skill checks the setting before pulling and shows the safe
-  alternative. Born from a real incident that rewrote 22 commits
-  ([the receipt](pull-rebase/EVIDENCE.md)).
+### Mistakes that report success
 
-- [**closure-mode**](closure-mode/SKILL.md) — the moment one phase
-  of work finishes is exactly when an assistant is most tempted to charge into the next thing.
-  This skill forces a structured wrap-up first: parallel reviewers look for what was missed,
-  their fixes actually get executed, and only then is the next step decided.
+- [**clirunner-env**](clirunner-env/SKILL.md) — Click's `CliRunner.invoke(env=...)` overrides only the keys the dict names, so a test that builds a "clean" environment by leaving a key out, or passes `env={}`, still runs with that key set and can make the live API call it was written to prevent; pass `{key: None}` to delete one ([the receipt](clirunner-env/EVIDENCE.md)).
+- [**mocked-stub**](mocked-stub/SKILL.md) — a test that patches a helper which is itself a production stub turns green on a branch that never ran; use it when reviewing all-green work on spend guards, idempotency, auth or refusal paths, and drive the real helper unpatched with at least two seeded values ([the receipt](mocked-stub/EVIDENCE.md)).
+- [**stale-deploy**](stale-deploy/SKILL.md) — a green GitHub Pages or CDN deploy is not proof the site changed; poll for a marker that did not exist before this deploy, and use poll forms the Claude Code Bash tool does not block. The origin incident is in a public repository, so its record can be checked ([the receipt](stale-deploy/EVIDENCE.md)).
+- [**vacuous-check**](vacuous-check/SKILL.md) — a success check that accepts any non-empty output passes on failure, because failure output is non-empty too, and a type-blind comparison such as `String(got) === String(want)` passes on a mismatch; the mirror case is a probe batch that reports nothing found when the tool never ran, so any finding of absence carries a positive control in the same run ([the receipt](vacuous-check/EVIDENCE.md)).
 
-- [**stale-deploy**](stale-deploy/SKILL.md) — "the
-  deploy went green" is not "the site actually changed." Verify a CDN-fronted static deploy by
-  polling for content that did not exist pre-deploy, and use poll patterns the agent harness
-  won't block. Origin incident is on a public repo — the receipt is independently checkable
-  ([the receipt](stale-deploy/EVIDENCE.md)).
+### Guards and gates that stop your work
 
-- [**im-down**](im-down/SKILL.md) — the producer side of the session-boundary pair: at the end
-  of a work session, snapshot repository facts deterministically, write one atomic packet
-  (hidden JSON manifest + human narrative), and validate it before claiming handoff readiness.
-  The next session must not depend on conversational memory
-  ([the receipt](im-down/EVIDENCE.md)).
+- [**halt-as-deliverable**](halt-as-deliverable/SKILL.md) — when a pre-registration, pre-flight or sanity gate you built refuses to produce your own deliverable, the catch can be worth more than the deliverable; commit the audit trail publicly before deciding what to do next, and lead with the catch ([the receipt](halt-as-deliverable/EVIDENCE.md)).
+- [**pretooluse-prose**](pretooluse-prose/SKILL.md) — a Claude Code `PreToolUse` Bash guard receives the whole command string, so a heredoc or commit message that only names a banned command trips it; write such prose with a file-write tool, and anchor a matcher to command position outside quotes ([the receipt](pretooluse-prose/EVIDENCE.md)).
+- [**pull-rebase**](pull-rebase/SKILL.md) — with `pull.rebase=true` configured, `git pull --no-ff` still rebases and every local commit gets a new SHA, while `--ff-only` refuses instead; check the setting before pulling, and recover through the reflog if a pull already rebased your work. The origin incident rewrote 22 local commits ([the receipt](pull-rebase/EVIDENCE.md)).
 
-- [**im-up**](im-up/SKILL.md) — the receiver side: a fresh session treats the packet as
-  untrusted data, verifies branch and HEAD against the repository, probes every verified
-  claim, runs only repository-configured checks, and emits an explicit acceptance receipt
-  before any work. The receiver defines packet sufficiency — the producer cannot grade itself
-  ([the receipt](im-up/EVIDENCE.md)).
+### Rituals at phase and session boundaries
 
-- [**clirunner-env**](clirunner-env/SKILL.md) — Click's
-  `CliRunner.invoke(env=...)` overrides only the keys the dict names; a key you left out is
-  not deleted. A test that builds a "clean" environment by omission runs with the variable
-  still set, and can make the live API call it was written to prevent
-  ([the receipt](clirunner-env/EVIDENCE.md)).
+These three are procedures: each sets `disable-model-invocation: true`, so it runs only when you invoke it by name.
 
-- [**vacuous-check**](vacuous-check/SKILL.md) — a check
-  that accepts any non-empty output passes when the operation failed, because failure output
-  is non-empty too. Covers the mirror case as well: a probe reporting NOT-FOUND across a whole
-  batch when the tool never ran. Assert the shape success produces, re-read the external
-  state, and carry a positive control in any run whose finding is an absence
-  ([the receipt](vacuous-check/EVIDENCE.md)).
-
-- [**mocked-stub**](mocked-stub/SKILL.md) — an implementation returns all
-  gates green while a branch the shipped behaviour depends on is stubbed, because the test patches
-  the very helper that is the stub. Green is evidence the test passed, never evidence the
-  production path ran ([the receipt](mocked-stub/EVIDENCE.md)).
-
-- [**pretooluse-prose**](pretooluse-prose/SKILL.md)
-  — a `PreToolUse` Bash guard receives the whole command string, so it blocks commit messages,
-  heredocs and documentation that only mention what it forbids. Writing about a trap is how
-  you trip its guard. Anchor detection to command position, and strip heredoc bodies before
-  the predicate runs ([the receipt](pretooluse-prose/EVIDENCE.md)).
-
-- [**halt-as-deliverable**](halt-as-deliverable/SKILL.md) — when a pre-registration or
-  pre-flight gate refuses to produce the thing you came for, the refusal is often worth more
-  than the thing. A discipline catching its own author, published before the path forward is
-  decided, is a claim nobody can copy ([the receipt](halt-as-deliverable/EVIDENCE.md)).
+- [**closure-mode**](closure-mode/SKILL.md) — when a sprint, phase or vertical slice locks, or a "what next" decision has several candidates, dispatch a parallel review swarm, execute the action list it produces, and only then present a single pick or the values axis that separates the survivors ([the receipt](closure-mode/EVIDENCE.md)).
+- [**im-down**](im-down/SKILL.md) — the producer side of a Claude Code session boundary: one close command commits durable state, runs the receiver's checks, and writes a packet that must validate as `ACCEPTED` before the session claims it is safe to clear ([the receipt](im-down/EVIDENCE.md)).
+- [**im-up**](im-up/SKILL.md) — the receiver side: a fresh Claude Code session treats the `im-down` packet as untrusted data, verifies branch, HEAD and every verified claim against the repository, runs the configured checks, and reports an acceptance receipt before any work starts ([the receipt](im-up/EVIDENCE.md)).
