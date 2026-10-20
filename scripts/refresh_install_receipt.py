@@ -21,9 +21,9 @@ What it does
     The interactive form keeps its own date; CI does not exercise it. The date
     is the run's `createdAt`, in UTC.
 
-    It is the receipt step for the release-step script #330 describes. That
-    script does not exist yet; until it does, run this by hand after the bump
-    merges (.changeset/README.md).
+    It is the receipt step #330 describes. It stays out of `npm run version`
+    because no run can qualify before the bump merges, so run it by hand
+    after the merge (.changeset/README.md).
 
 Run
     python scripts/refresh_install_receipt.py           # print the diff

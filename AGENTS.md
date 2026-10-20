@@ -98,9 +98,10 @@ files and makes the double-tracking impossible. It is never a filesystem link.
    delivery event — changed cards reach installed users when a version bump merges to
    `main`, not when a tag is pushed. There is no auto-release CI: the maintainer runs
    `npm run version` to roll pending changesets into a version bump and a `CHANGELOG.md`
-   update, then runs `python scripts/release_gate.py --write` to stamp every
-   `skills/<bucket>/.claude-plugin/plugin.json` version from `package.json` and report release
-   fitness. The gate lists every stale
+   update (its last step, `scripts/finish_changelog.py`, dates the new section and keeps
+   the changelog preamble on top), then runs `python scripts/release_gate.py --write` to
+   stamp every `skills/<bucket>/.claude-plugin/plugin.json` version from `package.json` and
+   report release fitness. The gate lists every stale
    surface in one run rather than failing at the first. Commit the result and merge
    only when the gate is green. Release immutability is enabled on this repository, and
    a tag name cannot be reused once spent, so a botched release spends a version number

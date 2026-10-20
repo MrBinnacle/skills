@@ -24,8 +24,13 @@ npm run version
 python scripts/release_gate.py --write
 ```
 
-`npm run version` consumes every pending changeset, bumps `package.json`, and rewrites the
-`## <version>` section of `CHANGELOG.md`. `release_gate.py --write` stamps every plugin
+`npm run version` consumes every pending changeset, bumps `package.json`, and writes the new
+section of `CHANGELOG.md`. It then runs `scripts/finish_changelog.py`, which dates that
+section's heading as `## v<version> - <date>` (today, in local time) and moves the changelog
+preamble back above it, since `changeset version` inserts the section directly under the
+title. Set `GITHUB_TOKEN` (a token with `public_repo` scope, such as `gh auth token`) before
+running it, because the changelog generator looks up each changeset's pull request, and push
+every commit you want credited first. `release_gate.py --write` stamps every plugin
 version in `.claude-plugin/marketplace.json` from `package.json` and reports release fitness
 (every stale surface in one run). Commit the result and merge only when the gate is green.
 
