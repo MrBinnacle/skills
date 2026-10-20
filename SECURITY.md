@@ -82,18 +82,18 @@ them, and commitment 3 says exactly when they are fine.) Installing one:
 Review the diff of any update as you would a pull request — that is the intended trust
 mechanism, not a substitute for it.
 
-## Standing obligations — `conformance v5`
+## Standing obligations — `conformance v6`
 
 The commitments above are what this collection promises. This section is what a card owes for as
 long as it stays published, stated as the list a checker is written against, so that the prose
 and the check cannot drift apart quietly. Admission is a separate contract on a separate cadence:
 `ADMISSION.md` governs getting in, this section governs staying.
 
-**Version.** This edition is `conformance v5`, declared here and nowhere else. A material change
+**Version.** This edition is `conformance v6`, declared here and nowhere else. A material change
 to the obligations, or to what counts as meeting one, bumps the version. Editorial changes —
 wording, ordering, examples — do not.
 
-**Machine-checked.** `scripts/validate_conformance.py` runs these eight over the published tree and
+**Machine-checked.** `scripts/validate_conformance.py` runs these nine over the published tree and
 reports `PASS`, `FAIL` or `CANNOT-CHECK` per card. `CANNOT-CHECK` is a separate count and is never
 reported as a pass.
 
@@ -135,6 +135,13 @@ reported as a pass.
 - **O8 — no quarantine-published name collision.** No `_quarantine/<name>/` directory shares its
   `<name>` with a published card's directory name. A collision means a promotion would overwrite
   or merge into an existing published card, and nothing in the current gate set refuses it.
+- **O9 — no watch past its close.** Each row in the `## On watch` table of `RETIRED.md` is an open
+  staged retirement ([ADR 0007](docs/adr/0007-retirement-is-staged-for-three-exits.md)). The row
+  fails when its `Watch closes` date is before the run date or is not a `YYYY-MM-DD` date, when its
+  `Removed` cell carries no 40-hex install SHA (no clock start, so no open watch), or when its card
+  name is still present under `skills/`, in a plugin manifest or in the `## Retired from the
+  collection` table. An empty table passes. The check only reads: the rotation pass is the sole
+  editor of the table.
 
 **Attested, not checked.** Two commitments are honest obligations that no repository check can
 decide, and are listed here rather than left to look machine-checked:
