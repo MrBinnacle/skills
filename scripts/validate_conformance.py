@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Run the standing obligations (`conformance v5`) against the published tree.
+"""Run the standing obligations (`conformance v6`) against the published tree.
 
-SECURITY.md declares eight standing obligations a published card owes for as long
+SECURITY.md declares nine standing obligations a published card owes for as long
 as it stays published. This script is the driver behind that section. It reports
 PASS / FAIL / CANNOT-CHECK per card per obligation, and CANNOT-CHECK is a
 distinct reported state -- never folded into PASS. An obligation the collection
@@ -32,8 +32,8 @@ WHAT IS DELEGATED, AND WHY
 
 SCOPE: CARD VS REPO
     Four obligations are properties of one card and are scored per card.
-    Four -- O1's walk, O6's scoreboard, O7's manifest and O8's quarantine
-    collision check -- are repo-wide
+    Five -- O1's walk, O6's scoreboard, O7's manifest, O8's quarantine
+    collision check and O9's watch-close probe -- are repo-wide
     predicates whose subject is the tree. They are evaluated ONCE and reported
     in their own block. Copying a single repo verdict into fifteen identical
     cells would multiply one finding by the card count and make the totals lie
@@ -46,6 +46,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import json
 import re
@@ -66,7 +67,7 @@ PASS: Final[str] = "PASS"
 FAIL: Final[str] = "FAIL"
 CANT: Final[str] = "CANNOT-CHECK"
 
-CONFORMANCE_VERSION: Final[str] = "conformance v5"
+CONFORMANCE_VERSION: Final[str] = "conformance v6"
 
 # The SECURITY.md section states this date as the trial's pre-registered exit.
 # It is asserted equal by the suite so the workflow header, the policy section
@@ -192,6 +193,7 @@ OBLIGATIONS: Final[tuple[Obligation, ...]] = (
     Obligation("O6", "scoreboard lockstep", REPO),
     Obligation("O7", "plugin manifest and published tree agree", REPO),
     Obligation("O8", "no quarantine-published name collision", REPO),
+    Obligation("O9", "no watch past its close", REPO),
 )
 
 CARD_OBLIGATIONS: Final[tuple[Obligation, ...]] = tuple(
@@ -1183,11 +1185,128 @@ def check_quarantine_no_name_collision(root: Path) -> Result:
     )
 
 
+RETIRED_FILE: Final[str] = "RETIRED.md"
+ON_WATCH_HEADING: Final[str] = "## On watch"
+RETIRED_HEADING: Final[str] = "## Retired from the collection"
+WATCH_COLUMNS: Final[tuple[str, ...]] = (
+    "Card",
+    "Removed (release, install SHA, clock start)",
+    "Route",
+    "Signal (quoted predicate)",
+    "Watch closes",
+    "Sessions observed",
+    "Events (dated)",
+    "Status",
+)
+INSTALL_SHA_RE: Final[re.Pattern[str]] = re.compile(r"(?<![0-9a-fA-F])[0-9a-f]{40}(?![0-9a-fA-F])")
+ISO_DATE_RE: Final[re.Pattern[str]] = re.compile(r"\d{4}-\d{2}-\d{2}")
+SEPARATOR_CELL_RE: Final[re.Pattern[str]] = re.compile(r":?-{3,}:?")
+
+
+def markdown_section(text: str, heading: str) -> list[str] | None:
+    """The lines under `heading` up to the next `## ` heading, or None if absent."""
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() == heading:
+            body: list[str] = []
+            for follow in lines[index + 1 :]:
+                if follow.startswith("## "):
+                    break
+                body.append(follow)
+            return body
+    return None
+
+
+def table_cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def table_rows(body: list[str]) -> list[list[str]]:
+    """Cells of every table line in a section body, header and separator included."""
+    return [table_cells(line) for line in body if line.lstrip().startswith("|")]
+
+
+def bare(cell: str) -> str:
+    return cell.strip().strip("*`").strip()
+
+
+def parse_watch_date(cell: str) -> datetime.date | None:
+    value = bare(cell)
+    if not ISO_DATE_RE.fullmatch(value):
+        return None
+    try:
+        return datetime.date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def name_is_present(name: str, text: str) -> bool:
+    return re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", text) is not None
+
+
+def watch_row_breaches(
+    row: list[str], today: datetime.date, retired_names: set[str], root: Path
+) -> list[str]:
+    if len(row) != len(WATCH_COLUMNS):
+        return [f"row has {len(row)} cell(s), the table has {len(WATCH_COLUMNS)}: {row[0]!r}"]
+    card = bare(row[0])
+    breaches: list[str] = []
+    closes = parse_watch_date(row[4])
+    if closes is None:
+        breaches.append(f"{card}: Watch closes {row[4]!r} is not a YYYY-MM-DD date")
+    elif closes < today:
+        breaches.append(f"{card}: watch closed {closes} and is past its close ({today})")
+    if INSTALL_SHA_RE.search(row[1]) is None:
+        breaches.append(f"{card}: Removed cell carries no 40-hex install SHA, so no clock started")
+    where = []
+    if list((root / "skills").glob(f"*/{card}")):
+        where.append("skills/")
+    for manifest in [root / ".claude-plugin" / "marketplace.json", *root.glob("**/.claude-plugin/plugin.json")]:
+        if manifest.is_file() and name_is_present(card, read(manifest)):
+            where.append(manifest.relative_to(root).as_posix())
+    if card in retired_names:
+        where.append(f"{RETIRED_HEADING} table")
+    if where:
+        breaches.append(f"{card}: still present in " + ", ".join(where))
+    return breaches
+
+
+def check_watch_close(root: Path, today: datetime.date | None = None) -> Result:
+    """O9: no `## On watch` row in RETIRED.md is overdue, malformed or contradicted.
+
+    Reads the table and never writes it; the rotation pass is its only editor
+    (ADR 0007, Decision 5). An unparseable close date and a missing install SHA
+    are refused, not counted: a row with no clock start is not an open watch.
+    """
+    today = today or datetime.date.today()
+    path = root / RETIRED_FILE
+    if not path.is_file():
+        return Result(PASS, f"no {RETIRED_FILE} present, nothing on watch")
+    text = read(path)
+    body = markdown_section(text, ON_WATCH_HEADING)
+    if body is None:
+        return Result(FAIL, f"{RETIRED_FILE} has no '{ON_WATCH_HEADING}' section")
+    rows = table_rows(body)
+    data = [
+        r for r in rows
+        if not all(SEPARATOR_CELL_RE.fullmatch(c) for c in r) and tuple(r) != WATCH_COLUMNS
+    ]
+    if rows and not any(tuple(r) == WATCH_COLUMNS for r in rows):
+        return Result(FAIL, f"'{ON_WATCH_HEADING}' table header is not the expected column set")
+    retired = markdown_section(text, RETIRED_HEADING) or []
+    retired_names = {bare(r[0]) for r in table_rows(retired) if r}
+    breaches = [b for r in data for b in watch_row_breaches(r, today, retired_names, root)]
+    if breaches:
+        return Result(FAIL, "; ".join(breaches))
+    return Result(PASS, f"{len(data)} watch row(s), none past its close ({today})")
+
+
 REPO_CHECKS = {
     "O1": check_declared_formats,
     "O6": check_scoreboard_lockstep,
     "O7": check_plugin_manifest,
     "O8": check_quarantine_no_name_collision,
+    "O9": check_watch_close,
 }
 
 
@@ -1226,7 +1345,11 @@ if _UNIMPLEMENTED:
     )
 
 
-def evaluate(root: Path, harness_root: Path | None = None) -> Report:
+def evaluate(
+    root: Path,
+    harness_root: Path | None = None,
+    today: datetime.date | None = None,
+) -> Report:
     cards = find_cards(root)
     per_card = {}
     for card in cards:
@@ -1237,7 +1360,10 @@ def evaluate(root: Path, harness_root: Path | None = None) -> Report:
             else:
                 row[o.oid] = CARD_CHECKS[o.oid](card)
         per_card[card.name] = row
-    repo_wide = {o.oid: REPO_CHECKS[o.oid](root) for o in REPO_OBLIGATIONS}
+    repo_wide = {
+        o.oid: check_watch_close(root, today) if o.oid == "O9" else REPO_CHECKS[o.oid](root)
+        for o in REPO_OBLIGATIONS
+    }
     return Report(cards, per_card, repo_wide)
 
 
@@ -1288,13 +1414,19 @@ def main() -> None:
         help="path to a skill-harness clone; enables O5 receipt agreement checks",
     )
     parser.add_argument(
+        "--today",
+        type=datetime.date.fromisoformat,
+        default=None,
+        help="run date as YYYY-MM-DD for O9 (default: the wall clock)",
+    )
+    parser.add_argument(
         "--markdown", action="store_true", help="emit the per-card table as markdown"
     )
     args = parser.parse_args()
     root = args.root.resolve()
     harness_root = args.harness_root.resolve() if args.harness_root else None
 
-    report = evaluate(root, harness_root)
+    report = evaluate(root, harness_root, args.today)
     if not report.cards:
         print(
             f"REJECTED: no published cards found under {root}/skills. A run that "

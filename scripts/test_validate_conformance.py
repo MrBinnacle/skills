@@ -181,7 +181,7 @@ def case_unnamed_shipped_script_is_red(root: Path) -> None:
     )
     check(
         "the rejection line says which edition rejected",
-        "conformance v5" in result.stderr,
+        "conformance v6" in result.stderr,
         result.stderr.strip(),
     )
 
@@ -2627,6 +2627,121 @@ def case_no_quarantine_dir_is_green(root: Path) -> None:
     )
 
 
+WATCH_HEADER = (
+    "| Card | Removed (release, install SHA, clock start) | Route | Signal (quoted predicate) "
+    "| Watch closes | Sessions observed | Events (dated) | Status |\n"
+    "|---|---|---|---|---|---|---|---|\n"
+)
+SHA = "0123456789abcdef0123456789abcdef01234567"
+TODAY = "2026-10-20"
+
+
+def watch_row(card: str, closes: str, removed: str | None = None) -> str:
+    removed = f"v1.4.0, {SHA}, 2026-07-01" if removed is None else removed
+    return f'| `{card}` | {removed} | CUT(subsumed) | "the failure" | {closes} | 0 | none | open |\n'
+
+
+def plant_retired(root: Path, rows: str, retired_rows: str = "") -> None:
+    write(
+        root / "RETIRED.md",
+        "# Retired\n\n## On watch\n\nProse.\n\n"
+        + WATCH_HEADER
+        + rows
+        + "\n## Retired from the collection\n\n"
+        + "| Skill | Retired | Why | Evidence |\n|---|---|---|---|\n"
+        + retired_rows,
+    )
+
+
+def o9_result(root: Path) -> tuple[str, str]:
+    make_tree(root)
+    plant_plugin(root, card_paths(CARDS))
+    result = run_checker(root, "--today", TODAY)
+    return repo_cell(result.stdout, "O9"), repo_line(result.stdout, "O9")
+
+
+def case_o9_overdue_watch_is_red(root: Path) -> None:
+    plant_retired(root, watch_row("gone-card", "2026-10-19"))
+    verdict, line = o9_result(root)
+    check("O9 is FAIL when a watch closed before the run date", verdict == "FAIL", line)
+    check("the overdue row names its card", "gone-card" in line and "past its close" in line, line)
+
+
+def case_o9_unparseable_close_date_is_red(root: Path) -> None:
+    plant_retired(root, watch_row("gone-card", "2026-02-30") + watch_row("other-card", "soon"))
+    verdict, line = o9_result(root)
+    check("O9 is FAIL on unparseable Watch closes dates", verdict == "FAIL", line)
+    check("both unparseable rows are named", "gone-card" in line and "other-card" in line, line)
+
+
+def case_o9_missing_install_sha_is_red(root: Path) -> None:
+    plant_retired(root, watch_row("gone-card", "2027-01-01", removed="v1.4.0, no SHA yet"))
+    verdict, line = o9_result(root)
+    check("O9 is FAIL when the Removed cell has no 40-hex SHA", verdict == "FAIL", line)
+    check("the refusal says no clock started", "install SHA" in line, line)
+
+
+def case_o9_short_sha_is_red(root: Path) -> None:
+    plant_retired(root, watch_row("gone-card", "2027-01-01", removed="v1.4.0, 0123abc"))
+    verdict, line = o9_result(root)
+    check("O9 is FAIL on an abbreviated SHA", verdict == "FAIL", line)
+
+
+def case_o9_malformed_row_is_red(root: Path) -> None:
+    plant_retired(root, "| `gone-card` | v1.4.0 |\n")
+    verdict, line = o9_result(root)
+    check("O9 is FAIL on a row with the wrong cell count", verdict == "FAIL", line)
+
+
+def case_o9_current_row_is_green(root: Path) -> None:
+    plant_retired(root, watch_row("gone-card", "2026-10-21") + watch_row("same-day", TODAY))
+    verdict, line = o9_result(root)
+    check("O9 is PASS for rows not yet due, including the close date itself", verdict == "PASS", line)
+    check("O9 counts the two rows", "2 watch row(s)" in line, line)
+
+
+def case_o9_collision_with_published_card_is_red(root: Path) -> None:
+    plant_retired(root, watch_row(CARDS[0], "2027-01-01"))
+    verdict, line = o9_result(root)
+    check("O9 is FAIL when a watched card is still under skills/", verdict == "FAIL", line)
+    check("the collision names skills/ and the manifest", "skills/" in line and "plugin.json" in line, line)
+
+
+def case_o9_collision_with_retired_table_is_red(root: Path) -> None:
+    plant_retired(
+        root, watch_row("gone-card", "2027-01-01"), "| `gone-card` | 2026-08 | why | link |\n"
+    )
+    verdict, line = o9_result(root)
+    check("O9 is FAIL when the card is also in the Retired table", verdict == "FAIL", line)
+    check("the Retired table is named", "Retired from the collection" in line, line)
+
+
+def case_o9_empty_section_is_green(root: Path) -> None:
+    plant_retired(root, "")
+    verdict, line = o9_result(root)
+    check("O9 is PASS when the On watch table is empty", verdict == "PASS", line)
+
+
+def case_o9_missing_section_is_red(root: Path) -> None:
+    write(root / "RETIRED.md", "# Retired\n\n## Retired from the collection\n")
+    verdict, line = o9_result(root)
+    check("O9 is FAIL when RETIRED.md lost its On watch section", verdict == "FAIL", line)
+
+
+def case_o9_live_tree_has_the_section() -> None:
+    result = run_checker(REPO_ROOT)
+    check(
+        "O9 is PASS on the live tree",
+        repo_cell(result.stdout, "O9") == "PASS",
+        repo_line(result.stdout, "O9"),
+    )
+    check(
+        "the live summary counts five repo-wide obligations",
+        "5 repo obligation(s)" in result.stdout,
+        result.stdout[-300:],
+    )
+
+
 def case_skill_path_leaving_its_plugin_is_red(root: Path) -> None:
     """A path that climbs out of its plugin's source does not ship with it.
 
@@ -2843,13 +2958,13 @@ def case_o5_is_not_promised_as_ci() -> None:
 def case_live_tree_is_checked_and_conforms() -> None:
     result = run_checker(REPO_ROOT)
     check(
-        "the live tree passes conformance v5",
+        "the live tree passes conformance v6",
         result.returncode == 0,
         result.stdout + result.stderr,
     )
     check(
         "the live run emits a PASS line",
-        "PASS: conformance v5" in result.stdout,
+        "PASS: conformance v6" in result.stdout,
         result.stdout,
     )
     check(
@@ -2926,6 +3041,16 @@ def main() -> None:
         case_quarantine_name_collision_is_red,
         case_quarantine_no_collision_is_green,
         case_no_quarantine_dir_is_green,
+        case_o9_overdue_watch_is_red,
+        case_o9_unparseable_close_date_is_red,
+        case_o9_missing_install_sha_is_red,
+        case_o9_short_sha_is_red,
+        case_o9_malformed_row_is_red,
+        case_o9_current_row_is_green,
+        case_o9_collision_with_published_card_is_red,
+        case_o9_collision_with_retired_table_is_red,
+        case_o9_empty_section_is_green,
+        case_o9_missing_section_is_red,
         case_parseable_but_wrong_shape_is_red,
         case_spelled_paths_are_not_reported_as_unpublished,
         case_wrong_depth_under_skills_is_red,
@@ -2947,6 +3072,7 @@ def main() -> None:
     case_o5_is_not_promised_as_ci()
     case_live_manifest_covers_the_live_tree()
     case_live_tree_is_checked_and_conforms()
+    case_o9_live_tree_has_the_section()
     case_evidence_scope_constants_are_the_closed_set()
     case_scope_line_drift_vs_harness_render()
     case_sub_reasons_match_harness_enum()
@@ -2958,7 +3084,7 @@ def main() -> None:
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} case(s): {', '.join(FAILURES)}", file=sys.stderr)
         raise SystemExit(1)
-    print("PASS: conformance v5 suite, all cases correct")
+    print("PASS: conformance v6 suite, all cases correct")
 
 
 if __name__ == "__main__":
