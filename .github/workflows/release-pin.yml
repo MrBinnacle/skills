@@ -1,0 +1,70 @@
+# Post-release stage 1 of 2: open the marketplace pin PR (#517).
+#
+# A release squash merge changes package.json "version". From that push until the pin commit
+# lands, the release gate's "Marketplace pin" step (scripts/check_marketplace_pin.py) is red
+# on main and on every PR, by design (ADR 0002). This job writes the pin and opens it as a PR,
+# so the red window lasts one approval and one merge instead of "until someone remembers".
+#
+# Stage 2 (release-receipt.yml) refreshes the README install receipt. It cannot run here: the
+# receipt cites a passing push run of tests.yml at the new version, and no such run exists
+# until this PR merges.
+#
+# Idempotent: `--write` regenerates the same pin from history, so a push that is not a release
+# leaves marketplace.json unchanged and the job stops. It also stops when the branch it would
+# push already exists (an open or closed earlier pin PR); delete that branch to run it again.
+#
+# GITHUB_TOKEN only. A PR it opens starts its pull_request checks in an approval-required
+# state: a maintainer selects "Approve workflows to run" on the PR. The repository setting
+# "Allow GitHub Actions to create and approve pull requests" must be on for `gh pr create`.
+name: release-pin
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+
+permissions: {}
+
+concurrency:
+  group: release-pin
+  cancel-in-progress: false
+
+jobs:
+  open-pin-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # push the pin branch
+      pull-requests: write # open the pin PR
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the pin script walks first-parent history and reads tags
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Write the pin and open a PR when it changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          python scripts/check_marketplace_pin.py --write
+          if git diff --quiet -- .claude-plugin/marketplace.json; then
+            echo "The pin already names the latest release; nothing to open."
+            exit 0
+          fi
+          version=$(python -c "import json; print(json.load(open('package.json'))['version'])")
+          branch="automation/marketplace-pin-v${version}"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "Branch $branch already exists; not opening a second pin PR."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add .claude-plugin/marketplace.json
+          git commit -m "chore(release): pin marketplace to v${version}"
+          git push origin "HEAD:refs/heads/${branch}"
+          gh pr create --repo "$REPO" --base main --head "$branch" \
+            --title "chore(release): pin marketplace to v${version}" \
+            --body "Automated by release-pin.yml (#517). Pins every \`.claude-plugin/marketplace.json\` entry to the v${version} release commit (\`scripts/check_marketplace_pin.py --write\`). The release gate stays red on main and on every PR until this merges. Select **Approve workflows to run** to start this PR's checks."
