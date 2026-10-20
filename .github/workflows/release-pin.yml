@@ -32,6 +32,7 @@ concurrency:
 jobs:
   open-pin-pr:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write # push the pin branch
       pull-requests: write # open the pin PR
