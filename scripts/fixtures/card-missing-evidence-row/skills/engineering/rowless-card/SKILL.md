@@ -1,6 +1,7 @@
 ---
 name: rowless-card
 description: Fixture card whose EVIDENCE.md is missing one required row.
+disable-model-invocation: true
 ---
 
 # rowless-card

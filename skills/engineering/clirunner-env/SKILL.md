@@ -1,6 +1,7 @@
 ---
 name: clirunner-env
 description: "Use when a CLI test builds env= as a filtered-dict, passes env={}, or relies on monkeypatch.delenv. Click's CliRunner.invoke only overrides keys the dict names; pass {key: None} to delete one."
+disable-model-invocation: true
 ---
 
 # Click CliRunner: `env=None` deletes; absence does NOT

@@ -1,6 +1,7 @@
 ---
 name: poison-card
 description: Fixture card missing one required file.
+disable-model-invocation: true
 ---
 
 # poison-card

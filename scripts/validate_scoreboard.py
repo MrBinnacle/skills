@@ -233,14 +233,25 @@ def measured_card_names(root: Path) -> set[str]:
     Same derivation as `count_measured`, returning identities instead of a
     count, so the page can be checked against WHICH cards rather than how many.
     """
-    names = set()
-    for skill in iter_skill_dirs(root):
-        values = evidence_fields(skill / "EVIDENCE.md", CONTROLLED_FIELDS)
-        for field in CONTROLLED_FIELDS:
-            if values.get(field, "").lstrip("* `_").upper().startswith(MEASURED_VERDICTS):
-                names.add(skill.name)
-                break
-    return names
+    return {
+        skill.name
+        for skill in iter_skill_dirs(root)
+        if carries_controlled_result(skill / "EVIDENCE.md")
+    }
+
+
+def carries_controlled_result(evidence: Path) -> bool:
+    """True when a controlled field of this record opens with a measured verdict.
+
+    The one predicate behind the `measured` posture. `validate_card_files.py`
+    reads it for the always-on bar (ADR 0008), so the bar and the page cannot
+    disagree on which cards carry a controlled result.
+    """
+    values = evidence_fields(evidence, CONTROLLED_FIELDS)
+    return any(
+        values.get(field, "").lstrip("* `_").upper().startswith(MEASURED_VERDICTS)
+        for field in CONTROLLED_FIELDS
+    )
 
 
 CONTROLLED_SECTION_RE = re.compile(

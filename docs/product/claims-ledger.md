@@ -23,6 +23,10 @@ rewritten for a first-time reader that day. The C6, C9, C10 and C11 `README.md:N
 the S2 rows now point at the page as rewritten (#540), read whole on 2026-10-20 at `main` `3605a52`.
 Every other `README.md:N` citation keeps the revision it names.
 
+**Amended again 2026-10-20** for [ADR 0008](../adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md).
+C12 carries the refreshed `skill-harness skill audit` date. C13 adds the load-mode price. C16 is
+new: which cards load in every session.
+
 This is an internal working record. It is not public copy, and it changes no public surface.
 It has two parts:
 
@@ -179,7 +183,7 @@ ledger cites that list by its path and does not repeat it.
 | Claim | Each model-invocable card adds a cost to every session. |
 | Allowed wording | Each card not marked "by hand" adds one line to every session: about 70 to 80 tokens, as `/context` counts it (Claude Code 2.1.305, measured 2026-10-20). That holds when the host lists the card with its description. A host that lists it by name only charges under 20. |
 | Forbidden wording | A cost figure with no instrument or date. A claim that a model-invocable card costs nothing until it fires. The `skill-harness skill audit` figures stated as what a session pays: [#361](https://github.com/MrBinnacle/skills/issues/361#issuecomment-6304133476) found none of them within 10% of `/context`. |
-| Evidence | `README.md:68`, in `## Install`, at the front-page rewrite of 2026-10-20; [#361](https://github.com/MrBinnacle/skills/issues/361#issuecomment-6304133476), the pre-registered `/context` measurement, and [#532](https://github.com/MrBinnacle/skills/pull/532), which put it on the README; `CATALOG.md:12-14`. Each card's `Standing cost` row keeps the harness figure, measured by `skill-harness skill audit` on 2026-10-19, and CI job `validate_standing_costs.py` checks those rows against `scripts/standing-costs.json`. |
+| Evidence | `README.md:68`, in `## Install`, at the front-page rewrite of 2026-10-20; [#361](https://github.com/MrBinnacle/skills/issues/361#issuecomment-6304133476), the pre-registered `/context` measurement, and [#532](https://github.com/MrBinnacle/skills/pull/532), which put it on the README; `CATALOG.md:12-14`. Each card's `Standing cost` row keeps the harness figure, measured by `skill-harness skill audit` on 2026-10-20, and CI job `validate_standing_costs.py` checks those rows against `scripts/standing-costs.json`. |
 | Status | **SCOPED** to the Claude Code version and date of the `/context` measurement. |
 
 ### C13. What a version promises
@@ -187,9 +191,9 @@ ledger cites that list by its path and does not repeat it.
 | Field | Value |
 | --- | --- |
 | Claim | The install path, the card format and a card's name are the declared surface. The card set is not. |
-| Allowed wording | The site and `CATALOG.md:261` wording. |
-| Forbidden wording | Wording that implies the card set is stable across a minor release. |
-| Evidence | ADR 0002, *What the version number promises*; ADR 0003, *Decision*. |
+| Allowed wording | The site and `CATALOG.md` *What a version promises* wording. Moving a card from always-on to by hand is a major change; moving it back is minor. |
+| Forbidden wording | Wording that implies the card set is stable across a minor release. Wording that implies a card's load mode can change under a minor release in the always-on to by-hand direction. |
+| Evidence | ADR 0002, *What the version number promises*; ADR 0003, *Decision*; ADR 0008, *Decision*. |
 | Status | **ALLOWED** |
 
 ### C14. The repository is a knowledge base
@@ -211,6 +215,16 @@ ledger cites that list by its path and does not repeat it.
 | Forbidden wording | Any user count, community, adoption or demand claim. A comparison that makes the collection sound larger. |
 | Evidence | `PRODUCT.md:33-40`; `BRAND.md:53-55`. |
 | Status | Audience is **INTENT**. Adoption is **FORBIDDEN**. |
+
+### C16. Which cards load in every session
+
+| Field | Value |
+| --- | --- |
+| Claim | Only cards that clear a minimum evidence bar load in every session. The rest run by hand. |
+| Allowed wording | A card loads in every session only when its record counts two or more occasions, or it carries a controlled result. Every other card runs only when you invoke it by name. |
+| Forbidden wording | Wording that the always-on cards are proven, validated or effective: the bar counts occasions and controlled runs, and the one controlled result is `CANT_TELL_YET`. A roster of always-on cards in prose that no check reads. |
+| Evidence | [ADR 0008](../adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md), *Decision*; `scripts/validate_card_files.py`, rule `always_on_bar`, which refuses a model-invocable card below the bar; each card's `SKILL.md` frontmatter and `EVIDENCE.md` `Occasions counted`, `Screen result` and `Paired verdict` rows. |
+| Status | **ALLOWED** |
 
 ## Consistency sweep
 

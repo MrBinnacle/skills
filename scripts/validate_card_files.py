@@ -125,6 +125,18 @@ REQUIRED_EVIDENCE_ROWS: Final[tuple[str, ...]] = (
 INDEPENDENT_OCCASIONS: Final[int] = 2
 THIN_LABEL: Final[str] = "RECURRENCE-THIN"
 
+# ADR 0008: a card loads in every session only when it clears the always-on
+# bar, INDEPENDENT_OCCASIONS counted occasions or a controlled result
+# (validate_scoreboard.carries_controlled_result). Below it the card ships by
+# hand. The rule reads one way only: a card that clears the bar may still be
+# by hand under the AGENTS.md topology rule, as im-down is.
+ALWAYS_ON_ADR: Final[str] = (
+    "docs/adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md"
+)
+BY_HAND_RE: Final[re.Pattern[str]] = re.compile(
+    r"^disable-model-invocation:\s*true\s*$", re.MULTILINE
+)
+
 # The count opens the row, because the first thing the row says is the number.
 COUNT_RE: Final[re.Pattern[str]] = re.compile(r"^\s*(\d+)\b")
 DATE_RE: Final[re.Pattern[str]] = re.compile(r"\b20\d{2}-\d{2}-\d{2}\b")
@@ -461,6 +473,39 @@ def evidence_breaches(card: Path) -> list[str]:
             "must come off"
         )
     return breaches
+
+
+def is_by_hand(card: Path) -> bool:
+    """True when the card's frontmatter sets `disable-model-invocation: true`."""
+    block = FRONTMATTER_RE.match(
+        (card / "SKILL.md").read_text(encoding="utf-8", errors="replace")
+    )
+    return block is not None and BY_HAND_RE.search(block.group(1)) is not None
+
+
+def always_on_bar_breaches(card: Path) -> list[str]:
+    """A model-invocable card must clear the always-on bar (ADR 0008)."""
+    evidence = card / "EVIDENCE.md"
+    if not (card / "SKILL.md").is_file() or not evidence.is_file():
+        # Already reported as a missing required file.
+        return []
+    if is_by_hand(card):
+        return []
+    occasions = scoreboard.evidence_fields(evidence, (OCCASIONS_ROW,)).get(OCCASIONS_ROW, "")
+    counted = COUNT_RE.match(occasions)
+    if counted is None:
+        # evidence_breaches already refuses a row that opens with no integer.
+        return []
+    count = int(counted.group(1))
+    if count >= INDEPENDENT_OCCASIONS or scoreboard.carries_controlled_result(evidence):
+        return []
+    return [
+        f"model-invocable with {count} counted occasion(s) and no controlled "
+        f"result, so it is below the always-on bar ({ALWAYS_ON_ADR}). Set "
+        "`disable-model-invocation: true` in SKILL.md until the card counts "
+        f"{INDEPENDENT_OCCASIONS} occasions or a Screen result or Paired verdict "
+        "records a result other than UNMEASURED"
+    ]
 
 
 ORIGIN_ROW: Final[str] = "Origin"
@@ -975,6 +1020,7 @@ def validate(root: Path) -> None:
         for kind, details in (
             ("missing", [f"missing {name}" for name in missing_files(card)]),
             ("evidence", evidence_breaches(card)),
+            ("always_on_bar", always_on_bar_breaches(card)),
             ("origin_locator", origin_locator_breaches(card)),
             ("description", description_breaches(card)),
             ("size", size_breaches(card)),
@@ -1040,6 +1086,7 @@ def validate(root: Path) -> None:
         + "; every local link resolves with case matching"
         + "; every reader-facing auxiliary reachable from SKILL.md"
         + "; every SKILL.md carries a when-to-open pointer to gotchas.md"
+        + "; every model-invocable card clears the always-on bar"
         # A PASS line that claims "every SKILL.md is within bounds" while 14 breaches
         # sit on the allowlist is a false statement in the gate's own output. Say what
         # was actually established.

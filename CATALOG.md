@@ -9,8 +9,10 @@ cards in three groups: `engineering`, `orchestration`, and `meta`. The
 [card evidence](#card-evidence) table below names every published card, and CI checks that table
 against the cards themselves and fails on any disagreement, so it is where to read what ships today.
 
-An installed card's `description` is read at startup whether or not the card ever fires, so
-breadth you never use is still paid for on every turn. Both install routes copy files onto your
+An installed always-on card's `description` is read at startup whether or not the card ever
+fires, so breadth you never use is still paid for on every turn. A card run by hand costs nothing
+until you invoke it, and [which cards load in every session](#which-cards-load-in-every-session)
+says which is which. Both install routes copy files onto your
 machine and start nothing: there is no build step, no package to import, and no service to run.
 Most of what lands is Markdown. Every card also ships an `evals/evals.json`, and the `im-down`
 and `im-up` cards ship the Python scripts their own procedures call. Those scripts run only
@@ -116,6 +118,23 @@ place to change a row. Nothing generates it.
 
 Standing-cost figures come from the pinned `skill-harness` audit. After changing a card's
 frontmatter, run `python scripts/refresh_standing_costs.py` and commit the refreshed snapshot.
+
+## Which cards load in every session
+
+A card loads in every session only when it clears the always-on bar: its `EVIDENCE.md` counts
+two or more occasions, or a `Screen result` or `Paired verdict` row records a result other than
+`UNMEASURED`. That is the integer in the last column of the [card evidence](#card-evidence) table,
+or a `measured` posture. A card below the bar sets `disable-model-invocation: true` in its
+`SKILL.md`. Claude Code then keeps its description out of the session, and the model cannot
+invoke it on its own. You run it by name, as `/<plugin>:<card>`, for example
+`/mrbinnacle-engineering:clirunner-env`.
+
+Clearing the bar allows a card to be always-on. It does not require it: a procedure with side
+effects stays by hand under the topology rule in [`AGENTS.md`](AGENTS.md). Each card's
+frontmatter is the record of which it is, and `scripts/validate_card_files.py` refuses a
+model-invocable card below the bar. A card that clears the bar later can return to always-on.
+[ADR 0008](docs/adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md) records the
+decision and why a thin card runs by hand rather than leaving for `_quarantine/`.
 
 ## What the cards cover
 
@@ -289,7 +308,7 @@ disagree, in either direction: a path a plugin names with no card at it, and a p
 plugin names. That is standing obligation **O7** in
 [`SECURITY.md`](SECURITY.md).
 
-**What a version promises.** The install path and the card format, not the card set. Admitting or retiring a card is a minor change, so the cards you can install are expected to change under a minor release; moving the install path or changing the format of a card would be a major one. A card's name is covered too, so renaming one is a major change. You resolve a card by its name, and a rename stops your existing reference working. That narrowing is deliberate, and [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) records why, with [ADR 0003](docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md) recording why the name is inside it.
+**What a version promises.** The install path and the card format, not the card set. Admitting or retiring a card is a minor change, so the cards you can install are expected to change under a minor release; moving the install path or changing the format of a card would be a major one. A card's name is covered too, so renaming one is a major change. You resolve a card by its name, and a rename stops your existing reference working. Moving a card from always-on to by hand is a major change as well, because the card stops firing on its own and nothing else tells you; moving it back is minor ([ADR 0008](docs/adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md)). That narrowing is deliberate, and [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) records why, with [ADR 0003](docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md) recording why the name is inside it.
 
 ## Repository layout
 

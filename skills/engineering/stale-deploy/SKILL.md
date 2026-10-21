@@ -1,6 +1,7 @@
 ---
 name: stale-deploy
 description: 'Use when asking "is it live", a deploy looks stale, or a poll loop exits instantly. Verify a GitHub Pages or CDN deploy serves new content: poll a marker new to this deploy.'
+disable-model-invocation: true
 ---
 
 # GitHub Pages deploy verification

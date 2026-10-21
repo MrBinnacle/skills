@@ -1036,17 +1036,17 @@ jobs:
           rm -rf "$tree"
           mkdir -p "$tree"
           git archive HEAD | tar -x -C "$tree"
-          evidence="$tree/skills/engineering/clirunner-env/EVIDENCE.md"
+          evidence="$tree/skills/engineering/vacuous-check/EVIDENCE.md"
           stated="$(grep -o 'Description: [0-9]* tokens' "$evidence" | grep -o '[0-9]*' || true)"
           [ "$(echo "$stated" | grep -c .)" = 1 ] \
-            || { echo "::error::expected one 'Description: N tokens' figure in clirunner-env EVIDENCE.md, found: $stated"; exit 1; }
+            || { echo "::error::expected one 'Description: N tokens' figure in vacuous-check EVIDENCE.md, found: $stated"; exit 1; }
           sed -i "s/Description: $stated tokens/Description: $((stated + 1)) tokens/" "$evidence"
           if PYTHONUTF8=1 python scripts/validate_standing_costs.py --root "$tree" > "$log" 2>&1; then
             echo "::error::a standing-cost figure off by one was ACCEPTED by the live audit"
             cat "$log"
             exit 1
           fi
-          grep -q "clirunner-env: stated $((stated + 1)) tokens, audit says $stated tokens" "$log" \
+          grep -q "vacuous-check: stated $((stated + 1)) tokens, audit says $stated tokens" "$log" \
             || { echo "::error::standing-cost fixture failed for the wrong reason"; cat "$log"; exit 1; }
           cat "$log"
           echo "control: off-by-one standing cost rejected by the live audit"

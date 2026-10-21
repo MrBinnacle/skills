@@ -80,15 +80,19 @@ CONFORMING_GOTCHAS = "# gotchas\n\n[OBSERVED 2026-03-04] the one incident.\n"
 CONFORMING_DESCRIPTION = "A fixture card. Use when testing the card contract."
 
 
-def skill_md(name: str, description: str = CONFORMING_DESCRIPTION) -> str:
+def skill_md(
+    name: str, description: str = CONFORMING_DESCRIPTION, by_hand: bool = True
+) -> str:
     # AGENTS.md: SKILL.md must be at least 400 bytes, must link every
     # reader-facing auxiliary (EVIDENCE.md, gotchas.md), and must carry a
     # when-to-open context pointer to gotchas.md (skills#327). Pad the body so
     # every fixture meets the size floor, and include the required links plus
     # the pointer so the reachability and pointer checks pass on a conforming
-    # card.
+    # card. The conforming evidence counts one occasion and no controlled
+    # result, so the conforming card ships by hand (ADR 0008).
+    key = "disable-model-invocation: true\n" if by_hand else ""
     body = (
-        f"---\nname: {name}\ndescription: {description}\n---\n\n"
+        f"---\nname: {name}\ndescription: {description}\n{key}---\n\n"
         f"# {name}\n\n"
         f"See [EVIDENCE.md](EVIDENCE.md). Open [gotchas.md](gotchas.md) when "
         f"a green result needs the failure record.\n"
@@ -103,10 +107,11 @@ def write_card(
     evidence: str,
     gotchas: str,
     description: str = CONFORMING_DESCRIPTION,
+    by_hand: bool = True,
 ) -> Path:
     card = root / "skills" / "engineering" / name
     card.mkdir(parents=True)
-    (card / "SKILL.md").write_text(skill_md(name, description), encoding="utf-8")
+    (card / "SKILL.md").write_text(skill_md(name, description, by_hand), encoding="utf-8")
     (card / "gotchas.md").write_text(gotchas, encoding="utf-8")
     (card / "EVIDENCE.md").write_text(evidence, encoding="utf-8")
     return card
@@ -777,6 +782,113 @@ def case_thin_label_is_refused_at_two_occasions(root: Path) -> None:
     )
 
 
+TWO_OCCASION_EVIDENCE = CONFORMING_EVIDENCE.replace(
+    "| 1 - 2026-03-04 the one incident. RECURRENCE-THIN.",
+    "| 2 - 2026-03-04 the one incident; 2026-05-06 the second.",
+)
+TWO_OCCASION_GOTCHAS = CONFORMING_GOTCHAS + "[OBSERVED 2026-05-06] the second.\n"
+BAR_REFUSAL = "below the always-on bar"
+
+
+def case_by_hand_thin_card_passes(root: Path) -> None:
+    write_card(root, "thin-by-hand", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a by-hand card with one occasion and no controlled result passes",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
+def case_thin_model_invocable_card_is_below_the_bar(root: Path) -> None:
+    write_card(root, "thin-always-on", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, by_hand=False)
+    result = run_checker(root)
+    line = refusal_line(result.stderr, "thin-always-on", BAR_REFUSAL)
+    check(
+        "a model-invocable card with one occasion and no controlled result is refused",
+        result.returncode != 0
+        and "1 counted occasion(s) and no controlled result" in line
+        and "disable-model-invocation: true" in line,
+        result.stderr.strip(),
+    )
+
+
+def case_two_occasions_clear_the_bar(root: Path) -> None:
+    write_card(
+        root, "two-occasions", TWO_OCCASION_EVIDENCE, TWO_OCCASION_GOTCHAS, by_hand=False
+    )
+    result = run_checker(root)
+    check(
+        "a model-invocable card counting two occasions clears the bar",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
+def case_a_controlled_result_clears_the_bar(root: Path) -> None:
+    """CANT_TELL_YET from a paired run is a controlled result (ADR 0008)."""
+    evidence = CONFORMING_EVIDENCE + (
+        "| **Screen result** | UNMEASURED (no_data). |\n"
+        "| **Paired verdict** | CANT_TELL_YET (underpowered). Fixture receipt. |\n"
+    )
+    write_card(root, "measured-thin", evidence, CONFORMING_GOTCHAS, by_hand=False)
+    result = run_checker(root)
+    check(
+        "a model-invocable card with one occasion and a CANT_TELL_YET paired verdict clears the bar",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
+def case_unmeasured_controlled_fields_do_not_clear_the_bar(root: Path) -> None:
+    evidence = CONFORMING_EVIDENCE + (
+        "| **Screen result** | UNMEASURED (mechanical_vacuous). |\n"
+        "| **Paired verdict** | UNMEASURED (mechanical_vacuous). |\n"
+    )
+    write_card(root, "unmeasured-thin", evidence, CONFORMING_GOTCHAS, by_hand=False)
+    result = run_checker(root)
+    check(
+        "UNMEASURED controlled fields are not a controlled result",
+        result.returncode != 0 and BAR_REFUSAL in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_key_outside_the_frontmatter_is_not_by_hand(root: Path) -> None:
+    card = write_card(
+        root, "key-in-body", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, by_hand=False
+    )
+    skill = card / "SKILL.md"
+    skill.write_text(
+        skill.read_text(encoding="utf-8") + "\ndisable-model-invocation: true\n",
+        encoding="utf-8",
+    )
+    result = run_checker(root)
+    check(
+        "the key in the body does not make a card by hand",
+        result.returncode != 0 and BAR_REFUSAL in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_live_model_invocable_cards_clear_the_bar() -> None:
+    cards = validate_card_files.find_cards(REPO_ROOT)
+    below = sorted(
+        card.name for card in cards if validate_card_files.always_on_bar_breaches(card)
+    )
+    invocable = [card for card in cards if not validate_card_files.is_by_hand(card)]
+    check(
+        "every live model-invocable card clears the always-on bar",
+        not below,
+        f"below the bar: {below}",
+    )
+    check(
+        "the live tree has model-invocable cards to check",
+        bool(invocable),
+        "no model-invocable card found; the live check would be vacuous",
+    )
+
+
 def case_zero_cards_is_red(root: Path) -> None:
     (root / "skills").mkdir()
     result = run_checker(root)
@@ -1003,7 +1115,8 @@ def case_quotes_do_not_count_against_the_budget(root: Path) -> None:
     exactly = "z" * 198 + ": "
     card = write_card(root, "quoted-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
     quoted = (
-        '---\nname: quoted-card\ndescription: "' + exactly + '"\n---\n\n'
+        '---\nname: quoted-card\ndescription: "' + exactly + '"\n'
+        "disable-model-invocation: true\n---\n\n"
         "# quoted-card\n\nSee [EVIDENCE.md](EVIDENCE.md). Open "
         "[gotchas.md](gotchas.md) when a green result needs the failure record.\n"
     )
@@ -1778,6 +1891,12 @@ def main() -> None:
         case_sibling_row_corroboration_still_passes,
         case_thin_label_is_required_under_two_occasions,
         case_thin_label_is_refused_at_two_occasions,
+        case_by_hand_thin_card_passes,
+        case_thin_model_invocable_card_is_below_the_bar,
+        case_two_occasions_clear_the_bar,
+        case_a_controlled_result_clears_the_bar,
+        case_unmeasured_controlled_fields_do_not_clear_the_bar,
+        case_key_outside_the_frontmatter_is_not_by_hand,
         case_description_over_the_bar_is_rejected,
         case_description_at_the_bar_passes,
         case_quotes_do_not_count_against_the_budget,
@@ -1820,6 +1939,7 @@ def main() -> None:
             func(Path(tmp))
     case_live_nine_cards_pass()
     case_live_thin_labels_match_the_counts()
+    case_live_model_invocable_cards_clear_the_bar()
     case_house_pointer_reader_refuses_a_mention()
     case_live_cards_carry_gotchas_pointers()
     case_clirunner_env_repair_contract()
