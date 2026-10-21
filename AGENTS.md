@@ -928,9 +928,14 @@ number about the wrong artifact, or a disposition with no measurement under it.
 Skills are extracted from a private source tree that legitimately carries private-project
 provenance — project codenames, ticket-style IDs, a private repo directory and link. None of
 that may reach this public collection. A fail-closed pre-push check enforces the boundary:
-`.pre-commit-config.yaml` runs regex hooks over every `*.md` and **refuses the commit/push**
+`.pre-commit-config.yaml` runs regex hooks over every tracked text file (not only `*.md`: a
+trace, transcript, script or JSON fixture is scanned too) and **refuses the commit/push**
 if a known residue pattern appears, reporting the file, line, and the suggested generic
-replacement (carried in the hook name).
+replacement (carried in the hook name). Besides the codename list, four `leak-` hooks refuse
+account data in evidence files: the rate-limit billing event, the overage-status field, a
+quota-usage figure in a rate-limit record, and a `session_id`/`request_id` carrying a real UUID (a `REDACTED` value
+passes). A file that must carry a term is exempted by its exact path in the hook's `exclude`,
+with the reason beside it; never exempt an extension or a directory.
 
 It does **not** auto-rewrite — by design. A silent scrub would hide the source↔publish
 divergence and paper over the root cause; the block forces a conscious de-personalization edit
