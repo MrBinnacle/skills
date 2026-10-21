@@ -20,7 +20,9 @@ In both cases the stated figure in EVIDENCE.md is compared against the
 calibrated figure, and disagreement fails the check.  The claims ledger
 states the measurement date of the range and must carry the snapshot's
 `calibrated_on` date (MrBinnacle/skills#472).  The README no longer states the
-skill-harness range: it cites `/context` (MrBinnacle/skills#361).
+skill-harness range: it cites `/context` (MrBinnacle/skills#361), and the
+paragraph that states the per-skill session cost must name `/context`, a Claude
+Code version and an ISO date, and link the measurement (MrBinnacle/skills#536).
 
 Output is ASCII-only, matching the other validators.
 """
@@ -55,6 +57,37 @@ DATED_PROSE_SURFACES = ("docs/product/claims-ledger.md",)
 PROSE_DATE_RE = re.compile(
     r"measured by `skill-harness skill audit` on (\d{4}-\d{2}-\d{2})"
 )
+
+
+# The README paragraph that states the per-skill session cost cites `/context`
+# (MrBinnacle/skills#361, #536).  It is found by its two stable words, not by
+# the citation parts it must carry, so dropping a part cannot hide the paragraph.
+README_COST_ANCHORS = ("every session", "tokens")
+README_COST_PARTS = (
+    ("`/context`", re.compile(r"`/context`")),
+    ("a Claude Code version", re.compile(r"Claude Code \d+\.\d+\.\d+")),
+    ("an ISO date", re.compile(r"\b\d{4}-\d{2}-\d{2}\b")),
+    ("a link to the measurement", re.compile(r"\]\(https?://[^)\s]+\)")),
+)
+
+
+def readme_cost_citation_gaps(root: Path) -> list[str]:
+    """The README's session-cost paragraph must carry its whole citation."""
+    path = root / "README.md"
+    if not path.is_file():
+        return []
+    paragraphs = re.split(r"\n\s*\n", path.read_text(encoding="utf-8"))
+    cost = [p for p in paragraphs if all(a in p for a in README_COST_ANCHORS)]
+    if not cost:
+        return [
+            "  - README.md: no paragraph states the per-skill session cost "
+            "(expected one with 'every session' and 'tokens')"
+        ]
+    return [
+        f"  - README.md: the session-cost paragraph does not name {label}"
+        for label, rx in README_COST_PARTS
+        if not rx.search(cost[0])
+    ]
 
 
 def iter_skill_dirs(root: Path) -> list[Path]:
@@ -185,6 +218,7 @@ def validate(root: Path, *, use_snapshot: bool = False) -> None:
     harness = None if use_snapshot else installed_harness()
 
     blocking = prose_date_disagreements(root, snapshot.get("calibrated_on"))
+    blocking += readme_cost_citation_gaps(root)
 
     if harness is None:
         snapshot_version = snapshot.get("skill_harness_version")

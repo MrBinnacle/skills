@@ -332,8 +332,61 @@ def case_refresher_writes_run_date() -> None:
         )
 
 
+COST_PARAGRAPH = (
+    "Each card not marked \"by hand\" adds one line to every session: about 70 "
+    "to 80 tokens, as `/context` counts it (Claude Code 2.1.305, measured "
+    "2026-10-20, [#361](https://github.com/MrBinnacle/skills/issues/361))."
+)
+
+
+def readme_tree(tmp: str, paragraph: str) -> Path:
+    """A date-fixture tree with a matching ledger date and the given README."""
+    root = Path(tmp) / "tree"
+    shutil.copytree(DATE_POISON, root)
+    ledger = root / "docs" / "product" / "claims-ledger.md"
+    ledger.write_bytes(ledger.read_bytes().replace(b"2026-09-22", b"2026-10-19"))
+    (root / "README.md").write_text(
+        "# fixture\n\n" + paragraph + "\n\nNext paragraph.\n", encoding="utf-8", newline=""
+    )
+    return root
+
+
+def case_readme_cost_citation() -> None:
+    """Each citation part dropped is red for that part alone; the whole is green (#536)."""
+    drops = {
+        "`/context`": ("`/context` counts it", "the host counts it"),
+        "a Claude Code version": ("Claude Code 2.1.305, ", ""),
+        "an ISO date": ("measured 2026-10-20, ", ""),
+        "a link to the measurement": ("[#361](https://github.com/MrBinnacle/skills/issues/361)", "#361"),
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+        result = run_checker(readme_tree(tmp, COST_PARAGRAPH), use_snapshot=True)
+        check("complete README cost citation is green", result.returncode == 0, result.stderr)
+    for label, (old, new) in drops.items():
+        assert old in COST_PARAGRAPH, label
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_checker(readme_tree(tmp, COST_PARAGRAPH.replace(old, new)), use_snapshot=True)
+            lines = [l for l in result.stderr.splitlines() if l.startswith("  - ")]
+            check(
+                f"README cost paragraph without {label} is red for that part alone",
+                result.returncode != 0
+                and lines == [f"  - README.md: the session-cost paragraph does not name {label}"],
+                result.stderr,
+            )
+    with tempfile.TemporaryDirectory() as tmp:
+        result = run_checker(readme_tree(tmp, "No cost stated here."), use_snapshot=True)
+        check(
+            "README with no cost paragraph is red",
+            result.returncode != 0 and "no paragraph states the per-skill session cost" in result.stderr,
+            result.stderr,
+        )
+    live = run_checker(REPO_ROOT, use_snapshot=True)
+    check("live README cost citation is green", live.returncode == 0, live.stderr)
+
+
 # --- Run all cases ---
 
+case_readme_cost_citation()
 case_committed_poison_is_red()
 case_conforming_tree_is_green()
 case_snapshot_fallback_is_green()
