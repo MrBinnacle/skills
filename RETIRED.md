@@ -4,16 +4,16 @@ Most collections only ever grow. This one also turns skills away — including i
 
 A skill gets in here only when it clears the [admission policy](ADMISSION.md). The policy asks
 four questions, and all four must be true. Does a current frontier model fail the job without the
-skill, in a failure that was observed rather than predicted? Does
-that failure recur independently? Is a skill the right control surface for it? Is the case
-written down so that a later reader can see why the card entered, and retire it? Each card's
-`EVIDENCE.md` holds its answers, and the evidence most cards carry is a dated record of the
-failure that produced them.
+skill, in a failure that was observed rather than predicted? Does that failure recur
+independently? Is a skill the right control surface for it? Is the case written down so that a
+later reader can see why the card entered, and retire it? Each card's `EVIDENCE.md` holds its
+answers, and the evidence most cards carry is a dated record of the failure that produced them.
 
 A screen is a different kind of evidence: the same task run with the skill and without it, scored
 by a deterministic check ([skill-harness](https://github.com/MrBinnacle/skill-harness)). One
-published card, `pull-rebase`, carries such runs, and its record reports them as `CANT_TELL_YET`.
-No other published card and no candidate in [`_quarantine/`](_quarantine/README.md) carries one.
+published card, `pull-rebase`, carries such runs. Its verdict and the state of each receipt live
+in [its record](skills/engineering/pull-rebase/EVIDENCE.md). No other published card and no
+candidate in [`_quarantine/`](_quarantine/README.md) carries a run with and without the skill.
 
 Admission does not decide whether a card loads in every session. That is a second bar, set by
 [ADR 0008](docs/adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md): two counted
