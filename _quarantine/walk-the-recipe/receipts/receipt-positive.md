@@ -12,7 +12,7 @@
 | Step runner | `replay/run_step.py` sha256 `9d273954e7e12f3de8ccd3e6712910043eeb5d5f203d68622fb005c8f074850a` |
 | Target CLAUDE_CONFIG_DIR length | 171 characters |
 | Agent exit code | 0 |
-| Recipe steps executed (STEP lines in trace) | 10 |
+| Recipe steps executed | 5 (10 STEP lines in trace; each tool result is serialized twice) |
 | Trace | `trace-positive.ndjson.txt`, sha256 `d2035d5dbaae958e7954be0c3ada3c9a48dc920563fc81c5afac5cb7752038e0`, hash of the file after the widened `strip_system.py`; the earlier strip gave `3e82e0478017f3dd9aec9993b95ead1f74fc93a98557fe382a5a4b68ef54513f` as `trace-positive.jsonl` |
 | Transcript | `transcript-positive.txt`, sha256 `10349962d9e2af92db2926068a9bf28e182f815011f7f38334a94b7315c2bcec` |
 

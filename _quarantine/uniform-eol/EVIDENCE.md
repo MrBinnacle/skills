@@ -1,6 +1,6 @@
 # EVIDENCE — uniform-eol
 
-Provenance record per the collection's evidence convention (see top-level README →
+Provenance record per the collection's evidence convention (see CATALOG.md →
 "Evidence records"). Fields are honest by construction: UNMEASURED means exactly that.
 
 **This candidate is in `_quarantine/` and is not published.** Landing is not admission

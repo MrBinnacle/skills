@@ -12,7 +12,7 @@ Skills are organized into bucket folders under `skills/`:
 
 Shipped skills carry an `EVIDENCE.md` provenance record (origin incident, occasions counted,
 validated-against, screen/paired result with UNMEASURED first-class, standing cost,
-re-screen trigger). New promotions MUST include one; see top-level README → "The receipts, explained".
+re-screen trigger). New promotions MUST include one; see `CATALOG.md` → "Evidence records".
 Five of those rows are contract rather than convention: `Occasions counted`,
 `Dispatches recorded`, `Re-screen trigger`, and the two scope rows, `Evidence scope` and
 `Applicability scope`. `scripts/validate_card_files.py` refuses a published card that does not
