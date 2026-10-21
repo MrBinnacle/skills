@@ -19,8 +19,9 @@ install receipt as evidence that the skills work.
 
 **Amended 2026-10-20.** C12 now gives the `/context` figure that
 [#532](https://github.com/MrBinnacle/skills/pull/532) put on the README, and cites the README as
-rewritten for a first-time reader that day. Every other `README.md:N` citation keeps the
-revision it names.
+rewritten for a first-time reader that day. The C6, C9, C10 and C11 `README.md:N` citations and
+the S2 rows now point at the page as rewritten (#540), read whole on 2026-10-20 at `main` `3605a52`.
+Every other `README.md:N` citation keeps the revision it names.
 
 This is an internal working record. It is not public copy, and it changes no public surface.
 It has two parts:
@@ -118,7 +119,7 @@ ledger cites that list by its path and does not repeat it.
 | Claim | The Claude Code marketplace commands install the three plugins. |
 | Allowed wording | The HTTPS marketplace commands installed all three plugins at 3.0.1 on Claude Code 2.1.287, 2026-10-02, from a clean `CLAUDE_CONFIG_DIR` with no SSH key. On Windows without `core.longpaths`, the HTTPS form installs with a `CLAUDE_CONFIG_DIR` of 108 characters or fewer, measured with Claude Code 2.1.302 on 2026-10-17. With `git config --global core.longpaths true`, the HTTPS form installs with a config root of up to 157 characters, and fails above 157 even with the setting. That was measured on the same versions on 2026-10-17, on a host with Windows long-path support (`LongPathsEnabled`) turned on. Windows long-path support is an opt-in setting (Microsoft names a registry value, Group Policy and Intune as ways to turn it on, and states no default), so the install text must say that the setting-off case was not tested. Both figures hold for the tree at `eecd5a5`, the 3.1.0 candidate. They depend on the longest tracked path (80 characters for a directory at that commit), so a longer tracked path lowers both. |
 | Forbidden wording | An undated or unversioned install claim. A claim that an install supplies the current `main` bytes. A claim that the install works on Windows without the `core.longpaths` setting at a config root over 108 characters. A claim that `core.longpaths` lifts the limit without bound: a root of 158 characters or more fails with it set. A claim that the long-root install was tested with Windows long-path support turned off, or that a session loaded the skills at start: neither was tested. A claim that the skills work after a long-root install: the receipt shows that the plugins install, list and validate, not that a skill fires in a session. The 108 and 157 figures stated for a tree other than the one measured, without a new measurement. |
-| Evidence | `README.md:39-45`; `docs/product/runtime-delivery-matrix.md:92`: historical install success does not attest current bytes. `docs/product/runtime-delivery-matrix.md:111-116`: a 2.1.296 temporary install found cards in all three plugins, and the suite failed one version assertion. [#452](https://github.com/MrBinnacle/skills/pull/452) (`31fe859`), section *Reproduction, measured on 2026-10-17*: Windows 11, Claude Code 2.1.302, git 2.56.0.windows.1, `core.longpaths` unset at every scope. The HTTPS form, bisected on the config root, succeeds at 108 characters and fails at 109 (108 + 59 + 80 = 247, the directory limit). A cold install from a 37-character root succeeded. `scripts/validate_install_paths.py` fails CI on any tracked path over that budget. #452 closed #356. [`receipts/2026-10-17-windows-long-config-root.md`](receipts/2026-10-17-windows-long-config-root.md): a control run at a 109-character root with `core.longpaths` unset failed as #452 recorded. With the setting at global scope, `marketplace add` and all three installs succeeded at roots of 109, 140 and 157 characters, at commit `eecd5a5`. `claude plugin list`, `plugin details` and `plugin validate` then read all three plugins back without a model call. A bisection found that 157 passes and 158 fails with `fatal: '$GIT_DIR' too big`. The host had `LongPathsEnabled` = 1, and skill loading at session start was not tested. Microsoft Learn, *Maximum Path Length Limitation* (updated 2025-04-15): from Windows 10 version 1607, long paths need an opt-in, and the `LongPathsEnabled` registry value "must exist and be set to `1`". |
+| Evidence | `README.md:56-66` (commands and reload), `README.md:84` (Windows limits), `README.md:88-94` (verified forms); `docs/product/runtime-delivery-matrix.md:92`: historical install success does not attest current bytes. `docs/product/runtime-delivery-matrix.md:111-116`: a 2.1.296 temporary install found cards in all three plugins, and the suite failed one version assertion. [#452](https://github.com/MrBinnacle/skills/pull/452) (`31fe859`), section *Reproduction, measured on 2026-10-17*: Windows 11, Claude Code 2.1.302, git 2.56.0.windows.1, `core.longpaths` unset at every scope. The HTTPS form, bisected on the config root, succeeds at 108 characters and fails at 109 (108 + 59 + 80 = 247, the directory limit). A cold install from a 37-character root succeeded. `scripts/validate_install_paths.py` fails CI on any tracked path over that budget. #452 closed #356. [`receipts/2026-10-17-windows-long-config-root.md`](receipts/2026-10-17-windows-long-config-root.md): a control run at a 109-character root with `core.longpaths` unset failed as #452 recorded. With the setting at global scope, `marketplace add` and all three installs succeeded at roots of 109, 140 and 157 characters, at commit `eecd5a5`. `claude plugin list`, `plugin details` and `plugin validate` then read all three plugins back without a model call. A bisection found that 157 passes and 158 fails with `fatal: '$GIT_DIR' too big`. The host had `LongPathsEnabled` = 1, and skill loading at session start was not tested. Microsoft Learn, *Maximum Path Length Limitation* (updated 2025-04-15): from Windows 10 version 1607, long paths need an opt-in, and the `LongPathsEnabled` registry value "must exist and be set to `1`". |
 | Status | **SCOPED** to the versions, dates, host conditions and tree of each receipt. *Revisit if:* the longest tracked path grows past 80 characters for a directory or 92 for a file, or Claude Code changes its temporary clone directory. Either moves both figures. |
 
 ### C7. The `npx skills add` route
@@ -148,7 +149,7 @@ ledger cites that list by its path and does not repeat it.
 | Claim | A card improves agent behaviour or engineering outcomes. |
 | Allowed wording | No skill claims a measured benefit yet. The one controlled result, on `pull-rebase`, is `CANT_TELL_YET`. Publication is not validation. |
 | Forbidden wording | Any wording that a card is proven, validated, effective, or makes agents more reliable. Any adoption or user count. |
-| Evidence | `README.md:89`; `CATALOG.md:19-20`; `skills/engineering/pull-rebase/EVIDENCE.md:12-13`; `PRODUCT.md:141`; `BRAND.md:50`. |
+| Evidence | `README.md:16`, `README.md:106`; `CATALOG.md:19-20`; `skills/engineering/pull-rebase/EVIDENCE.md:12-13`; `PRODUCT.md:141`; `BRAND.md:50`. |
 | Status | **FORBIDDEN** as a benefit claim. The absence statement is **ALLOWED**. |
 
 ### C10. Admission
@@ -158,7 +159,7 @@ ledger cites that list by its path and does not repeat it.
 | Claim | Published cards passed the admission policy. |
 | Allowed wording | Most published cards do not yet meet all four admission questions on recorded evidence. |
 | Forbidden wording | Every skill passed admission. |
-| Evidence | `README.md:10`; `CATALOG.md:67-72`; `dispositions/2026-08-15-S295-admission-triage.md`. |
+| Evidence | `README.md:16`; `CATALOG.md:67-72`; `dispositions/2026-08-15-S295-admission-triage.md`. |
 | Status | **ALLOWED** in the stated form. |
 
 ### C11. Where the cards came from
@@ -168,7 +169,7 @@ ledger cites that list by its path and does not repeat it.
 | Claim | The cards started with problems the owner met. |
 | Allowed wording | Most come from a failure seen in real work. Two, `im-down` and `im-up`, were designed. The owner's line: *Skills that started with problems I encountered.* |
 | Forbidden wording | Every skill came from an incident. |
-| Evidence | `README.md:10`; `VERBATIM.md:72-76`; each card's `EVIDENCE.md` Origin row. |
+| Evidence | `README.md:10`, `README.md:14-16`; `VERBATIM.md:72-76`; each card's `EVIDENCE.md` Origin row. |
 | Status | **ALLOWED** |
 
 ### C12. Standing cost
@@ -238,17 +239,17 @@ needs no new owner-authored copy.
 
 | Current text | Conflicts with | CANDIDATE |
 | --- | --- | --- |
-| `README.md:10`: *Claude Code skills for mistakes that report success.* | C1, C2. | CANDIDATE, *agent-drafted*: *Skills for mistakes that report success.* |
-| `README.md:10`: *Any Claude Code user can hit these failures.* | C2: the failures are not specific to Claude Code. | CANDIDATE, *agent-drafted*: *Anyone working with a coding agent can hit these failures.* |
-| No line about Pi. Zero occurrences of the word Pi on 2026-10-17. | C2. | CANDIDATE, *agent-drafted*, placed before the install section: *Pi is the runtime this work targets first. There is no tested Pi install yet. The install below is for Claude Code, the install route that has a receipt today.* This is the C2 allowed wording with the C3 gap beside it. The first draft of this row was in the first person. `scripts/validate_voice_provenance.py` refuses a first-person public line that `VERBATIM.md` does not record, so the row was changed on 2026-10-17. |
-| No line about the knowledge base. | C14. | CANDIDATE, *agent-drafted*: *The repository is also a record: the evidence, explanations and failures behind each card.* |
-| `README.md:24`: *Or install everything with `npx skills add MrBinnacle/skills`.* | C7. | CANDIDATE, *agent-drafted*: remove the sentence until a current receipt exists, or add *no install receipt since v2.0.0* beside it. |
-| `README.md:37-45`: the 2.1.287 receipt. | None. It agrees with C6. | No change to the receipt. CANDIDATE, *agent-drafted*, added to the install section for the #443 *Accurate install wording* box: *On Windows, keep the path of your Claude configuration directory (`CLAUDE_CONFIG_DIR`) at 108 characters or fewer. If it is longer, run `git config --global core.longpaths true` before you add the marketplace; that raises the limit to 157 characters. Above 157, the install fails even with that setting. Measured for this release with Claude Code 2.1.302 on 2026-10-17, with Windows long-path support turned on. Not tested with that support off. Windows long-path support is an opt-in setting.* C6 covers each number and each condition in it. The sentence says the install works, not that the skills work, and front-door copy must keep that scope. |
-| `README.md:47`: the standing cost. | None. | No change. |
-| `README.md:83-87`: what comes with each skill. | None. It agrees with C8. | No change. |
-| `README.md:89`: *No skill claims a measured benefit yet.* | None. | No change. |
-| `README.md:93`: *or when a model or Claude Code change makes it unnecessary.* | C2, minor. | CANDIDATE, *agent-drafted*: *or when a model or runtime change makes it unnecessary.* |
-| `README.md:4`: banner alt text. | None. It agrees with C8. | No change. |
+| `README.md:10`: *Claude Code skills for mistakes that report success.* Replaced by the #540 rewrite. `README.md:12` now reads *Skills is a knowledge base and a set of skill cards for engineering work with frontier models.* | None now. It agrees with C1. | No change. |
+| `README.md:10`: *Any Claude Code user can hit these failures.* Removed by the #540 rewrite. `README.md:12` names *other developers who work with a coding agent*. | None now. It agrees with C2 and C15. | No change. |
+| No line about Pi. Zero occurrences of the word Pi on 2026-10-17. `README.md:52` now carries the line, before the install commands. | None now. It agrees with C2 and C3. | Landed. The candidate was, *agent-drafted*, placed before the install section: *Pi is the runtime this work targets first. There is no tested Pi install yet. The install below is for Claude Code, the install route that has a receipt today.* This is the C2 allowed wording with the C3 gap beside it. The first draft of this row was in the first person. `scripts/validate_voice_provenance.py` refuses a first-person public line that `VERBATIM.md` does not record, so the row was changed on 2026-10-17. |
+| No line about the knowledge base. `README.md:12` and `README.md:118` now state it. | None now. It agrees with C14. | No change. |
+| `README.md:24`: *Or install everything with `npx skills add MrBinnacle/skills`.* The README no longer mentions `npx skills add`. | None now. | No change. |
+| `README.md:56-66` and `README.md:88-94`: the install commands and the 2.1.287 receipt. The Windows sentence is at `README.md:84`. | None. It agrees with C6. | No change to the receipt. CANDIDATE, *agent-drafted*, added to the install section for the #443 *Accurate install wording* box: *On Windows, keep the path of your Claude configuration directory (`CLAUDE_CONFIG_DIR`) at 108 characters or fewer. If it is longer, run `git config --global core.longpaths true` before you add the marketplace; that raises the limit to 157 characters. Above 157, the install fails even with that setting. Measured for this release with Claude Code 2.1.302 on 2026-10-17, with Windows long-path support turned on. Not tested with that support off. Windows long-path support is an opt-in setting.* C6 covers each number and each condition in it. The sentence says the install works, not that the skills work, and front-door copy must keep that scope. |
+| `README.md:68`: the standing cost, now the `/context` figure. | None. It agrees with C12. | No change. |
+| `README.md:98-106`: what comes with each card. | None. It agrees with C8. | No change. |
+| `README.md:16` and `README.md:106`: *No skill claims a measured benefit yet.* | None. It agrees with C9. | No change. |
+| `README.md:93`: *or when a model or Claude Code change makes it unnecessary.* Replaced by the #540 rewrite. `README.md:112` reads *the platform change its retirement condition names*. | None now. | No change. |
+| `README.md:4`: banner alt text, *skills. Each card states the condition that would retire it.* | None. It agrees with C8. | No change. |
 
 ### S3. Site title, description and Open Graph tags
 
