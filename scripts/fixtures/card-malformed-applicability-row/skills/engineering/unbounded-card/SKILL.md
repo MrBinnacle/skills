@@ -1,6 +1,7 @@
 ---
 name: unbounded-card
 description: Fixture card whose Applicability scope row lacks its second part.
+disable-model-invocation: true
 ---
 
 # unbounded-card

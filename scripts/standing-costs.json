@@ -1,10 +1,10 @@
 {
   "skill_harness_version": "0.3.0",
-  "calibrated_on": "2026-10-19",
+  "calibrated_on": "2026-10-20",
   "cards": {
     "clirunner-env": {
-      "standing_cost_tokens": 59,
-      "skill_md_sha256": "f9b8e12a91cfe5ce28a2f4592be5c3991121ffa3fa65f73c51059acc100e2807"
+      "standing_cost_tokens": 0,
+      "skill_md_sha256": "7dd001c3c5aa7183394004b53b70393ba4cc9e4c73eeb9c8a1d3dd3ee2761c09"
     },
     "closure-mode": {
       "standing_cost_tokens": 0,
@@ -23,8 +23,8 @@
       "skill_md_sha256": "0a43ca03a978706a31835aaebe3c18b1ac7c63b6739055a42cefd33baefd5ad8"
     },
     "mocked-stub": {
-      "standing_cost_tokens": 55,
-      "skill_md_sha256": "cda4e41989413f9eeece134ed8c576e4ff63018bb11494bec177c4d4b8b6c2d5"
+      "standing_cost_tokens": 0,
+      "skill_md_sha256": "bf5b1175bc9327160d51f2fd793b8ad828f12c970fcf32904e2b751df3536397"
     },
     "pretooluse-prose": {
       "standing_cost_tokens": 60,
@@ -35,8 +35,8 @@
       "skill_md_sha256": "d6a33796d19651a6f85f197524fc0956436558d8c9de5168a93bb7197bc7194a"
     },
     "stale-deploy": {
-      "standing_cost_tokens": 50,
-      "skill_md_sha256": "03ce5497da29431bbbd5d38d4910428c8a1cf39388017b56ba12f1cad91042df"
+      "standing_cost_tokens": 0,
+      "skill_md_sha256": "239dbf38a39b8e47ba05eb02550f578f69ed99e10a371179b7694dbd7a91d99b"
     },
     "vacuous-check": {
       "standing_cost_tokens": 53,
@@ -47,8 +47,8 @@
       "skill_md_sha256": "51d65de3b384390e3aa9ec7fe0b4fabfadb10b2921bff8641b9633b7fec42d83"
     },
     "decision-rights": {
-      "standing_cost_tokens": 55,
-      "skill_md_sha256": "06d51102b58cf4161496cacf0585229eeed830c616308913ee696adb02a7e375"
+      "standing_cost_tokens": 0,
+      "skill_md_sha256": "bfd91df3ac6ec5398501241047222d30cc9e67adfc7ffd2de90bcf700e2c43b2"
     },
     "disposition-schema": {
       "standing_cost_tokens": 44,

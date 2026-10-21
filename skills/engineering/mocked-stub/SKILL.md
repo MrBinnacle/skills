@@ -1,6 +1,7 @@
 ---
 name: mocked-stub
 description: Patching a helper that is itself a production stub turns a test green on a branch that never ran. Use when reviewing all-green tests on spend guards, idempotency, auth, refusals or weak asserts.
+disable-model-invocation: true
 ---
 
 # Mock-Masked Stub Trap

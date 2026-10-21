@@ -53,6 +53,22 @@ Two is the threshold below which a card carries `RECURRENCE-THIN`.
 _Avoid_: use, usage, invocation, dispatch — each counts runs of the card, and `ADMISSION.md`
 criterion 2 refuses a count inflated by fan-out.
 
+**Always-on**:
+A card whose description loads into every session, so the model can invoke it on its own. A
+published card may be always-on only when it clears the **always-on bar**: its `EVIDENCE.md`
+counts two or more occasions, or a `Screen result` or `Paired verdict` row records a result other
+than `UNMEASURED`. Settled by
+[`docs/adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md`](docs/adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md).
+_Avoid_: active, enabled, live. A by-hand card is installed and enabled too.
+
+**By hand**:
+A card whose `SKILL.md` frontmatter sets `disable-model-invocation: true`. Its description does
+not load, the model cannot invoke it on its own, and the user runs it by name. A card ships by
+hand when it is below the always-on bar, or when the topology rule in `AGENTS.md` makes it a
+procedure.
+_Avoid_: disabled, inactive, procedure as a synonym. A by-hand card works when invoked, and a
+by-hand card need not be a procedure.
+
 **Dispatch**:
 One invocation of a card. Evidence of demand, never of recurrence, lift or worth.
 _Avoid_: occasion — a card invoked many times over one failure has many dispatches and one
@@ -82,11 +98,15 @@ using it for the command text in `README.md` §Install, which it named until 202
 What the version number promises: the install path, a card's name, and the on-disk shape of a
 card. The card *set* is deliberately outside it, so admitting or retiring a card is a minor
 change rather than a breaking one — but renaming a card is a major change, because consumers
-resolve a card by its name. This is Semantic Versioning's *public API* for this collection,
+resolve a card by its name. Moving a card from always-on to by hand is also a major change,
+because an installed user who takes no action loses a card that fired on its own; moving it back
+is minor. This is Semantic Versioning's *public API* for this collection,
 declared in
-[`docs/adr/0002-a-release-is-a-delivery-event.md`](docs/adr/0002-a-release-is-a-delivery-event.md)
-and amended on the name by
-[`docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md`](docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md).
+[`docs/adr/0002-a-release-is-a-delivery-event.md`](docs/adr/0002-a-release-is-a-delivery-event.md),
+amended on the name by
+[`docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md`](docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md),
+and priced for load mode by
+[`docs/adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md`](docs/adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md).
 _Avoid_: bare "public API" — this collection ships no code interface, and the unqualified phrase
 invites a reader to assume the card set is covered when it is not. _Avoid_ also treating a rename
 as a retirement plus an admission: they are the same operation inside the repository and opposite

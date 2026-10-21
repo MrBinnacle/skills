@@ -1,6 +1,7 @@
 ---
 name: decision-rights
 description: Use when writing a handoff, plan, ADR or subagent brief, or one says "do not re-litigate" or "final". Separates evidence access from decision rights and marks what is non-negotiable.
+disable-model-invocation: true
 ---
 
 # Downstream-Instruction Framing Discipline
@@ -109,7 +110,7 @@ NEVER-tier rules, and explicit non-negotiables. Better evidence does not soften 
 
 ## Verification
 
-After drafting any downstream-instruction artifact:
+After drafting a downstream-instruction artifact:
 
 - [ ] Each decision tests who can access the evidence that bears on it
 - [ ] Evidence and decision authority are separate
@@ -153,4 +154,4 @@ Open [gotchas.md](gotchas.md) when a handoff says "do not re-litigate" wholesale
 
 - **Subagent prompts are riskiest.** Agents read dispatches as near-system-tier and rarely push
   back; make their framing block explicit.
-- **Failure prevented:** downstream silently executes a plan its evidence contradicts.
+- **Failure prevented:** downstream silently runs a plan its evidence contradicts.
