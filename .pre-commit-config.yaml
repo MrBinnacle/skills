@@ -133,6 +133,19 @@ repos:
         pass_filenames: false
         always_run: true
 
+      # -- Residue in COMMIT MESSAGES ------------------------------------------
+      #
+      # The hooks above read tracked files, and a commit message is not one, so
+      # a codename in a message reached main 14 times (122464d, 5f68de4, ...).
+      # This hook applies the `residue-` entries above to the message; it copies
+      # no term. CI applies the same script to every commit, the title and the
+      # body of a pull request (depersonalization-gate.yml).
+      - id: residue-commit-msg
+        name: "residue term in the commit message"
+        language: system
+        entry: python scripts/check_message_residue.py --commit-msg
+        stages: [commit-msg]
+
       # -- Quarantine landing (#249) -----------------------------------------
       #
       # `_quarantine/` is tracked, so `git add -A` sweeps an unfinished

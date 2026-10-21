@@ -95,6 +95,17 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::de-personalization scope suite emitted no PASS line - it did not run"; exit 1; }
 
+      # The file hooks never read a commit message, so 14 messages on main carry
+      # a codename. This suite proves check_message_residue.py refuses one in a
+      # message file and in a commit range, reading the yaml's residue patterns.
+      - name: Message residue suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_check_message_residue.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::message residue suite emitted no PASS line - it did not run"; exit 1; }
+
       - name: Path-residue sweep
         run: |
           set -euo pipefail
