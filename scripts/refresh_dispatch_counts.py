@@ -4,11 +4,12 @@
 Reads the JSONL usage log (one JSON object per line) and rewrites every
 published card's EVIDENCE.md dispatch row with the current count and the
 measurement date of the newest record consumed. The log path is read from
-SKILL_USAGE_LOG when set; otherwise it defaults to
-../skills_research/.claude/state/skill-usage-log.jsonl relative to the
-repository root, which is correct for a checkout beside its sibling.
+SKILL_USAGE_LOG when set; otherwise from the first non-blank line of the
+untracked file .skill-usage-log.local at the repository root. A relative
+path resolves against the repository root. When neither names a path, the
+script exits 2 with a message that names SKILL_USAGE_LOG.
 
-When the log is absent or unreadable: change no card, print one line saying
+When the configured log is absent or unreadable: change no card, print one line saying
 the log was not found and at which path, and exit 0. A stranger running
 the harvest step sees an honest skip.
 
@@ -277,21 +278,27 @@ def rewrite_dispatch_row(evidence: Path, count: int, date: str) -> bool:
     return True
 
 
-def resolve_log_path(repo_root: Path) -> Path | None:
-    """Resolve the usage log path from env or default.
+LOCAL_CONFIG = ".skill-usage-log.local"
 
-    Returns None when the log does not exist.
+
+def configured_log_path(repo_root: Path) -> Path | None:
+    """Return the configured log path, or None when nothing configures one.
+
+    Order: SKILL_USAGE_LOG, then the first non-blank line of LOCAL_CONFIG.
+    The returned path may not exist; the caller decides what that means.
     """
-    env = os.environ.get("SKILL_USAGE_LOG", "").strip()
-    if env:
-        p = Path(env).expanduser()
-        if not p.is_absolute():
-            p = (repo_root / p).resolve()
-        return p if p.is_file() else None
-
-    default = (repo_root / ".." / "skills_research" / ".claude" / "state"
-               / "skill-usage-log.jsonl").resolve()
-    return default if default.is_file() else None
+    raw = os.environ.get("SKILL_USAGE_LOG", "").strip()
+    if not raw:
+        local = repo_root / LOCAL_CONFIG
+        if local.is_file():
+            for line in local.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    raw = line.strip()
+                    break
+    if not raw:
+        return None
+    p = Path(raw).expanduser()
+    return p if p.is_absolute() else (repo_root / p).resolve()
 
 
 def main() -> None:
@@ -305,18 +312,16 @@ def main() -> None:
     args = parser.parse_args()
     repo_root = args.root.resolve()
 
-    log_path = resolve_log_path(repo_root)
+    log_path = configured_log_path(repo_root)
     if log_path is None:
-        # Determine what path was tried for the skip message.
-        env = os.environ.get("SKILL_USAGE_LOG", "").strip()
-        if env:
-            tried = Path(env).expanduser()
-            if not tried.is_absolute():
-                tried = (repo_root / tried).resolve()
-        else:
-            tried = (repo_root / ".." / "skills_research" / ".claude" / "state"
-                     / "skill-usage-log.jsonl").resolve()
-        print(f"SKIP: usage log not found at {tried}")
+        print(
+            "REJECTED: no usage log configured. Set SKILL_USAGE_LOG to the "
+            f"JSONL log path, or put the path in {LOCAL_CONFIG} at the repository root.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    if not log_path.is_file():
+        print(f"SKIP: usage log not found at {log_path}")
         return
 
     counts, newest_ts, anomaly_count = _parse_log(log_path)
