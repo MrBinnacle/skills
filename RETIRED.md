@@ -2,12 +2,27 @@
 
 Most collections only ever grow. This one also turns skills away — including its own.
 
-Before a skill gets in here, it has to prove the current model still needs it: the same task,
-run with the skill and without it, scored by a deterministic check
-([skill-harness](https://github.com/MrBinnacle/skill-harness)). If the model passes without the
-skill, there's nothing left for the skill to improve, and it stays out. The same test
-retires skills already in the collection when a newer model outgrows them — removed, but recorded
-here with the evidence intact.
+A skill gets in here only when it clears the [admission policy](ADMISSION.md). The policy asks
+four questions, and all four must be true. Does a current frontier model fail the job without the
+skill, in a failure that was observed rather than predicted? Does
+that failure recur independently? Is a skill the right control surface for it? Is the case
+written down so that a later reader can see why the card entered, and retire it? Each card's
+`EVIDENCE.md` holds its answers, and the evidence most cards carry is a dated record of the
+failure that produced them.
+
+A screen is a different kind of evidence: the same task run with the skill and without it, scored
+by a deterministic check ([skill-harness](https://github.com/MrBinnacle/skill-harness)). One
+published card, `pull-rebase`, carries such runs, and its record reports them as `CANT_TELL_YET`.
+No other published card and no candidate in [`_quarantine/`](_quarantine/README.md) carries one.
+
+Admission does not decide whether a card loads in every session. That is a second bar, set by
+[ADR 0008](docs/adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md): two counted
+occasions or a controlled result. A card below it still ships, but on Claude Code it runs only
+when you invoke it by name.
+
+A screen is also the first way a skill can leave. If a newer model passes the task without the
+skill, the skill can retire, removed but recorded here with the evidence intact. No skill has left
+this way yet.
 
 A skill can also leave a second way. Some carry a **pre-registered retirement trigger** in their
 evidence record — a specific platform change that would make the underlying failure impossible,
@@ -123,7 +138,7 @@ in its place.
 
 ## Screened out at the gate — July 2026
 
-The same test that will someday retire skills also decides what gets in. It has already fired.
+A screen can also keep a candidate out. It has already done so.
 
 In July 2026, four of the author's own candidate skills were screened before admission. The
 test is simple to describe: give a current model (claude-sonnet-5) a task from exactly the
