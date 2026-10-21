@@ -483,6 +483,18 @@ def main() -> int:
         f"{multi_command_site_actions!r}",
     )
 
+    # --- Issue #537: CATALOG.md follows the same one-command-per-fence rule --
+    catalog_multi_command_fences = [
+        block
+        for block in fence_blocks(install_section(catalog))
+        if len(slash_commands_in(block)) > 1
+    ]
+    check(
+        "no CATALOG Install fence holds more than one /plugin command",
+        bool(install_section(catalog)) and not catalog_multi_command_fences,
+        f"fences holding multiple slash commands: {catalog_multi_command_fences!r}",
+    )
+
     # --- Issue #408, criterion 2: reload / --force after install ------------
     # The vendor docs say a plugin loads on /reload-plugins or the next start,
     # and that a reload left pending stays pending until /reload-plugins --force.

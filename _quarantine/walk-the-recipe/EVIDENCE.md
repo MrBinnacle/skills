@@ -1,6 +1,6 @@
 # EVIDENCE — walk-the-recipe
 
-Provenance record per the collection's evidence convention (see top-level README →
+Provenance record per the collection's evidence convention (see CATALOG.md →
 "Evidence records"). Fields are honest by construction: UNMEASURED means exactly that. The
 card is in `_quarantine/`; this record makes it screen-ready and does not promote it.
 
