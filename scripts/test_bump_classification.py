@@ -819,6 +819,48 @@ def case_case6_price_is_read_from_adr_0008(tmp: Path) -> None:
     expect_pass("case 6: the load-mode price is read from ADR 0008, not hardcoded", root)
 
 
+def case_case6_flip_at_release_with_no_branch_changeset_passes(tmp: Path) -> None:
+    """A release whose diff flips a load mode, with no branch-added changeset.
+
+    G10 prices the flip only against a changeset the branch adds; at release
+    case 4 alone answers, from the consumed plan. The flip prices must not be
+    read on that path: before the fix the gate raised KeyError here.
+    """
+    for direction in ("to_by_hand", "to_always_on"):
+        root = make_tree(
+            tmp / direction,
+            declared=None,
+            branch_change=direction,
+            base_version="2.0.0",
+            head_version="3.0.0",
+            release=True,
+            consumed="major",
+        )
+        expect_pass(
+            f"case 6: a {direction} flip at --release with no branch changeset PASSES",
+            root,
+            "--release",
+        )
+        short = make_tree(
+            tmp / f"{direction}-short",
+            declared=None,
+            branch_change=direction,
+            base_version="2.0.0",
+            head_version="2.1.0",
+            release=True,
+            consumed="major",
+        )
+        expect_g10_refusal(
+            f"case 6: a {direction} flip at --release still reaches the case 4 delta check",
+            short,
+            "G10:",
+            "2.0.0",
+            "2.1.0",
+            "major",
+            release=True,
+        )
+
+
 def case_unparseable_yaml_tag_bump_is_refused(tmp: Path) -> None:
     """R5-2: a `!!str`-tagged bump line must be refused, never skipped.
 
@@ -1746,6 +1788,7 @@ CASES = (
     case_case6_missing_to_by_hand_sentence_fails_closed,
     case_case6_missing_to_always_on_sentence_fails_closed,
     case_case6_price_is_read_from_adr_0008,
+    case_case6_flip_at_release_with_no_branch_changeset_passes,
     case_unparseable_yaml_tag_bump_is_refused,
     case_unparseable_multiword_bump_is_refused,
     case_higher_classification_governs_rename_plus_add,

@@ -1732,7 +1732,9 @@ def _gate_bump_classification_inner(
         except ValueError as exc:
             errors.append(f"G10: cannot derive the load-mode price from the ADRs: {exc}")
             return
-    required = required_price_for_diff(diff, prices)
+    # The load-mode prices are merged only for the branch-changeset check, so
+    # the release-delta path must not price the diff.
+    required = required_price_for_diff(diff, prices) if need_changesets else None
     route_price: str | None = None
     if route is not None:
         try:
