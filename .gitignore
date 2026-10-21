@@ -39,3 +39,6 @@ tmp/
 # agent and starts the relay on launch. Untracked, it dirties the tree that
 # `release_gate.py --release` requires clean. `.pi/engineering-env.json` stays tracked.
 .pi/remote-pi/
+
+# Local usage-log path for scripts/refresh_dispatch_counts.py (#548). Machine-local.
+.skill-usage-log.local

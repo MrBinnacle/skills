@@ -45,9 +45,7 @@ repos:
         #   scripts/validate_path_residue.py   the path-term list that mirrors them
         #   scripts/test_validate_path_residue.py  poison samples, one per term
         #   scripts/test_depersonalization_scope.py  poison fixtures for this gate
-        #   scripts/refresh_dispatch_counts.py  its default log path is the
-        #     maintainer's sibling research checkout; renaming it breaks the refresh
-        exclude: &scan_exempt '^(\.pre-commit-config\.yaml|scripts/(validate_path_residue|test_validate_path_residue|test_depersonalization_scope|refresh_dispatch_counts)\.py)$'
+        exclude: &scan_exempt '^(\.pre-commit-config\.yaml|scripts/(validate_path_residue|test_validate_path_residue|test_depersonalization_scope)\.py)$'
       - id: residue-sec-id
         name: "residue 'SEC-<n>' (private security ticket id) -> drop, or 'a security-audit item'"
         language: pygrep

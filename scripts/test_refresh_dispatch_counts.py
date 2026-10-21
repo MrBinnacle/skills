@@ -438,3 +438,57 @@ class TestRepeatedBaseline:
         assert result.returncode == 0, result.stderr
         row = _read_dispatch_row(repo_copy / "skills/engineering/im-up/EVIDENCE.md")
         assert row.startswith("53 dispatches"), row
+
+
+class TestLogPathResolution:
+    """The log path comes from SKILL_USAGE_LOG, then .skill-usage-log.local, else exit 2."""
+
+    @staticmethod
+    def _run_bare(root: Path, env_log: Path | None = None) -> subprocess.CompletedProcess:
+        env = os.environ.copy()
+        env.pop("SKILL_USAGE_LOG", None)
+        if env_log is not None:
+            env["SKILL_USAGE_LOG"] = str(env_log)
+        return subprocess.run(
+            [sys.executable, str(SCRIPT), "--root", str(root)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+    def test_env_variable_branch(self, repo_copy: Path) -> None:
+        log = _make_fixture_log(repo_copy, {"im-up": 7})
+        result = self._run_bare(repo_copy, env_log=log)
+        assert result.returncode == 0
+        row = _read_dispatch_row(repo_copy / "skills/engineering/im-up/EVIDENCE.md")
+        assert "7 dispatches" in row
+
+    def test_local_config_branch(self, repo_copy: Path) -> None:
+        log = _make_fixture_log(repo_copy, {"im-up": 9})
+        (repo_copy / ".skill-usage-log.local").write_text(f"\n{log}\n", encoding="utf-8")
+        result = self._run_bare(repo_copy)
+        assert result.returncode == 0
+        row = _read_dispatch_row(repo_copy / "skills/engineering/im-up/EVIDENCE.md")
+        assert "9 dispatches" in row
+
+    def test_env_beats_local_config(self, repo_copy: Path) -> None:
+        env_log = _make_fixture_log(repo_copy, {"im-up": 3})
+        (repo_copy / ".skill-usage-log.local").write_text(
+            str(repo_copy / "no-such-log.jsonl"), encoding="utf-8"
+        )
+        result = self._run_bare(repo_copy, env_log=env_log)
+        assert result.returncode == 0
+        row = _read_dispatch_row(repo_copy / "skills/engineering/im-up/EVIDENCE.md")
+        assert "3 dispatches" in row
+
+    def test_unconfigured_exits_two_naming_variable(self, repo_copy: Path) -> None:
+        snapshots = {c: c.read_bytes() for c in (repo_copy / "skills").rglob("EVIDENCE.md")}
+        result = self._run_bare(repo_copy)
+        assert result.returncode == 2
+        assert result.stdout == ""
+        assert result.stderr == (
+            "REJECTED: no usage log configured. Set SKILL_USAGE_LOG to the JSONL log "
+            "path, or put the path in .skill-usage-log.local at the repository root.\n"
+        )
+        for card, original in snapshots.items():
+            assert card.read_bytes() == original
