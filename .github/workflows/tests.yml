@@ -529,6 +529,26 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::renamed-cards suite emitted no PASS line - it did not run"; exit 1; }
 
+      # #558: each bucket README marks a card *(by hand)* exactly when its
+      # SKILL.md frontmatter sets disable-model-invocation: true. The suite
+      # plants each drift in a temp copy of skills/ and asserts the refusal
+      # names the card; the check then reads the live tree.
+      - name: Load-mode marker suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_check_load_mode_markers.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::load-mode marker suite emitted no PASS line - it did not run"; exit 1; }
+
+      - name: Load-mode marker check
+        run: |
+          set -euo pipefail
+          out="$(python scripts/check_load_mode_markers.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::load-mode marker check emitted no PASS line - it did not run"; exit 1; }
+
       # The standing-cost check: each card's EVIDENCE.md states a calibrated
       # token count for its description; this verifies it matches the
       # skill-harness audit (or the committed standing-costs.json when
