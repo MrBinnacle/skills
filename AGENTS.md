@@ -538,12 +538,10 @@ tunable by a dated edit here that cites closed watches (ADR 0007, Tunable with r
 **Exit table.** The exits are frozen (ADR 0007, Exit table). With 0 events, the row moves to
 `## Retired from the collection`, its narrative states `0 occasions in N sessions, <start> to
 <close>; searched <corpus and method>; outside reports received: <n>`, and no release follows.
-The search clause names what was searched and how, so a published zero shows the search behind
-it. While the watch is open, each rotation pass writes the same clause,
-`searched <corpus and method>; outside reports received: <n>`, into the row's `Status` cell.
-The `## On watch` column set is unchanged [search clause added 2026-10-21; origin: #552, a
-zero-event close stated its count and not what was searched]. With 1 event, extend once, then retire, dating the single event
-in the narrative. With 2 events, restore: take the card from the last release tag, re-add it to
+The search clause lets a reader see what the zero rests on. While the watch is open, each
+rotation pass writes the same clause, from `searched` on, into the row's `Status` cell [lodged
+2026-10-21; origin: #552, a zero-event close stated its count and not what was searched]. With
+1 event, extend once, then retire, dating the single event in the narrative. With 2 events, restore: take the card from the last release tag, re-add it to
 `plugin.json` and both READMEs, add a `Watch record` row to its `EVIDENCE.md`, delete the
 `## On watch` row and cut a minor release. A restore is a re-admission on `ADMISSION.md`
 criterion 2, and no new bar is invented. A completed failure goes to `gotchas.md` and
