@@ -1,0 +1,35 @@
+# EVIDENCE — walk-the-recipe
+
+Provenance record per the collection's evidence convention (see top-level README →
+"Evidence records"). Fields are honest by construction: UNMEASURED means exactly that. The
+card is in `_quarantine/`; this record makes it screen-ready and does not promote it.
+
+| Field | Value |
+|---|---|
+| **Origin** | OBSERVED 2026-06-09, in a separate project's session. A planning doc's six "first-touch hardening" items for a reproduction recipe were written from the author's view. Walking the recipe as a subscription-auth user with no `ANTHROPIC_API_KEY` surfaced four failures the list did not name. Details: [gotchas.md](gotchas.md), first entry. |
+| **Occasions counted** | 2 — 2026-06-09 origin (above); 2026-09-30 a stranger cold install of this collection at v3.0.1 failed on `git@github.com: Permission denied (publickey)` because the README's shorthand resolved to SSH and the author's machine had a key (issue #333). Separate projects, recipes and sessions, so not fan-out (ADMISSION.md criterion 2). The replays in the next rows test the card; they are not occasions. |
+| **Dispatches recorded** | No recorded dispatch, measured 2026-10-20. The card is in `_quarantine/` and is not installed, so it cannot fire by construction; the zero says nothing about retrieval or worth. |
+| **Validated against** | Two clean-state replays, run the same day with Claude Code 2.1.305 on Windows 11 (10.0.26300.9711). Both load the same card (`SKILL.md` sha256 `112ea463265bec0a199818c0d6a780047dafd43beaf4721ea4a6bb904a201636`) and step runner ([run_step.py](replay/run_step.py), sha256 `9d273954e7e12f3de8ccd3e6712910043eeb5d5f203d68622fb005c8f074850a`). Target environment for both: no SSH identity, empty global git config, no system git config, no secret-named variables (every step printed `SECRET-NAMED VARS IN STEP ENV: 0`), and a fresh `CLAUDE_CONFIG_DIR` 171 characters long. **Positive:** recipe `v3.0.1:README.md` (blob `cdfb4fdd25fc375222fdf91ac62006e469cc0198`, sha256 `06512d735baf1c04d98c3f59300b6593695a93f1a901a02a6e59a2884bab0d59`), five steps run. The card classified the undeclared Windows path-length precondition as an author-blindness gap (catalog row 1) and reported no declared limits. Ground truth: the v3.1.0 README later declared that limit (line 53). Trace sha256 `3e82e0478017f3dd9aec9993b95ead1f74fc93a98557fe382a5a4b68ef54513f`, transcript sha256 `10349962d9e2af92db2926068a9bf28e182f815011f7f38334a94b7315c2bcec`, [receipt](receipts/receipt-positive.md), [trace](receipts/trace-positive.jsonl), [transcript](receipts/transcript-positive.txt). **Negative:** recipe `v3.1.0:README.md` (blob `d2899ec582c1df65f5222e5e4147be984543a150`, sha256 `42ae3bfe3dbbbaf95ca0facc149661e6154d02287431f223b99d141124ea2723`), which declares the install unsupported above 157 characters. Same environment, same failure (`Filename too long`), five steps run. The card classified it as declared out of scope and reported no hidden assumption. Trace sha256 `8e5a7b5743c8dd2d04bf47718ab1f53aac04e77d0233fe28b93e9df61ad987e9`, transcript sha256 `b7d12142885c67b889406e0318f119346589775cb4a89842ee4d98f4647746cb`, [receipt](receipts/receipt-negative.md), [trace](receipts/trace-negative.jsonl), [transcript](receipts/transcript-negative.txt). |
+| **Isolation** | The recipe is untrusted data in a file, never prompt text. The agent's only shell is `run_step.py`, granted by `--tools Bash Read`, `--allowedTools "Bash(python -I <runner>:*)" Read`, `--permission-mode dontAsk` and `--strict-mcp-config`; any other Bash call is denied. The runner enforces, in code: secret-named variables dropped; target home, git config and SSH identity emptied; a program allowlist (`claude plugin marketplace add`, `claude plugin install`, `claude plugin list`, `git ls-remote`, version probes; exit 3 otherwise); an irreversible-action gate that refuses delete, push, publish, deploy and download-to-shell shapes before the allowlist (exit 4; `rm -rf ~` was observed refused). The agent ran with its own config directory holding a copied login, deleted after each run and confirmed absent. [strip_system.py](replay/strip_system.py) removes the trace's system events, which list the replaying account's synced skills and local paths; no other event is changed. **Network is not firewalled.** It is bounded only by the program allowlist: declared, not OS-enforced. |
+| **Screen result** | UNMEASURED (no paired screen). Both replays are with-card runs. No without-card run on the same two fixtures exists, so ADMISSION.md criterion 1 (an unaided failure exists) is not answered. The fixture pair above is the frozen contract a screen would run. |
+| **Paired verdict** | UNMEASURED (see Screen result). |
+| **Evidence scope** | UNMEASURED — no harness receipt. The replay receipts are this card's own record, not skill-harness receipts. |
+| **Applicability scope** | For: a multi-step install, onboarding, reproduction or deploy recipe whose author's environment differs from its stated audience's. Not established for: single-command recipes, which the card calls overkill; and environments the recipe declares unsupported, which the card must classify as declared and not as gaps. |
+| **Standing cost** | Description: 198 characters, measured 2026-10-20. Not installed, so no per-session cost today. `SKILL.md` is 5,894 bytes with LF line endings, loaded only on retrieval. |
+| **Re-screen trigger** | Re-run both replays when Claude Code changes how `plugin marketplace add` clones (location or path handling), because the positive case's ground truth is a clone-path limit. The card retires when install tooling itself reports the preconditions a recipe did not state, for example a CLI that lists missing credentials and path limits before it runs. |
+
+## Reproducing the receipts
+
+From Git Bash on Windows, with a signed-in Claude Code login and the repository checked out:
+
+```bash
+MSYS_NO_PATHCONV=1 bash _quarantine/walk-the-recipe/replay/replay.sh positive v3.0.1 README.md <out-dir>
+MSYS_NO_PATHCONV=1 bash _quarantine/walk-the-recipe/replay/replay.sh negative v3.1.0 README.md <out-dir>
+```
+
+The driver is [replay.sh](replay/replay.sh). It marks a run invalid when no recipe step
+executed. A model run is not byte-reproducible, so a rerun checks the classification, not the
+hash; the hash checks that the committed trace is the one the run wrote. The committed
+negative trace was written before two driver fixes (UTF-8 and LF transcript output, and running
+`strip_system.py` inside the driver); both act after the agent exits, and the same filter was
+applied by hand before hashing; both transcripts were normalised to LF the same way.

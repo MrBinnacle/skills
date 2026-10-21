@@ -1,0 +1,28 @@
+I walked the Install section as your target user. The install fails, but the recipe already says it will: your config path is 171 characters, and recipe line 53 says that above 157 "the install fails even with that setting". I found no undeclared gaps.
+
+**Target user:** Windows 11, no SSH key registered with GitHub, no global git configuration, no credentials in the environment (the runner reported 0 secret-named variables), and `CLAUDE_CONFIG_DIR` at a 171-character path.
+
+## How each step went
+
+| # | Recipe line | Step | Result |
+|---|---|---|---|
+| 1 | L53 | `git config --global core.longpaths true` (the recipe's step for paths over 108 characters) | **Not walked.** The runner refused it: `REFUSED (program allowlist): step not run`. The recipe says it would not help at 171 characters anyway, since the limit is 157 even with it. |
+| 2 | L23 / L39 | `claude plugin marketplace add https://github.com/MrBinnacle/skills.git` | **Fails**, exit 1: `Failed to clone marketplace repository ... fatal: cannot stat '...config/plugins/marketplaces/temp_git_..._v5954g..clone/.git/hooks/applypatch-msg.sample': Filename too long` |
+| 3 | L27 / L40 | `claude plugin install mrbinnacle-engineering` | **Fails**, exit 1: `Plugin "mrbinnacle-engineering" not found in any configured marketplace`. This is a knock-on from step 2, because no marketplace was added. |
+| 4 | L32 | `/reload-plugins` (and `--force`) | **Not walked.** It's an interactive command with no shell form in the recipe, and there were no plugins to reload. |
+| 5 | L34 | `claude plugin list` | **Runs**, exit 0: `No plugins installed.` This confirms the install did not happen. |
+
+The HTTPS URL avoided the SSH problem the recipe describes on line 43. Step 2 got as far as cloning and failed on path length, not on `Permission denied (publickey)`.
+
+## Catalog
+
+| # | Finding | Class | Recipe line | Observed output |
+|---|---|---|---|---|
+| F1 | Adding the marketplace fails because the Windows path is too long. Paths inside the git clone under the 171-character config directory go past the limit. | **Declared out of scope** | L53: "Above 157, the install fails even with that setting." | Step 2: `Filename too long` on `.git/hooks/applypatch-msg.sample`, exit 1 |
+| F2 | The plugin install fails with "not found in any configured marketplace". | **Declared out of scope** (direct result of F1, not a separate gap) | L53, via L27/L40 | Step 3: exit 1, `not found in any configured marketplace` |
+| F3 | `claude plugin list` shows no plugins. The recipe's check step correctly reports that nothing was installed. | Works as documented, no gap | L34 | Step 5: `No plugins installed.`, exit 0 |
+| F4 | The `core.longpaths` step could not be run. So I can't confirm the recipe's figures (108 characters without the setting, 157 with it). | **Not walked** (runner limit, not a recipe gap) | L53 | Step 1: `REFUSED (program allowlist)` |
+
+**Gaps found:** none that the recipe doesn't already state. The fix it gives is to keep `CLAUDE_CONFIG_DIR` at 108 characters or fewer. The recipe also says plainly that it wasn't tested with Windows long-path support off, so I'm not counting that as a gap either.
+
+**Not checked:** steps 1 and 4 weren't run, so the 108/157 thresholds and the reload behaviour are unconfirmed. To get a working install, this user would need a `CLAUDE_CONFIG_DIR` of at most 157 characters with `core.longpaths` set, or at most 108 without it, and would then need to walk the recipe again. I didn't try that, because changing the user's setup is outside what the recipe asks for.
