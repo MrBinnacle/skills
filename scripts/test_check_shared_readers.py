@@ -103,6 +103,7 @@ def case_live_tree() -> None:
         capture_output=True, text=True, encoding="utf-8",
     )
     check("no iter_skill_dirs copy remains outside its owner", "iter_skill_dirs" not in result.stdout, result.stdout)
+    check("the checker does not count itself", csr.SELF not in result.stdout, result.stdout)
 
 
 def main() -> None:

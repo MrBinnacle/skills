@@ -43,6 +43,8 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+# This file names the flag to find it, so it is not a reader.
+SELF = "scripts/check_shared_readers.py"
 FLAG = "disable-model-invocation"
 FLAG_REGEX_NAMES = {"DISABLE_MODEL_INVOCATION_RE", "BY_HAND_RE"}
 OWNERS = {
@@ -76,7 +78,7 @@ def readers(path: str, source: str) -> set[tuple[str, str, str]]:
                     found.add((path, "load-mode flag", f"from {node.module} import {alias.name}"))
         elif isinstance(node, ast.Attribute) and node.attr in FLAG_REGEX_NAMES and isinstance(node.value, ast.Name):
             found.add((path, "load-mode flag", f"{node.value.id}.{node.attr}"))
-    return {r for r in found if OWNERS[r[1]][0] != path}
+    return {r for r in found if OWNERS[r[1]][0] != path and path != SELF}
 
 
 def _is_re_compile(node: ast.Call) -> bool:
