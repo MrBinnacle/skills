@@ -215,22 +215,26 @@ identifier where available, and marks itself as an observation rather than a mea
 Models improve, Claude Code changes, and a failure mode can stop occurring. A card that no longer
 addresses a live failure still costs context, so the collection removes it.
 
-Two routes lead out, and both are recorded in [`RETIRED.md`](RETIRED.md) with the evidence intact.
+Three routes lead out, and each is recorded in [`RETIRED.md`](RETIRED.md) with the evidence intact.
 
-A card can be re-screened with
-[`skill-harness`](https://github.com/MrBinnacle/skill-harness) when a major model or platform
-change warrants it. The same task runs with the card and without it, and the result is reported
-only as far as the evidence carries it.
+- **A screen.** A card can be re-screened with
+  [`skill-harness`](https://github.com/MrBinnacle/skill-harness) when a major model or platform
+  change warrants it. The same task runs with the card and without it, and the result is reported
+  only as far as the evidence carries it.
+- **A pre-registered trigger.** A card can retire against the trigger it registered in advance.
+  Every published card carries one. The trigger names the specific platform or model change that
+  would make the underlying failure impossible, written down before the change happens so the call
+  cannot be reasoned backwards from the outcome.
+- **Withdrawn on the policy.** A card can be withdrawn when its own record fails an admission
+  question outright, such as zero observed occurrences over its whole life.
 
-A card can also retire against the trigger it registered in advance. Every published card carries
-one. The trigger names the specific platform or model change that would make the underlying
-failure impossible, written down before the change happens so the call cannot be reasoned
-backwards from the outcome.
-
-Both routes have already been used. A card retired against its own trigger when Claude Code
+Two of the routes have been used so far. A card retired against its own trigger when Claude Code
 shipped the change it named, and a card was withdrawn on the policy because its own record could
-not satisfy the criterion the policy requires. [`RETIRED.md`](RETIRED.md) lists every departure
-with its evidence.
+not satisfy the criterion the policy requires. No card has left on a screen result yet. Some exits
+are staged: the card leaves the published plugins at once and sits on watch in `RETIRED.md` before
+the removal is final.
+[ADR 0007](docs/adr/0007-retirement-is-staged-for-three-exits.md) has the rules.
+[`RETIRED.md`](RETIRED.md) lists every departure with its evidence.
 
 The admission policy caps what enters and the retirement routes take cards back out, so the
 collection stays small and covers little ground. For breadth,
@@ -242,8 +246,14 @@ collection stays small and covers little ground. For breadth,
 [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json), which groups the cards into
 one plugin per bucket:
 
+Run these two commands one at a time. Claude Code reads a paste of both in one block as a single
+malformed URL (#408).
+
 ```text
 /plugin marketplace add https://github.com/MrBinnacle/skills.git
+```
+
+```text
 /plugin install mrbinnacle-engineering
 ```
 
