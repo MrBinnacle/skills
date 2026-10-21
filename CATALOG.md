@@ -145,7 +145,7 @@ These are about an operation, a test, or an agent reporting an outcome that did 
 
 | Card | What goes wrong |
 |---|---|
-| `pull-rebase` | A pull rewrites local commits and reports an ordinary merge. |
+| `pull-rebase` | On diverged history under `pull.rebase=true`, a pull rebases silently and rewrites every local commit, even with `--no-ff`. |
 | `stale-deploy` | A poll matches content already on the page, so the check confirms a deploy that has not landed. |
 | `mocked-stub` | A test patches a helper that is a stub in production, so the suite passes over a branch that never ran. |
 | `vacuous-check` | A success test accepts an error body, because it asks only whether the output is non-empty. |
