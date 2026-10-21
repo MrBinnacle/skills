@@ -28,6 +28,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 import validate_card_files as card_files  # noqa: E402
 import validate_scoreboard as scoreboard  # noqa: E402
+import validate_standing_costs as standing_costs  # noqa: E402
 
 ROOT = SCRIPT_DIR.parent
 README = ROOT / "README.md"
@@ -272,7 +273,43 @@ def case_controlled_tests_paragraph_names_the_latest_read() -> None:
     )
 
 
+README_LOADS_ROW = re.compile(
+    r"^\| \[`([^`]+)`\]\(skills/([^/]+)/\1/gotchas\.md\) \| ([^|]+?) \| [^|]+ \| "
+    r"(every session|by hand)\b",
+    re.MULTILINE,
+)
+
+
+def case_loads_column_matches_each_card() -> None:
+    """The README's Loads column agrees with each published card's frontmatter.
+
+    The claims ledger (C16) forbids a roster of always-on cards that no check
+    reads. The column is that roster, so every published card must have one
+    row, in its own group, marked "by hand" exactly when its SKILL.md sets
+    `disable-model-invocation: true`.
+    """
+    stated = {
+        card: (group, stated_group.strip(), loads)
+        for card, group, stated_group, loads in README_LOADS_ROW.findall(
+            README.read_text(encoding="utf-8")
+        )
+    }
+    expected = {}
+    for card in scoreboard.iter_skill_dirs(ROOT):
+        by_hand = standing_costs.DISABLE_MODEL_INVOCATION_RE.search(
+            (card / "SKILL.md").read_text(encoding="utf-8")
+        )
+        group = card.parent.name
+        expected[card.name] = (group, group, "by hand" if by_hand else "every session")
+    check(
+        "the README Loads column matches every published card's frontmatter",
+        stated == expected,
+        f"expected {expected}; got {stated}",
+    )
+
+
 def main() -> None:
+    case_loads_column_matches_each_card()
     case_controlled_tests_paragraph_names_the_latest_read()
     case_admission_method_leads()
     case_three_instruments_are_referenced()
