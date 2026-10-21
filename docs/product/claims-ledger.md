@@ -17,6 +17,11 @@ S2 Windows candidate follows the receipt. A third amendment the same day ties th
 to the measured tree, records that Windows long-path support is opt-in, and forbids reading the
 install receipt as evidence that the skills work.
 
+**Amended 2026-10-20.** C12 now gives the `/context` figure that
+[#532](https://github.com/MrBinnacle/skills/pull/532) put on the README, and cites the README as
+rewritten for a first-time reader that day. Every other `README.md:N` citation keeps the
+revision it names.
+
 This is an internal working record. It is not public copy, and it changes no public surface.
 It has two parts:
 
@@ -171,10 +176,10 @@ ledger cites that list by its path and does not repeat it.
 | Field | Value |
 | --- | --- |
 | Claim | Each model-invocable card adds a cost to every session. |
-| Allowed wording | Each skill adds one line to every session, about 44 to 63 tokens, measured by `skill-harness skill audit` on 2026-10-19. |
-| Forbidden wording | A cost figure with no instrument or date. A claim that a card costs nothing until it fires. |
-| Evidence | `README.md:47`; `CATALOG.md:12-14`; CI job `validate_standing_costs.py`. |
-| Status | **SCOPED** to the audit date. |
+| Allowed wording | Each card not marked "by hand" adds one line to every session: about 70 to 80 tokens, as `/context` counts it (Claude Code 2.1.305, measured 2026-10-20). That holds when the host lists the card with its description. A host that lists it by name only charges under 20. |
+| Forbidden wording | A cost figure with no instrument or date. A claim that a model-invocable card costs nothing until it fires. The `skill-harness skill audit` figures stated as what a session pays: [#361](https://github.com/MrBinnacle/skills/issues/361#issuecomment-6304133476) found none of them within 10% of `/context`. |
+| Evidence | `README.md:68`, in `## Install`, at the front-page rewrite of 2026-10-20; [#361](https://github.com/MrBinnacle/skills/issues/361#issuecomment-6304133476), the pre-registered `/context` measurement, and [#532](https://github.com/MrBinnacle/skills/pull/532), which put it on the README; `CATALOG.md:12-14`. Each card's `Standing cost` row keeps the harness figure, measured by `skill-harness skill audit` on 2026-10-19, and CI job `validate_standing_costs.py` checks those rows against `scripts/standing-costs.json`. |
+| Status | **SCOPED** to the Claude Code version and date of the `/context` measurement. |
 
 ### C13. What a version promises
 
