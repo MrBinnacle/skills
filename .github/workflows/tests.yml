@@ -106,6 +106,14 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::message residue suite emitted no PASS line - it did not run"; exit 1; }
 
+      - name: Shared-reader suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_check_shared_readers.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::shared-reader suite emitted no PASS line - it did not run"; exit 1; }
+
       - name: Path-residue sweep
         run: |
           set -euo pipefail
@@ -1545,6 +1553,18 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
+
+      # A reader with one owner (iter_skill_dirs, the load-mode flag) gets
+      # copied into the file an agent has open, and the copies drift. This job
+      # has the base history the check compares against; it fails only on a
+      # copy the merge-base did not have.
+      - name: Shared-reader check
+        run: |
+          set -euo pipefail
+          out="$(python scripts/check_shared_readers.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::shared-reader check emitted no PASS line - it did not run"; exit 1; }
 
       # The G6 poison control below re-runs the external spec validator, which
       # needs `npx`. setup-node carries it on PATH. Pinned to a full commit SHA
