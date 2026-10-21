@@ -42,7 +42,10 @@ What is asserted, and why these shapes
     `docs/design/variants/**` and `.changeset/**`, that still publishes the
     SSH-prone shorthand. The changeset is exempt because its wording is a
     release decision held elsewhere; the design variants are historical
-    previews, not install instructions.
+    previews, not install instructions. Files directly under
+    `_quarantine/<skill>/receipts/` are exempt too: they are hashed, verbatim
+    replay evidence that quotes an old recipe, and redacting them would break
+    the hash that makes them evidence.
 
 Live cold install
     Two cases run when `claude` is on PATH. Both use a clean
@@ -249,8 +252,32 @@ def tracked_files() -> list[str]:
     return [path for path in result.stdout.decode("utf-8").split("\0") if path]
 
 
+RECEIPTS_PATH = re.compile(r"^_quarantine/[^/]+/receipts/[^/]+$")
+
+
 def scan_exempt(path: str) -> bool:
-    return path.startswith("docs/design/variants/") or path.startswith(".changeset/")
+    return (
+        path.startswith("docs/design/variants/")
+        or path.startswith(".changeset/")
+        or bool(RECEIPTS_PATH.match(path))
+    )
+
+
+def check_scan_exempt_scope() -> None:
+    """Pin the receipts exemption to verbatim evidence and nothing wider."""
+    receipt = "_quarantine/walk-the-recipe/receipts/transcript-positive.txt"
+    check(
+        "scan exempts a verbatim quote under _quarantine/*/receipts/",
+        scan_exempt(receipt),
+        f"{receipt} is evidence quoting an old recipe, not an install surface",
+    )
+    for surface in ("README.md", "_quarantine/walk-the-recipe/README.md",
+                    "_quarantine/walk-the-recipe/SKILL.md", "receipts/README.md"):
+        check(
+            f"scan still covers {surface}",
+            not scan_exempt(surface),
+            "the receipts exemption must not reach install surfaces",
+        )
 
 
 def cold_env(base: Path) -> dict[str, str]:
@@ -515,6 +542,7 @@ def main() -> int:
 
     # Tracked-file scan: no install surface outside the exemptions may carry
     # the SSH-prone shorthand form.
+    check_scan_exempt_scope()
     violations: list[str] = []
     for path in tracked_files():
         if scan_exempt(path):
