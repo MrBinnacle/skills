@@ -58,6 +58,13 @@ change. An edit to a description in the same file is not a route change either,
 so case 3 still refuses a major bump for it. The route price is read from ADR
 0005 only when a route change is observed; a missing ADR 0005 then fails closed.
 
+ADR 0008 (docs/adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md)
+adds case 6: moving a card from always-on to by hand (setting
+`disable-model-invocation: true`) is major, and the reverse is minor. A card
+added by hand in the same diff is an admission, not a load-mode change. The
+load-mode prices are read from ADR 0008 only when a card's load mode changes;
+a missing decision sentence then fails closed.
+
 Run: python scripts/test_bump_classification.py
 """
 from __future__ import annotations
@@ -102,6 +109,15 @@ Status: accepted, 2026-10-17.
 
 **Decision. Changing the install route is a {route} change.**
 """
+
+ADR_0008_TO_BY_HAND = (
+    "**Moving a card from always-on to by hand is a {price} change.** A user who\n"
+    "takes no action loses a card that fired on its own.\n"
+)
+ADR_0008_TO_ALWAYS_ON = (
+    "**Moving a card from by hand to always-on is a {price} change.** The user\n"
+    "loses nothing they had.\n"
+)
 
 
 def check(name: str, condition: bool, detail: str = "") -> None:
@@ -191,11 +207,12 @@ def changeset_md_commented(level: str) -> str:
     )
 
 
-def skill_card(root: Path, name: str) -> Path:
+def skill_card(root: Path, name: str, *, by_hand: bool = False) -> Path:
     folder = root / "skills" / SKILLS_BUCKET / name
+    load_mode = "disable-model-invocation: true\n" if by_hand else ""
     write(
         folder / "SKILL.md",
-        f"---\nname: {name}\ndescription: fixture card\n---\n\n# {name}\n",
+        f"---\nname: {name}\ndescription: fixture card\n{load_mode}---\n\n# {name}\n",
     )
     return folder
 
@@ -207,7 +224,19 @@ def plant_adrs(
     admit_retire: str = "minor",
     patch: str = "patch",
     route: str | None = "major",
+    to_by_hand: str | None = "major",
+    to_always_on: str | None = "minor",
 ) -> None:
+    """Plant the ADRs G10 reads. A price of None omits that decision sentence."""
+    adr8 = "# Always-on needs two occasions or a controlled result\n\nStatus: accepted.\n\n"
+    if to_by_hand is not None:
+        adr8 += ADR_0008_TO_BY_HAND.format(price=to_by_hand) + "\n"
+    if to_always_on is not None:
+        adr8 += ADR_0008_TO_ALWAYS_ON.format(price=to_always_on) + "\n"
+    write(
+        root / "docs" / "adr" / "0008-always-on-needs-two-occasions-or-a-controlled-result.md",
+        adr8,
+    )
     if route is not None:
         write(
             root / "docs" / "adr" / "0005-the-install-route-is-what-a-consumer-resolves.md",
@@ -292,12 +321,18 @@ def make_tree(
       rename_plugin      - the plugin `name` changes (ADR 0005 route)
       describe_plugin    - only a plugin description in marketplace.json changes
       break_manifest     - marketplace.json at HEAD is not valid JSON
+      to_by_hand         - old-card gains disable-model-invocation: true (ADR 0008)
+      to_always_on       - old-card starts by hand and drops the key (ADR 0008)
+      add_by_hand_card   - a new card that ships by hand is admitted
 
     adr:
       real             - ADR 0003 text as shipped (rename=major, admit=minor)
       rename_is_patch  - ADR 0003 text rewritten so rename prices as patch
       missing          - no docs/adr/ files
       no_0005          - ADR 0002 and 0003 only, as before ADR 0005 existed
+      no_0008_to_by_hand   - ADR 0008 without its always-on to by hand sentence
+      no_0008_to_always_on - ADR 0008 without its by hand to always-on sentence
+      to_by_hand_is_minor  - ADR 0008 rewritten so always-on to by hand is minor
 
     release=True sets head_version (default minor bump) so the tree is a release
     ref. `consumed` names the bump(s) the release plan held at the base commit;
@@ -325,15 +360,21 @@ def make_tree(
         plant_adrs(root, rename="patch", admit_retire="minor", patch="patch")
     elif adr == "no_0005":
         plant_adrs(root, route=None)
+    elif adr == "no_0008_to_by_hand":
+        plant_adrs(root, to_by_hand=None)
+    elif adr == "no_0008_to_always_on":
+        plant_adrs(root, to_always_on=None)
+    elif adr == "to_by_hand_is_minor":
+        plant_adrs(root, to_by_hand="minor")
     else:
         plant_adrs(root, rename="major", admit_retire="minor", patch="patch")
 
     for name in base_cards:
-        skill_card(root, name)
+        skill_card(root, name, by_hand=branch_change == "to_always_on")
 
     def cards_after_change() -> list[str]:
         cards = list(base_cards)
-        if branch_change == "add_card":
+        if branch_change in ("add_card", "add_by_hand_card"):
             cards.append("new-card")
         elif branch_change == "remove_card":
             cards = []
@@ -365,6 +406,12 @@ def make_tree(
         )
     elif branch_change == "add_card":
         skill_card(root, "new-card")
+    elif branch_change == "add_by_hand_card":
+        skill_card(root, "new-card", by_hand=True)
+    elif branch_change == "to_by_hand":
+        skill_card(root, "old-card", by_hand=True)
+    elif branch_change == "to_always_on":
+        skill_card(root, "old-card", by_hand=False)
     elif branch_change == "remove_card":
         git(root, "rm", "-r", "-q", f"skills/{SKILLS_BUCKET}/old-card")
     elif branch_change == "scripts_only":
@@ -678,6 +725,98 @@ def case_case5_unparseable_manifest_fails_closed(tmp: Path) -> None:
         and "marketplace.json at HEAD is not valid JSON" in output,
         output,
     )
+
+
+ADR_0008_NEEDLE = "0008-always-on-needs-two-occasions-or-a-controlled-result.md"
+
+
+def case_case6_to_by_hand_declared_patch_is_refused(tmp: Path) -> None:
+    """Case 6: a card moved always-on to by hand, declared patch (#556)."""
+    root = make_tree(tmp, declared="patch", branch_change="to_by_hand")
+    expect_g10_refusal(
+        "case 6: always-on to by hand declared patch is refused",
+        root,
+        "G10:",
+        "skills/engineering/old-card",
+        "always-on to by hand",
+        ADR_0008_NEEDLE,
+        "major",
+    )
+
+
+def case_case6_to_by_hand_declared_minor_is_refused(tmp: Path) -> None:
+    """Minor is the by hand to always-on price; it must not cover the reverse."""
+    root = make_tree(tmp, declared="minor", branch_change="to_by_hand")
+    expect_g10_refusal(
+        "case 6: always-on to by hand declared minor is refused",
+        root,
+        "G10:",
+        "skills/engineering/old-card",
+        "major",
+    )
+
+
+def case_case6_to_by_hand_declared_major_passes(tmp: Path) -> None:
+    root = make_tree(tmp, declared="major", branch_change="to_by_hand")
+    expect_pass("case 6: always-on to by hand declared major PASSES", root)
+
+
+def case_case6_to_always_on_declared_patch_is_refused(tmp: Path) -> None:
+    root = make_tree(tmp, declared="patch", branch_change="to_always_on")
+    expect_g10_refusal(
+        "case 6: by hand to always-on declared patch is refused",
+        root,
+        "G10:",
+        "skills/engineering/old-card",
+        "by hand to always-on",
+        ADR_0008_NEEDLE,
+        "minor",
+    )
+
+
+def case_case6_to_always_on_declared_minor_passes(tmp: Path) -> None:
+    root = make_tree(tmp, declared="minor", branch_change="to_always_on")
+    expect_pass("case 6: by hand to always-on declared minor PASSES", root)
+
+
+def case_case6_by_hand_admission_is_priced_as_admission(tmp: Path) -> None:
+    """A card admitted by hand is not a load-mode change; minor stands."""
+    root = make_tree(tmp, declared="minor", branch_change="add_by_hand_card")
+    expect_pass("case 6: a card admitted by hand declared minor PASSES", root)
+
+
+def case_case6_missing_to_by_hand_sentence_fails_closed(tmp: Path) -> None:
+    root = make_tree(
+        tmp, declared="major", branch_change="to_by_hand", adr="no_0008_to_by_hand"
+    )
+    expect_g10_refusal(
+        "case 6: ADR 0008 without the always-on to by hand sentence fails closed",
+        root,
+        "G10:",
+        ADR_0008_NEEDLE,
+        "always-on to by hand",
+    )
+
+
+def case_case6_missing_to_always_on_sentence_fails_closed(tmp: Path) -> None:
+    root = make_tree(
+        tmp, declared="minor", branch_change="to_always_on", adr="no_0008_to_always_on"
+    )
+    expect_g10_refusal(
+        "case 6: ADR 0008 without the by hand to always-on sentence fails closed",
+        root,
+        "G10:",
+        ADR_0008_NEEDLE,
+        "by hand to always-on",
+    )
+
+
+def case_case6_price_is_read_from_adr_0008(tmp: Path) -> None:
+    """Rewrite ADR 0008 so always-on to by hand is minor; minor then passes."""
+    root = make_tree(
+        tmp, declared="minor", branch_change="to_by_hand", adr="to_by_hand_is_minor"
+    )
+    expect_pass("case 6: the load-mode price is read from ADR 0008, not hardcoded", root)
 
 
 def case_unparseable_yaml_tag_bump_is_refused(tmp: Path) -> None:
@@ -1598,6 +1737,15 @@ CASES = (
     case_case3_description_edit_declared_patch_passes,
     case_case5_missing_adr_0005_fails_closed,
     case_case5_unparseable_manifest_fails_closed,
+    case_case6_to_by_hand_declared_patch_is_refused,
+    case_case6_to_by_hand_declared_minor_is_refused,
+    case_case6_to_by_hand_declared_major_passes,
+    case_case6_to_always_on_declared_patch_is_refused,
+    case_case6_to_always_on_declared_minor_passes,
+    case_case6_by_hand_admission_is_priced_as_admission,
+    case_case6_missing_to_by_hand_sentence_fails_closed,
+    case_case6_missing_to_always_on_sentence_fails_closed,
+    case_case6_price_is_read_from_adr_0008,
     case_unparseable_yaml_tag_bump_is_refused,
     case_unparseable_multiword_bump_is_refused,
     case_higher_classification_governs_rename_plus_add,
@@ -1650,7 +1798,9 @@ def main() -> int:
         "full-line comment and a blank line stays silent (R6-3), the ADR text "
         "on disk drives classification, G10 refuses in its own words when git "
         "is absent and a declared bump is pending, case 5 prices an install-route "
-        "name change at the ADR 0005 price and fails closed without it, an "
+        "name change at the ADR 0005 price and fails closed without it, case 6 "
+        "prices a load-mode change at the ADR 0008 prices and fails closed "
+        "without either sentence, an "
         "unchanged version at "
         "explicit --release stays silent when no plan was consumed, and the "
         "CI poison controls carry the inversion, cases 1-4, B2(a-c), B3, and "

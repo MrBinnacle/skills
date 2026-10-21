@@ -113,6 +113,15 @@ Checks (all must pass; failures are listed, not first-fail):
            only added, or an edit to any other field, is not a route change.
            The route price is read from ADR 0005 only when a route change is
            observed, and a missing or unreadable ADR 0005 then fails closed.
+        6. A branch-added changeset whose diff changes a card's load mode and
+           declares less than ADR 0008 prices it: always-on to by hand is
+           major, by hand to always-on is minor. The load mode is whether the
+           card's ``SKILL.md`` sets ``disable-model-invocation: true``, read at
+           the merge-base and at HEAD for every card that exists on both
+           sides. A card added or removed in the same diff is priced as an
+           admission or retirement (case 2), never as a load-mode change. The
+           prices are read from ADR 0008 only when a load-mode change is
+           observed, and a missing ADR or decision sentence then fails closed.
         4. (--release only) A release version that differs from the exact
            SemVer result the changesets this release CONSUMED declare. A
            release PR runs
@@ -234,6 +243,7 @@ WORKFLOW_DIR_REL = ".github/workflows"
 # validate_conformance; the external spec validator is its own script run as a
 # subprocess below.
 import validate_conformance as conformance  # noqa: E402
+from validate_standing_costs import DISABLE_MODEL_INVOCATION_RE  # noqa: E402
 
 PLUGIN_MANIFEST_REL = conformance.PLUGIN_MANIFEST_REL
 
@@ -565,6 +575,8 @@ def _run_git(root: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
             ["git", "-C", str(root), *args],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
     except FileNotFoundError as exc:
         raise GitUnavailableError(f"git could not be run: {exc}") from exc
@@ -1044,6 +1056,7 @@ def gate_ci_state(root: Path, errors: list[str]) -> str | None:
 ADR_0003_REL = Path("docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md")
 ADR_0002_REL = Path("docs/adr/0002-a-release-is-a-delivery-event.md")
 ADR_0005_REL = Path("docs/adr/0005-the-install-route-is-what-a-consumer-resolves.md")
+ADR_0008_REL = Path("docs/adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md")
 
 # Decision sentences, as the ADRs write them (line breaks allowed inside).
 _RENAME_PRICE_RE = re.compile(
@@ -1058,6 +1071,18 @@ _PATCH_PRICE_RE = re.compile(
 _ROUTE_PRICE_RE = re.compile(
     r"Changing the install route\s+is a\s+(\w+)\s+change", re.IGNORECASE
 )
+# Keyed by the classify_surface_diff field that lists the cards moved that way.
+_LOAD_MODE_PRICE_RES = {
+    "to_by_hand": re.compile(
+        r"Moving a card\s+from always-on\s+to by hand\s+is a\s+(\w+)\s+change",
+        re.IGNORECASE,
+    ),
+    "to_always_on": re.compile(
+        r"Moving a card\s+from by hand\s+to always-on\s+is a\s+(\w+)\s+change",
+        re.IGNORECASE,
+    ),
+}
+_LOAD_MODE_WORDS = {"to_by_hand": "always-on to by hand", "to_always_on": "by hand to always-on"}
 
 # The changesets vocabulary, used only to RANK words the ADRs supply. The rule
 # "rename -> major" is never written here; only how to order the words once
@@ -1136,6 +1161,40 @@ def derive_route_price(root: Path) -> str:
             f"not a changesets bump type (expected one of {sorted(BUMP_RANK)})"
         )
     return word
+
+
+def derive_load_mode_prices(root: Path) -> dict[str, str]:
+    """The bump word ADR 0008 gives each load-mode direction.
+
+    Read only when a load-mode change is observed, the way derive_route_price
+    reads ADR 0005. Raises ValueError when the ADR is missing, unreadable, or
+    lacks either decision sentence.
+    """
+    adr8 = _read_text_or_raise(root / ADR_0008_REL, ADR_0008_REL.as_posix())
+    prices: dict[str, str] = {}
+    for direction, pattern in _LOAD_MODE_PRICE_RES.items():
+        match = pattern.search(adr8)
+        if match is None:
+            raise ValueError(
+                f"{ADR_0008_REL.as_posix()} carries no 'Moving a card from "
+                f"{_LOAD_MODE_WORDS[direction]} is a ... change' decision sentence, "
+                "so the load-mode price cannot be derived"
+            )
+        word = match.group(1).lower()
+        if word not in BUMP_RANK:
+            raise ValueError(
+                f"{ADR_0008_REL.as_posix()} prices {_LOAD_MODE_WORDS[direction]} as "
+                f"{word!r}, which is not a changesets bump type"
+            )
+        prices[direction] = word
+    return prices
+
+
+def _is_by_hand_at(root: Path, rev: str, card: str) -> bool:
+    ok, text = _git_ok(root, ["show", f"{rev}:{card}/SKILL.md"])
+    if not ok:
+        raise ValueError(f"{card}/SKILL.md could not be read at {rev}")
+    return bool(DISABLE_MODEL_INVOCATION_RE.search(text))
 
 
 def _route_names_at(root: Path, rev: str) -> tuple[str, set[str]] | None:
@@ -1274,6 +1333,8 @@ def classify_surface_diff(root: Path, base_rev: str) -> dict:
       touched          bool -- a path belonging to a card appears in the diff
       rename           bool -- a card directory was renamed
       admit_or_retire  bool -- a card directory was added or removed
+      to_by_hand       list[str] -- cards on both sides that moved always-on -> by hand
+      to_always_on     list[str] -- cards on both sides that moved by hand -> always-on
       required         str | None -- highest ADR price the diff reaches;
                                      None when the surface is untouched
       detail           str -- short phrase naming what was found
@@ -1288,6 +1349,7 @@ def classify_surface_diff(root: Path, base_rev: str) -> dict:
     renamed_from: set[str] = set()
     renamed_to: set[str] = set()
     details: list[str] = []
+    skill_md_edits: set[str] = set()
     for line in output.splitlines():
         if not line.strip():
             continue
@@ -1310,6 +1372,8 @@ def classify_surface_diff(root: Path, base_rev: str) -> dict:
             if _card_dir(path, cards) is not None:
                 touched = True
         elif status in ("M", "C") and len(parts) >= 2:
+            if parts[1].endswith("/SKILL.md"):
+                skill_md_edits.add(parts[1].rsplit("/", 1)[0])
             if (
                 _card_dir(parts[1], base_dirs) is not None
                 or _card_dir(parts[1], head_dirs) is not None
@@ -1326,10 +1390,23 @@ def classify_surface_diff(root: Path, base_rev: str) -> dict:
     admit_or_retire = bool(added or removed)
     details.extend(f"added {card}" for card in added)
     details.extend(f"removed {card}" for card in removed)
+    to_by_hand: list[str] = []
+    to_always_on: list[str] = []
+    for card in sorted(skill_md_edits & base_dirs & head_dirs):
+        before = _is_by_hand_at(root, base_rev, card)
+        after = _is_by_hand_at(root, "HEAD", card)
+        if not before and after:
+            to_by_hand.append(card)
+        elif before and not after:
+            to_always_on.append(card)
+    details.extend(f"{card} moved always-on -> by hand" for card in to_by_hand)
+    details.extend(f"{card} moved by hand -> always-on" for card in to_always_on)
     return {
         "touched": touched,
         "rename": rename,
         "admit_or_retire": admit_or_retire,
+        "to_by_hand": to_by_hand,
+        "to_always_on": to_always_on,
         "detail": "; ".join(details) if details else "no card directory rename or set change",
     }
 
@@ -1347,6 +1424,9 @@ def required_price_for_diff(diff: dict, prices: dict[str, str]) -> str | None:
         required = _higher(required, prices["admit_retire"])
     if diff["rename"]:
         required = _higher(required, prices["rename"])
+    for direction in _LOAD_MODE_PRICE_RES:
+        if diff.get(direction):
+            required = _higher(required, prices[direction])
     return required
 
 
@@ -1646,6 +1726,12 @@ def _gate_bump_classification_inner(
     except ValueError as exc:
         errors.append(f"G10: {exc}")
         return
+    if need_changesets and (diff["to_by_hand"] or diff["to_always_on"]):
+        try:
+            prices = {**prices, **derive_load_mode_prices(root)}
+        except ValueError as exc:
+            errors.append(f"G10: cannot derive the load-mode price from the ADRs: {exc}")
+            return
     required = required_price_for_diff(diff, prices)
     route_price: str | None = None
     if route is not None:
@@ -1689,6 +1775,13 @@ def _gate_bump_classification_inner(
                         f"{ADR_0003_REL.as_posix()} prices as {prices['rename']}: "
                         f"{diff['detail']}"
                     )
+                elif shortfall := _load_mode_shortfall(diff, prices, declared):
+                    direction, cards = shortfall
+                    errors.append(
+                        f"G10: {filename} declares {declared}, but the diff moves "
+                        f"{', '.join(cards)} from {_LOAD_MODE_WORDS[direction]}, which "
+                        f"{ADR_0008_REL.as_posix()} prices as {prices[direction]}"
+                    )
                 elif diff["admit_or_retire"]:
                     errors.append(
                         f"G10: {filename} declares {declared}, but the diff adds or "
@@ -1720,6 +1813,17 @@ def _gate_bump_classification_inner(
             required_bump=required_bump,
             consumed=consumed,
         )
+
+
+def _load_mode_shortfall(
+    diff: dict, prices: dict[str, str], declared: str
+) -> tuple[str, list[str]] | None:
+    """The first load-mode direction in the diff whose price exceeds `declared`."""
+    for direction in _LOAD_MODE_PRICE_RES:
+        cards = diff.get(direction)
+        if cards and _rank(declared) < _rank(prices[direction]):
+            return direction, cards
+    return None
 
 
 def _load_prices_or_refuse(root: Path, errors: list[str]) -> dict[str, str] | None:
