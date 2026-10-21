@@ -8,13 +8,14 @@ Exercises the three controls from issue #296:
 """
 from __future__ import annotations
 
+import inspect
 import json
 import os
 import subprocess
 import sys
+import tempfile
+import traceback
 from pathlib import Path
-
-import pytest
 
 SCRIPT = Path(__file__).resolve().parent / "refresh_dispatch_counts.py"
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -98,8 +99,7 @@ def _copy_published_tree(tmp_path: Path) -> None:
             (scripts_dest / f.name).write_bytes(f.read_bytes())
 
 
-@pytest.fixture()
-def repo_copy(tmp_path: Path) -> Path:
+def _repo_copy(tmp_path: Path) -> Path:
     """A temporary copy of the published tree for test isolation."""
     _copy_published_tree(tmp_path)
     return tmp_path
@@ -316,8 +316,14 @@ class TestEdgeCases:
 class TestLineEndingsPreserved:
     """The rewrite keeps each file's line ending; a text-mode write on Windows used to convert LF to CRLF."""
 
-    @pytest.mark.parametrize("eol", [b"\n", b"\r\n"])
-    def test_eol_unchanged(self, repo_copy: Path, eol: bytes) -> None:
+    def test_lf_unchanged(self, repo_copy: Path) -> None:
+        self._check_eol(repo_copy, b"\n")
+
+    def test_crlf_unchanged(self, repo_copy: Path) -> None:
+        self._check_eol(repo_copy, b"\r\n")
+
+    @staticmethod
+    def _check_eol(repo_copy: Path, eol: bytes) -> None:
         evidence = repo_copy / "skills/engineering/im-up/EVIDENCE.md"
         body = evidence.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", eol)
         evidence.write_bytes(body)
@@ -492,3 +498,44 @@ class TestLogPathResolution:
         )
         for card, original in snapshots.items():
             assert card.read_bytes() == original
+
+
+def _run_all() -> int:
+    """Run every Test* method without pytest, as the sibling suites run.
+
+    A method that names `repo_copy` gets a fresh temporary copy of the tree.
+    Zero collected cases is a failure, so a rename that hides the classes
+    cannot turn this into a suite that exits 0 and runs nothing.
+    """
+    ran = 0
+    failures: list[str] = []
+    for cls_name, cls in sorted(globals().items()):
+        if not (cls_name.startswith("Test") and inspect.isclass(cls)):
+            continue
+        for name, _ in inspect.getmembers(cls, inspect.isfunction):
+            if not name.startswith("test_"):
+                continue
+            method = getattr(cls(), name)
+            ran += 1
+            try:
+                with tempfile.TemporaryDirectory() as tmp:
+                    if "repo_copy" in inspect.signature(method).parameters:
+                        method(repo_copy=_repo_copy(Path(tmp)))
+                    else:
+                        method()
+            except Exception:
+                failures.append(f"{cls_name}.{name}")
+                print(f"FAIL: {cls_name}.{name}")
+                traceback.print_exc()
+    if ran == 0:
+        print("FAIL: no test case was collected - the suite did not run")
+        return 1
+    if failures:
+        print(f"{len(failures)} of {ran} FAILED: " + ", ".join(failures))
+        return 1
+    print(f"PASS: {ran} refresh_dispatch_counts cases")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(_run_all())

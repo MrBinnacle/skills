@@ -590,6 +590,29 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::install-receipt suite emitted no PASS line - it did not run"; exit 1; }
 
+      # #550: refresh_dispatch_counts.py rewrites every card's dispatch row from
+      # the usage log. Its suite had no runner stanza, so a direct run exited 0
+      # having run nothing, and no step invoked it. The '^PASS:' grep keeps a
+      # silent zero-case run red.
+      - name: Dispatch-count refresh suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_refresh_dispatch_counts.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::dispatch-count refresh suite emitted no PASS line - it did not run"; exit 1; }
+
+      # #550: the frontend-slop oracle suite sits in _quarantine/ and ran nowhere.
+      # unittest ends a run that collected nothing with "NO TESTS RAN", and a
+      # run that passed with "OK" on its own line, so the grep pins the second.
+      - name: Frontend-slop oracle suite
+        run: |
+          set -euo pipefail
+          out="$(python _quarantine/frontend-slop/test_oracle.py 2>&1)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^OK$' \
+            || { echo "::error::frontend-slop oracle suite did not end OK - it did not run"; exit 1; }
+
       # #330: `npm run version` chains finish_changelog.py after changeset
       # version. This suite pins the dated heading and the preamble order on a
       # captured changesets output, and that release gate G4 accepts the result.
