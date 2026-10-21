@@ -17,9 +17,10 @@ Two paths:
      the JSON was last written, the script reports staleness and fails.
 
 In both cases the stated figure in EVIDENCE.md is compared against the
-calibrated figure, and disagreement fails the check.  The README and the
-claims ledger state the measurement date of the range; each must carry the
-snapshot's `calibrated_on` date (MrBinnacle/skills#472).
+calibrated figure, and disagreement fails the check.  The claims ledger
+states the measurement date of the range and must carry the snapshot's
+`calibrated_on` date (MrBinnacle/skills#472).  The README no longer states the
+skill-harness range: it cites `/context` (MrBinnacle/skills#361).
 
 Output is ASCII-only, matching the other validators.
 """
@@ -48,9 +49,9 @@ VERSION_RE = re.compile(r"version\s+(\d+\.\d+\.\d+)")
 AUDIT_RE = re.compile(
     r"Standing cost \(mechanical\):.*?calibrated\s+(\d+)\s+tokens"
 )
-# Prose surfaces that state the measurement date of the standing-cost range.
+# Prose surfaces that state the measurement date of the skill-harness range.
 # Each must carry the snapshot's calibrated_on date (MrBinnacle/skills#472).
-DATED_PROSE_SURFACES = ("README.md", "docs/product/claims-ledger.md")
+DATED_PROSE_SURFACES = ("docs/product/claims-ledger.md",)
 PROSE_DATE_RE = re.compile(
     r"measured by `skill-harness skill audit` on (\d{4}-\d{2}-\d{2})"
 )

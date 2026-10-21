@@ -267,7 +267,7 @@ DATE_POISON = SCRIPT_DIR / "fixtures" / "standing-cost-date-drift"
 
 
 def case_stale_prose_date_is_red() -> None:
-    """A README date that differs from calibrated_on is the single rejection (#472)."""
+    """A ledger date that differs from calibrated_on is the single rejection (#472)."""
     for use_snapshot in (False, True):
         result = run_checker(DATE_POISON, use_snapshot=use_snapshot)
         lines = [l for l in result.stderr.splitlines() if l.startswith("  - ")]
@@ -275,7 +275,7 @@ def case_stale_prose_date_is_red() -> None:
             f"stale prose date fixture is rejected for that reason alone (snapshot={use_snapshot})",
             result.returncode != 0
             and lines == [
-                "  - README.md:3: prose says 2026-09-22, "
+                "  - docs/product/claims-ledger.md:3: prose says 2026-09-22, "
                 "standing-costs.json calibrated_on says 2026-10-19"
             ],
             result.stderr,
@@ -283,11 +283,11 @@ def case_stale_prose_date_is_red() -> None:
 
 
 def case_matching_prose_date_is_green() -> None:
-    """The same fixture passes once its README carries calibrated_on."""
+    """The same fixture passes once its ledger carries calibrated_on."""
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "tree"
         shutil.copytree(DATE_POISON, root)
-        readme = root / "README.md"
+        readme = root / "docs" / "product" / "claims-ledger.md"
         readme.write_bytes(readme.read_bytes().replace(b"2026-09-22", b"2026-10-19"))
         result = run_checker(root, use_snapshot=True)
         check(
@@ -302,12 +302,12 @@ def case_undated_prose_surface_is_red() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "tree"
         shutil.copytree(DATE_POISON, root)
-        (root / "README.md").write_text("# fixture\n", encoding="utf-8", newline="")
+        (root / "docs" / "product" / "claims-ledger.md").write_text("# fixture\n", encoding="utf-8", newline="")
         result = run_checker(root, use_snapshot=True)
         check(
             "undated prose surface is rejected",
             result.returncode != 0
-            and "README.md: no dated standing-cost sentence" in result.stderr,
+            and "claims-ledger.md: no dated standing-cost sentence" in result.stderr,
             result.stderr,
         )
 
