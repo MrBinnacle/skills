@@ -30,7 +30,8 @@ STEP_RUNNER = HERE / "run_step.py"
 PAD = ("onedrive-corporate-profile-folder-with-a-long-display-name/"
        "as-many-managed-windows-laptops-have/"
        "department-shared-settings-and-synchronised-profiles")
-PASSED_THROUGH = ("PATH", "SYSTEMROOT", "TEMP", "TMP", "APPDATA", "LOCALAPPDATA")
+# APPDATA and LOCALAPPDATA are not passed through: they would expose the real profile folders.
+PASSED_THROUGH = ("PATH", "SYSTEMROOT", "TEMP", "TMP")
 
 
 def sha256(path: Path) -> str:
@@ -71,6 +72,8 @@ as that user and produce the catalog."""
 def agent_env(base: str) -> dict[str, str]:
     env = {k: os.environ[k] for k in PASSED_THROUGH if k in os.environ}
     env.update(USERPROFILE=f"{base}/home", HOME=f"{base}/home",
+               APPDATA=f"{base}/home/AppData/Roaming",
+               LOCALAPPDATA=f"{base}/home/AppData/Local",
                CLAUDE_CONFIG_DIR=f"{base}/agent-config")
     return env
 
@@ -97,6 +100,28 @@ def write_transcript(trace: Path, transcript: Path) -> None:
     transcript.write_text("".join(results), encoding="utf-8", newline="")
 
 
+def count_steps(trace_text: str) -> int:
+    """Distinct recipe steps: tool results whose output carries a STEP line.
+
+    Each tool result is serialized twice in a stream-json event (message content
+    and tool_use_result), so counting "STEP: " substrings doubles the number.
+    """
+    ids = set()
+    for line in trace_text.splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(event, dict) or event.get("type") != "user":
+            continue
+        content = event.get("message", {}).get("content", [])
+        for block in content if isinstance(content, list) else []:
+            if (isinstance(block, dict) and block.get("type") == "tool_result"
+                    and "STEP: " in str(block.get("content", ""))):
+                ids.add(block.get("tool_use_id"))
+    return len(ids)
+
+
 def os_version() -> str:
     out = subprocess.run(["cmd.exe", "/c", "ver"], capture_output=True, text=True).stdout
     return " ".join(line for line in out.splitlines() if line.strip())
@@ -121,6 +146,8 @@ def main(case: str, ref: str, recipe_path: str, out_arg: str) -> int:
     base = base_path.as_posix()
     shutil.rmtree(base_root, ignore_errors=True)
     (base_path / "agent-config").mkdir(parents=True)
+    (base_path / "home/AppData/Roaming").mkdir(parents=True)
+    (base_path / "home/AppData/Local").mkdir(parents=True)
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy(STEP_RUNNER, base_path / "run_step.py")
     recipe = base_path / "recipe.md"
@@ -140,7 +167,7 @@ def main(case: str, ref: str, recipe_path: str, out_arg: str) -> int:
 
     write_transcript(trace, transcript)
     subprocess.run([sys.executable, "-I", str(HERE / "strip_system.py"), str(trace)], check=True)
-    steps = trace.read_text(encoding="utf-8").count("STEP: ")
+    steps = count_steps(trace.read_text(encoding="utf-8"))
     if steps == 0:
         print("INVALID RUN: no recipe step executed")
         rc = 9
@@ -156,7 +183,7 @@ def main(case: str, ref: str, recipe_path: str, out_arg: str) -> int:
         ("Step runner", f"`replay/run_step.py` sha256 `{sha256(STEP_RUNNER)}`"),
         ("Target CLAUDE_CONFIG_DIR length", f"{len(base + '/config')} characters"),
         ("Agent exit code", str(rc)),
-        ("Recipe steps executed (STEP lines in trace)", str(steps)),
+        ("Recipe steps executed", str(steps)),
         ("Trace", f"`{trace.name}`, sha256 `{sha256(trace)}` (after strip_system.py)"),
         ("Transcript", f"`{transcript.name}`, sha256 `{sha256(transcript)}`"),
     ])
