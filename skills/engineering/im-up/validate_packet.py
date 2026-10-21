@@ -692,7 +692,7 @@ def main() -> int:
         # structure, its branch and HEAD, every claim probe. Everything below
         # is a check the RECEIVER runs against the tree. The split is what the
         # REJECTED receipt reports, so the reader can tell a packet defect from
-        # a gate defect without re-deriving it (S411 ruling on skills_research#153).
+        # a gate defect without re-deriving it (S411 ruling, direction D).
         packet_errors = list(errors)
         failed_receiver_checks: list[str] = []
         if args.mode == "receive":

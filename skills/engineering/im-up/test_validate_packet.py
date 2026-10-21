@@ -391,7 +391,7 @@ def red_check_cases():
 def assertions_held_cases():
     """A REJECTED receive receipt says whether every packet assertion held.
 
-    Ruled S411 (skills_research#153, direction D): the verdict vocabulary
+    Ruled S411 (a private research issue, direction D): the verdict vocabulary
     stays ACCEPTED / REJECTED. A defective receiver check on a sound packet
     still rejects, but the receipt now states that the packet's own
     assertions held and names the failing checks, so the reader can tell a

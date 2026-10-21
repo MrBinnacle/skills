@@ -13,7 +13,12 @@
 #   de-personalization decision stays audited. The hook NAME carries the suggested fix.
 #
 # SCOPE
-#   Runs on *.md only, so this .yaml config can never trip its own patterns.
+#   Every hook below reads EVERY tracked text file (`types: [text]`), not Markdown
+#   alone (#539): traces, transcripts, scripts and JSON fixtures reached a public
+#   repo unread while the gate passed. Never narrow a hook back to an extension.
+#   The only escape is a path in `exclude`, one file at a time, with its reason
+#   beside it. Two anchors hold the lists: `scan_exempt` for the codename hooks and
+#   `fields_exempt` for the account-data hooks.
 #   The maintainer's name/email are intentionally NOT listed here — putting them in a
 #   public block-list would itself de-anonymize. Keep those in a git-ignored local
 #   overlay if wanted (see AGENTS.md "De-personalization gate").
@@ -33,37 +38,88 @@ repos:
         name: "residue 'Writ' (private project codename) -> 'a personal production project'"
         language: pygrep
         entry: '\bWrit\b'
-        files: '\.md$'
+        types: [text]
+        # Path exemptions, each with its reason (#539). Add a file here only when it
+        # must carry a term to do its job; never an extension or a directory.
+        #   .pre-commit-config.yaml            defines these patterns
+        #   scripts/validate_path_residue.py   the path-term list that mirrors them
+        #   scripts/test_validate_path_residue.py  poison samples, one per term
+        #   scripts/test_depersonalization_scope.py  poison fixtures for this gate
+        #   scripts/refresh_dispatch_counts.py  its default log path is the
+        #     maintainer's sibling research checkout; renaming it breaks the refresh
+        exclude: &scan_exempt '^(\.pre-commit-config\.yaml|scripts/(validate_path_residue|test_validate_path_residue|test_depersonalization_scope|refresh_dispatch_counts)\.py)$'
       - id: residue-sec-id
         name: "residue 'SEC-<n>' (private security ticket id) -> drop, or 'a security-audit item'"
         language: pygrep
         entry: '\bSEC-[0-9]+'
-        files: '\.md$'
+        types: [text]
+        exclude: *scan_exempt
       - id: residue-wi-id
         name: "residue 'WI-<n>' (private work-item id) -> drop, or 'a work item'"
         language: pygrep
         entry: '\bWI-[0-9]+'
-        files: '\.md$'
+        types: [text]
+        exclude: *scan_exempt
       - id: residue-research-dir
         name: "residue 'skills_research' (private research dir) -> a generic descriptor"
         language: pygrep
         entry: 'skills[_.-]research'
-        files: '\.md$'
+        types: [text]
+        exclude: *scan_exempt
       - id: residue-private-repo-dir
         name: "residue 'youwontdoit' (private repo dir) -> a generic descriptor"
         language: pygrep
         entry: 'youwontdoit'
-        files: '\.md$'
+        types: [text]
+        exclude: *scan_exempt
       - id: residue-private-repo-link
         name: "residue 'MrBinnacle/writ' (PRIVATE repo, 404s for readers) -> drop the link"
         language: pygrep
         entry: 'MrBinnacle/writ'
-        files: '\.md$'
+        types: [text]
+        exclude: *scan_exempt
       - id: residue-private-linter-repo
         name: "residue 'workspace_lint' (PRIVATE repo name) -> a generic descriptor"
         language: pygrep
         entry: 'workspace[_.-]lint'
-        files: '\.md$'
+        types: [text]
+        exclude: *scan_exempt
+
+      # -- Account data in evidence files (#539) -----------------------------
+      #
+      # A replay trace committed under _quarantine/ carried the replaying
+      # account's quota state and per-session identifiers, and the gate read only
+      # Markdown. These four hooks name the classes that incident showed. Hook ids
+      # do not start with `residue-`: that prefix is the codename list, mirrored in
+      # validate_path_residue.py, and these terms never appear in a path.
+      #
+      # A value of REDACTED, <redacted> or any non-UUID placeholder passes: the
+      # identifier patterns fire only on a real UUID-shaped value.
+      - id: leak-rate-limit-event
+        name: "account billing event 'rate_limit_event' (the replaying account's quota state) -> drop the event line from the trace"
+        language: pygrep
+        entry: 'rate_limit_event'
+        types: [text]
+        # strip_system.py is the scrubber; it names the fields it drops.
+        exclude: &fields_exempt '^(\.pre-commit-config\.yaml|scripts/test_depersonalization_scope\.py|_quarantine/walk-the-recipe/replay/strip_system\.py)$'
+      - id: leak-overage-status
+        name: "account billing field 'overageStatus' -> drop the field, or replace with 'REDACTED'"
+        language: pygrep
+        entry: 'overageStatus'
+        types: [text]
+        exclude: *fields_exempt
+      - id: leak-utilization
+        name: "account quota field 'utilization' in a rate-limit context -> drop the field, or replace with 'REDACTED'"
+        language: pygrep
+        entry: '(?i)((rate[_ -]?limit|seven_day|five_hour|overage)\W.*\butilization\b|\butilization\b.*(rate[_ -]?limit|seven_day|five_hour|overage)|"utilization"\s*:\s*[0-9])'
+        types: [text]
+        exclude: *fields_exempt
+      - id: leak-session-id
+        name: "unredacted session_id/request_id (UUID value) -> replace the value with 'REDACTED'"
+        language: pygrep
+        entry: '(?i)(session|request)[_-]?id["'']?\s*[:=]\s*["'']?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+        types: [text]
+        exclude: *fields_exempt
 
       # -- Residue in PATHS (#243) -------------------------------------------
       #

@@ -61,7 +61,7 @@ def _run_script(log_path: Path | None, tmp_path: Path) -> subprocess.CompletedPr
     if log_path is not None:
         env["SKILL_USAGE_LOG"] = str(log_path)
     else:
-        # Point at a hole under tmp so a real skills_research checkout
+        # Point at a hole under tmp so a real sibling research checkout
         # beside the workspace cannot satisfy the "missing log" control.
         env["SKILL_USAGE_LOG"] = str(tmp_path / "definitely-absent-usage-log.jsonl")
     return subprocess.run(

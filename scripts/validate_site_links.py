@@ -5,7 +5,7 @@ lychee checks that a URL answers. It does not check the part after `#`, so a
 link to a README heading that was renamed or moved keeps passing while the
 reader lands at the top of the wrong page. That happened: #324 moved four
 README sections to CATALOG.md and the site kept linking to all four
-(skills_research audit S498, finding F4).
+(a private audit, S498 finding F4).
 
 This script resolves each link against the working tree instead of the network:
 

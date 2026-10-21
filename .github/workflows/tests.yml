@@ -82,6 +82,19 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::path-residue suite emitted no PASS line - it did not run"; exit 1; }
 
+      # #539: the residue hooks read Markdown only, so a replay trace carrying
+      # the replaying account's quota state and session ids passed them. This
+      # suite proves each hook reads text files by type, each account-data
+      # pattern goes red on a poison line and stays green on REDACTED, and no
+      # exemption is wider than one file.
+      - name: De-personalization scope suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_depersonalization_scope.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::de-personalization scope suite emitted no PASS line - it did not run"; exit 1; }
+
       - name: Path-residue sweep
         run: |
           set -euo pipefail
