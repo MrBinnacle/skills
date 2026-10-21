@@ -138,10 +138,10 @@ decision and why a thin card runs by hand rather than leaving for `_quarantine/`
 
 ## What the cards cover
 
-Every published card appears once below. The [Card map](#card-map) above groups the same cards by
-form.
+Every published card appears once below, in the groups the [README](README.md) uses. The
+[Card map](#card-map) above groups the same cards by form.
 
-These are about an operation, a test, or an agent reporting an outcome that did not happen:
+### A tool, test or agent reports success over wrong work
 
 | Card | What goes wrong |
 |---|---|
@@ -150,16 +150,21 @@ These are about an operation, a test, or an agent reporting an outcome that did 
 | `mocked-stub` | A test patches a helper that is a stub in production, so the suite passes over a branch that never ran. |
 | `vacuous-check` | A success test accepts an error body, because it asks only whether the output is non-empty. |
 | `clirunner-env` | A test's environment override leaves a key in place, the call the test exists to prevent happens, and the assertion still passes. |
-| `dead-predicate` | A router's silence reads as "no prompt needed it" when the cause is a predicate that cannot match. |
-| `pretooluse-prose` | A command guard reads prose that mentions the command it polices, and blocks the text instead of the action. |
 | `subagent-handback` | A subagent returns claims and citations nobody checked, from tools it may not hold. |
-| `im-up` | A session start checks the previous session's stated paths, predicates, and sequence against the repository. |
 
-These are about what one session, agent, or reviewer writes down for the next:
+### A guard or hook misfires
+
+| Card | What goes wrong |
+|---|---|
+| `pretooluse-prose` | A command guard reads prose that mentions the command it polices, and blocks the text instead of the action. |
+| `dead-predicate` | A router's silence reads as "no prompt needed it" when the cause is a predicate that cannot match. |
+
+### Boundaries and handoffs
 
 | Card | What it does |
 |---|---|
 | `im-down` | Writes the session's closing state as a packet the receiver can validate. |
+| `im-up` | A session start checks the previous session's stated paths, predicates, and sequence against the repository. |
 | `closure-mode` | Runs the verification list at a boundary instead of handing it back as options. |
 | `decision-rights` | Separates what the reader may re-examine from what the handoff has settled. |
 | `disposition-schema` | Fixes the output shape so parallel reviews can be compared. |
