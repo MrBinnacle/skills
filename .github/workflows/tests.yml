@@ -534,6 +534,8 @@ jobs:
       # plants each drift in a temp copy of skills/ and asserts the refusal
       # names the card; the check then reads the live tree.
       - name: Load-mode marker suite
+        env:
+          PYTHONUTF8: "1"
         run: |
           set -euo pipefail
           out="$(python scripts/test_check_load_mode_markers.py)" || { echo "$out"; exit 1; }
@@ -542,6 +544,8 @@ jobs:
             || { echo "::error::load-mode marker suite emitted no PASS line - it did not run"; exit 1; }
 
       - name: Load-mode marker check
+        env:
+          PYTHONUTF8: "1"
         run: |
           set -euo pipefail
           out="$(python scripts/check_load_mode_markers.py)" || { echo "$out"; exit 1; }

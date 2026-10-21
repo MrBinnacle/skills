@@ -54,10 +54,14 @@ def frontmatter(text: str) -> dict[str, str]:
     return {}
 
 
+def flag_set(skill_text: str) -> bool:
+    """Whether SKILL.md text sets `disable-model-invocation: true` in its frontmatter."""
+    return frontmatter(skill_text).get(FLAG_KEY, "").lower() == "true"
+
+
 def runs_by_hand(skill_md: Path) -> bool:
     """Whether the card's frontmatter sets `disable-model-invocation: true`."""
-    value = frontmatter(skill_md.read_text(encoding="utf-8")).get(FLAG_KEY, "")
-    return value.lower() == "true"
+    return flag_set(skill_md.read_text(encoding="utf-8"))
 
 
 def readme_card_lines(text: str) -> dict[str, list[bool]]:
@@ -75,10 +79,10 @@ def readme_card_lines(text: str) -> dict[str, list[bool]]:
 def card_problems(skill_dir: Path, readme_lines: dict[str, list[bool]]) -> list[str]:
     card = skill_dir.name
     label = f"skills/{skill_dir.parent.name}/README.md"
-    skill_md = skill_dir / "SKILL.md"
-    flagged = runs_by_hand(skill_md)
+    skill_text = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+    flagged = flag_set(skill_text)
     problems: list[str] = []
-    if bool(DISABLE_MODEL_INVOCATION_RE.search(skill_md.read_text(encoding="utf-8"))) != flagged:
+    if bool(DISABLE_MODEL_INVOCATION_RE.search(skill_text)) != flagged:
         problems.append(
             f"{card}: the frontmatter reads {FLAG_KEY}={'true' if flagged else 'unset'}, "
             "but the standing-cost check's DISABLE_MODEL_INVOCATION_RE reads it the other way"
