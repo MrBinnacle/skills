@@ -140,8 +140,13 @@ Checks (all must pass; failures are listed, not first-fail):
            patch. An empty changeset declares no bump, so the change would
            ship in the next release unpriced (#570). An empty changeset for a
            change priced at patch or reaching no card still passes (#466).
+        8. A branch-added changeset whose diff touches only ``EVIDENCE.md``
+           files under ``skills/*/*/``, changes no install-route name, and
+           declares minor or major. ADR 0002 prices a correction within a card
+           as a patch (#598). An edit to any other card file is not capped,
+           because a change to a card's shape can be major.
 
-      Cases 1, 2, 3, 5, 6 and 7 judge only the changesets THIS BRANCH adds --
+      Cases 1, 2, 3, 5, 6, 7 and 8 judge only the changesets THIS BRANCH adds --
       new ``.changeset/*.md`` in ``merge-base..HEAD``, or the absence of any
       declared bump among them -- never every pending file on disk. Pending
       changesets that main already holds were classified when their own
@@ -1344,6 +1349,7 @@ def classify_surface_diff(root: Path, base_rev: str) -> dict:
       admit_or_retire  bool -- a card directory was added or removed
       to_by_hand       list[str] -- cards on both sides that moved always-on -> by hand
       to_always_on     list[str] -- cards on both sides that moved by hand -> always-on
+      evidence_only    bool -- every card path in the diff is a card's EVIDENCE.md
       required         str | None -- highest ADR price the diff reaches;
                                      None when the surface is untouched
       detail           str -- short phrase naming what was found
@@ -1354,6 +1360,8 @@ def classify_surface_diff(root: Path, base_rev: str) -> dict:
     base_dirs = _list_card_dirs(root, base_rev)
     head_dirs = _list_card_dirs(root, "HEAD")
     touched = False
+    # Set when a card path other than <card>/EVIDENCE.md is touched (#598).
+    beyond_evidence = False
     rename = False
     renamed_from: set[str] = set()
     renamed_to: set[str] = set()
@@ -1370,6 +1378,7 @@ def classify_surface_diff(root: Path, base_rev: str) -> dict:
             new_dir = _card_dir(new, head_dirs)
             if old_dir is not None or new_dir is not None:
                 touched = True
+                beyond_evidence = True
             if old_dir is not None and new_dir is not None and old_dir != new_dir:
                 rename = True
                 renamed_from.add(old_dir)
@@ -1378,22 +1387,24 @@ def classify_surface_diff(root: Path, base_rev: str) -> dict:
         elif status in ("A", "D") and len(parts) >= 2:
             path = parts[1]
             cards = head_dirs if status == "A" else base_dirs
-            if _card_dir(path, cards) is not None:
+            card = _card_dir(path, cards)
+            if card is not None:
                 touched = True
+                beyond_evidence |= path != f"{card}/EVIDENCE.md"
         elif status in ("M", "C") and len(parts) >= 2:
             if parts[1].endswith("/SKILL.md"):
                 skill_md_edits.add(parts[1].rsplit("/", 1)[0])
-            if (
-                _card_dir(parts[1], base_dirs) is not None
-                or _card_dir(parts[1], head_dirs) is not None
-            ):
+            card = _card_dir(parts[1], base_dirs) or _card_dir(parts[1], head_dirs)
+            if card is not None:
                 touched = True
+                beyond_evidence |= parts[1] != f"{card}/EVIDENCE.md"
         # T (typechange) and other statuses in a card still count as a touch.
         elif len(parts) >= 2 and (
             _card_dir(parts[1], base_dirs) is not None
             or _card_dir(parts[1], head_dirs) is not None
         ):
             touched = True
+            beyond_evidence = True
     added = sorted((head_dirs - base_dirs) - renamed_to)
     removed = sorted((base_dirs - head_dirs) - renamed_from)
     admit_or_retire = bool(added or removed)
@@ -1416,6 +1427,7 @@ def classify_surface_diff(root: Path, base_rev: str) -> dict:
         "admit_or_retire": admit_or_retire,
         "to_by_hand": to_by_hand,
         "to_always_on": to_always_on,
+        "evidence_only": touched and not beyond_evidence,
         "detail": "; ".join(details) if details else "no card directory rename or set change",
     }
 
@@ -1784,6 +1796,20 @@ def _gate_bump_classification_inner(
                 )
             if route_price is None or _rank(declared) >= _rank(route_price):
                 continue
+        if (
+            diff["evidence_only"]
+            and required == prices["patch"]
+            and route_price is None
+            and _rank(declared) > _rank(prices["patch"])
+        ):
+            # Case 8 (#598): the diff edits only cards' EVIDENCE.md, which ADR
+            # 0002 prices as a correction within a card.
+            errors.append(
+                f"G10: {who} {says}, but the change touches only EVIDENCE.md under "
+                f"skills/*/*/, which ADR 0002 prices as a correction within a card "
+                f"({prices['patch']})"
+            )
+            continue
         reason = _surface_shortfall(diff, prices, required, declared, route, route_price)
         if reason is not None:
             errors.append(f"G10: {who} {says}, but {reason}")

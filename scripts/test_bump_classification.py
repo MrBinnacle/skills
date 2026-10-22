@@ -317,6 +317,7 @@ def make_tree(
       scripts_only - a file outside skills/*/*/ changes
       non_card     - a file under skills/*/*/ but outside any card changes
       modify_card  - a file inside an existing card changes (no rename/add)
+      edit_evidence - only old-card's EVIDENCE.md changes (#598)
       rename_marketplace - the marketplace `name` changes (ADR 0005 route)
       rename_plugin      - the plugin `name` changes (ADR 0005 route)
       describe_plugin    - only a plugin description in marketplace.json changes
@@ -422,6 +423,11 @@ def make_tree(
         write(
             root / "skills" / SKILLS_BUCKET / "old-card" / "gotchas.md",
             "# gotchas\n\nA dated note.\n",
+        )
+    elif branch_change == "edit_evidence":
+        write(
+            root / "skills" / SKILLS_BUCKET / "old-card" / "EVIDENCE.md",
+            "# EVIDENCE\n\n| Field | Value |\n|---|---|\n| **Evidence scope** | a new row |\n",
         )
 
     route_edit: dict[str, str] = {}
@@ -917,6 +923,42 @@ def case_case7_empty_changeset_patch_card_edit_passes(tmp: Path) -> None:
     """#466: an empty changeset over a card edit ADR 0002 prices as patch still passes."""
     root = make_tree(tmp, declared=None, branch_change="modify_card")
     expect_pass("case 7: an empty changeset over a patch-priced card edit PASSES", root)
+
+
+def case_case8_evidence_only_declared_minor_is_refused(tmp: Path) -> None:
+    """#598: an edit to EVIDENCE.md alone changes no card behaviour, so it is a patch."""
+    root = make_tree(tmp, declared="minor", branch_change="edit_evidence")
+    expect_g10_refusal(
+        "case 8: an EVIDENCE.md-only diff declared minor is refused",
+        root,
+        "G10:",
+        "EVIDENCE.md",
+        "minor",
+    )
+
+
+def case_case8_evidence_only_declared_major_is_refused(tmp: Path) -> None:
+    root = make_tree(tmp, declared="major", branch_change="edit_evidence")
+    expect_g10_refusal(
+        "case 8: an EVIDENCE.md-only diff declared major is refused",
+        root,
+        "G10:",
+        "EVIDENCE.md",
+        "major",
+    )
+
+
+def case_case8_evidence_only_declared_patch_passes(tmp: Path) -> None:
+    root = make_tree(tmp, declared="patch", branch_change="edit_evidence")
+    expect_pass("case 8: an EVIDENCE.md-only diff declared patch PASSES", root)
+
+
+def case_case8_other_card_file_declared_minor_passes(tmp: Path) -> None:
+    """Case 8 reaches EVIDENCE.md only. A change to the on-disk shape of a card
+    is major under ADR 0002 and can touch any other card file, so the gate does
+    not cap the price of those edits."""
+    root = make_tree(tmp, declared="minor", branch_change="modify_card")
+    expect_pass("case 8: a gotchas.md edit declared minor PASSES", root)
 
 
 def case_case7_empty_changeset_unreadable_adr_0008_fails_closed(tmp: Path) -> None:
@@ -1944,6 +1986,10 @@ CASES = (
     case_case7_no_changeset_card_change_is_refused,
     case_case7_empty_changeset_route_change_is_refused,
     case_case7_empty_changeset_patch_card_edit_passes,
+    case_case8_evidence_only_declared_minor_is_refused,
+    case_case8_evidence_only_declared_major_is_refused,
+    case_case8_evidence_only_declared_patch_passes,
+    case_case8_other_card_file_declared_minor_passes,
     case_case7_empty_changeset_unreadable_adr_0008_fails_closed,
     case_case4_release_diff_card_change_raises_the_price,
     case_case4_release_diff_flip_unreadable_adr_0008_fails_closed,
