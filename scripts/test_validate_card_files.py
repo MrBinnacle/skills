@@ -548,6 +548,44 @@ def case_missing_dispatch_row_is_rejected(root: Path) -> None:
     )
 
 
+RESCREEN_ROW = "| **Re-screen trigger** | A platform fix that makes the failure impossible. |\n"
+
+
+def case_placeholder_rescreen_trigger_is_rejected(root: Path) -> None:
+    """#600: a placeholder states no trigger, so it is the empty-row refusal.
+
+    Each placeholder runs in its own tree, so each refusal is counted alone.
+    """
+    for i, value in enumerate(("none", "N/A", "TBD", "-", "None.", "`tbd`")):
+        tree = root / f"t{i}"
+        evidence = CONFORMING_EVIDENCE.replace(
+            RESCREEN_ROW, f"| **Re-screen trigger** | {value} |\n"
+        )
+        write_card(tree, "placeholder-card", evidence, CONFORMING_GOTCHAS)
+        result = run_checker(tree)
+        check(
+            f"the Re-screen trigger placeholder {value!r} is rejected",
+            bool(refusal_line(result.stderr, "placeholder-card", "Re-screen trigger"))
+            and "REJECTED: 1 card contract breach(es)" in result.stderr,
+            result.stdout + result.stderr,
+        )
+
+
+def case_real_rescreen_trigger_that_opens_with_none_passes(root: Path) -> None:
+    """Only a whole-value placeholder is refused, not a word inside a trigger."""
+    evidence = CONFORMING_EVIDENCE.replace(
+        RESCREEN_ROW,
+        "| **Re-screen trigger** | None of the hooks fire on a platform update. |\n",
+    )
+    write_card(root, "worded-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a real trigger whose first word is 'None' passes",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
 def case_dispatch_row_opening_is_checked(root: Path) -> None:
     """The row opens with a nonzero count or the exact zero phrase.
 
@@ -1881,6 +1919,8 @@ def main() -> None:
         case_a_count_that_is_not_a_number_is_rejected,
         case_dates_must_be_corroborated_by_the_record,
         case_missing_dispatch_row_is_rejected,
+        case_placeholder_rescreen_trigger_is_rejected,
+        case_real_rescreen_trigger_that_opens_with_none_passes,
         case_dispatch_row_opening_is_checked,
         case_dispatch_row_needs_its_measurement_date,
         case_dispatch_row_does_not_corroborate_occasions,

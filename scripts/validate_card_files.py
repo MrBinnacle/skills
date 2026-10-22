@@ -67,6 +67,9 @@ REQUIRED_FILES: Final[tuple[str, ...]] = ("SKILL.md", "gotchas.md", "EVIDENCE.md
 # the check that makes them contract.
 OCCASIONS_ROW: Final[str] = "Occasions counted"
 RESCREEN_ROW: Final[str] = "Re-screen trigger"
+# Values that fill the row without naming an event (#600). Matched against the
+# whole value, lower-cased, so a real trigger that opens with "None" passes.
+RESCREEN_PLACEHOLDERS: Final[frozenset[str]] = frozenset({"none", "n/a", "tbd", "-"})
 
 # The measured-demand row (#106). A dispatch is one invocation of a card --
 # demand evidence, never recurrence, lift or worth (docs/adr/0001: a dispatch
@@ -393,6 +396,13 @@ def evidence_breaches(card: Path) -> list[str]:
         for name in REQUIRED_EVIDENCE_ROWS
         if not rows.get(name, "").strip("* `")
     ]
+    rescreen = rows.get(RESCREEN_ROW, "").strip("* `.").lower()
+    if rescreen in RESCREEN_PLACEHOLDERS:
+        breaches.append(
+            f"EVIDENCE.md {RESCREEN_ROW} row holds the placeholder "
+            f"{rescreen!r}, which names no event. The card has not said what "
+            "would let it leave"
+        )
     applicability = rows.get(APPLICABILITY_ROW, "")
     if applicability.strip("* `"):
         malformed = applicability_breach(applicability)
