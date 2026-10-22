@@ -68,8 +68,14 @@ REQUIRED_FILES: Final[tuple[str, ...]] = ("SKILL.md", "gotchas.md", "EVIDENCE.md
 OCCASIONS_ROW: Final[str] = "Occasions counted"
 RESCREEN_ROW: Final[str] = "Re-screen trigger"
 # Values that fill the row without naming an event (#600). Matched against the
-# whole value, lower-cased, so a real trigger that opens with "None" passes.
-RESCREEN_PLACEHOLDERS: Final[frozenset[str]] = frozenset({"none", "n/a", "tbd", "-"})
+# whole value after stripping asterisks, backticks, spaces and periods, then
+# lower-casing, so a real trigger that opens with the word None passes. The
+# period is stripped here and not in the empty-row check, so None. and a row
+# of dots (stripped to the empty string) land here. The en and em dashes are
+# built with chr() so the source and every printed report stay ASCII.
+RESCREEN_PLACEHOLDERS: Final[frozenset[str]] = frozenset(
+    {"", "none", "n/a", "tbd", "-", chr(0x2013), chr(0x2014)}
+)
 
 # The measured-demand row (#106). A dispatch is one invocation of a card --
 # demand evidence, never recurrence, lift or worth (docs/adr/0001: a dispatch
@@ -396,11 +402,13 @@ def evidence_breaches(card: Path) -> list[str]:
         for name in REQUIRED_EVIDENCE_ROWS
         if not rows.get(name, "").strip("* `")
     ]
-    rescreen = rows.get(RESCREEN_ROW, "").strip("* `.").lower()
-    if rescreen in RESCREEN_PLACEHOLDERS:
+    raw_rescreen = rows.get(RESCREEN_ROW, "")
+    rescreen = raw_rescreen.strip("* `.").lower()
+    # An empty row is already refused above; only a filled row is checked here.
+    if raw_rescreen.strip("* `") and rescreen in RESCREEN_PLACEHOLDERS:
         breaches.append(
             f"EVIDENCE.md {RESCREEN_ROW} row holds the placeholder "
-            f"{rescreen!r}, which names no event. The card has not said what "
+            f"{ascii(rescreen)}, which names no event. The card has not said what "
             "would let it leave"
         )
     applicability = rows.get(APPLICABILITY_ROW, "")
