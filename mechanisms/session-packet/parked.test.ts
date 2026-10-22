@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { extract, validateStructure } from "./packet";
 import { verifyParked } from "./parked";
-import { fixture, git, makeRemote, makeRepo, nodeExec, renderPacket } from "./testkit";
+import { fixture, git, GIT_TIMEOUT, makeRemote, makeRepo, nodeExec, renderPacket } from "./testkit";
 import { validatePacket } from "./validate";
 
 const parkedPacket = (parked: unknown) => {
@@ -51,7 +51,7 @@ describe("verifyParked (real git repo)", () => {
     await git(root, "branch", "wip");
     const result = await verifyParked({ data: parkedPacket([entry("branch-exists", "wip"), entry("branch-exists", "missing")]), repoRoot: root, exec: nodeExec });
     expect(result.errors).toEqual(["parked[1] branch-exists probe failed: missing (parked for later)"]);
-  });
+  }, GIT_TIMEOUT);
 
   test("remote-branch-exists checks origin; an unreachable origin is a note", async () => {
     const { root } = await makeRepo();
@@ -65,7 +65,7 @@ describe("verifyParked (real git repo)", () => {
     const result = await verifyParked({ data: parkedPacket([entry("remote-branch-exists", "wip")]), repoRoot: offline, exec: nodeExec });
     expect(result.errors).toEqual([]);
     expect(result.notes.some((n) => n.startsWith("parked[0] remote-branch-exists not verified: could not reach origin"))).toBe(true);
-  });
+  }, GIT_TIMEOUT);
 
   test("stash-exists matches a stash commit SHA prefix", async () => {
     const { root } = await makeRepo();
@@ -74,7 +74,7 @@ describe("verifyParked (real git repo)", () => {
     const sha = await git(root, "rev-parse", "stash@{0}");
     const result = await verifyParked({ data: parkedPacket([entry("stash-exists", sha.slice(0, 10)), entry("stash-exists", "0000000")]), repoRoot: root, exec: nodeExec });
     expect(result.errors).toEqual(["parked[1] stash-exists probe failed: 0000000 (parked for later)"]);
-  });
+  }, GIT_TIMEOUT);
 
   test("worktree-exists resolves its path against the repository root", async () => {
     const { root } = await makeRepo();
@@ -82,7 +82,7 @@ describe("verifyParked (real git repo)", () => {
     await git(root, "worktree", "add", "-q", "-b", "wt-branch", join("..", name));
     const result = await verifyParked({ data: parkedPacket([entry("worktree-exists", `../${name}`), entry("worktree-exists", "../nowhere")]), repoRoot: root, exec: nodeExec });
     expect(result.errors).toEqual(["parked[1] worktree-exists probe failed: ../nowhere (parked for later)"]);
-  });
+  }, GIT_TIMEOUT);
 
   test("receive mode rejects a packet whose parked entry no longer holds", async () => {
     const { root, head } = await makeRepo();
@@ -98,7 +98,7 @@ describe("verifyParked (real git repo)", () => {
     expect(receipt.verdict).toBe("REJECTED");
     expect(receipt.errors).toEqual(["parked[0] branch-exists probe failed: deleted-meanwhile (parked for later)"]);
     expect((receipt as { packet_assertions_held?: boolean }).packet_assertions_held).toBe(false);
-  });
+  }, GIT_TIMEOUT);
 });
 
 describe("verifyParked: refs are branch names, matched exactly", () => {
@@ -110,7 +110,7 @@ describe("verifyParked: refs are branch names, matched exactly", () => {
       'parked[0] remote-branch-exists ref "*" is not a valid branch name (parked for later)',
       'parked[1] branch-exists ref "ma*" is not a valid branch name (parked for later)',
     ]);
-  });
+  }, GIT_TIMEOUT);
 
   test("remote-branch-exists does not match a longer ref on origin that merely ends with the name", async () => {
     const { root } = await makeRepo();
@@ -118,5 +118,5 @@ describe("verifyParked: refs are branch names, matched exactly", () => {
     await git(root, "push", "-q", "origin", "main:refs/heads/x/refs/heads/wip");
     const result = await verifyParked({ data: parkedPacket([entry("remote-branch-exists", "wip")]), repoRoot: root, exec: nodeExec });
     expect(result.errors).toEqual(["parked[0] remote-branch-exists probe failed: wip (parked for later)"]);
-  });
+  }, GIT_TIMEOUT);
 });

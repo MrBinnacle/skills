@@ -6,6 +6,14 @@ import type { Exec } from "./repo";
 
 export const FIXTURES = join(import.meta.dir, "fixtures");
 
+/**
+ * Per-test timeout for a test that spawns real `git`. On a green Windows CI
+ * run such a test takes about 1.5 s; on a slow one, from 4 s to more than 5 s,
+ * past bun's 5000 ms default (#501, #607). Pure tests keep the default, so a
+ * slow pure test still fails.
+ */
+export const GIT_TIMEOUT = 30_000;
+
 export function fixture(name: string): string {
   return readFileSync(join(FIXTURES, name), "utf-8");
 }
