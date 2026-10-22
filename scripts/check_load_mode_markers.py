@@ -14,7 +14,7 @@ because one of them is then wrong about it.
 
 `runs_by_hand` is the shared reader: the root README Loads check
 (test_readme_admission_lead.py, #553) imports it rather than parsing the flag a
-second time. `readme_card_lines` has no importer outside this check and its suite.
+second time.
 
 A card line is `- [**name**](name/SKILL.md)`, and the marker counts only when it
 is the first thing after the link. A marker placed later in the line reads as
