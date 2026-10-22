@@ -106,6 +106,21 @@ COUNT_CLAIM_RE: Final[re.Pattern[str]] = re.compile(
 QUARANTINE_DIR: Final[str] = "_quarantine"
 EVIDENCE_FILE: Final[str] = "EVIDENCE.md"
 
+# A plugin eval case (skills/<bucket>/evals/<case>/prompt.md) whose
+# expected_outcome names a card as <plugin>:<card> may quote that card's
+# description in double quotes. Each such quote must still be in the
+# description (#601: a case quoted words the card dropped in #572). Quote
+# anything else with single quotes or backticks.
+PLUGIN_CASE_GLOB: Final[str] = f"skills/*/{CORPUS_DIR}/*/prompt.md"
+EXPECTED_OUTCOME_RE: Final[re.Pattern[str]] = re.compile(
+    r"^expected_outcome:\s*(.*?)\s*$", re.MULTILINE
+)
+DESCRIPTION_LINE_RE: Final[re.Pattern[str]] = re.compile(
+    r"^description:\s*(.*?)\s*$", re.MULTILINE
+)
+CARD_ID_RE: Final[re.Pattern[str]] = re.compile(r"\b[a-z0-9-]+:([a-z0-9-]+)\b")
+DOUBLE_QUOTED_RE: Final[re.Pattern[str]] = re.compile(r'"([^"]+)"')
+
 
 def quote(value: object, limit: int = 60) -> str:
     """ASCII-safe, bounded rendering of untrusted corpus text."""
@@ -326,6 +341,44 @@ def count_claim_breaches(card: Path, *, report_unreadable: bool) -> list[str]:
     return breaches
 
 
+def frontmatter_field(path: Path, pattern: re.Pattern[str]) -> str | None:
+    """One single-line frontmatter value, or None when the file states none."""
+    block = FRONTMATTER_NAME_RE.match(path.read_text(encoding="utf-8", errors="replace"))
+    found = pattern.search(block.group(1)) if block else None
+    return found.group(1) if found else None
+
+
+def description_quote_breaches(root: Path) -> tuple[list[str], int]:
+    """(breaches, quotes checked) for every plugin eval case under `root`.
+
+    A quote is read against a card only when the outcome names that card and
+    the card exists in the case's bucket, so a quote of anything else in an
+    outcome that names no card is not a claim about a description.
+    """
+    breaches: list[str] = []
+    checked = 0
+    for prompt in sorted(root.glob(PLUGIN_CASE_GLOB)):
+        outcome = frontmatter_field(prompt, EXPECTED_OUTCOME_RE)
+        if outcome is None:
+            continue
+        bucket = prompt.parent.parent.parent
+        for card_name in sorted(set(CARD_ID_RE.findall(outcome))):
+            skill_md = bucket / card_name / "SKILL.md"
+            if not skill_md.is_file():
+                continue
+            description = (frontmatter_field(skill_md, DESCRIPTION_LINE_RE) or "").strip("\"'")
+            for quoted in DOUBLE_QUOTED_RE.findall(outcome):
+                checked += 1
+                if quoted not in description:
+                    breaches.append(
+                        f"{prompt.relative_to(root).as_posix()}: expected_outcome quotes "
+                        f"{quote(quoted)} as {card_name}'s, but the card's description "
+                        "does not carry it. A case that quotes a description the card "
+                        "dropped was written for another card"
+                    )
+    return breaches, checked
+
+
 def quarantine_cards(root: Path) -> list[Path]:
     """Quarantined candidates that carry a corpus. A corpus is optional there."""
     folder = root / QUARANTINE_DIR
@@ -353,6 +406,8 @@ def validate(root: Path) -> None:
         for card in quarantine_cards(root)
         for detail in count_claim_breaches(card, report_unreadable=True)
     ]
+    quote_breaches, quotes_checked = description_quote_breaches(root)
+    breaches += [f"  - {detail}" for detail in quote_breaches]
     if breaches:
         for line in breaches:
             print(line, file=sys.stderr)
@@ -372,7 +427,8 @@ def validate(root: Path) -> None:
         f"PASS: {corpora} eval corpus/corpora for {len(cards)} published "
         f"card(s), {cases} case(s) total; every corpus names its card and "
         f"states at least {MIN_CASES} cases with {MIN_ASSERTIONS} assertions "
-        "each. Corpora are structural contracts, not measurements."
+        f"each; {quotes_checked} description quote(s) in plugin eval cases match "
+        "their cards. Corpora are structural contracts, not measurements."
     )
 
 

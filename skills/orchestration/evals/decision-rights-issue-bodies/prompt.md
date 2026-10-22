@@ -1,7 +1,7 @@
 ---
 name: decision-rights-issue-bodies
 description: About to write issue bodies that instruct a downstream agent, with some decisions settled and others open. Seed case 3 of five from 2026-09-12.
-expected_outcome: The agent invokes mrbinnacle-orchestration:decision-rights. Description coverage is PARTIAL and this is pre-registered. The card names "handoffs, plans, ADRs, subagent prompts"; an issue body is not on that list, though it is the same artifact class. A miss here is evidence about the card's description, not about the model.
+expected_outcome: The agent invokes mrbinnacle-orchestration:decision-rights. Description coverage is PARTIAL and this is pre-registered. The card names "a handoff, plan, ADR or subagent brief"; an issue body is not on that list, though it is the same artifact class. A miss here is evidence about the card's description, not about the model.
 tags: [seed, should-fire, mrbinnacle-orchestration, partial-coverage]
 plugins: ["../.."]
 allowed_tools: [Read, Glob, Grep, Skill, TodoWrite]

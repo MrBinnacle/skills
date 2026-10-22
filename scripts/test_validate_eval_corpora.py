@@ -338,6 +338,63 @@ def case_quarantine_unreadable_corpus_rejected(root: Path) -> None:
     expect_rejection(root, "an unreadable quarantined corpus", "has no readable cases list")
 
 
+# ------------------------------------------- plugin eval cases quote the card (#601)
+
+
+def write_plugin_case(root: Path, expected_outcome: str) -> Path:
+    """A plugin eval case under skills/engineering/evals/, beside the probe card."""
+    case = root / "skills" / "engineering" / corpora.CORPUS_DIR / "probe-case"
+    case.mkdir(parents=True)
+    path = case / "prompt.md"
+    path.write_text(
+        f"---\nname: probe-case\nexpected_outcome: {expected_outcome}\n---\n\nA prompt.\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def case_stale_description_quote_rejected(root: Path) -> None:
+    """The #601 shape: the case quotes words the card's description no longer holds."""
+    write_tree(root)
+    write_plugin_case(
+        root,
+        f'The agent invokes mrbinnacle-engineering:{CARD_NAME}. The card\'s first '
+        'words are "Pre-dispatch, name the return channel".',
+    )
+    expect_rejection(
+        root,
+        "an eval case quoting a description the card no longer carries",
+        "'Pre-dispatch, name the return channel'",
+    )
+
+
+def case_current_description_quote_passes(root: Path) -> None:
+    write_tree(root)
+    write_plugin_case(
+        root,
+        f'The agent invokes mrbinnacle-engineering:{CARD_NAME}. Its description '
+        'opens "A probe card".',
+    )
+    result = run_checker(root)
+    check(
+        "an eval case quoting the card's current description passes",
+        result.returncode == 0,
+        (result.stdout + result.stderr).strip(),
+    )
+
+
+def case_quote_without_a_named_card_passes(root: Path) -> None:
+    """A quote is read against a card only when the outcome names that card."""
+    write_tree(root)
+    write_plugin_case(root, 'The response says "no framing" and names no card.')
+    result = run_checker(root)
+    check(
+        "an eval case that names no card is not read for quotes",
+        result.returncode == 0,
+        (result.stdout + result.stderr).strip(),
+    )
+
+
 # --------------------------------------------------------------- the live tree
 
 
@@ -361,6 +418,13 @@ def case_live_tree_passes() -> None:
     check(
         "the pass line reports the derived counts",
         f"{len(present)} eval corpus/corpora for {len(cards)} published card(s)" in result.stdout,
+        result.stdout.strip(),
+    )
+    _, quotes_checked = corpora.description_quote_breaches(REPO_ROOT)
+    check(
+        "the live tree has description quotes to check, so the #601 check is not vacuous",
+        quotes_checked > 0
+        and f"{quotes_checked} description quote(s) in plugin eval cases" in result.stdout,
         result.stdout.strip(),
     )
 
@@ -427,6 +491,9 @@ def main() -> None:
         case_prose_count_match_passes,
         case_quarantine_521_state_rejected,
         case_quarantine_unreadable_corpus_rejected,
+        case_stale_description_quote_rejected,
+        case_current_description_quote_passes,
+        case_quote_without_a_named_card_passes,
     )
     for case in in_tempdir:
         with tempfile.TemporaryDirectory() as tmp:
