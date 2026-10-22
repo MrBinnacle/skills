@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import extension from "./index";
-import { fillScaffold, git, makeRemote, makeRepo, nodeExec } from "./testkit";
+import { fillScaffold, git, GIT_TIMEOUT, makeRemote, makeRepo, nodeExec } from "./testkit";
 
 type Handler = (...args: any[]) => any;
 
@@ -44,10 +44,6 @@ function fillLatest(root: string) {
     .replace('"purpose": "__REQUIRED__"', '"purpose": "Confirm green"')
     .replaceAll("__REQUIRED__", "Filled in."));
 }
-
-// Each test below spawns several git processes. On a green Windows CI run the slowest took 1531 ms;
-// on a slow one these tests took 4 to 6 s and four passed bun's 5000 ms default (#501).
-const GIT_TIMEOUT = 30_000;
 
 const settle = { type: "agent_before_settle", outcome: "completed", entries: [], continue: false, context: { canContinue: true } };
 

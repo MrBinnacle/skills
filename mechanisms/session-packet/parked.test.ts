@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { extract, validateStructure } from "./packet";
 import { verifyParked } from "./parked";
-import { fixture, git, makeRemote, makeRepo, nodeExec, GIT_TIMEOUT, renderPacket } from "./testkit";
+import { fixture, git, GIT_TIMEOUT, makeRemote, makeRepo, nodeExec, renderPacket } from "./testkit";
 import { validatePacket } from "./validate";
 
 const parkedPacket = (parked: unknown) => {
