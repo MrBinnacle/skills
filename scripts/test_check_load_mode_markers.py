@@ -14,6 +14,7 @@ import sys
 import tempfile
 from contextlib import redirect_stdout
 from pathlib import Path
+from typing import Callable
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
@@ -32,19 +33,28 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         FAILURES.append(name)
 
 
-def planted(edit_path: str, old: str, new: str) -> tuple[int, str]:
-    """Run the checker on a copy of the live tree with one replacement made."""
+def run_on_copy(plant: Callable[[Path], None]) -> tuple[int, str]:
+    """Run the checker on a copy of the live tree after `plant` changes the copy."""
     with tempfile.TemporaryDirectory() as tmp:
         tree = Path(tmp)
         shutil.copytree(ROOT / "skills", tree / "skills")
-        target = tree / edit_path
-        text = target.read_text(encoding="utf-8")
-        assert old in text, f"control anchor absent in {edit_path}: {old!r}"
-        target.write_text(text.replace(old, new, 1), encoding="utf-8")
+        plant(tree)
         out = io.StringIO()
         with redirect_stdout(out):
             code = markers.main(["--root", str(tree)])
         return code, out.getvalue()
+
+
+def planted(edit_path: str, old: str, new: str) -> tuple[int, str]:
+    """Run the checker on a copy of the live tree with one replacement made."""
+
+    def replace(tree: Path) -> None:
+        target = tree / edit_path
+        text = target.read_text(encoding="utf-8")
+        assert old in text, f"control anchor absent in {edit_path}: {old!r}"
+        target.write_bytes(text.replace(old, new, 1).encode("utf-8"))
+
+    return run_on_copy(replace)
 
 
 def control(name: str, edit_path: str, old: str, new: str, expect: str) -> None:
@@ -54,6 +64,7 @@ def control(name: str, edit_path: str, old: str, new: str, expect: str) -> None:
 
 
 ENG = "skills/engineering/README.md"
+ORCH = "skills/orchestration/README.md"
 CLIRUNNER_LINE = "- [**clirunner-env**](clirunner-env/SKILL.md) *(by hand)*"
 VACUOUS_LINE = "- [**vacuous-check**](vacuous-check/SKILL.md)"
 HALT_LINE = "- [**halt-as-deliverable**](halt-as-deliverable/SKILL.md)"
@@ -89,7 +100,13 @@ def main() -> None:
     control(
         "control: a published card missing from its bucket README fails",
         ENG, HALT_LINE, "- halt-as-deliverable, unlinked",
-        "halt-as-deliverable: skills/engineering/README.md has no line listing it",
+        "halt-as-deliverable: skills/engineering/ holds a card the README does not name",
+    )
+    control(
+        "control: a by-hand marker placed later in the line fails, naming the position rule",
+        ENG, CLIRUNNER_LINE, "- [**clirunner-env**](clirunner-env/SKILL.md) late *(by hand)*",
+        "clirunner-env: its SKILL.md frontmatter sets disable-model-invocation: true, but "
+        "skills/engineering/README.md does not mark it *(by hand)* right after the link",
     )
     control(
         "control: a card listed twice fails",
@@ -106,6 +123,20 @@ def main() -> None:
         "skills/engineering/clirunner-env/SKILL.md", FLAG, 'disable-model-invocation: "true"',
         "clirunner-env: the frontmatter reads disable-model-invocation=true, but the "
         "standing-cost check's DISABLE_MODEL_INVOCATION_RE reads it the other way",
+    )
+    bucket_cards = sorted(p.parent.name for p in (ROOT / ORCH).parent.glob("*/SKILL.md"))
+
+    def remove_readme(tree: Path) -> None:
+        (tree / ORCH).unlink()
+        assert not (tree / ORCH).exists(), f"{ORCH} still present in the copy"
+
+    code, out = run_on_copy(remove_readme)
+    print(f"     {out.strip()}".replace("\n", "\n     "))
+    missing = [c for c in bucket_cards if f"{c}: {ORCH} does not exist" not in out]
+    check(
+        f"control: a removed bucket README fails for each of its {len(bucket_cards)} cards",
+        code == 1 and bool(bucket_cards) and not missing,
+        f"exit {code}, no refusal for {missing} in: {out}",
     )
     with tempfile.TemporaryDirectory() as tmp:
         (Path(tmp) / "skills").mkdir()
