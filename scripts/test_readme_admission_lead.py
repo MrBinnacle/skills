@@ -367,6 +367,13 @@ LOADS_CONTROLS = (
         "| [`im-up`](skills/engineering/im-up/gotchas.md) | engineering | Checks",
         "im-up: README.md has 2 Loads rows for it, expected one",
     ),
+    (
+        "a row for a name that is not a published card",
+        "README.md", "| [`im-up`](skills/engineering/im-up/gotchas.md) | engineering | Checks",
+        "| [`ghost-card`](skills/engineering/ghost-card/gotchas.md) | engineering | x | every session |\n"
+        "| [`im-up`](skills/engineering/im-up/gotchas.md) | engineering | Checks",
+        "ghost-card: README.md has a Loads row for it, but it is not a published card",
+    ),
 )
 
 
