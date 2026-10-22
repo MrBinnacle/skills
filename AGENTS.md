@@ -627,8 +627,8 @@ mechanism working. An evolving ecosystem, not a chop list.
    Widen the same search to every `## On watch` row and every `## Retired from the collection`
    row in `RETIRED.md`: a watch row is searched for events in its window (ADR 0007, Decision 2),
    and a retired row is searched for a late recurrence of its origin failure. For a watch row,
-   search the session records for occasions and this repository's issues for outside reports
-   confirmed in the window (*Signal* under "Staged retirement" above), and record the search in the row's
+   search the session records for occasions and this repository's issues for confirmed outside
+   reports (*Signal* under "Staged retirement" above), and record the search in the row's
    `Status` cell as that section's *Exit table* states. A watch row is the only place this pass
    edits `## On watch`.
    Done when every thin card, every watch row and every retired row has been searched and every
