@@ -371,8 +371,8 @@ build from. Route it:
    that means a reproduction you ran, not a description you believed: the factory's defect
    contract requires reproduction evidence before an implement run, and an issue without one
    is not buildable yet.
-2. **A confirmed report about a published card is an occurrence.** The reporter did the
-   field work; the incident is real recurrence evidence. Record and count it under
+2. **A confirmed report about a published card, or about a card on watch, is an occurrence.**
+   The reporter did the field work; the incident is real recurrence evidence. Record and count it under
    "Recording a new occurrence" below **before** any fix lands, so the evidence survives
    even if the fix stalls.
 3. **Only a verified, self-contained leaf ticket gets `ready-for-agent`** — with its
@@ -468,7 +468,9 @@ from shrinking honestly. A skill leaves three ways:
   measurement of lift. This route is deliberately narrow: it fires only on a criterion the
   card's own evidence record demonstrably fails, and the changeset must quote the failing row.
   An owner who has cooled on a card has not met this bar; a card whose `Occasions counted` row
-  reads `0` against a policy criterion requiring an observed failure has.
+  reads `0` against a policy criterion requiring an observed failure has. One more trigger
+  stands beside that bar. A card that stays at one occasion until the *One-occasion clock* under
+  "Staged retirement" below closes is withdrawn on criterion 2, by that rule's own terms.
 
 Execute a retirement as: remove the skill directory; drop it from its bucket README and the
 top-level README; add a row + a short narrative to
@@ -549,6 +551,11 @@ corpus, not the only one. An outside report is a watch event too, once it is con
 issue you did not create". It counts on the same footing as an occasion found in the session
 records [lodged 2026-10-21; origin: #552, the maintainer ruled "same footing" after this paragraph
 named only the session records].
+An outside report is dated by its incident, the way an occasion is. A report whose incident falls
+inside the span a pass searched, but whose confirmation lands after that pass closes, counts at
+the next pass that searches, and that pass's search clause or search line says so. This dating is the
+coordinator's reading of "same footing" [lodged 2026-10-22; origin: #551, from the review of the
+#552 change]. *Revisit if* the maintainer dates a report by its confirmation instead.
 The failure predicate is the card's `Origin` row and its `gotchas.md` `[OBSERVED]` entry, quoted
 into the row when the watch opens. A dispatch or invocation, and an install or download count,
 are not signals. A guard-blocked hazard entry is not a signal on the platform-fix and policy
@@ -569,7 +576,8 @@ The search clause lets a reader see what the zero rests on. Its `<n>` is the cou
 outside reports (see *Signal*), and a report still in triage is not counted. While the watch is
 open, each rotation pass writes the same clause, from `searched` on, into the row's `Status` cell [lodged
 2026-10-21; origin: #552, a zero-event close stated its count and not what was searched]. With
-1 event, extend once, then retire, dating the single event in the narrative. With 2 events, restore: take the card from the last release tag, re-add it to
+1 event, extend once, then retire, dating the single event in the narrative, which carries the
+same search clause. With 2 events, restore: take the card from the last release tag, re-add it to
 `plugin.json` and both READMEs, add a `Watch record` row to its `EVIDENCE.md`, delete the
 `## On watch` row and cut a minor release. A restore is a re-admission on `ADMISSION.md`
 criterion 2, and no new bar is invented. A completed failure goes to `gotchas.md` and
@@ -586,12 +594,50 @@ normally. Guards are not disarmed during a watch; to change that default, say so
 PR, and the row then records `guard disarmed <date>, re-armed <date>` (ADR 0007, Frozen and the
 guard `[values decision]`).
 
+**One-occasion clock.** A published card that counts one occasion, and so carries
+`RECURRENCE-THIN`, is on a clock toward the withdrawn-on-the-policy route [lodged 2026-10-22;
+origin: #551, the maintainer ruled "clock, 90 days" on when such a card leaves, and on 2026-10-22
+clarified it as "One 90-day window"]. This clock runs while the card is still published. It is
+not the watch clock under *Clock start* above.
+
+- **Start.** The clock starts when this rule merges, and it is not backdated. The first pass that
+  counts is the first rotation pass after the merge.
+- **Counting pass.** Each rotation pass from then on is a counting pass. Its step 1 searches the
+  session records for a second occasion of the card's origin failure, and this repository's issues
+  for a confirmed outside report about the card (*Signal* above). The pass then writes one dated
+  search line in the card's `EVIDENCE.md`, directly under its `RECURRENCE-THIN` preamble:
+  `clock pass <date>; searched <corpus and method>; outside reports received: <n>; unconfirmed:
+  <issue numbers, or none>`. `<n>` counts confirmed reports, as under *Exit table*. Each report
+  still open at the pass is listed by issue number, so it stays visible. Write the line with the
+  word "occasion" and never "occurrence": a dated line with that word is an occurrence record
+  under "Recording a new occurrence" step 2, and CI then demands its date in the `Occasions
+  counted` row. A report confirmed late, under *Signal* above, is named on the line of the pass
+  that counts it. After a withdrawal, the search goes in the `RETIRED.md` row's `Status` cell, as
+  *Exit table* above states.
+- **Exit.** The window is one span of 90 days from the clock start. The first rotation pass held
+  at least 90 days after the clock starts, which finds no second occasion and no confirmed
+  outside report, withdraws the card on the policy. A pass before day 90 writes its search line
+  but cannot withdraw the card. The withdrawing changeset quotes the `Occasions counted` row and
+  the search lines, then runs the *Deprecate step* above and opens a watch. A card still at one
+  occasion when that pass finds nothing takes this exit. It is not row 1 ("extend once") of the
+  ADR 0007 exit table, which counts events in a watch window and does not apply to this clock.
+- **A find.** A second occasion or a confirmed outside report found while the card is on the
+  clock is recorded and counted under "Recording a new occurrence". At two occasions the label
+  comes off, and the card leaves the clock. After a withdrawal, one event in the watch restores
+  the card, as the
+  [ADR 0007 superseding note](docs/adr/0007-retirement-is-staged-for-three-exits.md#superseding-note-2026-10-21-the-exit-table-reads-lifetime-occasions)
+  reads the exit table.
+- **Guarded cards.** A card whose failure an independent guard blocks (today, `pull-rebase`) is
+  off the clock as unobservable, per the same note and *Guarded cards* above.
+
 ## The rotation and harvest pass
 
 When the maintainer asks for a rotation, hygiene, weeding, or TLC pass over this collection,
 this section is the procedure. It is written so a cold session can run the whole pass from
 this repository plus two maintainer-supplied evidence locations — session records and usage
-telemetry. The maintainer's private trigger skill only names those locations and points here;
+telemetry. Confirmed outside reports in this repository's issues count on the same footing as
+the session records (*Signal* under "Staged retirement" above), and a cold session can read
+them. The maintainer's private trigger skill only names those locations and points here;
 if a cold session cannot run the pass from this section, the defect is in this section.
 
 **Two triggers.** The pass fires on two occasions. On arrival: the session that commits a
@@ -614,7 +660,7 @@ mechanism working. An evolving ecosystem, not a chop list.
 | Published cards (`EVIDENCE.md`, `gotchas.md`) | Authoritative — the record of what a card is worth. |
 | `README.md` per-card table; scoreboard-derived counts | Derived. Reconciled, never authored independently. |
 | Usage telemetry (maintainer-supplied) | Authoritative for invocation counts. Silent on efficacy. |
-| Session records (maintainer-supplied) | Authoritative for occasions — the cheapest evidence in the system. |
+| Session records (maintainer-supplied) | Authoritative for occasions — the cheapest evidence in the system. Confirmed outside reports in this repository's issues count beside them, on the same footing. |
 | Harness release (declared per pass) | Authoritative — the harness version the collection judges receipts against, re-dated at each pass. |
 | External planning notes | Never canonical. Hypotheses, each checked against this repo. |
 
@@ -624,6 +670,9 @@ mechanism working. An evolving ecosystem, not a chop list.
    `Screen result`, and any `RECURRENCE-THIN`. For each thin card, search the session
    records for a second independent occurrence of the card's origin failure, and land any
    find per "Recording a new occurrence" above — the dated entry first, then the count.
+   Search this repository's issues for a confirmed outside report about the card as well. For
+   a card on the *One-occasion clock* under "Staged retirement", write the search line that
+   rule states.
    Widen the same search to every `## On watch` row and every `## Retired from the collection`
    row in `RETIRED.md`: a watch row is searched for events in its window (ADR 0007, Decision 2),
    and a retired row is searched for a late recurrence of its origin failure. For a watch row,
