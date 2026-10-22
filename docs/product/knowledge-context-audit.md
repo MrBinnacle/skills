@@ -6,8 +6,8 @@ It is not a product specification and it proposes no mapping framework.
 No Notion page, property or schema was changed during the audit, and no repository file was
 changed. The audit was first posted as a comment on #421. This file carries it into the tree.
 
-The Notion conflicts it lists were corrected after the audit, on the same date. See
-[Corrections after the audit](#corrections-after-the-audit). Every count and conflict below
+The Notion conflicts it lists were corrected after the audit, on the same date, with two
+residues. See [Corrections after the audit](#corrections-after-the-audit). Every count and conflict below
 still describes the workspace as it was when the audit ran.
 
 ## How sources are cited
@@ -156,24 +156,34 @@ Notion searches for the entry point: `Skills Library Global Context`,
 ## Corrections after the audit
 
 The audit treated Notion as read-only and left each conflict as an owner's edit. Later on
-2026-10-21, under the owner's grant of that day to write the workspace, a correction sheet of
-24 rows and 47 edits was applied. The confirming re-fetches ran into 2026-10-22 UTC. The
-receipt for those edits is kept outside this repository, because it names private page
-identifiers.
+2026-10-21, under the owner's grant of that day to write the workspace, a correction sheet was
+built and applied. The sheet lists 24 rows and 47 property edits across the Skills Library,
+the Capability Menu and the projects database. An earlier pass under the same sheet made many
+of the Skills Library edits, and the applying pass found those values already correct on
+re-fetch. The confirming re-fetches ran into 2026-10-22 UTC. The sheet and its receipt are kept
+outside this repository, because they name private page identifiers.
 
 | Conflict | State after the corrections |
 | --- | --- |
-| 1 | The card rows' `Source URL` values point at current card paths. An earlier pass on the same day had made the change, and the correction pass found each value already correct on re-fetch. |
+| 1 | The 11 stale `Source URL` values point at current card paths, as `RETIRED.md` "Renamed in 2.0.0" maps them. |
 | 2 | `Standing Cost (tok)` is empty on all 14 card rows. Claims ledger C12 stays the source for session cost. |
 | 3 | `literal-humanist-voice` has `Lifecycle` = Quarantine, and its free-text field now says no card of that name exists in this repository. Its `Status` still reads Active. The page's own correction record names Draft, so the row is still inconsistent. |
-| 4 | The project page now names v3.1.0 (2026-10-17) as the latest Release and the plugin marketplace commands as the install route. It records the #419 product scope as merged on 2026-10-17. Its older dated sections were kept as historical records. |
+| 4 | The project page now names v3.1.0 (2026-10-17) as the latest Release and the plugin marketplace commands as the install route. It records the #419 product scope as merged on 2026-10-17. The correction record does not show a change to the About line the page quotes. Its older dated sections were kept as historical records. |
 
-Four Capability Menu `Skill Path` values were also corrected or cleared, among them the
-`azimuth` path. The counts in sections 1 and 2 were not derived again after these edits.
-Claims ledger S8 still reads as written on 2026-10-17. This file does not edit the ledger.
+Four Capability Menu `Skill Path` values were also changed. Three owner-authored candidates
+that never shipped had their `skills/engineering/...` path cleared. The `azimuth` row now
+names its path inside the separate repository that its `Canonical Repository` field names.
+
+The sheet also corrects one reading in section 1. The 21 third-party Capability Menu rows have
+`Canonical Repository` set to External. Their `skills/...` `Skill Path` values are paths inside
+their own source repository, not claims about this one. So "26 rows claim this repository"
+over-attributes those 21 rows. The counts themselves stand as measured.
+
+The counts in sections 1 and 2 were not derived again after these edits. Claims ledger S8
+still reads as written on 2026-10-17. This file does not edit the ledger.
 
 ## Open items
 
-No new owner decision comes out of this audit. Of the four conflicts, one leaves a residue:
-the `Status` value on the `literal-humanist-voice` row (conflict 3). It is a Notion edit and
-needs no repository change.
+No new owner decision comes out of this audit. Two conflicts leave a residue in Notion: the
+`Status` value on the `literal-humanist-voice` row (conflict 3) and the About line on the
+project page (conflict 4). Each is a Notion edit and needs no repository change.
