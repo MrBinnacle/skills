@@ -206,3 +206,42 @@ once.
 - **Revisable with new evidence:** the major price for the move to by hand. *Revisit if:* a
   later application of the bar would make two major releases in one quarter. The inflation
   argument against this price would then hold in fact.
+
+## Amendment, 2026-10-21: the `pull-rebase` citation and the currency Revisit-if
+
+This append comes from [#562](https://github.com/MrBinnacle/skills/issues/562). It rewrites no
+text above. It records the maintainer's ruling of 2026-10-21, "no, keep pull-rebase always-on"
+([ruling](https://github.com/MrBinnacle/skills/issues/562#issuecomment-6321625802)), and the
+amending note that ruling asks for, as the
+[adjudication](https://github.com/MrBinnacle/skills/issues/562#issuecomment-6321225641) described
+it. `pull-rebase` stays always-on.
+
+**The citation was wrong for one row.** "Why `pull-rebase` stays always-on" above says that the
+card's `Screen result` and `Paired verdict` rows both open with `CANT_TELL_YET` "from paired
+with-and-without runs". That is wrong for the `Screen result` row. The card's
+[`EVIDENCE.md`](../../skills/engineering/pull-rebase/EVIDENCE.md) records that screen as
+superseded on 2026-09-01, because its bare arm was coached. The same row records that only its
+Null arm ever ran, so it was never a with-and-without run. Without the `Screen result` row, the
+`Paired verdict` row alone supplies the controlled result the bar needs, so the card still clears
+the bar.
+
+**No current receipt matches the bytes that ship.** The bar does not require one. By the
+maintainer's ruling, a controlled result does not have to have been measured on the `SKILL.md`
+that ships now to count toward the always-on bar. This is the Decision's "Currency is not part of
+the bar", applied to this card.
+
+**The currency Revisit-if is reworded so that it can fire.** Under Decision status above, it
+reads: "*Revisit if:* a card clears the bar only on a receipt that O5 reports stale for two
+consecutive rotation passes." As written it cannot fire for this card. O5 reports PASS for
+`pull-rebase`, because the card's row already marks its receipts as not current. The adjudication,
+item 4, ran O5 with a skill-harness checkout and read that result. Once a row marks its receipt not current,
+O5 does not report that receipt stale. The reworded clause below replaces it.
+
+- **Revisable with new evidence:** leaving currency out of the bar. *Revisit if:* either of two
+  things happens.
+  - A card clears the bar only on a controlled result, and two consecutive rotation passes find
+    no receipt whose `skill_id` equals the sha256 of the card's shipping `SKILL.md`. For
+    `pull-rebase`, the rotation pass of 2026-09-30 was the first such pass, so the next rotation
+    pass is the second. That would show a stale result keeping a card always-on with nothing
+    current behind it.
+  - The maintainer rules currency into the bar.
