@@ -178,6 +178,33 @@ def case_correct_figure_in_temp_tree() -> None:
     )
 
 
+def case_in_progress_card_is_skipped() -> None:
+    """A card under skills/in-progress/ is not audited (#575 item 1).
+
+    The planted card states a wrong figure and has no snapshot entry, so the
+    check passes only while iter_skill_dirs skips the bucket.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write_card(root, "clirunner-env", REAL_CLIRUNNER_EVIDENCE_LINE, REAL_CLIRUNNER_SKILL_MD)
+        planted = write_card(
+            root,
+            "planted-unshipped-card",
+            "Description: 999 tokens, measured by `skill-harness skill audit`.",
+            REAL_CLIRUNNER_SKILL_MD,
+        )
+        parked = root / "skills" / "in-progress" / planted.name
+        parked.parent.mkdir(parents=True)
+        planted.rename(parked)
+        write_snapshot(root)
+        result = run_checker(root, use_snapshot=True)
+        check(
+            "a card under skills/in-progress/ is skipped",
+            result.returncode == 0,
+            f"stdout: {result.stdout}, stderr: {result.stderr}",
+        )
+
+
 def case_snapshot_version_is_pinned() -> None:
     """A snapshot measured by an unpinned harness version is rejected."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -392,6 +419,7 @@ case_conforming_tree_is_green()
 case_snapshot_fallback_is_green()
 case_wrong_figure_in_temp_tree()
 case_correct_figure_in_temp_tree()
+case_in_progress_card_is_skipped()
 case_snapshot_version_is_pinned()
 case_subprocess_decodes_utf8()
 case_none_stdout_is_no_figure()
