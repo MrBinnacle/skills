@@ -138,21 +138,26 @@ in its place.
 
 ## Screened out at the gate — July 2026
 
-A screen can also keep a candidate out. It has already done so.
+A screen can also keep a candidate out, and it can do so before its with-skill arm runs. The
+registered screen has two stages. The first runs the task without the skill. The second, the
+paired run with the skill and without it, starts only when the model fails at least once in the
+first stage.
 
-In July 2026, four of the author's own candidate skills were screened before admission. The
-test is simple to describe: give a current model (claude-sonnet-5) a task from exactly the
-situation the skill was written for — but **without** the skill — three separate times. If the
-model needs the skill, it should fail at least once.
+In July 2026, four of the author's own candidate skills went through the first stage before
+admission. Only the without-skill arm ran. The test is simple to describe: give a current model
+(claude-sonnet-5) a task from exactly the situation the skill was written for, but **without**
+the skill, three separate times. If the model needs the skill, it should fail at least once.
 
-It never did. All four returned three passes out of three with no skill present. Three read
-as ceiling — nothing left for a skill to improve on those tasks. One
-(`append-only-evidence-design`) was later reclassified on its own receipt to `CANT_TELL_YET` /
-`wrong_instrument`: a calibration-class skill the transformative-lift screen cannot measure, so
-the above-bar bare arm is not a ceiling reading. None of the four entered the collection —
-including skills the author was personally convinced were valuable. The measurement plan was
-published *before* the runs, so the verdicts couldn't be bent afterward:
-[the pre-registration, with each screen's registered result](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md).
+It never did. All four returned three passes out of three with no skill present, so the paired
+run never started for any of them. These results show that the model passed unaided. They do
+not measure what the skill would have added. Three read as ceiling — nothing left for a skill
+to improve on those tasks. One (`append-only-evidence-design`) was later reclassified on its
+own receipt to `CANT_TELL_YET` / `wrong_instrument`: a calibration-class skill the
+transformative-lift screen cannot measure, so the above-bar bare arm is not a ceiling reading.
+None of the four entered the collection — including skills the author was personally convinced
+were valuable. The measurement plan was published *before* the runs, so the verdicts couldn't
+be bent afterward:
+[the pre-registration, with each unaided run's registered result](https://github.com/MrBinnacle/skill-harness/blob/main/docs/findings/v0.2-preregistration.md).
 
 | Candidate | What it taught | Verdict (2026-07) |
 |---|---|---|
@@ -162,9 +167,9 @@ published *before* the runs, so the verdicts couldn't be bent afterward:
 | llm-judge-calibration | How to use one AI to grade another AI's work without the grader's known biases distorting the scores | Ceiling — model passed 3/3 unaided |
 
 ¹ This one stays in the author's private library anyway: it has two documented saves in a
-different setting (catching a broken test during code review) than the one the screen measures
-(writing the test from scratch). The screen result stands; the case for keeping it privately
-comes through a different door. It is still not in this collection.
+different setting (catching a broken test during code review) than the one the unaided run
+measured (writing the test from scratch). The unaided result stands; the case for keeping it
+privately comes through a different door. It is still not in this collection.
 
 Two honest caveats, because receipts cut both ways:
 
