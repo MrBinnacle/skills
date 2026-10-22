@@ -7,13 +7,9 @@ arm: both
 
 Asserts `subagent-handback` was invoked at least once.
 
-This case differs from `subagent-handback-dispatch` in one variable. There, the
-user dispatches and the agent under test writes the brief, with no `Agent` tool.
-Here, the agent under test dispatches, so `Agent` is allowed. The sweep it
-describes is the same; only the closing request changes, from "write me the
-prompt" to "dispatch it now". Issue 609 needs that single difference: if this case fires and the
-original does not, the original case is miscalibrated; if neither fires, the
-card's description is the cause.
+This case is the self-dispatch variant of `subagent-handback-dispatch`, added
+for #609. The sweep it describes is the same. What differs, and the result of
+running both cases, is recorded once, in the Runs section of `../MANIFEST.md`.
 
 Allowing `Agent` lets a run spawn a real subagent on the runner's credential.
 The scaffold directory is empty, so the subagent finds no `payments/` package
