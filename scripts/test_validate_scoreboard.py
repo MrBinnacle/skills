@@ -14,6 +14,9 @@ the unmodified tree and requires it to pass, so a control that fails for an
 unrelated reason -- a broken fixture, a moved section -- is distinguishable from
 one that fails because the check works.
 
+One further control (#575) plants a card under `skills/in-progress/` and
+requires the check to skip it, as `iter_skill_dirs` does for unshipped buckets.
+
 Run: python scripts/test_validate_scoreboard.py
 """
 from __future__ import annotations
