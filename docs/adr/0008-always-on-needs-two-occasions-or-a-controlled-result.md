@@ -220,8 +220,10 @@ it. `pull-rebase` stays always-on.
 card's `Screen result` and `Paired verdict` rows both open with `CANT_TELL_YET` "from paired
 with-and-without runs". That is wrong for the `Screen result` row. The card's
 [`EVIDENCE.md`](../../skills/engineering/pull-rebase/EVIDENCE.md) records that screen as
-superseded on 2026-09-01, because only its Null arm ran. The `Paired verdict` row alone supplies
-the controlled result the bar needs, so the card still clears the bar.
+superseded on 2026-09-01, because its bare arm was coached. The same row records that only its
+Null arm ever ran, so it was never a with-and-without run. Without the `Screen result` row, the
+`Paired verdict` row alone supplies the controlled result the bar needs, so the card still clears
+the bar.
 
 **No current receipt matches the bytes that ship.** The bar does not require one. By the
 maintainer's ruling, a controlled result does not have to have been measured on the `SKILL.md`
@@ -231,12 +233,15 @@ the bar", applied to this card.
 **The currency Revisit-if is reworded so that it can fire.** Under Decision status above, it
 reads: "*Revisit if:* a card clears the bar only on a receipt that O5 reports stale for two
 consecutive rotation passes." As written it cannot fire for this card. O5 reports PASS for
-`pull-rebase`, because the card's row already marks its receipts as not current, so O5 never
-reports that receipt stale again. The reworded clause below replaces it.
+`pull-rebase`, because the card's row already marks its receipts as not current (run with a
+skill-harness checkout for the adjudication, item 4). Once a row marks its receipt not current,
+O5 does not report that receipt stale. The reworded clause below replaces it.
 
-- **Revisable with new evidence:** leaving currency out of the bar. *Revisit if:* a card clears
-  the bar only on a controlled result, and a rotation pass finds no receipt whose `skill_id`
-  equals the sha256 of the card's shipping `SKILL.md`, for the second consecutive pass. For
-  `pull-rebase`, the rotation pass of 2026-09-30 was the first, so the next rotation pass is the
-  second. Or the maintainer rules currency into the bar. Firing reopens the currency question; it
-  does not by itself move a card to by hand.
+- **Revisable with new evidence:** leaving currency out of the bar. *Revisit if:* either of two
+  things happens.
+  - A card clears the bar only on a controlled result, and two consecutive rotation passes find
+    no receipt whose `skill_id` equals the sha256 of the card's shipping `SKILL.md`. For
+    `pull-rebase`, the rotation pass of 2026-09-30 was the first such pass, so the next rotation
+    pass is the second. That would show a stale result keeping a card always-on with nothing
+    current behind it.
+  - The maintainer rules currency into the bar.
