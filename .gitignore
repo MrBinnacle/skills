@@ -42,3 +42,7 @@ tmp/
 
 # Local usage-log path for scripts/refresh_dispatch_counts.py (#548). Machine-local.
 .skill-usage-log.local
+
+# `claude plugin eval` writes aggregate-result.json under <plugin>/evals/results/<timestamp>/.
+# Run results are recorded in each suite's MANIFEST.md Runs section, not committed raw (#609).
+skills/*/evals/results/
