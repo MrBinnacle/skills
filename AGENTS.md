@@ -571,9 +571,11 @@ tunable by a dated edit here that cites closed watches (ADR 0007, Tunable with r
 
 **Exit table.** The exits are frozen (ADR 0007, Exit table). With 0 events, the row moves to
 `## Retired from the collection`, its narrative states `0 occasions in N sessions, <start> to
-<close>; searched <corpus and method>; outside reports received: <n>`, and no release follows.
-The search clause lets a reader see what the zero rests on. Its `<n>` is the count of confirmed
-outside reports (see *Signal*), and a report still in triage is not counted. While the watch is
+<close>; searched <corpus and method>; outside reports received: <n>; unconfirmed: <issue
+numbers, or none>`, and no release follows. The search clause lets a reader see what the zero
+rests on. Its `<n>` is the count of confirmed outside reports (see *Signal*). A report still in
+triage is not counted, and it is listed by issue number after `unconfirmed`, so it stays
+visible. This is the same form as the search line under *One-occasion clock* below. While the watch is
 open, each rotation pass writes the same clause, from `searched` on, into the row's `Status` cell [lodged
 2026-10-21; origin: #552, a zero-event close stated its count and not what was searched]. With
 1 event, extend once, then retire, dating the single event in the narrative, which carries the

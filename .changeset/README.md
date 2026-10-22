@@ -52,7 +52,9 @@ opens a pull request; a maintainer selects **Approve workflows to run** on it, t
 
 1. `release-pin.yml` runs on the push that changes `package.json` and opens the marketplace pin
    PR (`python scripts/check_marketplace_pin.py --write`). The release gate is red on `main` and
-   on every PR until that PR merges.
+   on every PR until that PR merges. Tag the release squash commit `v<version>` by hand as well,
+   because no workflow pushes a tag. The pin check verifies the tag only once it resolves, so the
+   tag and the pin merge can land in either order ([AGENTS.md](../AGENTS.md) step 4).
 2. `release-receipt.yml` refreshes the README install receipt and opens it as its own PR. It
    runs after each passing push run of `tests.yml` on `main`, and does nothing while the
    receipt is current. It waits for the pin merge because the receipt cites the first passing

@@ -74,6 +74,27 @@ One invocation of a card. Evidence of demand, never of recurrence, lift or worth
 _Avoid_: occasion — a card invoked many times over one failure has many dispatches and one
 occasion.
 
+**Counting pass**:
+A rotation pass held while a card is on the one-occasion clock. It searches for a second occasion
+and for a confirmed outside report, and writes one dated search line in the card's
+`EVIDENCE.md`. A counting pass held 90 days or more after the clock starts that finds neither
+withdraws the card. Defined in [`AGENTS.md`](AGENTS.md) → "One-occasion clock".
+_Avoid_: watch pass — the watch clock runs after a card is withdrawn, and this clock runs while
+it is still published.
+
+**Find**:
+A second occasion, or a confirmed outside report, found while a card is on the one-occasion
+clock. It is recorded under "Recording a new occurrence" in [`AGENTS.md`](AGENTS.md). At two
+occasions the card leaves the clock.
+_Avoid_: hit — a dispatch, an invocation or an install count is not a find.
+
+**Coordinator**:
+The agent session that runs a piece of work in this repository: it writes the change and
+dispatches the reviewers and verifiers. A coordinator's reading of a ruling is marked as such
+in [`AGENTS.md`](AGENTS.md), with a *Revisit if*, so that a reader can tell it from a ruling of
+the maintainer.
+_Avoid_: maintainer, owner — the coordinator rules on nothing.
+
 **Release**:
 The act of delivering changed cards to installed users. Delivery happens when a version bump
 merges to `main`; the tag and the GitHub release record it afterwards. Before 2026-08-24 the
