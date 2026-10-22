@@ -159,25 +159,28 @@ This append comes from [#551](https://github.com/MrBinnacle/skills/issues/551) (
 of 2026-10-21,
 [#issuecomment-6321658174](https://github.com/MrBinnacle/skills/issues/551#issuecomment-6321658174)).
 It rewrites no text above. The exit table is on the frozen list above, and this note is its
-superseding record.
+superseding record. It changes no row of the table. It states what the table counts for one
+kind of card.
 
 **What was wrong.** Decision 3 says the 2 in the exit table is `ADMISSION.md` criterion 2. The
 table was written for a card whose record counts zero occasions. Under the #551 ruling, a
 published card that counts one occasion can enter the watch through the withdrawn-on-the-policy
-route. Read as written, the table treats one window event for that card as extend, then retire.
-But that event plus the card's prior occasion makes two lifetime occasions, which clears
+route. A window event is an occasion counted in the window, under Decision 2. Read as written,
+the table answers one window event for that card with row 1: extend once by 90 days, then
+retire. But that event plus the card's prior occasion makes two lifetime occasions, which clears
 criterion 2.
 
-**What changes.** For a card that enters the watch at one lifetime occasion, the table counts
-lifetime occasions. One window event restores the card, because it is the second occasion that
-criterion 2 asks for.
+**What changes.** During that watch, for a card that enters it at one lifetime occasion, the
+table counts lifetime occasions. One window event restores the card, because it is the second
+occasion that criterion 2 asks for.
 
 **The guarded card.** A card whose failure an independent guard blocks, such as `pull-rebase`,
-is off the clock as unobservable. It is already off the watch, under the guard default above.
+is off the #551 clock as unobservable. It is already off the watch, under the guard default
+above.
 
-**Where the clock lives.** `AGENTS.md` → Retirement carries the clock rule that puts a
-one-occasion card on this route, in a later change for #551. This note does not restate that
-rule.
+**Where the #551 clock lives.** `AGENTS.md` → Retirement carries the #551 clock rule, which puts
+a one-occasion card on this route, in a later change for #551. That clock is not the watch
+clock on the frozen list above. This note does not restate the rule.
 
-*Revisit if:* the clock rule's reading changes. Then only the `AGENTS.md` rule changes, and this
-note stands.
+*Revisit if:* the #551 clock rule's reading changes. Then only the `AGENTS.md` rule changes, and
+this note stands.
