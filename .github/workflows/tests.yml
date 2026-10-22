@@ -2151,6 +2151,71 @@ jobs:
             || { echo "::error::the fixture was red for more than one reason"; cat "$log"; exit 1; }
           echo "control: card admission declared patch rejected under G10, single-reason"
 
+      # Case 6: a card moved always-on to by hand, declared patch (ADR 0008
+      # prices it major). Case 7 (#570): the same flip carried by an empty
+      # changeset, which declares no bump at all. Both halves share one tree.
+      - name: Poison control - a load-mode flip below its ADR 0008 price must be rejected
+        run: |
+          set -euo pipefail
+          tree="$RUNNER_TEMP/control-bump-case6"
+          log="$RUNNER_TEMP/control-bump-case6.log"
+          rm -rf "$tree"
+          mkdir -p "$tree/docs/adr" "$tree/skills/engineering/old-card" "$tree/.changeset" \
+                   "$tree/skills/engineering/.claude-plugin" "$tree/.claude-plugin"
+          printf '{"name": "mrbinnacle-skills", "version": "1.2.0"}\n' > "$tree/package.json"
+          printf '# Changelog\n\n## v1.2.0 - 2026-08-10\n\nBase.\n' > "$tree/CHANGELOG.md"
+          printf -- '---\nname: old-card\ndescription: fixture card\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf '{"name": "fixture-engineering", "version": "1.2.0", "skills": ["./old-card"]}\n' \
+            > "$tree/skills/engineering/.claude-plugin/plugin.json"
+          printf '{"name": "fixture-skills", "plugins": [{"name": "fixture-engineering", "source": "./skills/engineering"}]}\n' \
+            > "$tree/.claude-plugin/marketplace.json"
+          printf '**Decision. Renaming a card is a major change. Admitting or retiring one remains a minor change.**\n' \
+            > "$tree/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md"
+          printf '**The declared surface is the install path and the card format.** Corrections within a card are a patch.\n' \
+            > "$tree/docs/adr/0002-a-release-is-a-delivery-event.md"
+          printf '**Moving a card from always-on to by hand is a major change.**\n\n**Moving a card from by hand to always-on is a minor change.**\n' \
+            > "$tree/docs/adr/0008-always-on-needs-two-occasions-or-a-controlled-result.md"
+          git -C "$tree" init -q
+          git -C "$tree" config user.email fixture@example.invalid
+          git -C "$tree" config user.name fixture
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m base
+          git -C "$tree" branch -M main
+          git -C "$tree" checkout -q -b candidate
+          printf -- '---\nname: old-card\ndescription: fixture card\ndisable-model-invocation: true\n---\n\n# old-card\n' \
+            > "$tree/skills/engineering/old-card/SKILL.md"
+          printf -- '---\n"mrbinnacle-skills": patch\n---\n\nA load-mode flip declared patch.\n' \
+            > "$tree/.changeset/zzz-case6.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "candidate"
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a load-mode flip declared patch was ACCEPTED"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G10:' "$log" || { echo "::error::not refused under G10"; cat "$log"; exit 1; }
+          grep -q 'always-on to by hand' "$log" || { echo "::error::refusal does not name the flip"; cat "$log"; exit 1; }
+          grep -q '0008-always-on' "$log" || { echo "::error::refusal does not name ADR 0008"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: load-mode flip declared patch rejected under G10, single-reason"
+          # Half two (#570): the same flip with an empty changeset.
+          printf -- '---\n---\n\nNo release.\n' > "$tree/.changeset/zzz-case6.md"
+          git -C "$tree" add -A
+          git -C "$tree" commit -q -m "empty changeset"
+          if python scripts/release_gate.py --root "$tree" > "$log" 2>&1; then
+            echo "::error::a load-mode flip carried by an empty changeset was ACCEPTED"
+            cat "$log"
+            exit 1
+          fi
+          grep -q 'G10:' "$log" || { echo "::error::not refused under G10"; cat "$log"; exit 1; }
+          grep -q 'declares no bump' "$log" || { echo "::error::refusal does not name the empty changeset"; cat "$log"; exit 1; }
+          grep -q '0008-always-on' "$log" || { echo "::error::refusal does not name ADR 0008"; cat "$log"; exit 1; }
+          grep -q '1 stale surface(s)' "$log" \
+            || { echo "::error::the fixture was red for more than one reason"; cat "$log"; exit 1; }
+          echo "control: load-mode flip under an empty changeset rejected under G10, single-reason"
+
       # Case 3: no skills/*/*/ change, yet the changeset declares minor.
       - name: Poison control - no surface change declaring minor or major must be rejected
         run: |
