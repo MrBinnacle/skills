@@ -1,6 +1,6 @@
 ---
 name: subagent-handback
-description: Use before dispatching a subagent, or when one goes idle with no report. Name a return channel (SendMessage or a file), check its tool grant, then verify every claim, negatives first.
+description: Use before dispatching a subagent for research, or when one goes idle with no report. Name a return channel (SendMessage or a file), check its tool grant, then verify every claim, negatives first.
 ---
 
 # Subagent Research Reliability
