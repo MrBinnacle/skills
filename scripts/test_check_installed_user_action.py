@@ -73,7 +73,7 @@ VERDICT_CASES = (
     ("a major changeset whose prefix is lowercase is refused",
      changeset(MAJOR, "Rename every card.\n\naction for installed users: None.\n"),
      (True, MISSING)),
-    ("blank lines after the action line pass",
+    ("a major changeset with blank lines after the action line passes",
      changeset(MAJOR, "Rename every card.\n\nAction for installed users: None.\n\n  \n\n"),
      (True, None)),
     ("a major bump on one package of two needs the line",
