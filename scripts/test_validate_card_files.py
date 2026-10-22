@@ -548,6 +548,49 @@ def case_missing_dispatch_row_is_rejected(root: Path) -> None:
     )
 
 
+CONFORMING_RESCREEN_LINE = (
+    "| **Re-screen trigger** | A platform fix that makes the failure impossible. |\n"
+)
+
+
+def case_placeholder_rescreen_trigger_is_rejected(root: Path) -> None:
+    """#600: a placeholder fills the row but names no event, so it is refused.
+
+    Each placeholder runs in its own tree, so each refusal is counted alone.
+    The dashes are built with chr() so the printed check names stay ASCII.
+    """
+    dashes = (chr(0x2013), chr(0x2014))
+    placeholders = ("none", "N/A", "TBD", "-", "None.", "`tbd`", "...", *dashes)
+    for i, value in enumerate(placeholders):
+        tree = root / f"t{i}"
+        evidence = CONFORMING_EVIDENCE.replace(
+            CONFORMING_RESCREEN_LINE, f"| **Re-screen trigger** | {value} |\n"
+        )
+        write_card(tree, "placeholder-card", evidence, CONFORMING_GOTCHAS)
+        result = run_checker(tree)
+        check(
+            f"the Re-screen trigger placeholder {ascii(value)} is rejected",
+            bool(refusal_line(result.stderr, "placeholder-card", "Re-screen trigger"))
+            and "REJECTED: 1 card contract breach(es)" in result.stderr,
+            result.stdout + result.stderr,
+        )
+
+
+def case_real_rescreen_trigger_that_opens_with_none_passes(root: Path) -> None:
+    """Only a whole-value placeholder is refused, not a word inside a trigger."""
+    evidence = CONFORMING_EVIDENCE.replace(
+        CONFORMING_RESCREEN_LINE,
+        "| **Re-screen trigger** | None of the hooks fire on a platform update. |\n",
+    )
+    write_card(root, "worded-card", evidence, CONFORMING_GOTCHAS)
+    result = run_checker(root)
+    check(
+        "a real trigger whose first word is 'None' passes",
+        result.returncode == 0,
+        result.stdout + result.stderr,
+    )
+
+
 def case_dispatch_row_opening_is_checked(root: Path) -> None:
     """The row opens with a nonzero count or the exact zero phrase.
 
@@ -1881,6 +1924,8 @@ def main() -> None:
         case_a_count_that_is_not_a_number_is_rejected,
         case_dates_must_be_corroborated_by_the_record,
         case_missing_dispatch_row_is_rejected,
+        case_placeholder_rescreen_trigger_is_rejected,
+        case_real_rescreen_trigger_that_opens_with_none_passes,
         case_dispatch_row_opening_is_checked,
         case_dispatch_row_needs_its_measurement_date,
         case_dispatch_row_does_not_corroborate_occasions,
