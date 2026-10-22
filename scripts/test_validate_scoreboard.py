@@ -198,6 +198,30 @@ def case_missing_section_is_refused() -> None:
         )
 
 
+def case_in_progress_card_is_not_counted() -> None:
+    """A card parked in `skills/in-progress/` is not admitted (#575 item 1).
+
+    The planted card has no EVIDENCE.md, which the check refuses for any card it
+    counts, so the check passes only while `iter_skill_dirs` skips the bucket.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        root = _tree(Path(tmp))
+        card = root / "skills" / "in-progress" / "planted-unshipped-card"
+        card.mkdir(parents=True)
+        (card / "SKILL.md").write_text(
+            "---\nname: planted-unshipped-card\ndescription: planted\n---\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+
+        result = _run(root)
+        check(
+            "a card under skills/in-progress/ is not counted",
+            result.returncode == 0,
+            f"exit {result.returncode}: {result.stdout.strip()} {result.stderr.strip()}",
+        )
+
+
 def main() -> int:
     print("validate_scoreboard: controlled-section restatement controls")
     case_live_tree_passes()
@@ -206,6 +230,7 @@ def main() -> int:
     case_naming_an_unmeasured_card_is_refused()
     case_dropping_a_measured_card_is_refused()
     case_missing_section_is_refused()
+    case_in_progress_card_is_not_counted()
     if _FAILURES:
         print(f"\nFAILED: {len(_FAILURES)} control(s): {', '.join(_FAILURES)}")
         return 1
