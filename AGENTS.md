@@ -542,8 +542,12 @@ description with no invocation, so a card still installed keeps protecting the m
 window would read zero (ADR 0007, Frozen). The row records that SHA. Ticket-level detail from
 #512, not part of ADR 0007: a row with no install SHA is not an open watch.
 
-**Signal.** An independent occasion of the card's origin failure in the maintainer's session
-records, counted exactly as "Recording a new occurrence" counts occasions (ADR 0007, Decision 2).
+**Signal.** An independent occasion of the card's origin failure, counted exactly as "Recording
+a new occurrence" counts occasions (ADR 0007, Decision 2). The rotation pass finds one in the
+maintainer's session records, the default corpus that ADR 0007, Decision 1 names. An outside
+report confirmed as "An issue you did not create" requires is a watch event on the same footing
+as an occasion found in those records [lodged 2026-10-21; origin: #552, the maintainer ruled
+"same footing" after this paragraph named only the session records].
 The failure predicate is the card's `Origin` row and its `gotchas.md` `[OBSERVED]` entry, quoted
 into the row when the watch opens. A dispatch or invocation, and an install or download count,
 are not signals. A guard-blocked hazard entry is not a signal on the platform-fix and policy
@@ -560,7 +564,9 @@ tunable by a dated edit here that cites closed watches (ADR 0007, Tunable with r
 **Exit table.** The exits are frozen (ADR 0007, Exit table). With 0 events, the row moves to
 `## Retired from the collection`, its narrative states `0 occasions in N sessions, <start> to
 <close>; searched <corpus and method>; outside reports received: <n>`, and no release follows.
-The search clause lets a reader see what the zero rests on. While the watch is open, each
+The search clause lets a reader see what the zero rests on. Its `<n>` counts outside reports
+confirmed as "An issue you did not create" requires; a report that has not cleared that
+confirmation is not counted. While the watch is open, each
 rotation pass writes the same clause, from `searched` on, into the row's `Status` cell [lodged
 2026-10-21; origin: #552, a zero-event close stated its count and not what was searched]. With
 1 event, extend once, then retire, dating the single event in the narrative. With 2 events, restore: take the card from the last release tag, re-add it to
@@ -620,8 +626,11 @@ mechanism working. An evolving ecosystem, not a chop list.
    find per "Recording a new occurrence" above — the dated entry first, then the count.
    Widen the same search to every `## On watch` row and every `## Retired from the collection`
    row in `RETIRED.md`: a watch row is searched for events in its window (ADR 0007, Decision 2),
-   and a retired row is searched for a late recurrence of its origin failure. A watch row is the
-   only place this pass edits `## On watch`.
+   and a retired row is searched for a late recurrence of its origin failure. A watch row's
+   events are occasions in the session records and confirmed outside reports alike (see
+   *Signal* under "Staged retirement" above). Write the search clause from that section's
+   *Exit table* into the row's `Status` cell. A watch row is the only place this pass edits
+   `## On watch`.
    Done when every thin card, every watch row and every retired row has been searched and every
    found occasion is recorded.
 2. **Scan the usage signal.** Report per-card invocation baseline, latest, and delta from
