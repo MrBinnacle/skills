@@ -130,12 +130,22 @@ Checks (all must pass; failures are listed, not first-fail):
            merge-base, prices them under the same ADR rules, and requires the
            version to match the result changesets would write. A botched release
            spends a version number
-           permanently (ADR 0002), so this blocks rather than reports.
+           permanently (ADR 0002), so this blocks rather than reports. A
+           rename, admission, retirement, load-mode change or route change in
+           the release PR's own diff raises the required bump to its ADR price
+           when that price is above patch, so a card change carried by the
+           release PR is priced too (#570).
+        7. A branch whose added changesets are all empty, or that adds none,
+           and whose diff reaches a card or the install route at a price above
+           patch. An empty changeset declares no bump, so the change would
+           ship in the next release unpriced (#570). An empty changeset for a
+           change priced at patch or reaching no card still passes (#466).
 
-      Cases 1, 2, 3 and 5 judge only the changesets THIS BRANCH adds -- new
-      ``.changeset/*.md`` in ``merge-base..HEAD`` -- never every pending file
-      on disk. Pending changesets that main already holds were classified when
-      their own branch ran this gate; a later PR must not be refused for them.
+      Cases 1, 2, 3, 5, 6 and 7 judge only the changesets THIS BRANCH adds --
+      new ``.changeset/*.md`` in ``merge-base..HEAD``, or the absence of any
+      declared bump among them -- never every pending file on disk. Pending
+      changesets that main already holds were classified when their own
+      branch ran this gate; a later PR must not be refused for them.
 
       A rename and an addition in one changeset resolve to major: the higher
       classification governs a changeset that contains both. A frontmatter
@@ -143,9 +153,8 @@ Checks (all must pass; failures are listed, not first-fail):
       skipped (R5-2): a `!!str`-tagged value, an unquoted multi-word value, or
       any other YAML form the regex misses makes G10 report the changeset and
       the line, single-reason. Classification is
-      skipped only when the tree publishes no card (vacuous surface), when no
-      branch-added changeset declares a bump, or when the git diff cannot be
-      established -- the house pattern G5 and G6 already use. When
+      skipped only when the tree publishes no card (vacuous surface) or when
+      the git diff cannot be established -- the house pattern G5 and G6 already use. When
       classification is needed and an ADR cannot be read or parsed, the run
       fails closed: an input this gate cannot trust is a listed failure, never
       a skip and never a pass. When git itself cannot run, G10 refuses in its
@@ -1636,8 +1645,9 @@ def gate_bump_classification(
     ``changeset version`` deletes them at HEAD.
 
     Skip reasons follow the house pattern (G5 vacuum, G6 non-git): when the
-    tree publishes no card, no branch-added changeset declares a bump, or the
-    git diff cannot be established, there is nothing to classify. When
+    tree publishes no card or the git diff cannot be established, there is
+    nothing to classify. A branch that declares no bump is classified as
+    declaring patch (case 7, #570). When
     classification IS needed and an ADR cannot be read, this fails closed.
     When a frontmatter line cannot be parsed as a bump declaration, this
     refuses under G10 naming the file and the line, never skipping the line
@@ -1697,6 +1707,7 @@ def _gate_bump_classification_inner(
 
     publishes_cards = False
     branch_bumps: dict[str, str] = {}
+    faults_before = len(errors)
     if merge_base is not None:
         # Base OR head: a change that retires the last card still reaches the
         # declared surface, and skipping on an empty HEAD would let it through.
@@ -1704,6 +1715,7 @@ def _gate_bump_classification_inner(
             _list_card_dirs(root, "HEAD") or _list_card_dirs(root, merge_base)
         )
         branch_bumps = _branch_declared_bumps(root, merge_base, errors)
+    parse_faulted = len(errors) > faults_before
 
     # What must be classified right now?
     need_changesets = bool(branch_bumps) and merge_base is not None and publishes_cards
@@ -1713,7 +1725,17 @@ def _gate_bump_classification_inner(
         and merge_base is not None
         and publishes_cards
     )
-    if not need_changesets and not need_delta:
+    # #570: a branch whose changesets are all empty, or that adds none, still
+    # ships its card change in the next release, so it is priced as declaring
+    # nothing above patch. A parse fault is already refused, single-reason.
+    need_unbumped = (
+        not branch_bumps
+        and not parse_faulted
+        and not need_delta
+        and merge_base is not None
+        and publishes_cards
+    )
+    if not need_changesets and not need_delta and not need_unbumped:
         return
 
     prices = _load_prices_or_refuse(root, errors)
@@ -1722,19 +1744,17 @@ def _gate_bump_classification_inner(
     assert merge_base is not None
     try:
         diff = classify_surface_diff(root, merge_base)
-        route = classify_route_change(root, merge_base) if need_changesets else None
+        route = classify_route_change(root, merge_base)
     except ValueError as exc:
         errors.append(f"G10: {exc}")
         return
-    if need_changesets and (diff["to_by_hand"] or diff["to_always_on"]):
+    if diff["to_by_hand"] or diff["to_always_on"]:
         try:
             prices = {**prices, **derive_load_mode_prices(root)}
         except ValueError as exc:
             errors.append(f"G10: cannot derive the load-mode price from the ADRs: {exc}")
             return
-    # The load-mode prices are merged only for the branch-changeset check, so
-    # the release-delta path must not price the diff.
-    required = required_price_for_diff(diff, prices) if need_changesets else None
+    required = required_price_for_diff(diff, prices)
     route_price: str | None = None
     if route is not None:
         try:
@@ -1743,59 +1763,30 @@ def _gate_bump_classification_inner(
             errors.append(f"G10: cannot derive the install-route price from the ADRs: {exc}")
             return
 
-    if need_changesets:
-        for filename, declared in sorted(branch_bumps.items()):
-            if route_price is not None:
-                # Case 5: the install route changed (ADR 0005).
-                if _rank(declared) < _rank(route_price):
-                    errors.append(
-                        f"G10: {filename} declares {declared}, but the diff changes the "
-                        f"install route, which {ADR_0005_REL.as_posix()} prices as "
-                        f"{route_price}: {route}"
-                    )
-                    continue
-                if not diff["touched"]:
-                    continue
-            if not diff["touched"]:
+    declarations = [
+        (name, bump, f"declares {bump}") for name, bump in sorted(branch_bumps.items())
+    ]
+    if need_unbumped:
+        declarations = [
+            ("the branch", "patch", "adds only empty changesets or none, so it declares no bump")
+        ]
+    for who, declared, says in declarations:
+        if not diff["touched"]:
+            if route_price is None and _rank(declared) > _rank(prices["patch"]):
                 # Case 3: nothing under skills/*/*/ and no route name changed, so
                 # the declared surface is untouched. Only the patch price (or an
                 # empty plan) may stand.
-                if _rank(declared) > _rank(prices["patch"]):
-                    errors.append(
-                        f"G10: {filename} declares {declared}, but the change touches "
-                        f"no file under skills/*/*/ and no install-route name, so it "
-                        f"cannot change the declared surface (ADR 0002 prices work "
-                        f"that reaches no card as {prices['patch']})"
-                    )
+                errors.append(
+                    f"G10: {who} {says}, but the change touches no file under "
+                    f"skills/*/*/ and no install-route name, so it cannot change the "
+                    f"declared surface (ADR 0002 prices work that reaches no card as "
+                    f"{prices['patch']})"
+                )
+            if route_price is None or _rank(declared) >= _rank(route_price):
                 continue
-            assert required is not None
-            if _rank(declared) < _rank(required):
-                if diff["rename"]:
-                    errors.append(
-                        f"G10: {filename} declares {declared}, but the diff renames a "
-                        f"card directory under skills/*/*/, which "
-                        f"{ADR_0003_REL.as_posix()} prices as {prices['rename']}: "
-                        f"{diff['detail']}"
-                    )
-                elif shortfall := _load_mode_shortfall(diff, prices, declared):
-                    direction, cards = shortfall
-                    errors.append(
-                        f"G10: {filename} declares {declared}, but the diff moves "
-                        f"{', '.join(cards)} from {_LOAD_MODE_WORDS[direction]}, which "
-                        f"{ADR_0008_REL.as_posix()} prices as {prices[direction]}"
-                    )
-                elif diff["admit_or_retire"]:
-                    errors.append(
-                        f"G10: {filename} declares {declared}, but the diff adds or "
-                        f"retires a card directory under skills/*/*/, which "
-                        f"{ADR_0003_REL.as_posix()} prices as "
-                        f"{prices['admit_retire']}: {diff['detail']}"
-                    )
-                else:
-                    errors.append(
-                        f"G10: {filename} declares {declared}, but the diff requires "
-                        f"at least {required} under the ADR prices: {diff['detail']}"
-                    )
+        reason = _surface_shortfall(diff, prices, required, declared, route, route_price)
+        if reason is not None:
+            errors.append(f"G10: {who} {says}, but {reason}")
 
     if need_delta:
         base_version = _base_version_at(root, merge_base)
@@ -1808,13 +1799,62 @@ def _gate_bump_classification_inner(
             # would add a second fault built on partial data.
             return
         required_bump = _highest_bump(consumed)
+        # #570: a card or route change inside the release PR raises the price.
+        # A patch-priced edit cannot, so a release with no plan stays as it was.
+        surface_reason: str | None = None
+        for price in (required, route_price):
+            if price is None or _rank(price) <= _rank(prices["patch"]):
+                continue
+            if required_bump is None or _rank(price) > _rank(required_bump):
+                surface_reason = _surface_shortfall(
+                    diff, prices, required, required_bump or "patch", route, route_price
+                )
+                required_bump = price
         _refuse_delta_mismatch(
             errors,
             base_version=base_version,
             current_version=declared_version or "",
             required_bump=required_bump,
             consumed=consumed,
+            surface_reason=surface_reason,
         )
+
+
+def _surface_shortfall(
+    diff: dict,
+    prices: dict[str, str],
+    required: str | None,
+    declared: str,
+    route: str | None,
+    route_price: str | None,
+) -> str | None:
+    """Why `declared` is below the ADR price of the diff, naming the ADR, or None."""
+    if route_price is not None and _rank(declared) < _rank(route_price):
+        # Case 5: the install route changed (ADR 0005).
+        return (
+            f"the diff changes the install route, which {ADR_0005_REL.as_posix()} "
+            f"prices as {route_price}: {route}"
+        )
+    if required is None or _rank(declared) >= _rank(required):
+        return None
+    if diff["rename"]:
+        return (
+            f"the diff renames a card directory under skills/*/*/, which "
+            f"{ADR_0003_REL.as_posix()} prices as {prices['rename']}: {diff['detail']}"
+        )
+    if shortfall := _load_mode_shortfall(diff, prices, declared):
+        direction, cards = shortfall
+        return (
+            f"the diff moves {', '.join(cards)} from {_LOAD_MODE_WORDS[direction]}, "
+            f"which {ADR_0008_REL.as_posix()} prices as {prices[direction]}"
+        )
+    if diff["admit_or_retire"]:
+        return (
+            f"the diff adds or retires a card directory under skills/*/*/, which "
+            f"{ADR_0003_REL.as_posix()} prices as {prices['admit_retire']}: "
+            f"{diff['detail']}"
+        )
+    return f"the diff requires at least {required} under the ADR prices: {diff['detail']}"
 
 
 def _load_mode_shortfall(
@@ -1859,8 +1899,12 @@ def _refuse_delta_mismatch(
     current_version: str,
     required_bump: str | None,
     consumed: dict[str, str],
+    surface_reason: str | None = None,
 ) -> None:
     """Case 4: the release version must equal what its consumed plan produces.
+
+    When the release PR's own diff prices above the consumed plan,
+    `surface_reason` names the ADR that raised `required_bump` (#570).
 
     A release PR runs ``npm run version``, which deletes the consumed
     ``.changeset/*.md`` files and writes the new number from their declared
@@ -1893,7 +1937,14 @@ def _refuse_delta_mismatch(
             "Versioning normal form, so the consumed plan cannot be priced"
         )
         return
-    if current_version != expected_version:
+    if current_version != expected_version and surface_reason is not None:
+        errors.append(
+            f"G10: release version changed from {base_version} to {current_version}, "
+            f"but {surface_reason}, so the release requires {expected_version}. A "
+            "botched release spends a version number permanently (ADR 0002), so the "
+            "gate blocks rather than reports."
+        )
+    elif current_version != expected_version:
         plan = ", ".join(f"{name}={bump}" for name, bump in sorted(consumed.items()))
         errors.append(
             f"G10: release version changed from {base_version} to {current_version}, "

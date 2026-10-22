@@ -822,9 +822,10 @@ def case_case6_price_is_read_from_adr_0008(tmp: Path) -> None:
 def case_case6_flip_at_release_with_no_branch_changeset_passes(tmp: Path) -> None:
     """A release whose diff flips a load mode, with no branch-added changeset.
 
-    G10 prices the flip only against a changeset the branch adds; at release
-    case 4 alone answers, from the consumed plan. The flip prices must not be
-    read on that path: before the fix the gate raised KeyError here.
+    At release, case 4 answers from the consumed plan, raised to the flip's
+    ADR 0008 price when that price is higher (#570). A consumed major already
+    covers both directions, so 3.0.0 passes and 2.1.0 is refused. Before PR
+    569 the gate raised KeyError here.
     """
     for direction in ("to_by_hand", "to_always_on"):
         root = make_tree(
@@ -859,6 +860,134 @@ def case_case6_flip_at_release_with_no_branch_changeset_passes(tmp: Path) -> Non
             "major",
             release=True,
         )
+
+
+ADR_0003_NEEDLE = "0003-a-cards-name-is-part-of-the-declared-surface.md"
+ADR_0005_NEEDLE = "0005-the-install-route-is-what-a-consumer-resolves.md"
+
+# (branch_change, ADR file the refusal must name, price it must name)
+PRICED_CARD_CHANGES = (
+    ("to_by_hand", ADR_0008_NEEDLE, "major"),
+    ("rename", ADR_0003_NEEDLE, "major"),
+    ("add_card", ADR_0003_NEEDLE, "minor"),
+)
+
+
+def case_case7_empty_changeset_card_change_is_refused(tmp: Path) -> None:
+    """#570: an empty changeset declares no bump, so a priced card change shipped unpriced."""
+    for branch_change, adr, price in PRICED_CARD_CHANGES:
+        root = make_tree(tmp / branch_change, declared=None, branch_change=branch_change)
+        expect_g10_refusal(
+            f"case 7: an empty changeset over a {branch_change} is refused",
+            root,
+            "G10:",
+            "declares no bump",
+            adr,
+            price,
+        )
+
+
+def case_case7_no_changeset_card_change_is_refused(tmp: Path) -> None:
+    """A branch that adds no changeset at all is priced the same way."""
+    root = make_tree(tmp, declared=None, branch_change="to_by_hand")
+    git(root, "rm", "-q", ".changeset/zzz-classify.md")
+    git(root, "commit", "-q", "-m", "drop the changeset")
+    expect_g10_refusal(
+        "case 7: a load-mode flip with no changeset is refused",
+        root,
+        "G10:",
+        "declares no bump",
+        ADR_0008_NEEDLE,
+    )
+
+
+def case_case7_empty_changeset_route_change_is_refused(tmp: Path) -> None:
+    root = make_tree(tmp, declared=None, branch_change="rename_marketplace")
+    expect_g10_refusal(
+        "case 7: an empty changeset over an install-route change is refused",
+        root,
+        "G10:",
+        "declares no bump",
+        ADR_0005_NEEDLE,
+        "major",
+    )
+
+
+def case_case7_empty_changeset_patch_card_edit_passes(tmp: Path) -> None:
+    """#466: an empty changeset over a card edit ADR 0002 prices as patch still passes."""
+    root = make_tree(tmp, declared=None, branch_change="modify_card")
+    expect_pass("case 7: an empty changeset over a patch-priced card edit PASSES", root)
+
+
+def case_case7_empty_changeset_unreadable_adr_0008_fails_closed(tmp: Path) -> None:
+    root = make_tree(
+        tmp, declared=None, branch_change="to_by_hand", adr="no_0008_to_by_hand"
+    )
+    expect_g10_refusal(
+        "case 7: an empty changeset over a flip with no ADR 0008 sentence fails closed",
+        root,
+        "G10:",
+        ADR_0008_NEEDLE,
+        "always-on to by hand",
+    )
+
+
+def case_case4_release_diff_card_change_raises_the_price(tmp: Path) -> None:
+    """#570: a card change inside the release PR is priced, not only the consumed plan."""
+    for branch_change, adr, price in PRICED_CARD_CHANGES:
+        short = make_tree(
+            tmp / branch_change,
+            declared=None,
+            branch_change=branch_change,
+            base_version="1.2.0",
+            head_version="1.2.1",
+            release=True,
+            consumed="patch",
+        )
+        expect_g10_refusal(
+            f"case 4: a {branch_change} in the release diff refuses a patch release",
+            short,
+            "G10:",
+            "1.2.1",
+            adr,
+            price,
+            release=True,
+        )
+        priced = make_tree(
+            tmp / f"{branch_change}-priced",
+            declared=None,
+            branch_change=branch_change,
+            base_version="1.2.0",
+            head_version="2.0.0" if price == "major" else "1.3.0",
+            release=True,
+            consumed="patch",
+        )
+        expect_pass(
+            f"case 4: a {branch_change} in the release diff passes at its ADR price",
+            priced,
+            "--release",
+        )
+
+
+def case_case4_release_diff_flip_unreadable_adr_0008_fails_closed(tmp: Path) -> None:
+    root = make_tree(
+        tmp,
+        declared=None,
+        branch_change="to_by_hand",
+        adr="no_0008_to_by_hand",
+        base_version="2.0.0",
+        head_version="3.0.0",
+        release=True,
+        consumed="major",
+    )
+    expect_g10_refusal(
+        "case 4: a release-diff flip with no ADR 0008 sentence fails closed",
+        root,
+        "G10:",
+        ADR_0008_NEEDLE,
+        "always-on to by hand",
+        release=True,
+    )
 
 
 def case_unparseable_yaml_tag_bump_is_refused(tmp: Path) -> None:
@@ -1685,6 +1814,28 @@ def case_ci_carries_b2_and_b3_controls(tmp: Path) -> None:
         )
 
 
+def case_ci_carries_the_load_mode_poison_control(tmp: Path) -> None:
+    """Case 6 and case 7 (#570) each need a CI control, not only a suite case."""
+    job = _workflow_job("release-gate")
+    step = _named_step(
+        job, "Poison control - a load-mode flip below its ADR 0008 price must be rejected"
+    )
+    check("CI carries the load-mode poison control", bool(step), "no such step")
+    needles = (
+        "disable-model-invocation: true",
+        "G10:",
+        "0008-always-on",
+        "declares no bump",
+        "1 stale surface(s)",
+    )
+    missing = [n for n in needles if n not in step]
+    check(
+        "the load-mode control plants a flip under a patch and an empty changeset",
+        not missing,
+        f"missing {missing!r} in step" if missing else "",
+    )
+
+
 def case_g10_refuses_in_its_own_words_when_git_is_absent(tmp: Path) -> None:
     """B1: when git is not on PATH, G10 refuses in its own words, no traceback.
 
@@ -1789,6 +1940,13 @@ CASES = (
     case_case6_missing_to_always_on_sentence_fails_closed,
     case_case6_price_is_read_from_adr_0008,
     case_case6_flip_at_release_with_no_branch_changeset_passes,
+    case_case7_empty_changeset_card_change_is_refused,
+    case_case7_no_changeset_card_change_is_refused,
+    case_case7_empty_changeset_route_change_is_refused,
+    case_case7_empty_changeset_patch_card_edit_passes,
+    case_case7_empty_changeset_unreadable_adr_0008_fails_closed,
+    case_case4_release_diff_card_change_raises_the_price,
+    case_case4_release_diff_flip_unreadable_adr_0008_fails_closed,
     case_unparseable_yaml_tag_bump_is_refused,
     case_unparseable_multiword_bump_is_refused,
     case_higher_classification_governs_rename_plus_add,
@@ -1820,6 +1978,7 @@ CASES = (
     case_ci_carries_case1_to_case4_poison_controls,
     case_ci_carries_unparseable_bump_controls,
     case_ci_carries_b2_and_b3_controls,
+    case_ci_carries_the_load_mode_poison_control,
 )
 
 
