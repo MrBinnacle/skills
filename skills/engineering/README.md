@@ -15,7 +15,7 @@ A card marked *(by hand)* sets `disable-model-invocation: true`, so it runs only
 
 - [**halt-as-deliverable**](halt-as-deliverable/SKILL.md) — when a pre-registration, pre-flight or sanity gate you built refuses to produce your own deliverable, the catch can be worth more than the deliverable; commit the audit trail publicly before deciding what to do next, and lead with the catch ([the receipt](halt-as-deliverable/EVIDENCE.md)).
 - [**pretooluse-prose**](pretooluse-prose/SKILL.md) — a Claude Code `PreToolUse` Bash guard receives the whole command string, so a heredoc or commit message that only names a banned command trips it; write such prose with a file-write tool, and anchor a matcher to command position outside quotes ([the receipt](pretooluse-prose/EVIDENCE.md)).
-- [**pull-rebase**](pull-rebase/SKILL.md) — with `pull.rebase=true` configured, `git pull --no-ff` still rebases and every local commit gets a new SHA, while `--ff-only` refuses instead; check the setting before pulling, and recover through the reflog if a pull already rebased your work. The origin incident rewrote 22 local commits ([the receipt](pull-rebase/EVIDENCE.md)).
+- [**pull-rebase**](pull-rebase/SKILL.md) — with `pull.rebase=true` configured, `git pull --no-ff` still rebases and every local commit gets a new SHA, while `--ff-only` refuses on diverged history and rewrites nothing; check the setting before pulling, and recover through the reflog if a pull already rebased your work. The origin incident rewrote 22 local commits ([the receipt](pull-rebase/EVIDENCE.md)).
 
 ### Rituals at phase and session boundaries
 
