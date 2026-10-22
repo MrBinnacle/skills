@@ -120,15 +120,37 @@ files and makes the double-tracking impossible. It is never a filesystem link.
    [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) records the decision and
    the narrow surface a version promises.
 
-   **After the release squash merges, land the pin commit next.** Tag the squash commit
-   `v<version>`, branch from `main`, run `python scripts/check_marketplace_pin.py --write`, and
-   merge the result as its own pull request. The script sets each `.claude-plugin/marketplace.json`
-   entry's `ref` to the tag and `sha` to the squash commit; never type them. A fresh install
-   receives the pinned commit, so the release reaches new users only when this commit lands. A
-   squash commit cannot contain its own SHA, which is why the pin is a second commit
-   ([ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md), 2026-10-20 append). Until it
-   lands, the `Marketplace pin` step fails on `main` and on every pull request. That failure is
-   the reminder, not a fault.
+   **After the release squash merges, land the pin commit next.** Stage 1 of 2 is automatic.
+   The push to `main` that changes `package.json` starts
+   [`release-pin.yml`](.github/workflows/release-pin.yml). It runs
+   `python scripts/check_marketplace_pin.py --write` and opens the pin pull request from the
+   branch `automation/marketplace-pin-v<version>` with `GITHUB_TOKEN`; on a push that is not a
+   release the pin is unchanged and it stops. The script sets each
+   `.claude-plugin/marketplace.json` entry's `ref` to the tag `v<version>` and `sha` to the
+   squash commit; never type them. Two acts stay with the maintainer. Select
+   **Approve workflows to run** on the pin pull request, because its checks wait for approval,
+   then merge it. Tag the squash commit `v<version>` as well, because no workflow pushes a tag;
+   the pin check verifies the tag only once it resolves, so the order of the two does not
+   matter. A fresh install receives the pinned commit, so the release reaches new users only
+   when this commit lands. A squash commit cannot contain its own SHA, which is why the pin is a
+   second commit ([ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md), 2026-10-20
+   append). Until it lands, the `Marketplace pin` step fails on `main` and on every pull
+   request. That failure is the reminder, not a fault.
+
+   Stage 2 of 2 is [`release-receipt.yml`](.github/workflows/release-receipt.yml). Every
+   passing push run of `tests.yml` on `main` starts it, and the first one at the new version
+   exists only after the pin merges. It runs `python scripts/refresh_install_receipt.py --write`
+   and, when the README install receipt changed, opens a pull request from
+   `automation/install-receipt-v<version>`. Approve its workflow runs and merge it the same way.
+   Both workflows open a pull request only while the repository setting "Allow GitHub Actions to
+   create and approve pull requests" is on.
+
+   **Fallback for the pin.** When `release-pin.yml` does not run or fails, branch from `main`,
+   run `python scripts/check_marketplace_pin.py --write`, and merge the result as its own pull
+   request. First check that no pin pull request is open, because two pin branches for one
+   release race each other. Each workflow also stops when its branch already exists, open or
+   closed; delete that branch before you re-run the workflow. The hand-run receipt step is in
+   [`.changeset/README.md`](.changeset/README.md).
 
    **`npm run version` fails closed without a `GITHUB_TOKEN` in the environment.** The
    changelog generator is `@changesets/changelog-github`, which resolves pull-request and author
