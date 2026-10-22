@@ -3,9 +3,11 @@
 What this pins
     1. The verdict on one changeset, as literal values: a major changeset that
        ends with the action line passes; one without it, one whose line is
-       empty after the colon, and one whose line is not the last are refused
-       with the exact message; patch, minor and empty changesets pass without
-       the line; a bump line the release gate's parser cannot read is refused.
+       empty after the colon, one whose line is not the last, one with text
+       before the prefix, and one with a lowercase prefix are refused with the
+       exact message; blank lines after the action line are tolerated; patch,
+       minor and empty changesets pass without the line; a bump line the
+       release gate's parser cannot read is refused.
     2. The command line, run the way CI runs it: exit code and full output on a
        planted tree, `.changeset/README.md` skipped, and a PASS over this
        repository's own pending changesets.
@@ -65,6 +67,15 @@ VERDICT_CASES = (
     ("a major changeset whose line is not last is refused",
      changeset(MAJOR, "Action for installed users: None.\n\nRename every card.\n"),
      (True, MISSING)),
+    ("a major changeset whose last line has text before the prefix is refused",
+     changeset(MAJOR, "Rename every card.\n\nNote. Action for installed users: None.\n"),
+     (True, MISSING)),
+    ("a major changeset whose prefix is lowercase is refused",
+     changeset(MAJOR, "Rename every card.\n\naction for installed users: None.\n"),
+     (True, MISSING)),
+    ("a major changeset with blank lines after the action line passes",
+     changeset(MAJOR, "Rename every card.\n\nAction for installed users: None.\n\n  \n\n"),
+     (True, None)),
     ("a major bump on one package of two needs the line",
      changeset('"a": patch\n"b": major\n', "Two packages.\n"),
      (True, MISSING)),
