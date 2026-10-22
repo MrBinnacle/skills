@@ -55,8 +55,8 @@
       "skill_md_sha256": "87f5798ac8eb4fbd4063f626ca451d011b48b828cc56773878cef99ef16afd29"
     },
     "subagent-handback": {
-      "standing_cost_tokens": 50,
-      "skill_md_sha256": "d5b3c82d0492ff618ba73c714cbacd832bd0a5f372cbbe207adecd7f43cfb092"
+      "standing_cost_tokens": 52,
+      "skill_md_sha256": "21e3aac8e1c7b719accd373da543be1dd1140182128b17bc87b62091f950cba4"
     }
   }
 }
