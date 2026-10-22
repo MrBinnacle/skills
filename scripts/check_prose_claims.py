@@ -26,7 +26,7 @@ WHY THIS EXISTS
 
 WHAT IT CHECKS
 
-    Two things, neither anchored to a sentence.
+    Two things that no sentence anchors, then the pinned collection-wide claims.
 
     ENUMERATION. A group README enumerates the cards in its group. The set it
     names must equal the set of directories on disk, in BOTH directions: a card
@@ -36,6 +36,21 @@ WHAT IT CHECKS
     DOCUMENTED PATHS. A README that draws its own layout in a fenced block is
     making a claim about the filesystem. Every path in such a block must exist
     relative to that README. This is defect 3 exactly.
+
+    COLLECTION-WIDE CLAIMS (#571). Two facts that RETIRED.md and CATALOG.md
+    state about every card are derived from the corpus. The corpus is
+    `skills/` through validate_scoreboard's reader, plus every directory in
+    `_quarantine/`, with symlinks followed as `find -L` follows them.
+      - RETIRED.md names the one published card whose `Paired verdict` row opens
+        with a measured verdict. No other card or candidate may have one.
+      - RETIRED.md and CATALOG.md say no card has left on a screen. Each row of
+        `## On watch` and `## Retired from the collection` is read for its route.
+        A row that names no known route refuses.
+    Each sentence is pinned. A pinned sentence that is no longer on the page
+    is refused, because a check whose input was reworded away examines nothing.
+    "Every published card carries one" (a retirement trigger) is not
+    re-derived here. validate_card_files.py refuses a published card whose
+    `Re-screen trigger` row is missing or empty.
 
     A count in prose is NOT checked here, and deliberately so. Verifying a
     stated number keeps the number on the page, where it goes stale between one
@@ -72,6 +87,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from validate_scoreboard import (  # noqa: E402
+    MEASURED_VERDICTS,
+    UNMEASURED_VERDICTS,
+    evidence_fields,
+    iter_skill_dirs,
+)
 from vendor.population import (  # noqa: E402
     PopulationVerdict,
     build_population_record,
@@ -279,6 +300,191 @@ def _paths_claimed(text: str) -> set[str]:
     return claimed
 
 
+#: The collection-wide sentences this module derives (#571). Each pattern is
+#: matched against one paragraph with its whitespace collapsed, because the
+#: pages are hard-wrapped mid-sentence.
+PAIRED_RUN_CLAIM = (
+    "RETIRED.md",
+    re.compile(
+        r"One published card, `(?P<card>[a-z0-9-]+)`, carries such runs\..*"
+        r"No other published card and no candidate in .*carries a run with and without the skill\."
+    ),
+)
+NO_SCREEN_EXIT_CLAIMS = (
+    (
+        "RETIRED.md",
+        re.compile(r"A screen is also the first way a skill can leave\..*No skill has left this way yet\."),
+    ),
+    (
+        "CATALOG.md",
+        re.compile(r"Two of the routes have been used so far\..*No card has left on a screen result yet\."),
+    ),
+)
+
+#: How a retired row names its route. AGENTS.md rotation step 7: a harness
+#: cut's "What made it unnecessary" cell opens with the `cut_sub_reason` word.
+#: AGENTS.md Retirement: a policy withdrawal quotes the policy, and a
+#: platform-fix retires against the trigger its record pre-registered. A
+#: screen word anywhere in the cell wins, because reading a screen exit as
+#: another route is the error that would let the claim pass falsely.
+SCREEN_MARK = re.compile(r"\b(?:subsumed|no_lift|harmful|cut)\b|cut\(", re.IGNORECASE)
+POLICY_OPENING = "withdrawn on the policy"
+PLATFORM_FIX_MARK = "pre-registered"
+SCREEN, POLICY, PLATFORM_FIX = "screen", "policy", "platform-fix"
+
+
+def _paragraphs(text: str) -> list[str]:
+    return [" ".join(p.split()) for p in re.split(r"\n\s*\n", text)]
+
+
+def _find_claim(root: Path, name: str, pattern: re.Pattern[str]) -> re.Match[str] | None:
+    for paragraph in _paragraphs((root / name).read_text(encoding="utf-8")):
+        match = pattern.search(paragraph)
+        if match:
+            return match
+    return None
+
+
+def _missing_claim(name: str, pattern: re.Pattern[str]) -> str:
+    return (
+        f"{name}: the pinned claim sentence (pattern {pattern.pattern[:60]!r}...) is not on the page, so "
+        "this check guards nothing for it. If the sentence was reworded, repoint the pattern in "
+        "check_prose_claims.py; if it was removed, delete the pattern."
+    )
+
+
+def candidate_dirs(root: Path) -> list[Path]:
+    """Every directory under `_quarantine/`, following symlinks as `find -L` does."""
+    quarantine = root / "_quarantine"
+    if not quarantine.is_dir():
+        raise Refusal(f"{quarantine} is not a directory, so no candidate can be examined")
+    return sorted(d for d in quarantine.iterdir() if d.is_dir())
+
+
+def paired_run_holders(root: Path) -> set[str]:
+    """Published cards and candidates whose `Paired verdict` opens with a measured verdict.
+
+    A candidate with no `EVIDENCE.md`, or no `Paired verdict` row, records no
+    paired run: `_quarantine/` does not require the record. An opening outside
+    the closed verdict vocabulary refuses rather than guesses.
+    """
+    holders: set[str] = set()
+    for directory in iter_skill_dirs(root) + candidate_dirs(root):
+        evidence = directory / "EVIDENCE.md"
+        if not evidence.is_file():
+            continue
+        value = evidence_fields(evidence, ("Paired verdict",)).get("Paired verdict", "")
+        opening = value.lstrip("* `_").upper()
+        if not opening or opening.startswith(UNMEASURED_VERDICTS):
+            continue
+        if not opening.startswith(MEASURED_VERDICTS):
+            raise Refusal(
+                f"{evidence.relative_to(root).as_posix()}: Paired verdict opens with an "
+                f"unrecognised verdict ({value[:40]!r}), so whether it records a run with and "
+                "without the skill cannot be derived"
+            )
+        holders.add(directory.name)
+    return holders
+
+
+def check_paired_run_claim(root: Path) -> list[str]:
+    """RETIRED.md names the only card carrying a run with and without the skill."""
+    name, pattern = PAIRED_RUN_CLAIM
+    match = _find_claim(root, name, pattern)
+    if match is None:
+        return [_missing_claim(name, pattern)]
+    named = match.group("card")
+    holders = paired_run_holders(root)
+    failures = []
+    if named not in {d.name for d in iter_skill_dirs(root)}:
+        failures.append(f"{name}: names `{named}` as a published card, and skills/ holds no such card")
+    if holders != {named}:
+        failures.append(
+            f"{name}: says `{named}` alone carries a run with and without the skill, but the records "
+            f"with a measured Paired verdict are: {', '.join(sorted(holders)) or 'none'}"
+        )
+    return failures
+
+
+def _table_rows(text: str, heading: str) -> list[list[str]]:
+    """Body rows of the first table under a `## ` heading, as stripped cells."""
+    start = re.search(rf"^{re.escape(heading)}$", text, re.MULTILINE)
+    if start is None:
+        raise Refusal(f"RETIRED.md has no {heading!r} section, so no exit can be read")
+    body = text[start.end():]
+    end = re.search(r"^## ", body, re.MULTILINE)
+    rows = []
+    for line in body[: end.start() if end else None].splitlines():
+        if not line.startswith("|") or re.match(r"^\|[\s|:-]+$", line):
+            continue
+        rows.append([c.strip() for c in line.strip().strip("|").split("|")])
+    return rows[1:]
+
+
+def _route_of_retired(cell: str) -> str | None:
+    opening = cell.lstrip("* `_").lower()
+    if SCREEN_MARK.search(cell):
+        return SCREEN
+    if opening.startswith(POLICY_OPENING):
+        return POLICY
+    if PLATFORM_FIX_MARK in cell.lower():
+        return PLATFORM_FIX
+    return None
+
+
+def _route_of_watch(cell: str) -> str | None:
+    lowered = cell.lower()
+    if SCREEN_MARK.search(cell):
+        return SCREEN
+    if "policy" in lowered:
+        return POLICY
+    if "platform" in lowered or "trigger" in lowered:
+        return PLATFORM_FIX
+    return None
+
+
+def departures(root: Path) -> list[tuple[str, str]]:
+    """(card, route) for every row of `## On watch` and `## Retired from the collection`."""
+    text = (root / "RETIRED.md").read_text(encoding="utf-8")
+    found = []
+    for heading, column, classify in (
+        ("## On watch", 2, _route_of_watch),
+        ("## Retired from the collection", 2, _route_of_retired),
+    ):
+        for cells in _table_rows(text, heading):
+            card = cells[0].strip("` ")
+            route = classify(cells[column]) if len(cells) > column else None
+            if route is None:
+                raise Refusal(
+                    f"RETIRED.md {heading!r}: the row for {card} names no known route "
+                    f"({SCREEN}, {POLICY}, {PLATFORM_FIX}), so which exit it took cannot be derived"
+                )
+            found.append((card, route))
+    return found
+
+
+def check_no_screen_exit_claims(root: Path) -> list[str]:
+    """RETIRED.md and CATALOG.md say no card has left on a screen."""
+    found = departures(root)
+    screened = sorted(card for card, route in found if route == SCREEN)
+    used = {route for _card, route in found}
+    failures = []
+    for name, pattern in NO_SCREEN_EXIT_CLAIMS:
+        if _find_claim(root, name, pattern) is None:
+            failures.append(_missing_claim(name, pattern))
+        elif screened:
+            failures.append(
+                f"{name}: says no card has left on a screen, but RETIRED.md records a screen exit "
+                f"for: {', '.join(screened)}"
+            )
+        elif name == "CATALOG.md" and used != {POLICY, PLATFORM_FIX}:
+            failures.append(
+                f"{name}: says the {POLICY} and {PLATFORM_FIX} routes have been used, but "
+                f"RETIRED.md records: {', '.join(sorted(used)) or 'no departure'}"
+            )
+    return failures
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
@@ -289,6 +495,8 @@ def main(argv: list[str] | None = None) -> int:
         failures = vendor_is_intact(root)
         failures += check_group_enumerations(root)
         failures += check_documented_paths(root)
+        failures += check_paired_run_claim(root)
+        failures += check_no_screen_exit_claims(root)
     except Refusal as refusal:
         print(f"UNINTERPRETABLE: {refusal}")
         return 2
@@ -302,7 +510,9 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"PASS: {groups} group README(s) enumerate exactly the cards on disk, both "
         "directions; every path drawn in a README layout block exists; the vendored "
-        "population contract matches its pinned digest"
+        "population contract matches its pinned digest; the paired-run claim holds over "
+        f"{len(iter_skill_dirs(root))} published cards and {len(candidate_dirs(root))} "
+        f"candidates; the no-screen-exit claims hold over {len(departures(root))} departure(s)"
     )
     return 0
 

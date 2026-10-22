@@ -223,8 +223,184 @@ def case_no_group_readme_is_uninterpretable(tmp: Path) -> None:
     print("  ok   case_no_group_readme_is_uninterpretable")
 
 
+def _set_paired_verdict(evidence: Path, verdict: str) -> bool:
+    """Rewrite the record's Paired verdict row to open with VERDICT."""
+    lines = evidence.read_text(encoding="utf-8").splitlines(keepends=True)
+    for i, line in enumerate(lines):
+        if line.startswith("| **Paired verdict** |"):
+            lines[i] = f"| **Paired verdict** | {verdict}. Planted. |\n"
+            evidence.write_text("".join(lines), encoding="utf-8")
+            return True
+    return False
+
+
+def case_candidate_with_a_paired_run_is_refused(tmp: Path) -> None:
+    """A candidate in `_quarantine/` records a run with and without the skill.
+
+    RETIRED.md says no candidate carries one. This is the PR 510 shape: a
+    "no candidate" sentence that a quarantine record had already made false.
+    """
+    root = _tree(tmp)
+    evidence = root / "_quarantine" / "walk-the-recipe" / "EVIDENCE.md"
+    if not _set_paired_verdict(evidence, "CANT_TELL_YET"):
+        fail("case_candidate_with_a_paired_run_is_refused", "anchor absent: Paired verdict row")
+        return
+    expect_refusal("case_candidate_with_a_paired_run_is_refused", root, "walk-the-recipe")
+
+
+def case_second_published_card_with_a_paired_run_is_refused(tmp: Path) -> None:
+    """A second published card records a paired run; the prose names only one."""
+    root = _tree(tmp)
+    evidence = root / "skills" / "engineering" / "mocked-stub" / "EVIDENCE.md"
+    if not _set_paired_verdict(evidence, "CANT_TELL_YET"):
+        fail("case_second_published_card_with_a_paired_run_is_refused", "anchor absent: Paired verdict row")
+        return
+    expect_refusal("case_second_published_card_with_a_paired_run_is_refused", root, "mocked-stub")
+
+
+def case_named_card_without_a_paired_run_is_refused(tmp: Path) -> None:
+    """The card the prose names no longer records a paired run."""
+    root = _tree(tmp)
+    evidence = root / "skills" / "engineering" / "pull-rebase" / "EVIDENCE.md"
+    if not _set_paired_verdict(evidence, "UNMEASURED (no_data)"):
+        fail("case_named_card_without_a_paired_run_is_refused", "anchor absent: Paired verdict row")
+        return
+    expect_refusal("case_named_card_without_a_paired_run_is_refused", root, "pull-rebase")
+
+
+def case_unrecognised_paired_verdict_is_uninterpretable(tmp: Path) -> None:
+    """A Paired verdict outside the closed vocabulary refuses rather than guesses."""
+    root = _tree(tmp)
+    evidence = root / "_quarantine" / "uniform-eol" / "EVIDENCE.md"
+    if not _set_paired_verdict(evidence, "TBD"):
+        fail("case_unrecognised_paired_verdict_is_uninterpretable", "anchor absent: Paired verdict row")
+        return
+    result = _run(root)
+    output = result.stdout + result.stderr
+    if result.returncode != 2 or "unrecognised verdict" not in output:
+        fail(
+            "case_unrecognised_paired_verdict_is_uninterpretable",
+            f"expected exit 2 naming the unrecognised verdict, got {result.returncode}\n{output}",
+        )
+        return
+    print("  ok   case_unrecognised_paired_verdict_is_uninterpretable")
+
+
+def _append_retired_row(root: Path, cell: str) -> bool:
+    retired = root / "RETIRED.md"
+    text = retired.read_text(encoding="utf-8")
+    anchor = "| Skill | Retired | What made it unnecessary | Evidence |\n|---|---|---|---|\n"
+    if anchor not in text:
+        return False
+    row = f"| `planted-card` | 2026-10 | {cell} | planted |\n"
+    retired.write_text(text.replace(anchor, anchor + row, 1), encoding="utf-8")
+    return True
+
+
+def case_retired_row_with_a_screen_exit_is_refused(tmp: Path) -> None:
+    """A card retires on a harness cut; both pages still say none has."""
+    root = _tree(tmp)
+    if not _append_retired_row(root, "`subsumed`. A current receipt carries CUT"):
+        fail("case_retired_row_with_a_screen_exit_is_refused", "anchor absent: retired table header")
+        return
+    result = _run(root)
+    output = result.stdout + result.stderr
+    if result.returncode == 0:
+        fail("case_retired_row_with_a_screen_exit_is_refused", f"ACCEPTED the planted defect\n{output}")
+        return
+    missing = [site for site in ("RETIRED.md", "CATALOG.md", "planted-card") if site not in output]
+    if missing:
+        fail("case_retired_row_with_a_screen_exit_is_refused", f"refusal does not name {missing}\n{output}")
+        return
+    print("  ok   case_retired_row_with_a_screen_exit_is_refused")
+
+
+def case_screen_exit_not_opening_with_its_word_is_refused(tmp: Path) -> None:
+    """A screen exit that mentions the pre-registered trigger is still a screen exit."""
+    root = _tree(tmp)
+    cell = "A re-screen against the pre-registered trigger returned `CUT`, sub-reason `subsumed`"
+    if not _append_retired_row(root, cell):
+        fail("case_screen_exit_not_opening_with_its_word_is_refused", "anchor absent: retired table header")
+        return
+    expect_refusal("case_screen_exit_not_opening_with_its_word_is_refused", root, "screen exit for: planted-card")
+
+
+def case_on_watch_row_on_the_screen_route_is_refused(tmp: Path) -> None:
+    """A card on watch after `CUT(subsumed)` has left the served set on a screen."""
+    root = _tree(tmp)
+    retired = root / "RETIRED.md"
+    text = retired.read_text(encoding="utf-8")
+    anchor = "| Card | Removed (release, install SHA, clock start) | Route |"
+    cut = text.find(anchor)
+    sep = text.find("|---", cut)
+    end = text.find("\n", sep) + 1
+    if cut < 0 or sep < 0:
+        fail("case_on_watch_row_on_the_screen_route_is_refused", "anchor absent: On watch header")
+        return
+    row = "| `watched-card` | 4.1.0 | `CUT(subsumed)` | planted | 2027-01 | 0 | none | open |\n"
+    retired.write_text(text[:end] + row + text[end:], encoding="utf-8")
+    expect_refusal("case_on_watch_row_on_the_screen_route_is_refused", root, "watched-card")
+
+
+def case_retired_routes_disagreeing_with_two_used_is_refused(tmp: Path) -> None:
+    """CATALOG.md says the trigger and policy routes were used; drop the policy row."""
+    root = _tree(tmp)
+    retired = root / "RETIRED.md"
+    lines = retired.read_text(encoding="utf-8").splitlines(keepends=True)
+    kept = [line for line in lines if not line.startswith("| `skill-necessity-gate` |")]
+    if len(kept) == len(lines):
+        fail("case_retired_routes_disagreeing_with_two_used_is_refused", "anchor absent: policy row")
+        return
+    retired.write_text("".join(kept), encoding="utf-8")
+    expect_refusal(
+        "case_retired_routes_disagreeing_with_two_used_is_refused",
+        root,
+        "routes have been used, but RETIRED.md records: platform-fix",
+    )
+
+
+def case_unclassifiable_retired_row_is_uninterpretable(tmp: Path) -> None:
+    """A retired row naming no known route cannot answer which exit it took."""
+    root = _tree(tmp)
+    if not _append_retired_row(root, "It stopped being useful"):
+        fail("case_unclassifiable_retired_row_is_uninterpretable", "anchor absent: retired table header")
+        return
+    result = _run(root)
+    output = result.stdout + result.stderr
+    if result.returncode != 2 or "planted-card" not in output:
+        fail(
+            "case_unclassifiable_retired_row_is_uninterpretable",
+            f"expected exit 2 naming planted-card, got {result.returncode}\n{output}",
+        )
+        return
+    print("  ok   case_unclassifiable_retired_row_is_uninterpretable")
+
+
+def case_reworded_claim_sentence_is_refused(tmp: Path) -> None:
+    """A pinned sentence that is reworded leaves the check guarding nothing for it."""
+    root = _tree(tmp)
+    catalog = root / "CATALOG.md"
+    text = catalog.read_text(encoding="utf-8")
+    sentence = "No card has left on a screen result yet."
+    if sentence not in text:
+        fail("case_reworded_claim_sentence_is_refused", f"anchor absent: {sentence!r}")
+        return
+    catalog.write_text(text.replace(sentence, "No card has left on a screen so far.", 1), encoding="utf-8")
+    expect_refusal("case_reworded_claim_sentence_is_refused", root, "pinned claim sentence")
+
+
 CASES = (
     case_live_tree_passes,
+    case_candidate_with_a_paired_run_is_refused,
+    case_second_published_card_with_a_paired_run_is_refused,
+    case_named_card_without_a_paired_run_is_refused,
+    case_unrecognised_paired_verdict_is_uninterpretable,
+    case_retired_row_with_a_screen_exit_is_refused,
+    case_screen_exit_not_opening_with_its_word_is_refused,
+    case_on_watch_row_on_the_screen_route_is_refused,
+    case_retired_routes_disagreeing_with_two_used_is_refused,
+    case_unclassifiable_retired_row_is_uninterpretable,
+    case_reworded_claim_sentence_is_refused,
     case_group_readme_omitting_a_card_is_refused,
     case_group_readme_inventing_a_card_is_refused,
     case_documented_path_that_does_not_exist_is_refused,
