@@ -233,8 +233,8 @@ the bar", applied to this card.
 **The currency Revisit-if is reworded so that it can fire.** Under Decision status above, it
 reads: "*Revisit if:* a card clears the bar only on a receipt that O5 reports stale for two
 consecutive rotation passes." As written it cannot fire for this card. O5 reports PASS for
-`pull-rebase`, because the card's row already marks its receipts as not current (run with a
-skill-harness checkout for the adjudication, item 4). Once a row marks its receipt not current,
+`pull-rebase`, because the card's row already marks its receipts as not current. The adjudication,
+item 4, ran O5 with a skill-harness checkout and read that result. Once a row marks its receipt not current,
 O5 does not report that receipt stale. The reworded clause below replaces it.
 
 - **Revisable with new evidence:** leaving currency out of the bar. *Revisit if:* either of two
