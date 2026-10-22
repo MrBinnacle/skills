@@ -35,7 +35,7 @@ The sweep text is the same in both cases. These things differ:
 - `max_turns`: the variant sets 10, and the original sets none;
 - `tags`: `seed` in the original, `variant` in the variant.
 
-The first three are the one change under test: who dispatches. `tags` select cases for the runner. `max_turns` caps a run at 10 turns; the runs used 2 to 7, so the cap ended none of them.
+The first three are the one change under test: who dispatches. `tags` select cases for the runner. `max_turns` caps a run at 10 turns; the runs used 1 to 7, so the cap ended none of them.
 
 The card was invoked in 0 of 6 runs when the user dispatches and in 4 of 5 when the agent under test dispatches. On this model and these prompts, the description narrowed in #572 reached the agent's own dispatch, and it did not reach a brief that the user will dispatch. This separates the two explanations in #609. It is an observation on one pair of cases at five or six runs each, not a measurement, and no disposition verdict follows from it.
 
