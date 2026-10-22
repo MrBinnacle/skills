@@ -89,7 +89,8 @@ Bare "the gate" is ambiguous. Read it from context, or replace it with one of
 the three names above when editing:
 
 - Turned-away rows and "screened out at the gate" prose in `RETIRED.md` are
-  **screen** outcomes (controlled unaided runs), not a separate policy text.
+  outcomes of a **screen**'s without-skill arm alone (controlled unaided runs;
+  the with-skill arm never ran), not a separate policy text.
 - Front-page and contributing prose that pair "the gate" with what may enter
   the collection are about the **admission policy**.
 
