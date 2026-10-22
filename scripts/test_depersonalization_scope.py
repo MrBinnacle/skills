@@ -33,6 +33,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_message_residue import parse_hooks  # noqa: E402
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIG = REPO_ROOT / ".pre-commit-config.yaml"
 
@@ -63,31 +66,6 @@ CODENAME_POISON = ("WI-12 was the work item", "see skills_research for notes")
 def fail(case: str, detail: str) -> None:
     FAILURES.append(case)
     print(f"  FAIL {case}: {detail}")
-
-
-def parse_hooks() -> dict[str, dict[str, str]]:
-    """Read id, entry, types, files and the resolved exclude of every hook block."""
-    text = CONFIG.read_text(encoding="utf-8")
-    anchors: dict[str, str] = {}
-    for name, value in re.findall(r"exclude: &(\w+) '([^\n]*)'\n", text):
-        anchors[name] = value
-    hooks: dict[str, dict[str, str]] = {}
-    for block in re.split(r"^      - id: ", text, flags=re.M)[1:]:
-        hook_id = block.split("\n", 1)[0].strip()
-        fields: dict[str, str] = {}
-        for line in block.splitlines()[1:]:
-            m = re.match(r"^        (entry|types|files|language): (.*)$", line)
-            if m:
-                fields[m.group(1)] = m.group(2).strip()
-            m = re.match(r"^        exclude: (?:&\w+ )?('(.*)'|\*(\w+))\s*$", line)
-            if m:
-                fields["exclude"] = m.group(2) if m.group(2) is not None else anchors[m.group(3)]
-        if fields.get("language") == "pygrep":
-            entry = fields["entry"]
-            assert entry.startswith("'") and entry.endswith("'"), (hook_id, entry)
-            fields["entry"] = entry[1:-1].replace("''", "'")
-            hooks[hook_id] = fields
-    return hooks
 
 
 def hook_fires(hooks: dict[str, dict[str, str]], hook_id: str, line: str) -> bool:
@@ -217,7 +195,7 @@ def case_real_hook_goes_red_with_file_and_line() -> None:
 
 
 def main() -> None:
-    hooks = parse_hooks()
+    hooks = parse_hooks(CONFIG)
     case_every_pygrep_hook_selects_by_type(hooks)
     case_account_patterns_fire_in_every_file_class(hooks)
     case_clean_values_stay_green(hooks)

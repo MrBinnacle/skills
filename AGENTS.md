@@ -932,6 +932,22 @@ number about the wrong artifact, or a disposition with no measurement under it.
 - **The de-personalization gate fires on raw incident notes.** That is the gate working:
   de-personalize the entry, keep the evidentiary story, never exempt the file.
 
+## Repeated mistakes and what enforces each rule
+
+Each row is a mistake agents made at least twice in this repository, the rule that prevents it,
+and what fails when an agent skips the rule. A row marked "docs only" has no mechanical check: it
+is a judgment call, and nothing fails when it is skipped. When a correction repeats a rule that is
+already here and unenforced, fix it at the highest level that works in the same change. Remove a
+row once its mistake can no longer happen.
+
+| Rule | Enforced by | Evidence (two or more instances) |
+| --- | --- | --- |
+| A commit message, PR title or PR body carries no residue term. Reword with the replacement the hook name gives. | Hook `residue-commit-msg`; the `depersonalization-gate.yml` step "Residue in commit messages, PR title and PR body"; suite `scripts/test_check_message_residue.py` | 14 commits on `main`, among them 122464d and 5f68de4; the PR 546 body |
+| Each reader has one owner. List published cards with `iter_skill_dirs` from `scripts/validate_scoreboard.py`. Read the load-mode flag with `runs_by_hand` or `flag_set` from `scripts/check_load_mode_markers.py`. Never write a second copy in the file you have open. | `scripts/check_shared_readers.py` (the `release-gate` job step "Shared-reader check"; fails only on a copy the merge-base lacks); suite `scripts/test_check_shared_readers.py` | 4f268c3 (two more `iter_skill_dirs`); d4b7a88 (`BY_HAND_RE`); 3fadb5b, fixed by d412996 (#553); 62a7e0a (release gate imports the standing-cost regex) |
+| In a tracked document, cite a heading, an anchor or quoted text, not a bare line number in another file. A line number goes stale at the cited file's next edit. | docs only: judgment call | [PR 532 verifier note](https://github.com/MrBinnacle/skills/pull/532#issuecomment-6304549744) (the ledger cited `README.md:47` after it moved); `docs/product/claims-ledger.md:126` and `:261` cite `README.md:56-66`, `:84` and `:88-94` as the install section, and at 62a7e0a those `README.md` lines hold a card-table heading, a table row and blank lines |
+| Give every branch of a new check its own red case: a mutant that disables one clause must turn the suite red. | docs only: judgment call (no mutation tool is a dependency here; the verifier's mutation pass is the check) | [PR 520](https://github.com/MrBinnacle/skills/pull/520#issuecomment-6299021716) (3 mutants survived); [PR 531](https://github.com/MrBinnacle/skills/pull/531#issuecomment-6304389826) (the `skills/` mutant survived, killed by #535); [PR 569 FAIL](https://github.com/MrBinnacle/skills/pull/569#issuecomment-6322198057) (no `--release` control for a load-mode flip) |
+| A change that makes a tree that met a conformance obligation fail it bumps the conformance edition (`SECURITY.md` bump rule) at every `conformance vN` site. | docs only: judgment call (whether a change is material) | [PR 491 FAIL at 8c61fa4](https://github.com/MrBinnacle/skills/pull/491#issuecomment-6272113944); 612e4bb (#354), which that verdict names as an earlier miss |
+
 ## De-personalization gate
 
 Skills are extracted from a private source tree that legitimately carries private-project
@@ -951,7 +967,11 @@ divergence and paper over the root cause; the block forces a conscious de-person
 so the decision stays audited. Keep the evidentiary story (e.g. "a personal production
 project's phase-2 security-audit lock"); drop only the unverifiable private identifier.
 
-- **Activate once per clone:** `pre-commit install --hook-type pre-commit --hook-type pre-push`
+A commit message is not a tracked file, so the file hooks never read it. The `residue-commit-msg`
+hook applies the same `residue-` patterns to each commit message, and the CI gate applies them to
+every commit, the title and the body of a pull request. A pushed message is public.
+
+- **Activate once per clone:** `pre-commit install --hook-type pre-commit --hook-type pre-push --hook-type commit-msg`
 - **Full-tree sweep on demand:** `pre-commit run --all-files`
 - **Maintainer name/email are deliberately NOT in the committed config** — publishing them in a
   public block-list would itself de-anonymize. Add them to a git-ignored local overlay if wanted.

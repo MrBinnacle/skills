@@ -22,22 +22,14 @@ from datetime import date
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+from validate_scoreboard import iter_skill_dirs  # noqa: E402
+
 PINNED_HARNESS_VERSION = "0.3.0"
 VERSION_RE = re.compile(r"version\s+(\d+\.\d+\.\d+)")
 AUDIT_RE = re.compile(
     r"Standing cost \(mechanical\):.*?calibrated\s+(\d+)\s+tokens"
 )
-
-
-def iter_skill_dirs(root: Path) -> list[Path]:
-    skills = root / "skills"
-    return sorted(
-        d2
-        for d in skills.iterdir()
-        if d.is_dir() and not d.name.startswith(("."))
-        for d2 in d.iterdir()
-        if d2.is_dir() and (d2 / "SKILL.md").is_file()
-    )
 
 
 def installed_harness() -> list[str]:

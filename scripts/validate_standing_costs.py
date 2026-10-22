@@ -37,6 +37,9 @@ import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+from validate_scoreboard import iter_skill_dirs  # noqa: E402
+
 STANDING_COST_ROW: str = "Standing cost"
 PINNED_HARNESS_VERSION = "0.3.0"
 # Pattern: "Description: N tokens, measured by ..."
@@ -88,18 +91,6 @@ def readme_cost_citation_gaps(root: Path) -> list[str]:
         for label, rx in README_COST_PARTS
         if not rx.search(cost[0])
     ]
-
-
-def iter_skill_dirs(root: Path) -> list[Path]:
-    """Published skill directories: two levels under skills/, carrying SKILL.md."""
-    skills = root / "skills"
-    return sorted(
-        d2
-        for d in skills.iterdir()
-        if d.is_dir() and not d.name.startswith(("."))
-        for d2 in d.iterdir()
-        if d2.is_dir() and (d2 / "SKILL.md").is_file()
-    )
 
 
 def standing_cost_row(evidence: Path) -> str | None:
