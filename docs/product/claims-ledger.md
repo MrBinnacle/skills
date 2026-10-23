@@ -44,8 +44,10 @@ adds `public_claims` to `assets/tokens.json`: `scripts/validate_brand_kit.py` no
 C2 wording on the site, the README, the SVG assets and the repository description. The pattern
 names the receipt that would lift it, a Pi install receipt under `docs/product/receipts/`, so the
 refusal ends when the missing fact exists. C4 gains a public form: the owner ruled on 2026-10-23
-that a public surface may say how far Pi works with the cards today, and how and why, within the
-evidence C4 and C5 cite. The ruling was given in a working session and is recorded here.
+that a public surface may say how far Pi works with the cards today, within the evidence C4 and
+C5 cite. The owner also ruled that public copy says less: C9 now records that the absence of a
+measured benefit is not repeated across surfaces. Both rulings were given in a working session
+and are recorded here.
 
 This is an internal working record. It is not public copy, and it changes no public surface.
 It has two parts:
@@ -123,10 +125,10 @@ ledger cites that list by its path and does not repeat it.
 | Field | Value |
 | --- | --- |
 | Claim | A configured Pi setup loaded cards from this repository. |
-| Allowed wording | On 2026-10-17, a configured Pi 1.3.0 setup on the owner's machine loaded cards from explicit paths. Provider delivery and body invocation were not measured. On a public surface, from the owner's ruling of 2026-10-23, the same facts with how and why: the cards use the open Agent Skills `SKILL.md` format, which Pi also reads; Pi 1.3.0 loaded them from a local checkout when given their paths by hand; there is no Pi install package; whether the cards change how Pi behaves has not been measured. The reason may be stated as direction: one shared format lets a card be written once rather than once per runtime. |
+| Allowed wording | On 2026-10-17, a configured Pi 1.3.0 setup on the owner's machine loaded cards from explicit paths. Provider delivery and body invocation were not measured. On a public surface, from the owner's ruling of 2026-10-23, the shortest true form: the cards use the open Agent Skills `SKILL.md` format, which Pi also reads; Pi 1.3.0 loaded them from a local checkout on 2026-10-17; there is no Pi install package yet. |
 | Forbidden wording | Any wording that turns this loader observation into an install route, a package, or runtime parity. |
-| Evidence | `docs/product/runtime-delivery-matrix.md:88-89`. |
-| Status | **SCOPED** to that configuration and date. It is not install guidance. Public use is **ALLOWED** in the public form above, with the date, the version and the two limits beside it. |
+| Evidence | `docs/product/runtime-delivery-matrix.md:88-89`, the loader run; `:19-20`, the shared `SKILL.md` format; `:91`, no clean-install receipt. |
+| Status | **SCOPED** to that configuration and date. It is not install guidance. Public use is **ALLOWED** in the public form above, with the date, the version and the install limit beside it. |
 
 ### C5. Runtime parity and shared content
 
@@ -176,7 +178,7 @@ ledger cites that list by its path and does not repeat it.
 | Allowed wording | No skill claims a measured benefit yet. The one controlled result, on `pull-rebase`, is `CANT_TELL_YET`. Publication is not validation. |
 | Forbidden wording | Any wording that a card is proven, validated, effective, or makes agents more reliable. Any adoption or user count. |
 | Evidence | `README.md:10`, *No skill here has been shown to make an agent less likely to repeat its failure*; `README.md:45`, *No skill claims a measured benefit yet*, beside the `CANT_TELL_YET` verdict for `pull-rebase`; `CATALOG.md:19-20`; `skills/engineering/pull-rebase/EVIDENCE.md:12-13`; `PRODUCT.md:141`; `BRAND.md:50`. |
-| Status | **FORBIDDEN** as a benefit claim. The absence statement is **ALLOWED**. |
+| Status | **FORBIDDEN** as a benefit claim. The absence statement is **ALLOWED**, not required. The owner ruled on 2026-10-23 that public copy says less: no surface claims a benefit, and the absence is not repeated across surfaces. Each card's `EVIDENCE.md` carries the detail. |
 
 ### C10. Admission
 
