@@ -1,6 +1,6 @@
 ---
 name: subagent-handback
-description: Use before dispatching a subagent for research, or when one goes idle with no report. Name a return channel (SendMessage or a file), check its tool grant, then verify every claim, negatives first.
+description: Use when prompting, briefing or dispatching a research subagent, or when one goes idle with no report. Name a return channel, check its tool grant, verify every claim, negatives first.
 ---
 
 # Subagent Research Reliability
@@ -23,7 +23,7 @@ catches.
 ## Context / Trigger Conditions
 
 - About to call the Agent tool for research of any kind — web, literature, market scan, or a
-  read-only sweep of the local repository.
+  read-only sweep of the repository — or writing its brief, whoever sends it.
 - A dispatched agent or teammate went idle, or its completion notification carries no findings.
 - Curating anything a research subagent returned — citations, IDs, dates, quoted rules, or a
   reported negative — before acting on it.

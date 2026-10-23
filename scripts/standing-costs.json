@@ -1,6 +1,6 @@
 {
   "skill_harness_version": "0.3.0",
-  "calibrated_on": "2026-10-20",
+  "calibrated_on": "2026-10-22",
   "cards": {
     "clirunner-env": {
       "standing_cost_tokens": 0,
@@ -55,8 +55,8 @@
       "skill_md_sha256": "87f5798ac8eb4fbd4063f626ca451d011b48b828cc56773878cef99ef16afd29"
     },
     "subagent-handback": {
-      "standing_cost_tokens": 52,
-      "skill_md_sha256": "21e3aac8e1c7b719accd373da543be1dd1140182128b17bc87b62091f950cba4"
+      "standing_cost_tokens": 49,
+      "skill_md_sha256": "a52d2ce9c625871a17f24cd59bb03caf47b0d4e138199f51ab25b73ef5b70b51"
     }
   }
 }
