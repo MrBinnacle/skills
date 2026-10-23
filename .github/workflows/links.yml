@@ -107,11 +107,22 @@ jobs:
       # still checked. `--accept 429` above already handles the throttle's
       # documented status code; these answer 503 instead, which is the sibling
       # case _quarantine/linkcheck-throttle/ records.
+      # `--include-fragments` makes a link to a wrong heading anchor fail, in a
+      # local file or on a remote page (#603). Without it lychee checks only
+      # that the file or page exists. Measured 2026-10-22 with lychee 0.24.2,
+      # the version this action pins: a planted `CATALOG.md#no-such-heading`
+      # and a planted wrong anchor on a github.com blob page both pass without
+      # the flag and fail with it, and the live tree reports 0 errors with it.
+      #
+      # 502 needs no rule here. lychee-lib/src/retry.rs (0.24.2) retries every
+      # 5xx status, and 408 and 429, up to `--max-retries`. The 502 flake on
+      # PR #590 outlasted those retries; a rerun passed.
       - name: Check links
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2
         with:
           args: >-
             --no-progress
+            --include-fragments
             --max-retries 3
             --retry-wait-time 5
             --accept '200..=299,429'
