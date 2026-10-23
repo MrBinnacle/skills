@@ -248,3 +248,7 @@
 
   **Not a falsifier**, any of them. The pull-rebase guard still lacks heredoc stripping, and the
   other guards' predicates were not read, so the remedy is absent rather than defeated.
+
+## [OBSERVED 2026-10-22] a pull-request preflight guard blocked a waiver recorder, then blocked this entry
+
+A guard that polices pull-request creation read the whole command string of a different program, a gate-waiver recorder, and matched the literal `--path` argument naming the gated action. No pull request was being created. Re-issued under the guard's acknowledgement variable. The commit that appended this entry was then blocked by the same guard, because the entry quotes the command the guard polices inside a heredoc body. Two blocks, both prose, in the session that wrote this card's `Observed in use` row from a month of such blocks; both arrived after that count was frozen and are not in its 116. Same guard family as the 2026-10-05 entry; remedy state unchanged (the guard anchors on the token, not on command position). Not a falsifier: command-position anchoring was never applied to this guard.
