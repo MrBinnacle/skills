@@ -336,6 +336,17 @@ second census to keep in sync.
   here. Measured 2026-09-21: a root holding only the marketplace file exposed 0 skills and
   reported version `unknown` (#314).
 
+A mod is its own plugin root too ([ADR 0009](docs/adr/0009-the-collection-also-ships-mods-it-authored.md)).
+A Claude Code mod this collection wrote lives at `mods/<mod>/`, with its own
+`.claude-plugin/plugin.json` and no `skills` list, and its marketplace entry is a `git-subdir`
+pin like a bucket's. O7 finds no cards in it. G1 stamps its version with the buckets'. G10
+prices adding, removing or renaming a mod as it prices a card. A new mod's entry is entering
+until the next release ships it, and `check_marketplace_pin.py` reports it so. The admission
+test, the `EVIDENCE.md` rows and the card validators do not apply to a mod, because they test
+whether a skill deserves its place in the context window and a mod loads nothing into it. A mod
+enters when `claude plugin validate mods/<mod>` reports no error and `claude plugin test
+mods/<mod>` passes.
+
 A bucket is its own plugin root, so a bucket install carries that bucket's cards and nothing
 else. **Link to a card in another bucket by its GitHub URL**, never by a `../../<bucket>` path:
 the relative path dangles in the installed copy.

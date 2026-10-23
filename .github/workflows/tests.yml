@@ -2868,7 +2868,17 @@ jobs:
         shell: bash
     timeout-minutes: 5
     steps:
+      # Full history and the base branch: the contract skips plugins entering
+      # the marketplace (ADR 0009), and check_marketplace_pin finds them by
+      # walking release commits and testing ancestry against `origin/main`. A
+      # shallow checkout resolves neither, and the check refuses.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch for the marketplace pin check
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags origin "$GITHUB_BASE_REF"
 
       # Issue #333 is a CLI resolution failure. The contract must run with the
       # release whose interactive and shell forms the README records.

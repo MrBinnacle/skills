@@ -50,3 +50,6 @@ tmp/
 # `claude plugin eval` writes aggregate-result.json under <plugin>/evals/results/<timestamp>/.
 # Run results are recorded in each suite's MANIFEST.md Runs section, not committed raw (#609).
 skills/*/evals/results/
+
+# Claude Code writes generated type files into each loaded mod. Machine-local.
+mods/*/.claude-plugin/types/

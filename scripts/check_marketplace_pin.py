@@ -19,7 +19,12 @@ package.json version differs from its first parent's. Every entry must name:
   - `sha` equal to the latest release commit, and `ref` equal to
     `v<version at that commit>`; the tag, when it resolves, must be that commit;
   - a `path` whose `.claude-plugin/plugin.json` at that commit carries the
-    entry's name and the version package.json declares.
+    entry's name and the version package.json declares. One exception: an
+    entry added since that release, whose `path` the release does not hold,
+    is ENTERING. It cannot be pinned to a commit that predates it, so its
+    `sha` and `ref` still name the current release, it installs nothing until
+    the next release ships it, and that release's --write moves it with every
+    other entry (ADR 0009).
 
 Three states, by where the latest release commit sits:
 
@@ -46,6 +51,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
@@ -154,7 +160,34 @@ def read_manifest(root: Path) -> dict:
     return data
 
 
-def entry_errors(root: Path, entry: dict, release: Release, url: str) -> list[str]:
+def released_names(root: Path, release: Release) -> set[object]:
+    """Plugin names the marketplace at the pinned release carries.
+
+    An unreadable manifest raises: an empty set would let every entry whose
+    path the release lacks claim entering, which is the deleted-plugin case
+    the exception must not hide.
+    """
+    plugins = json_at(root, release.sha, MANIFEST_REL).get("plugins")
+    if not isinstance(plugins, list):
+        raise PinError(f"{MANIFEST_REL} at {release.sha[:12]} declares no plugin list")
+    return {p.get("name") for p in plugins if isinstance(p, dict)}
+
+
+def entering(root: Path, entry: dict, release: Release, released: set[object]) -> bool:
+    """An entry added since the pinned release, whose plugin that release does not hold."""
+    source = entry.get("source")
+    path = source.get("path") if isinstance(source, dict) else None
+    return (
+        entry.get("name") not in released
+        and isinstance(path, str)
+        and bool(path)
+        and not git_ok(root, "cat-file", "-e", f"{release.sha}:{path}/{PLUGIN_MANIFEST_REL}")
+    )
+
+
+def entry_errors(
+    root: Path, entry: dict, release: Release, url: str, released: set[object]
+) -> list[str]:
     name = entry.get("name")
     source = entry.get("source")
     if not isinstance(source, dict) or source.get("source") != "git-subdir":
@@ -171,8 +204,25 @@ def entry_errors(root: Path, entry: dict, release: Release, url: str) -> list[st
         tagged = git(root, "rev-parse", f"refs/tags/{ref}^{{commit}}")
         if tagged != sha:
             errors.append(f"{name}: tag {ref} is commit {tagged}, not sha {sha}")
-    errors.extend(plugin_errors(root, name, source.get("path"), release))
+    if entering(root, entry, release, released):
+        errors.extend(branch_plugin_errors(root, name, source.get("path")))
+    else:
+        errors.extend(plugin_errors(root, name, source.get("path"), release))
     return errors
+
+
+def branch_plugin_errors(root: Path, name: object, path: object) -> list[str]:
+    """An entering entry has no release to check against, so check the branch:
+    a mistyped path or name would otherwise stay green until the release."""
+    manifest = root / str(path) / PLUGIN_MANIFEST_REL
+    try:
+        plugin = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return [f"{name}: entering, but {path}/{PLUGIN_MANIFEST_REL} on this branch cannot be read: {exc}"]
+    found = plugin.get("name") if isinstance(plugin, dict) else plugin
+    if found != name:
+        return [f"{name}: entering, but {path}/{PLUGIN_MANIFEST_REL} on this branch is named {found!r}"]
+    return []
 
 
 def plugin_errors(root: Path, name: object, path: object, release: Release) -> list[str]:
@@ -193,14 +243,23 @@ def plugin_errors(root: Path, name: object, path: object, release: Release) -> l
     return errors
 
 
-def check(root: Path) -> tuple[Release, list[str]]:
+class PinResult(NamedTuple):
+    release: Release
+    errors: list[str]
+    entering: list[str]
+
+
+def check(root: Path) -> PinResult:
     release = expected_release(root)
     url = repo_url(root)
-    errors = [e for entry in read_manifest(root)["plugins"] for e in entry_errors(root, entry, release, url)]
+    released = released_names(root, release)
+    plugins = read_manifest(root)["plugins"]
+    errors = [e for entry in plugins for e in entry_errors(root, entry, release, url, released)]
+    new = [str(entry.get("name")) for entry in plugins if entering(root, entry, release, released)]
     declared = json.loads((root / "package.json").read_text(encoding="utf-8")).get("version")
     if not release.pending and declared != release.version:
         errors.append(f"package.json declares {declared}, the pinned release is {release.version}")
-    return release, errors
+    return PinResult(release, errors, new)
 
 
 def bucket_path(source: object) -> str:
@@ -243,7 +302,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.write:
             print(f"MARKETPLACE PIN: WRITE - pinned every entry to {write(args.root)}")
-        release, errors = check(args.root)
+        release, errors, new = check(args.root)
     except (PinError, OSError, ValueError) as exc:
         errors = [str(exc)]
     if errors:
@@ -252,6 +311,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  FAIL  {error}")
         return 1
     state = " (release ref: the pin stays on the previous release until this merges)" if release.pending else ""
+    if new:
+        state += f"; entering at the next release, installs nothing yet: {', '.join(new)}"
     print(f"MARKETPLACE PIN: PASS - every entry pins v{release.version} {release.sha}{state}")
     return 0
 

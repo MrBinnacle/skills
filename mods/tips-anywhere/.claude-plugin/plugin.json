@@ -1,0 +1,24 @@
+{
+  "name": "tips-anywhere",
+  "version": "3.1.0",
+  "description": "Brings the You should know side agent's heads-up notes to every Claude app, the phone and tablet included, as a question with buttons: hand it to Claude, show the details, or dismiss it",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "deliver": {
+      "type": "string",
+      "title": "How heads-ups reach you",
+      "description": "buttons: a question in the chat with buttons to tap, on every app. computer: a pop-up on the computer only. /tips via <choice> changes it from any app.",
+      "options": [
+        "buttons",
+        "computer"
+      ],
+      "default": "buttons"
+    }
+  },
+  "author": {
+    "name": "MrBinnacle"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/MrBinnacle/skills",
+  "homepage": "https://github.com/MrBinnacle/skills/tree/main/mods/tips-anywhere"
+}
