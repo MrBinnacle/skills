@@ -91,6 +91,28 @@ BASELINE_PACKAGE = {
     "description": "A small, evidence-backed collection of agent skills.",
 }
 
+# Written out rather than read from assets/tokens.json, for the reason
+# `baseline_tokens` gives. The live pattern is checked against the live page
+# by `case_live_site_is_a_claim_surface`.
+BASELINE_CLAIM_PATTERN: dict[str, Any] = {
+    "claim": "C2",
+    "regex": r"\bPi\b[^.\n]{0,80}(?i:\b(?:primary|first|main)\b)",
+    "why": "Pi is the direction, not a delivered runtime.",
+    "must_match": ["Pi is the runtime this work targets first."],
+    "must_not_match": ["There is no tested Pi install yet."],
+}
+
+BASELINE_SITE = (
+    "<!DOCTYPE html>\n<html lang=\"en\"><head>\n"
+    '<meta name="description" content="Records of agent failures.">\n'
+    "<style>p { color: inherit; }</style>\n"
+    "</head><body>\n"
+    "<!-- a comment is not copy -->\n"
+    '<img src="x.png" alt="the receipt glyph">\n'
+    "<p>Every card states what it cost.</p>\n"
+    "</body></html>\n"
+)
+
 
 BASELINE_WORDS = ["earn", "curated", "load-bearing", "robust", "unlock"]
 
@@ -151,6 +173,18 @@ def baseline_tokens() -> dict[str, Any]:
                     },
                 ]
             },
+        },
+        "public_claims": {
+            "surfaces": [
+                {"kind": "svg_copy", "glob": "assets/*.svg"},
+                {"kind": "markdown_prose", "glob": "README.md"},
+                {
+                    "kind": "json_string_field",
+                    "glob": "package.json",
+                    "field": "description",
+                },
+            ],
+            "patterns": [deepcopy(BASELINE_CLAIM_PATTERN)],
         },
         "asset_pairs": {
             "pairs": [],
@@ -1205,6 +1239,180 @@ def case_style_block_hex_scanned(tmp: Path) -> None:
 
 
 # --------------------------------------------------------------------------
+# The landing page as a copy surface. Until this check, site/index.html was in
+# no surface list, so it said Pi was "the runtime this work targets first" for
+# three days after the #547 ruling forbade that on a public surface, and the
+# README fix (#561) could not see it.
+# --------------------------------------------------------------------------
+def _tree_with_site(tmp: Path, html: str = BASELINE_SITE) -> Path:
+    tokens = baseline_tokens()
+    tokens["copy"]["words_to_avoid_surfaces"]["surfaces"].append(
+        {"kind": "html_text", "glob": "site/index.html"}
+    )
+    tokens["public_claims"]["surfaces"].append({"kind": "html_text", "glob": "site/index.html"})
+    root = baseline_tree(tmp, tokens=tokens)
+    (root / "site").mkdir()
+    (root / "site" / "index.html").write_text(html, encoding="utf-8")
+    stage(root)
+    return root
+
+
+def case_site_baseline_passes(tmp: Path) -> None:
+    expect_pass("a landing page with no banned copy passes", _tree_with_site(tmp))
+
+
+def case_site_body_text_banned_word_rejected(tmp: Path) -> None:
+    html = BASELINE_SITE.replace("states what it cost", "is robust")
+    expect_one_breach(
+        "a banned word in landing page text is rejected",
+        _tree_with_site(tmp, html),
+        "site/index.html:html-text",
+        "banned word 'robust'",
+    )
+
+
+def case_site_attribute_copy_rejected(tmp: Path) -> None:
+    """alt and meta content are read aloud or shown in a link preview."""
+    html = BASELINE_SITE.replace('alt="the receipt glyph"', 'alt="a curated glyph"')
+    expect_one_breach(
+        "a banned word in an alt attribute is rejected",
+        _tree_with_site(tmp, html),
+        "banned word 'curated'",
+    )
+    html = BASELINE_SITE.replace("Records of agent failures.", "Robust records.")
+    with tempfile.TemporaryDirectory() as second:
+        expect_one_breach(
+            "a banned word in a meta description is rejected",
+            _tree_with_site(Path(second), html),
+            "banned word 'robust'",
+        )
+
+
+def case_site_comment_style_and_script_not_scanned(tmp: Path) -> None:
+    """None of the three renders as copy. The page's licence comment is the live case."""
+    html = (
+        BASELINE_SITE.replace("a comment is not copy", "a robust comment")
+        .replace("color: inherit;", "content: 'robust';")
+        .replace("</body>", "<script>var unlock = 1;</script></body>")
+    )
+    expect_pass("comments, style and script on the page are not copy", _tree_with_site(tmp, html))
+
+
+def case_site_with_no_text_refused(tmp: Path) -> None:
+    expect_refusal(
+        "a landing page surface that yields no copy is refused",
+        _tree_with_site(tmp, "<!DOCTYPE html><html><body></body></html>\n"),
+        "HTML scanner saw no copy",
+    )
+
+
+# --------------------------------------------------------------------------
+# public_claims: wording the claims ledger forbids on a public surface.
+# --------------------------------------------------------------------------
+def case_public_claim_on_the_site_rejected(tmp: Path) -> None:
+    """The defect this block exists for, as it shipped."""
+    html = BASELINE_SITE.replace(
+        "<p>Every card states what it cost.</p>",
+        "<p>Pi is the runtime this work targets first. There is no tested Pi install yet.</p>",
+    )
+    expect_one_breach(
+        "the shipped Pi-first sentence on the landing page is rejected",
+        _tree_with_site(tmp, html),
+        "site/index.html:html-text",
+        "claims-ledger.md C2",
+    )
+
+
+def case_public_claim_in_readme_rejected(tmp: Path) -> None:
+    readme = BASELINE_README + "\nPi is the primary runtime for this work.\n"
+    expect_one_breach(
+        "a forbidden claim in README prose is rejected",
+        baseline_tree(tmp, readme=readme),
+        "README.md:prose",
+        "claims-ledger.md C2",
+    )
+
+
+def case_public_claim_allowed_wording_passes(tmp: Path) -> None:
+    """The ledger's own allowed wording for C2 and C3 must stay sayable."""
+    readme = (
+        BASELINE_README
+        + "\nThe install below is for Claude Code. An install for Pi, another coding "
+        "agent, is planned and untested. There is no tested Pi install yet.\n"
+    )
+    expect_pass("the ledger's allowed Pi wording passes", baseline_tree(tmp, readme=readme))
+
+
+def case_public_claims_off_a_public_surface_not_scanned(tmp: Path) -> None:
+    """Internal records may say Pi-first (ledger C2). Only public surfaces are read."""
+    root = baseline_tree(tmp)
+    (root / "PRODUCT.md").write_text("Pi is the primary runtime direction.\n", encoding="utf-8")
+    stage(root)
+    expect_pass("an internal record may state the direction", root)
+
+
+def case_public_claims_block_missing_refused(tmp: Path) -> None:
+    tokens = baseline_tokens()
+    del tokens["public_claims"]
+    expect_refusal(
+        "a token file with no public_claims block is refused",
+        baseline_tree(tmp, tokens=tokens),
+        "public_claims",
+    )
+
+
+def case_public_claims_empty_patterns_refused(tmp: Path) -> None:
+    tokens = baseline_tokens()
+    tokens["public_claims"]["patterns"] = []
+    expect_refusal(
+        "an empty public_claims pattern list is refused",
+        baseline_tree(tmp, tokens=tokens),
+        "public_claims.patterns is empty",
+    )
+
+
+def case_public_claim_pattern_missing_its_example_refused(tmp: Path) -> None:
+    """A pattern that stopped matching its own forbidden example checks nothing."""
+    tokens = baseline_tokens()
+    tokens["public_claims"]["patterns"][0]["regex"] = r"\bPi\b[^.\n]{0,80}\bprimary\b"
+    expect_refusal(
+        "a pattern that misses its own must_match example is refused",
+        baseline_tree(tmp, tokens=tokens),
+        "does not match its own must_match example",
+    )
+
+
+def case_public_claim_pattern_hitting_allowed_wording_refused(tmp: Path) -> None:
+    tokens = baseline_tokens()
+    tokens["public_claims"]["patterns"][0]["regex"] = r"\bPi\b"
+    expect_refusal(
+        "a pattern that matches its own must_not_match example is refused",
+        baseline_tree(tmp, tokens=tokens),
+        "matches its own must_not_match example",
+    )
+
+
+def case_public_claim_pattern_without_examples_refused(tmp: Path) -> None:
+    tokens = baseline_tokens()
+    del tokens["public_claims"]["patterns"][0]["must_match"]
+    expect_refusal(
+        "a pattern with no must_match example is refused",
+        baseline_tree(tmp, tokens=tokens),
+        "must_match",
+    )
+
+
+def case_public_claim_bad_regex_refused(tmp: Path) -> None:
+    tokens = baseline_tokens()
+    tokens["public_claims"]["patterns"][0]["regex"] = r"\bPi(\b"
+    expect_refusal(
+        "a pattern that does not compile is refused",
+        baseline_tree(tmp, tokens=tokens),
+        "does not compile",
+    )
+
+
+# --------------------------------------------------------------------------
 # Non-vacuity refusals: the checker refuses inputs that would make it blind.
 # --------------------------------------------------------------------------
 def case_empty_ban_list_refused(tmp: Path) -> None:
@@ -1433,6 +1641,36 @@ def case_live_notes_grant_no_permission_no_checker_implements() -> None:
     )
 
 
+def case_live_site_is_a_claim_surface() -> None:
+    """Both blocks read the shipped page, and the scanner sees its real text."""
+    tokens = json.loads((REPO_ROOT / "assets" / "tokens.json").read_text(encoding="utf-8"))
+    for block, specs in (
+        ("words_to_avoid_surfaces", tokens["copy"]["words_to_avoid_surfaces"]["surfaces"]),
+        ("public_claims", tokens["public_claims"]["surfaces"]),
+    ):
+        check(
+            f"{block} reads site/index.html as html_text",
+            any(
+                spec.get("kind") == "html_text" and spec.get("glob") == "site/index.html"
+                for spec in specs
+            ),
+            f"surfaces: {specs}",
+        )
+    page = (REPO_ROOT / "site" / "index.html").read_text(encoding="utf-8")
+    heading = re.search(r"<h1>(.*?)</h1>", page, flags=re.DOTALL)
+    copy = kit.html_text(page)
+    check(
+        "the live HTML scanner reads the page heading",
+        heading is not None and heading.group(1).strip() in copy,
+        f"heading {heading.group(1) if heading else None!r} not in scanned copy",
+    )
+    check(
+        "the live HTML scanner skips the licence comment",
+        "WITHOUT WARRANTY" in page and "WITHOUT WARRANTY" not in copy,
+        "the vendored licence comment reached the scanned copy",
+    )
+
+
 def case_workflow_runs_the_checker() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     for fragment in (
@@ -1502,6 +1740,21 @@ def main() -> None:
         case_unknown_surface_kind_refused,
         case_svg_with_no_copy_refused,
         case_missing_token_file_refused,
+        case_site_baseline_passes,
+        case_site_body_text_banned_word_rejected,
+        case_site_attribute_copy_rejected,
+        case_site_comment_style_and_script_not_scanned,
+        case_site_with_no_text_refused,
+        case_public_claim_on_the_site_rejected,
+        case_public_claim_in_readme_rejected,
+        case_public_claim_allowed_wording_passes,
+        case_public_claims_off_a_public_surface_not_scanned,
+        case_public_claims_block_missing_refused,
+        case_public_claims_empty_patterns_refused,
+        case_public_claim_pattern_missing_its_example_refused,
+        case_public_claim_pattern_hitting_allowed_wording_refused,
+        case_public_claim_pattern_without_examples_refused,
+        case_public_claim_bad_regex_refused,
     )
     for case in in_tempdir:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1516,6 +1769,7 @@ def main() -> None:
     case_live_stylesheet_surface_is_not_vacuous()
     case_png_decoder_reads_every_filter()
     case_live_raster_icons_are_checked()
+    case_live_site_is_a_claim_surface()
     case_live_notes_grant_no_permission_no_checker_implements()
     case_workflow_runs_the_checker()
 

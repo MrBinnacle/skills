@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Make assets/tokens.json enforceable: banned copy, hash pairs, declared hexes.
+"""Make assets/tokens.json enforceable: banned copy, hash pairs, declared hexes, claims.
 
 The token file described the brand and nothing read it. It said so itself, in a
 `known_gaps` block that stayed an accurate description of the repository for
@@ -7,7 +7,7 @@ twelve days: the kit declared structural neutrals for dark surfaces only, both
 banners carried the sibling instrument's confirmed-success green, and no check
 anywhere opened the file. This script is what closes `known_gaps.not_enforced`.
 
-THE THREE CHECKS
+THE FOUR CHECKS
     1. BANNED COPY. Every surface named in `copy.words_to_avoid_surfaces` is
        read and refused if it contains a word from `copy.words_to_avoid`. The
        word list and the surface list are both DATA: adding a word is a
@@ -34,6 +34,19 @@ THE THREE CHECKS
        carry no hex to scan. Until #448 the check read SVG and CSS only, so the
        two site icons kept the palette #429 retired while this script reported
        PASS. See WHY A RASTER ICON IS CHECKED AS BLENDS below.
+
+    4. PUBLIC CLAIMS. Every surface named in `public_claims.surfaces` is read
+       and refused if it matches a pattern in `public_claims.patterns`, each
+       of which names the docs/product/claims-ledger.md row it enforces. A
+       pattern carries must_match and must_not_match examples and is refused
+       when it misses its own forbidden example or catches its own allowed
+       one, so a regex edit cannot silently stop enforcing its row. Added
+       2026-10-23: the landing page called Pi the runtime the work targets
+       first, which row C2 forbids, and no check read the page.
+
+    An `html_text` surface reads a page's rendered text plus its aria-label,
+    alt and title attributes and its description and title meta content.
+    Script and style bodies and comments are not copy.
 
 WHY A RASTER ICON IS CHECKED AS BLENDS
     A rendered icon holds few exact token colours. On an opaque ground, every
@@ -158,6 +171,7 @@ import sys
 import xml.etree.ElementTree as ET
 import zlib
 from collections import Counter
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Final
 
@@ -183,8 +197,14 @@ DIGEST_FIELD_RE: Final[re.Pattern[str]] = re.compile(
     r'("words_to_avoid_digest"[\s\S]*?"sha256":\s*)"[0-9a-f]*"'
 )
 KNOWN_KINDS: Final[frozenset[str]] = frozenset(
-    {"svg_copy", "markdown_headings", "markdown_prose", "json_string_field"}
+    {"svg_copy", "markdown_headings", "markdown_prose", "json_string_field", "html_text"}
 )
+# Attributes whose value a reader sees or hears: a screen reader speaks
+# aria-label and alt, a tooltip shows title.
+HTML_COPY_ATTRIBUTES: Final[frozenset[str]] = frozenset({"aria-label", "alt", "title"})
+# A meta tag is copy when a search result or link preview shows its content.
+HTML_META_COPY_RE: Final[re.Pattern[str]] = re.compile(r"(?:description|title|image:alt)$")
+HTML_NON_COPY_ELEMENTS: Final[frozenset[str]] = frozenset({"script", "style"})
 HEX_SURFACE_KINDS: Final[tuple[str, ...]] = ("svg_hex", "css_hex", "raster_icon")
 PNG_SIGNATURE: Final[bytes] = b"\x89PNG\r\n\x1a\n"
 # PNG colour type -> channels per pixel, for the 8-bit subset decoded here.
@@ -298,6 +318,40 @@ def svg_copy(svg: str) -> str:
         if element.tag.rsplit("}", 1)[-1] in COPY_ELEMENTS:
             public_copy.append("".join(element.itertext()))
     return "\n".join(public_copy)
+
+
+class _HtmlCopy(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self._skipping = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in HTML_NON_COPY_ELEMENTS:
+            self._skipping += 1
+        values = dict(attrs)
+        self.parts.extend(
+            value for name, value in attrs if name in HTML_COPY_ATTRIBUTES and value
+        )
+        meta_name = values.get("name") or values.get("property") or ""
+        if tag == "meta" and values.get("content") and HTML_META_COPY_RE.search(meta_name):
+            self.parts.append(values["content"] or "")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in HTML_NON_COPY_ELEMENTS and self._skipping:
+            self._skipping -= 1
+
+    def handle_data(self, data: str) -> None:
+        if not self._skipping and data.strip():
+            self.parts.append(data.strip())
+
+
+def html_text(html: str) -> str:
+    """Rendered text, spoken attributes and preview meta. Comments, style and script are not copy."""
+    parser = _HtmlCopy()
+    parser.feed(html)
+    parser.close()
+    return "\n".join(parser.parts)
 
 
 def svg_hexes(svg: str) -> list[str]:
@@ -455,6 +509,8 @@ def surface_copy(
             collected.append((f"{relative}:headings", "\n".join(markdown_headings(text))))
         elif kind == "markdown_prose":
             collected.append((f"{relative}:prose", blank_fenced_blocks(text)))
+        elif kind == "html_text":
+            collected.append((f"{relative}:html-text", html_text(text)))
         else:
             field = spec.get("field")
             if not isinstance(field, str) or not field:
@@ -475,6 +531,36 @@ def surface_copy(
     return collected
 
 
+def resolve_surfaces(
+    root: Path, specs: list[Any], tracked: frozenset[str]
+) -> list[tuple[str, str]]:
+    """Every spec's copy, refusing a scanner that came back with nothing."""
+    surfaces: list[tuple[str, str]] = []
+    seen: Counter[str] = Counter()
+    for spec in specs:
+        if not isinstance(spec, dict):
+            raise Refusal("a surface entry is not an object")
+        resolved = surface_copy(root, spec, tracked)
+        seen[spec["kind"]] += 1 + sum(len(text.strip()) for _, text in resolved)
+        seen[spec["kind"] + ":surfaces"] += 1
+        surfaces.extend(resolved)
+    blind = {
+        "svg_copy": "the SVG scanner saw no copy in any asset. Either no asset carries "
+        "an aria-label or a text/title/desc element, or the scanner has gone "
+        "blind - and a blind scanner passes everything.",
+        "markdown_prose": "the markdown prose scanner saw no text in any document. Either "
+        "every in-scope document is fenced code end to end, or the fence remover has "
+        "eaten the tree - and either way the widest surface is reading nothing.",
+        "html_text": "the HTML scanner saw no copy on any page. Either the page renders "
+        "no text, or the parser has gone blind - and a blind scanner passes everything.",
+    }
+    for kind, message in blind.items():
+        surfaces_of_kind = seen[kind + ":surfaces"]
+        if surfaces_of_kind and seen[kind] == surfaces_of_kind:
+            raise Refusal(message)
+    return surfaces
+
+
 def banned_word_violations(surfaces: list[tuple[str, str]], words: list[str]) -> list[str]:
     violations: list[str] = []
     for label, text in surfaces:
@@ -491,6 +577,79 @@ def banned_word_violations(surfaces: list[tuple[str, str]], words: list[str]) ->
                 f"scanned copy: {ascii(context.strip()[:120])}. It is listed in "
                 "assets/tokens.json > copy.words_to_avoid, and this surface is in "
                 "copy.words_to_avoid_surfaces."
+            )
+    return violations
+
+
+def _example_list(pattern: dict[str, Any], field: str, claim: str) -> list[str]:
+    examples = pattern.get(field)
+    if not isinstance(examples, list) or not examples or not all(
+        isinstance(example, str) and example for example in examples
+    ):
+        raise Refusal(
+            f"public_claims pattern {claim} states no {field} list. A pattern with "
+            "no example of what it must catch and what it must let through cannot "
+            "show that it still does either."
+        )
+    return examples
+
+
+def public_claim_patterns(block: Any) -> list[tuple[str, re.Pattern[str], str]]:
+    """(claim, compiled pattern, why), each proven against its own examples."""
+    if not isinstance(block, dict):
+        raise Refusal(
+            "assets/tokens.json states no public_claims block. It holds the wording "
+            "docs/product/claims-ledger.md forbids on a public surface, and without "
+            "it no check reads the landing page for a forbidden claim."
+        )
+    raw = block.get("patterns")
+    if not isinstance(raw, list) or not raw:
+        raise Refusal("public_claims.patterns is empty, so the claim check passes on every input.")
+    compiled: list[tuple[str, re.Pattern[str], str]] = []
+    for pattern in raw:
+        if not isinstance(pattern, dict):
+            raise Refusal("a public_claims pattern is not an object")
+        claim, regex, why = pattern.get("claim"), pattern.get("regex"), pattern.get("why")
+        if not (isinstance(claim, str) and isinstance(regex, str) and isinstance(why, str)) or not (
+            claim and regex and why
+        ):
+            raise Refusal("a public_claims pattern lacks a claim, regex or why string")
+        try:
+            matcher = re.compile(regex)
+        except re.error as error:
+            raise Refusal(f"public_claims pattern {claim} does not compile: {error}") from error
+        for example in _example_list(pattern, "must_match", claim):
+            if not matcher.search(example):
+                raise Refusal(
+                    f"public_claims pattern {claim} does not match its own must_match "
+                    f"example {ascii(example)}, so it no longer catches the claim it names."
+                )
+        for example in _example_list(pattern, "must_not_match", claim):
+            if matcher.search(example):
+                raise Refusal(
+                    f"public_claims pattern {claim} matches its own must_not_match "
+                    f"example {ascii(example)}, so it refuses wording the ledger allows."
+                )
+        compiled.append((claim, matcher, why))
+    return compiled
+
+
+def public_claim_violations(
+    surfaces: list[tuple[str, str]], patterns: list[tuple[str, re.Pattern[str], str]]
+) -> list[str]:
+    violations: list[str] = []
+    for label, text in surfaces:
+        lines = text.splitlines()
+        for claim, matcher, why in patterns:
+            match = matcher.search(text)
+            if not match:
+                continue
+            line = text.count("\n", 0, match.start()) + 1
+            context = lines[line - 1] if 0 < line <= len(lines) else ""
+            violations.append(
+                f"{label}: forbidden public claim at line {line} of the scanned copy: "
+                f"{ascii(context.strip()[:120])}. docs/product/claims-ledger.md {claim} "
+                f"forbids it on a public surface: {why}"
             )
     return violations
 
@@ -858,35 +1017,19 @@ def validate(root: Path) -> None:
             "surface to read is a check over nothing."
         )
 
-    surfaces: list[tuple[str, str]] = []
-    svg_copy_seen = 0
-    prose_seen = 0
-    prose_surfaces = 0
-    for spec in specs:
-        if not isinstance(spec, dict):
-            raise Refusal("a surface entry is not an object")
-        resolved = surface_copy(root, spec, tracked)
-        if spec.get("kind") == "svg_copy":
-            svg_copy_seen += sum(len(text.strip()) for _, text in resolved)
-        if spec.get("kind") == "markdown_prose":
-            prose_surfaces += 1
-            prose_seen += sum(len(text.strip()) for _, text in resolved)
-        surfaces.extend(resolved)
-
-    if svg_copy_seen == 0:
-        raise Refusal(
-            "the SVG scanner saw no copy in any asset. Either no asset carries "
-            "an aria-label or a text/title/desc element, or the scanner has gone "
-            "blind - and a blind scanner passes everything."
-        )
-    if prose_surfaces and prose_seen == 0:
-        raise Refusal(
-            "the markdown prose scanner saw no text in any document. Either every "
-            "in-scope document is fenced code end to end, or the fence remover has "
-            "eaten the tree - and either way the widest surface is reading nothing."
-        )
+    surfaces = resolve_surfaces(root, specs, tracked)
 
     violations = banned_word_violations(surfaces, words)
+
+    claim_block = tokens.get("public_claims")
+    patterns = public_claim_patterns(claim_block)
+    assert isinstance(claim_block, dict)
+    claim_specs = claim_block.get("surfaces")
+    if not isinstance(claim_specs, list) or not claim_specs:
+        raise Refusal("public_claims.surfaces is empty, so the claim check reads nothing.")
+    violations.extend(
+        public_claim_violations(resolve_surfaces(root, claim_specs, tracked), patterns)
+    )
 
     pair_block = tokens.get("asset_pairs")
     if not isinstance(pair_block, dict):

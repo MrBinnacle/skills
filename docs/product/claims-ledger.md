@@ -36,6 +36,13 @@ cells describe the README as it is at that revision, re-read whole the same day.
 README no longer carries is marked as history in words, with the rewrite that removed it, found
 with `git log -S`. Every other citation keeps the revision it names.
 
+**Amended 2026-10-23** against `main` at `b9e0bea`. S3 adds the row for `site/index.html:147`.
+That line called Pi the runtime this work targets first, which C2 has forbidden on a public
+surface since the #547 ruling. #561 fixed the README for that ruling. The site was in no copy
+check and in no row of this sweep, so the line stayed. The same change removes the sentence and
+adds `public_claims` to `assets/tokens.json`: `scripts/validate_brand_kit.py` now refuses the
+C2 wording on the site, the README, the SVG assets and the repository description.
+
 This is an internal working record. It is not public copy, and it changes no public surface.
 It has two parts:
 
@@ -285,6 +292,7 @@ needs no new owner-authored copy.
 | `site/index.html:19-20`: image alt *MRBINNACLE / skills* | None. | No change. |
 | `site/index.html:137`: *Skills that started with problems I encountered.* | None. Quoted from `VERBATIM.md:76`. | No change. |
 | `site/index.html:140`: *Install in Claude Code* | None. It is scoped to one runtime, which agrees with C2 and C6. | No change. |
+| `site/index.html:147`: *There is no tested Pi install yet.* History: from #456 (`296c0cd`, 2026-10-17) to 2026-10-23 the line began *Pi is the runtime this work targets first.* That sentence conflicted with C2 after the #547 ruling of 2026-10-20, and the change that added this row removed it. | None now. It is the C3 gap statement. | No change. `scripts/validate_brand_kit.py`, which runs on every pull request, refuses the removed wording on this page through the `public_claims` block in `assets/tokens.json`. |
 
 The issue text of #443 lists the site description as drift. The evidence does not support that.
 Every card has the re-screen trigger the line names (C8). The open question is register, not

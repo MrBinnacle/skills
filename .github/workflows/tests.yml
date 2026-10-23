@@ -1325,7 +1325,7 @@ jobs:
           # without it makes the surface match nothing, which the checker
           # refuses as a check over nothing -- correctly, so copy it.
           mkdir -p "$tree/site"
-          cp site/*.css site/*.png "$tree/site/"
+          cp site/*.css site/*.html site/*.png "$tree/site/"
           cp package.json "$tree/"
           sed 's|^## Install$|## Skills that earn their keep|' README.md > "$tree/README.md"
           grep -q '^## Skills that earn their keep$' "$tree/README.md" \
@@ -1376,7 +1376,7 @@ jobs:
           # without it makes the surface match nothing, which the checker
           # refuses as a check over nothing -- correctly, so copy it.
           mkdir -p "$tree/site"
-          cp site/*.css site/*.png "$tree/site/"
+          cp site/*.css site/*.html site/*.png "$tree/site/"
           cp README.md package.json "$tree/"
           # Written with printf rather than a heredoc: a quoted heredoc inside an
           # indented `run:` block never terminates, because only tabs are
@@ -1422,7 +1422,7 @@ jobs:
           # without it makes the surface match nothing, which the checker
           # refuses as a check over nothing -- correctly, so copy it.
           mkdir -p "$tree/site"
-          cp site/*.css site/*.png "$tree/site/"
+          cp site/*.css site/*.html site/*.png "$tree/site/"
           cp README.md package.json "$tree/"
           # The pair is injected with sed rather than a heredoc: a quoted
           # heredoc inside an indented `run:` block never terminates, because
@@ -1477,7 +1477,7 @@ jobs:
           # without it makes the surface match nothing, which the checker
           # refuses as a check over nothing -- correctly, so copy it.
           mkdir -p "$tree/site"
-          cp site/*.css site/*.png "$tree/site/"
+          cp site/*.css site/*.html site/*.png "$tree/site/"
           cp README.md package.json "$tree/"
           # Plant over a colour the banner actually draws, read from its own
           # fill/stroke attributes, so a palette change cannot leave the sed
