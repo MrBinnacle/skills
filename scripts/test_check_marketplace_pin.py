@@ -11,6 +11,9 @@ apart:
   - a release branch not yet on main, pin still on the previous release: green;
   - main holds the release commit but not the pin commit yet: RED, by design.
     Every run in that window is refused until the pin lands;
+  - an entry added since the release, whose path the release lacks, pinned to
+    that release: green, reported as entering (ADR 0009);
+  - an entry the release already lists whose path it lacks: red;
   - --write on main after the release merges stamps the new pin: green.
 
 Run directly:  python scripts/test_check_marketplace_pin.py
@@ -53,6 +56,14 @@ def pin(root: Path, sha: str, ref: str, *, url: str = URL) -> None:
     source = {"source": "git-subdir", "url": url, "path": "skills/alpha", "ref": ref, "sha": sha}
     write_json(root / ".claude-plugin/marketplace.json", {"name": "fixture", "plugins": [
         {"name": "alpha", "source": source}]})
+
+
+def pin_with_new(root: Path, sha: str, ref: str, new_path: str) -> None:
+    pin(root, sha, ref)
+    data = json.loads((root / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
+    data["plugins"].append({"name": "beta", "source": {
+        "source": "git-subdir", "url": URL, "path": new_path, "ref": ref, "sha": sha}})
+    write_json(root / ".claude-plugin/marketplace.json", data)
 
 
 def make_repo(tmp: Path) -> tuple[Path, str, str]:
@@ -111,6 +122,11 @@ def cases(tmp: Path) -> None:
     expect("tag pointing elsewhere is red", run(root), False, f"tag v1.1.0 is commit {first}")
     git(root, "tag", "-f", "v1.1.0", release)
 
+    pin_with_new(root, release, "v1.1.0", "mods/beta")
+    expect("entry added since the release is entering, not red", run(root), True,
+           "entering at the next release, installs nothing yet: beta")
+    pin(root, release, "v1.1.0")
+
     git(root, "switch", "-q", "-c", "release")
     commit_version(root, "1.2.0", "chore(release): v1.2.0")
     pin(root, release, "v1.1.0")
@@ -124,6 +140,13 @@ def cases(tmp: Path) -> None:
     git(root, "tag", "v1.2.0")
     expect("--write after the release merges is green", run(root, "--write"), True,
            f"pins v1.2.0 {new_release}")
+
+    pin_with_new(root, new_release, "v1.2.0", "mods/beta")
+    listed = commit_version(root, "1.3.0", "chore(release): v1.3.0 lists beta")
+    git(root, "tag", "v1.3.0")
+    pin_with_new(root, listed, "v1.3.0", "mods/beta")
+    expect("entry the release already lists cannot claim entering", run(root), False,
+           "beta: git show")
 
 
 def main() -> int:

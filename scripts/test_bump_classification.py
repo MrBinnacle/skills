@@ -326,6 +326,8 @@ def make_tree(
       to_by_hand         - old-card gains disable-model-invocation: true (ADR 0008)
       to_always_on       - old-card starts by hand and drops the key (ADR 0008)
       add_by_hand_card   - a new card that ships by hand is admitted
+      add_mod            - a new mod appears under mods/ (ADR 0009)
+      modify_mod         - a file inside an existing mod changes (ADR 0009)
 
     adr:
       real             - ADR 0003 text as shipped (rename=major, admit=minor)
@@ -373,6 +375,9 @@ def make_tree(
 
     for name in base_cards:
         skill_card(root, name, by_hand=branch_change == "to_always_on")
+    if branch_change == "modify_mod":
+        write(root / "mods" / "beta" / ".claude-plugin" / "plugin.json", '{"name": "beta"}\n')
+        write(root / "mods" / "beta" / "hooks" / "register.ts", "export const register = 1\n")
     if branch_change == "rename_evidence":
         write(
             root / "skills" / SKILLS_BUCKET / "old-card" / "EVIDENCE.md",
@@ -421,6 +426,11 @@ def make_tree(
         skill_card(root, "old-card", by_hand=False)
     elif branch_change == "remove_card":
         git(root, "rm", "-r", "-q", f"skills/{SKILLS_BUCKET}/old-card")
+    elif branch_change == "add_mod":
+        write(root / "mods" / "beta" / ".claude-plugin" / "plugin.json", '{"name": "beta"}\n')
+        write(root / "mods" / "beta" / "hooks" / "register.ts", "export const register = 1\n")
+    elif branch_change == "modify_mod":
+        write(root / "mods" / "beta" / "hooks" / "register.ts", "export const register = 2\n")
     elif branch_change == "scripts_only":
         write(root / "scripts" / "only-outside-surface.py", "print('hello')\n")
     elif branch_change == "non_card":
@@ -545,6 +555,26 @@ def case_positive_add_minor_passes(tmp: Path) -> None:
     """Admitting a card is minor under ADR 0003; minor must pass."""
     root = make_tree(tmp, declared="minor", branch_change="add_card")
     expect_pass("a card admission declared minor PASSES", root)
+
+
+def case_mod_add_declared_minor_passes(tmp: Path) -> None:
+    """ADR 0009 prices adding a mod as admitting a card: minor passes."""
+    root = make_tree(tmp, declared="minor", branch_change="add_mod")
+    expect_pass("a mod added under mods/ declared minor PASSES", root)
+
+
+def case_mod_add_declared_patch_is_refused(tmp: Path) -> None:
+    """ADR 0009: adding a mod declared patch is refused like a card admission."""
+    root = make_tree(tmp, declared="patch", branch_change="add_mod")
+    expect_g10_refusal(
+        "a mod added under mods/ declared patch is refused", root, "G10:", "mods/beta", "minor"
+    )
+
+
+def case_mod_edit_declared_patch_passes(tmp: Path) -> None:
+    """ADR 0009: a correction inside a mod is a patch."""
+    root = make_tree(tmp, declared="patch", branch_change="modify_mod")
+    expect_pass("an edit inside a mod declared patch PASSES", root)
 
 
 def case_case1_rename_declared_patch_is_refused(tmp: Path) -> None:
@@ -1971,6 +2001,9 @@ CASES = (
     case_positive_correct_classification_is_silent,
     case_positive_rename_major_passes,
     case_positive_add_minor_passes,
+    case_mod_add_declared_minor_passes,
+    case_mod_add_declared_patch_is_refused,
+    case_mod_edit_declared_patch_passes,
     case_case1_rename_declared_patch_is_refused,
     case_case1_rename_declared_minor_is_refused,
     case_case2_add_declared_patch_is_refused,

@@ -5,7 +5,7 @@
     "url": "https://github.com/MrBinnacle/skills"
   },
   "metadata": {
-    "description": "Agent skills that each carry an evidence record, test cases, and the condition that would retire it."
+    "description": "Agent skills that each carry an evidence record, test cases, and the condition that would retire it, and Claude Code mods this collection wrote."
   },
   "plugins": [
     {
@@ -22,6 +22,11 @@
       "name": "mrbinnacle-meta",
       "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/meta", "ref": "v3.1.0", "sha": "5c68213e4772f97673d4f7fa83e739d92c2ab8a5"},
       "description": "Skills about the skill system itself: whether a skill can be reached."
+    },
+    {
+      "name": "tips-anywhere",
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "mods/tips-anywhere", "ref": "v3.1.0", "sha": "5c68213e4772f97673d4f7fa83e739d92c2ab8a5"},
+      "description": "A Claude Code mod, not a skill: brings the You should know side agent's heads-up notes to the phone and tablet apps as a question with buttons."
     }
   ]
 }

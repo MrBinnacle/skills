@@ -113,8 +113,9 @@ and the version bump.
 
 ## Scope and non-goals
 
-**In scope:** the skills themselves, their evidence records, the published template, and the
-public-facing surfaces that explain both.
+**In scope:** the skills themselves, their evidence records, the published template, the Claude
+Code mods this collection authored under `mods/` (ADR 0009), and the public-facing surfaces that
+explain them.
 
 **Out of scope here:** the measurement machinery that produces disposition verdicts, and the
 research that derives the underlying framework. Both live in separate repos. Findings arrive

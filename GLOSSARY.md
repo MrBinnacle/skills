@@ -14,6 +14,14 @@ file does not restate that list.
 A single skill in this collection — its `SKILL.md`, `gotchas.md` and `EVIDENCE.md` together.
 _Avoid_: entry, module, prompt, plugin
 
+**Mod**:
+A Claude Code plugin whose hooks module runs inside the session and changes Claude Code's
+interface or behaviour directly. It loads no text into the model's context window, so it is not
+a card and does not take the admission test. The collection holds mods it authored under
+`mods/<mod>/`. Settled by
+[`docs/adr/0009-the-collection-also-ships-mods-it-authored.md`](docs/adr/0009-the-collection-also-ships-mods-it-authored.md).
+_Avoid_: card, skill, extension
+
 **Social preview**:
 The image GitHub shows when a link to this repository is shared. Named for the repository
 setting it populates.
@@ -117,7 +125,8 @@ using it for the command text in `README.md` §Install, which it named until 202
 
 **Declared surface**:
 What the version number promises: the install path, a card's name, and the on-disk shape of a
-card. The card *set* is deliberately outside it, so admitting or retiring a card is a minor
+card. A mod is priced as a card
+([ADR 0009](docs/adr/0009-the-collection-also-ships-mods-it-authored.md)). The card *set* is deliberately outside it, so admitting or retiring a card is a minor
 change rather than a breaking one — but renaming a card is a major change, because consumers
 resolve a card by its name. Moving a card from always-on to by hand is also a major change,
 because an installed user who takes no action loses a card that fired on its own; moving it back

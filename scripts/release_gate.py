@@ -93,7 +93,10 @@ Checks (all must pass; failures are listed, not first-fail):
       are read from the ADRs on disk, never hardcoded here: ADR 0003 rules that
       renaming a card is major and admitting or retiring one is minor; ADR 0002
       prices corrections within a card as a patch and keeps the card set
-      outside the surface. Cases, each a listed failure:
+      outside the surface. ADR 0009 prices a mod, a directory ``mods/*/``
+      holding ``.claude-plugin/plugin.json``, as a card: every case below
+      that names a card directory under ``skills/*/*/`` reads a mod directory
+      the same way. Cases, each a listed failure:
 
         1. A branch-added changeset whose diff renames a card directory under
            ``skills/*/*/`` and declares anything less than the rename price
@@ -1307,13 +1310,14 @@ def _card_dir(path: str, cards: set[str]) -> str | None:
     A path below ``skills/<bucket>/`` is not necessarily a card. The name is in
     the declared surface only when that directory carries a ``SKILL.md`` in the
     revision being inspected; plugin packaging and stray directories must not
-    change a release's price.
+    change a release's price. A mod (ADR 0009) is ``mods/<mod>``, two segments.
     """
     parts = path.split("/")
-    if len(parts) >= 3:
-        candidate = "/".join(parts[:3])
-        if candidate in cards:
-            return candidate
+    for depth in (3, 2):
+        if len(parts) > depth or (depth == 3 and len(parts) == 3):
+            candidate = "/".join(parts[:depth])
+            if candidate in cards:
+                return candidate
     return None
 
 
@@ -1322,7 +1326,9 @@ def _list_card_dirs(root: Path, rev: str) -> set[str]:
 
     Enumerated with git rather than a filesystem walk, matching the house rule
     check_prose_claims.py states. A directory under skills/*/*/ with no
-    SKILL.md is not a card and is not part of the declared surface.
+    SKILL.md is not a card and is not part of the declared surface. A mod
+    directory, mods/<mod>/ holding .claude-plugin/plugin.json, is priced as a
+    card (ADR 0009) and is returned with them.
     """
     ok, output = _git_ok(root, ["ls-tree", "-r", "--name-only", rev])
     if not ok:
@@ -1337,6 +1343,8 @@ def _list_card_dirs(root: Path, rev: str) -> set[str]:
             and parts[2] not in {".claude-plugin", "evals"}
         ):
             dirs.add("/".join(parts[:3]))
+        elif parts[0] == "mods" and parts[2:] == [".claude-plugin", "plugin.json"]:
+            dirs.add("/".join(parts[:2]))
     return dirs
 
 
@@ -1790,7 +1798,7 @@ def _gate_bump_classification_inner(
                 # empty plan) may stand.
                 errors.append(
                     f"G10: {who} {says}, but the change touches no file under "
-                    f"skills/*/*/ and no install-route name, so it cannot change the "
+                    f"skills/*/*/ or mods/*/ and no install-route name, so it cannot change the "
                     f"declared surface (ADR 0002 prices work that reaches no card as "
                     f"{prices['patch']})"
                 )
@@ -1865,7 +1873,7 @@ def _surface_shortfall(
         return None
     if diff["rename"]:
         return (
-            f"the diff renames a card directory under skills/*/*/, which "
+            f"the diff renames a card directory under skills/*/*/ or a mod under mods/*/, which "
             f"{ADR_0003_REL.as_posix()} prices as {prices['rename']}: {diff['detail']}"
         )
     if shortfall := _load_mode_shortfall(diff, prices, declared):
@@ -1876,7 +1884,7 @@ def _surface_shortfall(
         )
     if diff["admit_or_retire"]:
         return (
-            f"the diff adds or retires a card directory under skills/*/*/, which "
+            f"the diff adds or retires a card directory under skills/*/*/ or a mod under mods/*/, which "
             f"{ADR_0003_REL.as_posix()} prices as {prices['admit_retire']}: "
             f"{diff['detail']}"
         )

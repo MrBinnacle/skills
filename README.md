@@ -102,6 +102,8 @@ Run these two commands one at a time. Claude Code reads a paste of both in one b
 
 Install `mrbinnacle-orchestration` and `mrbinnacle-meta` the same way if you want them.
 
+The collection also ships one Claude Code mod, [tips-anywhere](mods/tips-anywhere/README.md). A mod changes Claude Code itself and is not a skill. This one brings the "You should know" heads-up notes to the phone and tablet apps as a question with buttons. Install it the same way, with `/plugin install tips-anywhere`, once the next release ships it.
+
 The cards appear after `/reload-plugins`. If Claude Code reports the reload as pending, run `/reload-plugins --force`. A new `claude` session in the same profile also loads them. Confirm what you installed with `claude plugin list`. It reports the installed plugins and their versions.
 
 On Windows, a long path for your Claude configuration directory can make the install fail. The limits are in the block below.
