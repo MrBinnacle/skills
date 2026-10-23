@@ -89,6 +89,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from check_marketplace_pin import bucket_path, check as pin_check
+
 ROOT = Path(__file__).resolve().parent.parent
 README = ROOT / "README.md"
 SITE = ROOT / "site" / "index.html"
@@ -162,13 +164,32 @@ def declared_plugins() -> set[str]:
     return {entry["name"] for entry in data.get("plugins", [])}
 
 
+def card_plugins() -> set[str]:
+    """Plugins that carry cards. A mod under mods/ carries none (ADR 0009)."""
+    data = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
+    return {
+        entry["name"]
+        for entry in data.get("plugins", [])
+        if bucket_path(entry.get("source")).startswith("skills/")
+    }
+
+
+def entering_plugins() -> set[str]:
+    """Entries the pinned release does not hold yet; they install from the
+    next release on (ADR 0009), so a cold install cannot reach them now."""
+    return set(pin_check(ROOT)[2])
+
+
 def branch_plugin_versions() -> dict[str, str]:
     """Version each plugin's own plugin.json declares on this branch."""
     versions: dict[str, str] = {}
-    skills_root = ROOT / "skills"
-    if not skills_root.is_dir():
-        return versions
-    for plugin_dir in sorted(skills_root.iterdir()):
+    plugin_dirs = [
+        plugin_dir
+        for parent in (ROOT / "skills", ROOT / "mods")
+        if parent.is_dir()
+        for plugin_dir in sorted(parent.iterdir())
+    ]
+    for plugin_dir in plugin_dirs:
         manifest = plugin_dir / ".claude-plugin" / "plugin.json"
         if not manifest.is_file():
             continue
@@ -661,7 +682,7 @@ def main() -> int:
             temp_root,
             install_fences,
             shell_install_commands,
-            declared,
+            declared - entering_plugins(),
             readme_claude_version,
             readme_plugin_version,
         )
@@ -797,11 +818,13 @@ def live_cold_installs(
         and all(plugin.get("version") for plugin in installed.values()),
         listed.stdout[:2000],
     )
+    cards = card_plugins() & declared
     card_counts = installed_card_counts(installed)
     check(
         "cold install carries cards in every requested plugin",
         set(card_counts) == declared
-        and all(count > 0 for count in card_counts.values()),
+        and bool(cards)
+        and all(card_counts[name] > 0 for name in cards),
         f"card_counts={card_counts}",
     )
 
@@ -892,14 +915,15 @@ def live_cold_installs(
         "checked-out tree cold install reports the branch plugin versions",
         local_listed.returncode == 0
         and set(local_installed) == declared
-        and local_versions == branch_versions,
+        and local_versions
+        == {name: v for name, v in branch_versions.items() if name in declared},
         f"installed={local_versions}, branch={branch_versions}",
     )
     local_card_counts = installed_card_counts(local_installed)
     check(
         "checked-out tree cold install carries cards in every plugin",
         set(local_card_counts) == declared
-        and all(count > 0 for count in local_card_counts.values()),
+        and all(local_card_counts[name] > 0 for name in cards),
         f"card_counts={local_card_counts}",
     )
 
