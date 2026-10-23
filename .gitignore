@@ -40,6 +40,10 @@ tmp/
 # `release_gate.py --release` requires clean. `.pi/engineering-env.json` stays tracked.
 .pi/remote-pi/
 
+# Private residue terms for scripts/private_residue.py (#580). Never tracked:
+# a public list of these names would disclose them.
+.residue-private.local
+
 # Local usage-log path for scripts/refresh_dispatch_counts.py (#548). Machine-local.
 .skill-usage-log.local
 

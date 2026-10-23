@@ -20,8 +20,10 @@
 #   beside it. Two anchors hold the lists: `scan_exempt` for the codename hooks and
 #   `fields_exempt` for the account-data hooks.
 #   The maintainer's name/email are intentionally NOT listed here — putting them in a
-#   public block-list would itself de-anonymize. Keep those in a git-ignored local
-#   overlay if wanted (see AGENTS.md "De-personalization gate").
+#   public block-list would itself de-anonymize. Such terms go in the git-ignored
+#   `.residue-private.local`, one per line, and in the RESIDUE_PRIVATE_TERMS secret
+#   for CI; the `private-residue` hook reads both (#580; AGENTS.md
+#   "De-personalization gate").
 #
 # ACTIVATE (once per clone):
 #   pre-commit install --hook-type pre-commit --hook-type pre-push
@@ -132,6 +134,21 @@ repos:
         entry: python scripts/validate_path_residue.py
         pass_filenames: false
         always_run: true
+
+      # -- Private terms, kept out of the tree (#580) --------------------------
+      #
+      # Some names cannot sit in this file: listing a private repository's name
+      # in a public block-list discloses it. This hook reads those terms from the
+      # git-ignored `.residue-private.local` or the RESIDUE_PRIVATE_TERMS variable,
+      # and checks the staged files' contents and every tracked path. A clone with
+      # neither passes with a note. CI runs the same script with `--require` and
+      # the repository secret, so a missing secret fails there
+      # (depersonalization-gate.yml). A refusal never prints the matched text.
+      - id: private-residue
+        name: "private residue term (kept out of the tree) -> reword; the log does not print the term"
+        language: system
+        entry: python scripts/private_residue.py
+        types: [text]
 
       # -- Residue in COMMIT MESSAGES ------------------------------------------
       #

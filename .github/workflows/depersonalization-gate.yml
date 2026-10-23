@@ -29,6 +29,22 @@ jobs:
       - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
         # Runs `pre-commit run --all-files` — the full-tree residue sweep.
 
+      # Terms that cannot sit in the public tree come from a repository secret
+      # (#580). `--require` fails the step when the secret is missing, so an
+      # unset secret is never read as a clean tree. GitHub does not pass secrets
+      # to a pull request from a fork, so a fork's pull request fails here.
+      # The script never prints a matched term: GitHub masks only the secret's
+      # exact value, and a match in another spelling would print in clear.
+      - name: Private residue terms in tracked files and paths
+        env:
+          RESIDUE_PRIVATE_TERMS: ${{ secrets.RESIDUE_PRIVATE_TERMS }}
+        run: |
+          set -euo pipefail
+          out="$(python scripts/private_residue.py --all --require)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::private residue check emitted no PASS line - it did not run"; exit 1; }
+
       # A commit message, a PR title and a PR body are public once pushed, and the
       # file hooks above never read them. The title and body arrive through env,
       # never through ${{ }} in the script, so their text cannot run as shell.
@@ -39,10 +55,11 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          RESIDUE_PRIVATE_TERMS: ${{ secrets.RESIDUE_PRIVATE_TERMS }}
         run: |
           set -euo pipefail
           printf '%s\n\n%s\n' "$PR_TITLE" "$PR_BODY" > "$RUNNER_TEMP/pr-text.txt"
-          out="$(python scripts/check_message_residue.py --range "$BASE_SHA..$HEAD_SHA" "$RUNNER_TEMP/pr-text.txt")" \
+          out="$(python scripts/check_message_residue.py --require-private --range "$BASE_SHA..$HEAD_SHA" "$RUNNER_TEMP/pr-text.txt")" \
             || { echo "$out"; exit 1; }
           echo "$out"
           echo "$out" | grep -q '^PASS:' \

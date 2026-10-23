@@ -1058,6 +1058,17 @@ every commit, the title and the body of a pull request. A pushed message is publ
 - **Maintainer name/email are deliberately NOT in the committed config** — publishing them in a
   public block-list would itself de-anonymize. Add them to a git-ignored local overlay if wanted.
 
+**Private terms (#580).** A term that cannot sit in the public tree, such as a private
+repository's name, goes in two places outside it: `.residue-private.local` at the repository
+root (git-ignored, one term per line, `#` for a comment) and the `RESIDUE_PRIVATE_TERMS`
+repository secret (Settings, Secrets and variables, Actions; one term per line).
+`scripts/private_residue.py` reads both. It refuses a term in any case and with spaces,
+hyphens, underscores, dots or nothing between its words, in tracked contents, tracked paths,
+commit messages and the pull request title and body. A refusal names the file, line and term
+number and never the matched text, because a CI log of this repository is public. In CI a
+missing secret fails the gate. GitHub gives no secrets to a pull request from a fork, so that
+pull request fails the gate too. When you add a term, add it to both places.
+
 ## Prose voice — literal-humanist register
 
 Default register for every substantive prose artifact in this repo: README, docs, skill

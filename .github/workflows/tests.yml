@@ -108,6 +108,18 @@ jobs:
           echo "$out" | grep -q '^PASS:' \
             || { echo "::error::message residue suite emitted no PASS line - it did not run"; exit 1; }
 
+      # #580: a term that cannot sit in the tree comes from a secret or a
+      # git-ignored file. This suite plants a synthetic term through the
+      # environment and proves each spelling is refused in contents and paths,
+      # that no refusal prints it, and that `--require` with no term exits 2.
+      - name: Private residue suite
+        run: |
+          set -euo pipefail
+          out="$(python scripts/test_private_residue.py)" || { echo "$out"; exit 1; }
+          echo "$out"
+          echo "$out" | grep -q '^PASS:' \
+            || { echo "::error::private residue suite emitted no PASS line - it did not run"; exit 1; }
+
       - name: Shared-reader suite
         run: |
           set -euo pipefail

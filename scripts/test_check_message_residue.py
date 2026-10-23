@@ -10,10 +10,14 @@ Poison text is assembled at run time, so this file carries no term itself.
       - `--commit-msg` skips git's `# ` help lines and still reads a subject that
         opens `#327:`; a plain file (a PR body) keeps its `# ` heading lines;
       - a clean message passes;
-      - in a temp repository, `--range` refuses the one poisoned commit of three.
+      - in a temp repository, `--range` refuses the one poisoned commit of three;
+      - a private term from `RESIDUE_PRIVATE_TERMS` (#580) is refused in a
+        commit message and a range without being printed, and
+        `--require-private` with no term loaded exits 2.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -26,6 +30,9 @@ import check_message_residue as cmr  # noqa: E402
 SCRIPT = SCRIPT_DIR / "check_message_residue.py"
 RESEARCH_DIR = "skills" + "_" + "research"
 CODENAME = "W" + "rit"
+# A synthetic private term (#580). The real ones never enter the tree.
+PRIVATE_TERM = "quokka lantern"
+PRIVATE_FORM = "Quokka-Lantern"
 FAILURES: list[str] = []
 
 
@@ -37,10 +44,20 @@ def check(case: str, ok: bool, detail: str = "") -> None:
         print(f"  FAIL {case}: {detail}")
 
 
-def run(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+def run(*args: str, cwd: Path | None = None, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(SCRIPT), *args], capture_output=True, text=True, encoding="utf-8", cwd=cwd
+        [sys.executable, str(SCRIPT), *args], capture_output=True, text=True, encoding="utf-8", cwd=cwd,
+        env=env if env is not None else private_env(None),
     )
+
+
+def private_env(terms: str | None) -> dict[str, str]:
+    """The environment with only the given private terms: a maintainer's own overlay never decides a case."""
+    out = {k: v for k, v in os.environ.items() if k != "RESIDUE_PRIVATE_TERMS"}
+    out["RESIDUE_PRIVATE_OVERLAY"] = str(Path(tempfile.gettempdir()) / "no-such-residue-overlay")
+    if terms is not None:
+        out["RESIDUE_PRIVATE_TERMS"] = terms
+    return out
 
 
 def case_hook_selection() -> None:
@@ -106,11 +123,51 @@ def case_range(tmp: Path) -> None:
     )
 
 
+def case_private_terms(tmp: Path) -> None:
+    """#580: a term kept out of the tree, from the environment, is refused and never printed."""
+    message = tmp / "private.txt"
+    message.write_text(f"docs: note\n\nFrom the {PRIVATE_FORM} notes.\n", encoding="utf-8")
+    result = run("--commit-msg", str(message), env=private_env(PRIVATE_TERM))
+    output = result.stdout + result.stderr
+    check(
+        "a private term from the environment is refused in a commit message",
+        result.returncode == 1 and "private.txt:3: private term 1" in output,
+        output,
+    )
+    check("the refusal prints no form of the private term", "quokka" not in output.lower(), output)
+
+    repo = tmp / "private-repo"
+    repo.mkdir()
+    git(repo, "init", "-q")
+    git(repo, "config", "user.email", "suite@example.invalid")
+    git(repo, "config", "user.name", "suite")
+    for subject in ("chore: base", f"docs: from {PRIVATE_FORM}"):
+        git(repo, "commit", "-q", "--allow-empty", "-m", subject)
+    result = run("--range", "HEAD~1..HEAD", cwd=repo, env=private_env(PRIVATE_TERM))
+    check(
+        "a private term is refused in a commit range",
+        result.returncode == 1 and ":1: private term 1" in result.stdout and "quokka" not in result.stdout.lower(),
+        result.stdout + result.stderr,
+    )
+
+    clean = tmp / "clean-private.txt"
+    clean.write_text("docs: nothing private\n", encoding="utf-8")
+    result = run("--require-private", str(clean), env=private_env(None))
+    check(
+        "--require-private with no private term loaded exits 2",
+        result.returncode == 2 and "RESIDUE_PRIVATE_TERMS" in result.stdout,
+        result.stdout + result.stderr,
+    )
+    result = run("--require-private", str(clean), env=private_env(PRIVATE_TERM))
+    check("a clean message passes with a private term loaded", result.returncode == 0, result.stdout + result.stderr)
+
+
 def main() -> None:
     case_hook_selection()
     with tempfile.TemporaryDirectory() as tmp:
         case_message_files(Path(tmp))
         case_range(Path(tmp))
+        case_private_terms(Path(tmp))
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} case(s): " + ", ".join(FAILURES))
         raise SystemExit(1)
