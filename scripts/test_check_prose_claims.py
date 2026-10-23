@@ -360,15 +360,29 @@ def case_shipped_card_with_no_departure_row_is_refused(tmp: Path) -> None:
 
 
 def case_tagless_clone_is_uninterpretable(tmp: Path) -> None:
-    """With no release tags, no shipped card is visible, and that must not read as a pass."""
+    """With no release tags, no shipped card is visible, and that must not read as a pass.
+
+    The copy gets its own tagless repository from `git clone --no-tags`. Deleting
+    tags in the copy is not safe: in a linked worktree `.git` is a file that
+    points at the shared repository, so `git tag -d` there deletes the real tags.
+    """
     root = _tree(tmp)
+    clone = tmp / "tagless"
+    subprocess.run(
+        ["git", "clone", "-q", "--no-checkout", "--no-tags", str(_REPO_ROOT), str(clone)],
+        capture_output=True,
+        check=True,
+    )
+    # Moved aside, not deleted: Windows refuses to delete git's read-only objects.
+    shutil.move(str(root / ".git"), str(tmp / "displaced-git"))
+    shutil.move(str(clone / ".git"), str(root / ".git"))
+    subprocess.run(["git", "-C", str(root), "reset", "-q"], capture_output=True, check=True)
     tags = subprocess.run(
         ["git", "-C", str(root), "tag", "--list", "v*"], capture_output=True, text=True, check=True
     ).stdout.split()
-    if not tags:
-        fail("case_tagless_clone_is_uninterpretable", "anchor absent: the copy carries no v* tags")
+    if tags:
+        fail("case_tagless_clone_is_uninterpretable", f"anchor absent: the clone still carries tags {tags}")
         return
-    subprocess.run(["git", "-C", str(root), "tag", "-d", *tags], capture_output=True, check=True)
     result = _run(root)
     output = result.stdout + result.stderr
     if result.returncode != 2 or "no v* release tags" not in output:
