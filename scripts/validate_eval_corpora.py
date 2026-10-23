@@ -121,6 +121,22 @@ DESCRIPTION_LINE_RE: Final[re.Pattern[str]] = re.compile(
 CARD_ID_RE: Final[re.Pattern[str]] = re.compile(r"\b[a-z0-9-]+:([a-z0-9-]+)\b")
 DOUBLE_QUOTED_RE: Final[re.Pattern[str]] = re.compile(r'"([^"]+)"')
 
+# `claude plugin eval` parses a case's frontmatter as YAML and skips a case it
+# cannot parse, with one log line (#613: a ': ' inside a plain value). Other
+# lines parse but change the value: ' #' starts a comment that cuts it short,
+# an indented line folds into the value above, and a repeated key keeps only
+# its last value (each checked against Bun.YAML.parse, 2026-10-22). This
+# repository carries no YAML parser, so each frontmatter line must take one of
+# the shapes below, a subset of YAML that loads as written. Any other line is
+# refused, never skipped. A case that needs more YAML (a block list, a
+# multi-line value) is refused until the subset grows.
+FRONTMATTER_LINE_RE: Final[re.Pattern[str]] = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*):(?: (.*))?$")
+DOUBLE_QUOTED_VALUE_RE: Final[re.Pattern[str]] = re.compile(r'^"(?:[^"\\]|\\.)*"$')
+SINGLE_QUOTED_VALUE_RE: Final[re.Pattern[str]] = re.compile(r"^'(?:[^']|'')*'$")
+FLOW_LIST_RE: Final[re.Pattern[str]] = re.compile(r"^\[(.*)\]$")
+PLAIN_INDICATORS: Final[str] = "-?:,[]{}#&*!|>'\"%@`"
+FLOW_INDICATORS: Final[str] = ",[]{}"
+
 
 def quote(value: object, limit: int = 60) -> str:
     """ASCII-safe, bounded rendering of untrusted corpus text."""
@@ -379,6 +395,68 @@ def description_quote_breaches(root: Path) -> tuple[list[str], int]:
     return breaches, checked
 
 
+def plain_value_fault(value: str, *, in_list: bool = False) -> str | None:
+    """Why a plain (unquoted) YAML value would not load as written, or None."""
+    if not value:
+        return "the value is empty"
+    if value[0] in PLAIN_INDICATORS:
+        return f"a plain value may not open with {value[0]!r}; quote it"
+    if ": " in value or value.endswith(":"):
+        return "a plain value may not hold ': '; quote it"
+    if " #" in value:
+        return "a plain value may not hold ' #', which YAML reads as a comment; quote it"
+    if in_list and any(mark in value for mark in FLOW_INDICATORS):
+        return "a list item may not hold , [ ] { }; quote it"
+    return None
+
+
+def value_fault(value: str) -> str | None:
+    """Why one frontmatter value is outside the loadable subset, or None."""
+    if DOUBLE_QUOTED_VALUE_RE.match(value) or SINGLE_QUOTED_VALUE_RE.match(value):
+        return None
+    flow = FLOW_LIST_RE.match(value)
+    if flow is None:
+        return plain_value_fault(value)
+    for item in (part.strip() for part in flow.group(1).split(",")):
+        if DOUBLE_QUOTED_VALUE_RE.match(item) or SINGLE_QUOTED_VALUE_RE.match(item):
+            continue
+        fault = plain_value_fault(item, in_list=True)
+        if fault:
+            return fault
+    return None
+
+
+def frontmatter_shape_breaches(root: Path) -> tuple[list[str], int]:
+    """(breaches, cases read) for the frontmatter of every plugin eval case (#613)."""
+    breaches: list[str] = []
+    prompts = sorted(root.glob(PLUGIN_CASE_GLOB))
+    for prompt in prompts:
+        where = prompt.relative_to(root).as_posix()
+        block = FRONTMATTER_NAME_RE.match(prompt.read_text(encoding="utf-8", errors="replace"))
+        if block is None:
+            breaches.append(f"{where}: states no frontmatter block")
+            continue
+        seen: set[str] = set()
+        for number, line in enumerate(block.group(1).splitlines(), start=2):
+            if not line.strip() or line.startswith("#"):
+                continue
+            match = FRONTMATTER_LINE_RE.match(line.rstrip())
+            if match is None:
+                fault = "it is not a `key: value` line"
+            elif match.group(1) in seen:
+                fault = f"it states {match.group(1)!r} a second time"
+            else:
+                seen.add(match.group(1))
+                fault = value_fault((match.group(2) or "").strip())
+            if fault:
+                breaches.append(
+                    f"{where}:{number}: frontmatter line {quote(line.strip())}: {fault}. "
+                    "Outside the loadable subset, `claude plugin eval` skips the case "
+                    "or reads a value other than the one written"
+                )
+    return breaches, len(prompts)
+
+
 def quarantine_cards(root: Path) -> list[Path]:
     """Quarantined candidates that carry a corpus. A corpus is optional there."""
     folder = root / QUARANTINE_DIR
@@ -407,7 +485,8 @@ def validate(root: Path) -> None:
         for detail in count_claim_breaches(card, report_unreadable=True)
     ]
     quote_breaches, quotes_checked = description_quote_breaches(root)
-    breaches += [f"  - {detail}" for detail in quote_breaches]
+    shape_breaches, plugin_cases = frontmatter_shape_breaches(root)
+    breaches += [f"  - {detail}" for detail in quote_breaches + shape_breaches]
     if breaches:
         for line in breaches:
             print(line, file=sys.stderr)
@@ -428,7 +507,8 @@ def validate(root: Path) -> None:
         f"card(s), {cases} case(s) total; every corpus names its card and "
         f"states at least {MIN_CASES} cases with {MIN_ASSERTIONS} assertions "
         f"each; {quotes_checked} description quote(s) in plugin eval cases match "
-        "their cards. Corpora are structural contracts, not measurements."
+        f"their cards; {plugin_cases} plugin eval case(s) state frontmatter in a "
+        "loadable YAML subset. Corpora are structural contracts, not measurements."
     )
 
 
