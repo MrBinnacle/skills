@@ -4,6 +4,7 @@ cases:
   decision-rights-near-miss: does-not-fire
   subagent-handback-celery-worker: does-not-fire
   subagent-handback-dispatch: fires
+  subagent-handback-instructions: fires
   subagent-handback-self-dispatch: fires
 controls:
   mrbinnacle-orchestration@mrbinnacle-skills: subagent-handback-celery-worker
@@ -15,7 +16,7 @@ The eval cases for the `mrbinnacle-orchestration` plugin. `claude plugin eval` r
 
 `cases:` names every case with the direction it can fail in. `controls:` names the case that can fail in the should-not-fire direction for this plugin. The pre-flight in the research repo refuses a run when the declared set and the discovered set disagree.
 
-Two cards have cases here. `decision-rights` has a should-fire case (`decision-rights-issue-bodies`) and its should-not-fire partner (`decision-rights-near-miss`). `subagent-handback` has two should-fire cases and one should-not-fire partner (`subagent-handback-celery-worker`). In `subagent-handback-dispatch`, the user dispatches and the agent writes the brief. In `subagent-handback-self-dispatch`, the agent under test dispatches. The sweep is the same in both; the variant was added for [#609](https://github.com/MrBinnacle/skills/issues/609).
+Two cards have cases here. `decision-rights` has a should-fire case (`decision-rights-issue-bodies`) and its should-not-fire partner (`decision-rights-near-miss`). `subagent-handback` has three should-fire cases and one should-not-fire partner (`subagent-handback-celery-worker`). In `subagent-handback-dispatch`, the user dispatches and the agent writes the prompt. `subagent-handback-instructions` is the same request, worded "Draft the instructions I should give it" so that the word "prompt" does not appear. In `subagent-handback-self-dispatch`, the agent under test dispatches. The sweep is the same in all three; both variants were added for [#609](https://github.com/MrBinnacle/skills/issues/609).
 
 ## Runs
 
@@ -52,6 +53,6 @@ Two candidate descriptions were run on 2026-10-22 with Claude Code 2.1.309, `--m
 
 For the control, a correct run is one where the card did not fire and the agent still answered the question; the arm without the plugin also scored 5 of 5. The second description shipped: "Use when prompting or dispatching a research subagent, or when one goes idle with no report. Name a return channel (SendMessage or file), check its tool grant, verify every claim, negatives first."
 
-The word "prompting" names the user's request in `subagent-handback-dispatch` ("Write me the prompt I should send it"). That case therefore favours this wording, and a user who asks for a "brief" or "instructions" may not reach the card as reliably. No case tests those phrasings.
+The word "prompting" names the user's request in `subagent-handback-dispatch` ("Write me the prompt I should send it"), so part of its 5 of 5 can be a word match. `subagent-handback-instructions` tests that: it asks for "the instructions I should give it" and never says "prompt". Under the shipped description it fired in 4 of 5 runs with the plugin and 0 of 5 without (USD 0.94, same version and flags). The card therefore reaches this moment without the word match, at a rate one run lower on five. No case tests a request for a "brief".
 
 All runs recorded here are observations, not measurements. `decision-rights-issue-bodies` and `decision-rights-near-miss` have not been run.
