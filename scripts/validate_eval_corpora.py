@@ -35,6 +35,12 @@ DISCOVERY, AND WHY IT IS BORROWED
     this check never reaches them. Requiring a corpus of them would turn every
     one of those fixtures red for a file they do not owe.
 
+PLUGIN EVAL CASES
+    Two further checks read each `skills/<bucket>/evals/<case>/prompt.md` that
+    `claude plugin eval` runs: a double-quoted description quote must still
+    be in the named card's description (#601), and the frontmatter must stay
+    inside a YAML subset that loads as written (#613).
+
 Output is ASCII-only so the Windows CI cell cannot die on cp1252 while printing
 a status line, matching validate_scoreboard.py and validate_skill_formats.py.
 Corpus text is quoted through ascii(), never through repr(), so a non-ASCII
@@ -131,8 +137,11 @@ DOUBLE_QUOTED_RE: Final[re.Pattern[str]] = re.compile(r'"([^"]+)"')
 # refused, never skipped. A case that needs more YAML (a block list, a
 # multi-line value) is refused until the subset grows.
 FRONTMATTER_LINE_RE: Final[re.Pattern[str]] = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*):(?: (.*))?$")
-DOUBLE_QUOTED_VALUE_RE: Final[re.Pattern[str]] = re.compile(r'^"(?:[^"\\]|\\.)*"$')
-SINGLE_QUOTED_VALUE_RE: Final[re.Pattern[str]] = re.compile(r"^'(?:[^']|'')*'$")
+# A double-quoted value may hold no backslash. Bun.YAML.parse 1.3.11 reads
+# "a\qb", which YAML 1.2 forbids, and refuses "\x41", which YAML 1.2 allows, so
+# no escape rule here would match the loader. Single quotes need no escapes.
+QUOTED_VALUE_RE: Final[re.Pattern[str]] = re.compile(r"""^(?:"[^"\\]*"|'(?:[^']|'')*')$""")
+COMMENT_RE: Final[re.Pattern[str]] = re.compile(r"\s#")
 FLOW_LIST_RE: Final[re.Pattern[str]] = re.compile(r"^\[(.*)\]$")
 PLAIN_INDICATORS: Final[str] = "-?:,[]{}#&*!|>'\"%@`"
 FLOW_INDICATORS: Final[str] = ",[]{}"
@@ -395,15 +404,19 @@ def description_quote_breaches(root: Path) -> tuple[list[str], int]:
     return breaches, checked
 
 
-def plain_value_fault(value: str, *, in_list: bool = False) -> str | None:
-    """Why a plain (unquoted) YAML value would not load as written, or None."""
+def scalar_fault(value: str, *, in_list: bool = False) -> str | None:
+    """Why one quoted or plain YAML value would not load as written, or None."""
+    if QUOTED_VALUE_RE.match(value):
+        return None
+    if value.startswith('"') and "\\" in value:
+        return "a double-quoted value may not hold a backslash; use single quotes"
     if not value:
         return "the value is empty"
     if value[0] in PLAIN_INDICATORS:
         return f"a plain value may not open with {value[0]!r}; quote it"
     if ": " in value or value.endswith(":"):
         return "a plain value may not hold ': '; quote it"
-    if " #" in value:
+    if COMMENT_RE.search(value):
         return "a plain value may not hold ' #', which YAML reads as a comment; quote it"
     if in_list and any(mark in value for mark in FLOW_INDICATORS):
         return "a list item may not hold , [ ] { }; quote it"
@@ -412,18 +425,11 @@ def plain_value_fault(value: str, *, in_list: bool = False) -> str | None:
 
 def value_fault(value: str) -> str | None:
     """Why one frontmatter value is outside the loadable subset, or None."""
-    if DOUBLE_QUOTED_VALUE_RE.match(value) or SINGLE_QUOTED_VALUE_RE.match(value):
-        return None
     flow = FLOW_LIST_RE.match(value)
     if flow is None:
-        return plain_value_fault(value)
-    for item in (part.strip() for part in flow.group(1).split(",")):
-        if DOUBLE_QUOTED_VALUE_RE.match(item) or SINGLE_QUOTED_VALUE_RE.match(item):
-            continue
-        fault = plain_value_fault(item, in_list=True)
-        if fault:
-            return fault
-    return None
+        return scalar_fault(value)
+    items = (part.strip() for part in flow.group(1).split(","))
+    return next((fault for item in items if (fault := scalar_fault(item, in_list=True))), None)
 
 
 def frontmatter_shape_breaches(root: Path) -> tuple[list[str], int]:
@@ -437,6 +443,7 @@ def frontmatter_shape_breaches(root: Path) -> tuple[list[str], int]:
             breaches.append(f"{where}: states no frontmatter block")
             continue
         seen: set[str] = set()
+        # The block starts on the file's second line, after the opening ---.
         for number, line in enumerate(block.group(1).splitlines(), start=2):
             if not line.strip() or line.startswith("#"):
                 continue

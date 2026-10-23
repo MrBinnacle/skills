@@ -496,6 +496,58 @@ def case_duplicate_frontmatter_key_rejected(root: Path) -> None:
     )
 
 
+def case_subset_extras_pass(root: Path) -> None:
+    """A comment line and a single-quoted value holding ': ' are in the subset."""
+    write_tree(root)
+    write_plugin_frontmatter(
+        root, "# a comment line\nname: probe-case\nexpected_outcome: 'It''s due: soon'"
+    )
+    result = run_checker(root)
+    check(
+        "a comment line and a single-quoted ': ' value pass",
+        result.returncode == 0,
+        (result.stdout + result.stderr).strip(),
+    )
+
+
+def case_tab_hash_in_plain_value_rejected(root: Path) -> None:
+    """A tab before '#' starts a comment too (Bun.YAML.parse reads 'foo')."""
+    write_tree(root)
+    write_plugin_case(root, "foo\t#c")
+    expect_rejection(
+        root,
+        "an eval case whose plain value holds a tab and '#'",
+        "a plain value may not hold ' #'",
+    )
+
+
+def case_backslash_in_double_quotes_rejected(root: Path) -> None:
+    """Bun.YAML.parse accepts some escapes YAML forbids and refuses some it allows."""
+    write_tree(root)
+    write_plugin_case(root, '"a\\qb"')
+    expect_rejection(
+        root,
+        "an eval case whose double-quoted value holds a backslash",
+        "may not hold a backslash",
+    )
+
+
+def case_empty_value_rejected(root: Path) -> None:
+    write_tree(root)
+    write_plugin_frontmatter(root, "name: probe-case\nexpected_outcome:")
+    expect_rejection(root, "an eval case with an empty value", "the value is empty")
+
+
+def case_flow_indicator_in_list_item_rejected(root: Path) -> None:
+    write_tree(root)
+    write_plugin_frontmatter(root, "name: probe-case\ntags: [seed, a{b]")
+    expect_rejection(
+        root,
+        "an eval case whose list item holds a flow indicator",
+        "a list item may not hold , [ ] { }",
+    )
+
+
 def case_unclosed_flow_list_rejected(root: Path) -> None:
     write_tree(root)
     write_plugin_frontmatter(root, "name: probe-case\ntags: [seed, should-fire")
@@ -613,6 +665,11 @@ def main() -> None:
         case_unknown_frontmatter_line_rejected,
         case_duplicate_frontmatter_key_rejected,
         case_unclosed_flow_list_rejected,
+        case_subset_extras_pass,
+        case_tab_hash_in_plain_value_rejected,
+        case_backslash_in_double_quotes_rejected,
+        case_empty_value_rejected,
+        case_flow_indicator_in_list_item_rejected,
     )
     for case in in_tempdir:
         with tempfile.TemporaryDirectory() as tmp:
