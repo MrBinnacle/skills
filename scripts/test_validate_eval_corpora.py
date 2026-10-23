@@ -341,16 +341,21 @@ def case_quarantine_unreadable_corpus_rejected(root: Path) -> None:
 # ------------------------------------------- plugin eval cases quote the card (#601)
 
 
-def write_plugin_case(root: Path, expected_outcome: str) -> Path:
-    """A plugin eval case under skills/engineering/evals/, beside the probe card."""
+def write_plugin_frontmatter(root: Path, block: str, newline: str = "\n") -> Path:
+    """A plugin eval case under skills/engineering/evals/ with this frontmatter block."""
     case = root / "skills" / "engineering" / corpora.CORPUS_DIR / "probe-case"
     case.mkdir(parents=True)
     path = case / "prompt.md"
-    path.write_text(
-        f"---\nname: probe-case\nexpected_outcome: {expected_outcome}\n---\n\nA prompt.\n",
-        encoding="utf-8",
-    )
+    text = f"---\n{block}\n---\n\nA prompt.\n"
+    path.write_bytes(text.replace("\n", newline).encode("utf-8"))
     return path
+
+
+def write_plugin_case(root: Path, expected_outcome: str) -> Path:
+    """A plugin eval case under skills/engineering/evals/, beside the probe card."""
+    return write_plugin_frontmatter(
+        root, f"name: probe-case\nexpected_outcome: {expected_outcome}"
+    )
 
 
 def case_stale_description_quote_rejected(root: Path) -> None:
@@ -392,6 +397,175 @@ def case_quote_without_a_named_card_passes(root: Path) -> None:
         "an eval case that names no card is not read for quotes",
         result.returncode == 0,
         (result.stdout + result.stderr).strip(),
+    )
+
+
+# --------------------------- plugin eval case frontmatter loads as YAML (#613)
+
+# Every key and value shape the live cases use, so the subset is shown to
+# accept what the tree holds before any refusal below is trusted.
+LIVE_SHAPED_FRONTMATTER = (
+    "name: probe-case\n"
+    "description: About to dispatch a subagent. Seed case 4 of five from 2026-09-12.\n"
+    'expected_outcome: The agent invokes it. The description opens "Use when".\n'
+    "tags: [seed, should-fire, mrbinnacle-orchestration]\n"
+    'plugins: ["../.."]\n'
+    "max_turns: 10\n"
+    "allowed_tools: [Read, Glob, Grep, Skill, TodoWrite, Agent]"
+)
+
+
+def case_live_shaped_frontmatter_passes(root: Path) -> None:
+    write_tree(root)
+    write_plugin_frontmatter(root, LIVE_SHAPED_FRONTMATTER)
+    result = run_checker(root)
+    check(
+        "a plugin eval case in the live cases' shapes passes",
+        result.returncode == 0,
+        (result.stdout + result.stderr).strip(),
+    )
+
+
+def case_crlf_frontmatter_passes(root: Path) -> None:
+    """A Windows checkout writes CRLF; the line reader must not refuse it."""
+    write_tree(root)
+    write_plugin_frontmatter(root, LIVE_SHAPED_FRONTMATTER, newline="\r\n")
+    result = run_checker(root)
+    check(
+        "a plugin eval case with CRLF line endings passes",
+        result.returncode == 0,
+        (result.stdout + result.stderr).strip(),
+    )
+
+
+def case_colon_in_plain_value_rejected(root: Path) -> None:
+    """The #613 shape: `claude plugin eval` refused this file and skipped the case."""
+    write_tree(root)
+    write_plugin_case(root, "The agent invokes it at the briefing moment: the agent writes.")
+    expect_rejection(
+        root,
+        "an eval case whose plain value holds ': '",
+        "a plain value may not hold ': '",
+    )
+
+
+def case_hash_in_plain_value_rejected(root: Path) -> None:
+    """YAML reads ' #' as a comment, so the words after it are dropped."""
+    write_tree(root)
+    write_plugin_case(root, "The agent fires on issue #613 #609.")
+    expect_rejection(
+        root,
+        "an eval case whose plain value holds ' #'",
+        "a plain value may not hold ' #'",
+    )
+
+
+def case_unclosed_quote_rejected(root: Path) -> None:
+    write_tree(root)
+    write_plugin_case(root, '"The agent invokes it.')
+    expect_rejection(
+        root,
+        "an eval case whose value opens a quote it never closes",
+        "a plain value may not open with",
+    )
+
+
+def case_unknown_frontmatter_line_rejected(root: Path) -> None:
+    """Fail closed: a line outside the subset is refused, never skipped.
+
+    YAML folds this indented line into the value above, so the case loads with
+    a name the writer did not write.
+    """
+    write_tree(root)
+    write_plugin_frontmatter(root, "name: probe-case\n  - a block list item")
+    expect_rejection(
+        root,
+        "an eval case with a frontmatter line outside the subset",
+        "is not a `key: value` line",
+    )
+
+
+def case_duplicate_frontmatter_key_rejected(root: Path) -> None:
+    """YAML keeps the last value of a repeated key and drops the first silently."""
+    write_tree(root)
+    write_plugin_frontmatter(root, "name: probe-case\nname: probe-case-2")
+    expect_rejection(
+        root,
+        "an eval case that states one key twice",
+        "states 'name' a second time",
+    )
+
+
+def case_subset_extras_pass(root: Path) -> None:
+    """A comment line and a single-quoted value holding ': ' are in the subset."""
+    write_tree(root)
+    write_plugin_frontmatter(
+        root, "# a comment line\nname: probe-case\nexpected_outcome: 'It''s due: soon'"
+    )
+    result = run_checker(root)
+    check(
+        "a comment line and a single-quoted ': ' value pass",
+        result.returncode == 0,
+        (result.stdout + result.stderr).strip(),
+    )
+
+
+def case_tab_hash_in_plain_value_rejected(root: Path) -> None:
+    """A tab before '#' starts a comment too (Bun.YAML.parse reads 'foo')."""
+    write_tree(root)
+    write_plugin_case(root, "foo\t#c")
+    expect_rejection(
+        root,
+        "an eval case whose plain value holds a tab and '#'",
+        "a plain value may not hold ' #'",
+    )
+
+
+def case_tab_colon_in_plain_value_rejected(root: Path) -> None:
+    """A tab after ':' is a mapping colon too (Bun.YAML.parse refuses 'a:<TAB>b')."""
+    write_tree(root)
+    write_plugin_case(root, "a:\tb")
+    expect_rejection(
+        root,
+        "an eval case whose plain value holds ':' and a tab",
+        "a plain value may not hold ': '",
+    )
+
+
+def case_backslash_in_double_quotes_rejected(root: Path) -> None:
+    """YAML refuses an unknown escape such as \\q; the check models no escape table."""
+    write_tree(root)
+    write_plugin_case(root, '"a\\qb"')
+    expect_rejection(
+        root,
+        "an eval case whose double-quoted value holds a backslash",
+        "may not hold a backslash",
+    )
+
+
+def case_empty_value_rejected(root: Path) -> None:
+    write_tree(root)
+    write_plugin_frontmatter(root, "name: probe-case\nexpected_outcome:")
+    expect_rejection(root, "an eval case with an empty value", "the value is empty")
+
+
+def case_flow_indicator_in_list_item_rejected(root: Path) -> None:
+    write_tree(root)
+    write_plugin_frontmatter(root, "name: probe-case\ntags: [seed, a{b]")
+    expect_rejection(
+        root,
+        "an eval case whose list item holds a flow indicator",
+        "a list item may not hold , [ ] { }",
+    )
+
+
+def case_unclosed_flow_list_rejected(root: Path) -> None:
+    write_tree(root)
+    write_plugin_frontmatter(root, "name: probe-case\ntags: [seed, should-fire")
+    expect_rejection(
+        root,
+        "an eval case whose list never closes",
+        "a plain value may not open with",
     )
 
 
@@ -494,6 +668,20 @@ def main() -> None:
         case_stale_description_quote_rejected,
         case_current_description_quote_passes,
         case_quote_without_a_named_card_passes,
+        case_live_shaped_frontmatter_passes,
+        case_crlf_frontmatter_passes,
+        case_colon_in_plain_value_rejected,
+        case_hash_in_plain_value_rejected,
+        case_unclosed_quote_rejected,
+        case_unknown_frontmatter_line_rejected,
+        case_duplicate_frontmatter_key_rejected,
+        case_unclosed_flow_list_rejected,
+        case_subset_extras_pass,
+        case_tab_hash_in_plain_value_rejected,
+        case_backslash_in_double_quotes_rejected,
+        case_tab_colon_in_plain_value_rejected,
+        case_empty_value_rejected,
+        case_flow_indicator_in_list_item_rejected,
     )
     for case in in_tempdir:
         with tempfile.TemporaryDirectory() as tmp:
