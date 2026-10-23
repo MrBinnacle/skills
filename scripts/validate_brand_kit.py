@@ -600,8 +600,16 @@ class ClaimPattern(NamedTuple):
     why: str
 
 
-def public_claim_patterns(block: Any) -> list[ClaimPattern]:
-    """(claim, compiled pattern, why), each proven against its own examples."""
+def public_claim_patterns(
+    block: Any, tracked: frozenset[str]
+) -> tuple[list[ClaimPattern], list[str]]:
+    """The patterns in force, each proven against its own examples, and the lifted ones.
+
+    A pattern forbids wording because a fact is missing today, so each one names
+    the receipt that would make the wording true (`lifted_by_receipt`, a glob).
+    When a tracked file matches it, the pattern stops refusing and a note says
+    so: the ledger row must then be re-read, not the copy kept down by a stale rule.
+    """
     if not isinstance(block, dict):
         raise Refusal(
             "assets/tokens.json states no public_claims block. It holds the wording "
@@ -615,6 +623,7 @@ def public_claim_patterns(block: Any) -> list[ClaimPattern]:
     if not isinstance(raw, list) or not raw:
         raise Refusal("public_claims.patterns is empty, so the claim check passes on every input.")
     compiled: list[ClaimPattern] = []
+    lifted: list[str] = []
     for pattern in raw:
         if not isinstance(pattern, dict):
             raise Refusal("a public_claims pattern is not an object")
@@ -623,6 +632,13 @@ def public_claim_patterns(block: Any) -> list[ClaimPattern]:
             claim and regex and why
         ):
             raise Refusal("a public_claims pattern lacks a claim, regex or why string")
+        receipt_glob = pattern.get("lifted_by_receipt")
+        if not isinstance(receipt_glob, str) or not receipt_glob:
+            raise Refusal(
+                f"public_claims pattern {claim} names no lifted_by_receipt glob. A claim "
+                "is forbidden because a fact is missing; the pattern must name the "
+                "receipt that would supply it, or it outlives the reality it encodes."
+            )
         try:
             matcher = re.compile(regex)
         except re.error as error:
@@ -639,8 +655,15 @@ def public_claim_patterns(block: Any) -> list[ClaimPattern]:
                     f"public_claims pattern {claim} matches its own must_not_match "
                     f"example {ascii(example)}, so it refuses wording the ledger allows."
                 )
+        receipts = sorted(path for path in tracked if fnmatch.fnmatch(path, receipt_glob))
+        if receipts:
+            lifted.append(
+                f"public claim {claim} is lifted by {receipts[0]}: re-read "
+                f"docs/product/claims-ledger.md {claim} and retire or rewrite the pattern."
+            )
+            continue
         compiled.append(ClaimPattern(claim, matcher, why))
-    return compiled
+    return compiled, lifted
 
 
 def public_claim_violations(
@@ -1031,7 +1054,9 @@ def validate(root: Path) -> None:
     violations = banned_word_violations(surfaces, words)
 
     claim_block = tokens.get("public_claims")
-    patterns = public_claim_patterns(claim_block)
+    patterns, lifted = public_claim_patterns(claim_block, tracked)
+    for note in lifted:
+        print(f"NOTE: {note}")
     claim_specs = claim_block["surfaces"]
     violations.extend(
         public_claim_violations(resolve_surfaces(root, claim_specs, tracked), patterns)

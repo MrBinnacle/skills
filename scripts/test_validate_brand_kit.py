@@ -100,6 +100,7 @@ BASELINE_CLAIM_PATTERN: dict[str, Any] = {
     "why": "Pi is the direction, not a delivered runtime.",
     "must_match": ["Pi is the runtime this work targets first."],
     "must_not_match": ["There is no tested Pi install yet."],
+    "lifted_by_receipt": "docs/product/receipts/*-pi-install*.md",
 }
 
 BASELINE_SITE = (
@@ -1351,6 +1352,34 @@ def case_public_claims_off_a_public_surface_not_scanned(tmp: Path) -> None:
     expect_pass("an internal record may state the direction", root)
 
 
+def case_public_claim_lifted_by_its_receipt(tmp: Path) -> None:
+    """Once the missing fact exists, the wording is true and is no longer refused."""
+    readme = BASELINE_README + "\nPi is the primary runtime for this work.\n"
+    root = baseline_tree(tmp, readme=readme)
+    receipts = root / "docs" / "product" / "receipts"
+    receipts.mkdir(parents=True)
+    (receipts / "2027-01-01-pi-install.md").write_text("A clean Pi install.\n", encoding="utf-8")
+    stage(root)
+    result = run_checker(root)
+    check(
+        "a committed Pi install receipt lifts the C2 pattern and says so",
+        result.returncode == 0
+        and "public claim C2 is lifted by docs/product/receipts/2027-01-01-pi-install.md"
+        in result.stdout,
+        f"rc={result.returncode} out={result.stdout!r} err={result.stderr!r}",
+    )
+
+
+def case_public_claim_pattern_without_receipt_refused(tmp: Path) -> None:
+    tokens = baseline_tokens()
+    del tokens["public_claims"]["patterns"][0]["lifted_by_receipt"]
+    expect_refusal(
+        "a claim pattern that names no lifting receipt is refused",
+        baseline_tree(tmp, tokens=tokens),
+        "names no lifted_by_receipt glob",
+    )
+
+
 def case_public_claims_block_missing_refused(tmp: Path) -> None:
     tokens = baseline_tokens()
     del tokens["public_claims"]
@@ -1755,6 +1784,8 @@ def main() -> None:
         case_public_claim_pattern_hitting_allowed_wording_refused,
         case_public_claim_pattern_without_examples_refused,
         case_public_claim_bad_regex_refused,
+        case_public_claim_lifted_by_its_receipt,
+        case_public_claim_pattern_without_receipt_refused,
     )
     for case in in_tempdir:
         with tempfile.TemporaryDirectory() as tmp:

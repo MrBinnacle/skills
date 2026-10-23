@@ -41,7 +41,11 @@ That line called Pi the runtime this work targets first, which C2 has forbidden 
 surface since the #547 ruling. #561 fixed the README for that ruling. The site was in no copy
 check and in no row of this sweep, so the line stayed. The same change removes the sentence and
 adds `public_claims` to `assets/tokens.json`: `scripts/validate_brand_kit.py` now refuses the
-C2 wording on the site, the README, the SVG assets and the repository description.
+C2 wording on the site, the README, the SVG assets and the repository description. The pattern
+names the receipt that would lift it, a Pi install receipt under `docs/product/receipts/`, so the
+refusal ends when the missing fact exists. C4 gains a public form: the owner ruled on 2026-10-23
+that a public surface may say how far Pi works with the cards today, and how and why, within the
+evidence C4 and C5 cite. The ruling was given in a working session and is recorded here.
 
 This is an internal working record. It is not public copy, and it changes no public surface.
 It has two parts:
@@ -119,10 +123,10 @@ ledger cites that list by its path and does not repeat it.
 | Field | Value |
 | --- | --- |
 | Claim | A configured Pi setup loaded cards from this repository. |
-| Allowed wording | On 2026-10-17, a configured Pi 1.3.0 setup on the owner's machine loaded cards from explicit paths. Provider delivery and body invocation were not measured. |
+| Allowed wording | On 2026-10-17, a configured Pi 1.3.0 setup on the owner's machine loaded cards from explicit paths. Provider delivery and body invocation were not measured. On a public surface, from the owner's ruling of 2026-10-23, the same facts with how and why: the cards use the open Agent Skills `SKILL.md` format, which Pi also reads; Pi 1.3.0 loaded them from a local checkout when given their paths by hand; there is no Pi install package; whether the cards change how Pi behaves has not been measured. The reason may be stated as direction: one shared format lets a card be written once rather than once per runtime. |
 | Forbidden wording | Any wording that turns this loader observation into an install route, a package, or runtime parity. |
 | Evidence | `docs/product/runtime-delivery-matrix.md:88-89`. |
-| Status | **SCOPED** to that configuration and date. Internal records only; it is not install guidance. |
+| Status | **SCOPED** to that configuration and date. It is not install guidance. Public use is **ALLOWED** in the public form above, with the date, the version and the two limits beside it. |
 
 ### C5. Runtime parity and shared content
 
