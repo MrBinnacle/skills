@@ -593,7 +593,8 @@ jobs:
             || { echo "::error::standing-cost check emitted no PASS line - it did not run"; exit 1; }
 
       # The Pages site links into README.md and CATALOG.md by heading anchor.
-      # lychee does not check anchors, and #324 broke four of them unnoticed.
+      # #324 broke four of them unnoticed. links.yml checks Markdown anchors
+      # since #603, but it reads only `*.md`, so the site's HTML links stay here.
       - name: Site-link suite
         run: |
           set -euo pipefail
