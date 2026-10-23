@@ -2,6 +2,7 @@
 cases:
   decision-rights-issue-bodies: fires
   decision-rights-near-miss: does-not-fire
+  subagent-handback-brief: fires
   subagent-handback-celery-worker: does-not-fire
   subagent-handback-dispatch: fires
   subagent-handback-instructions: fires
@@ -16,11 +17,11 @@ The eval cases for the `mrbinnacle-orchestration` plugin. `claude plugin eval` r
 
 `cases:` names every case with the direction it can fail in. `controls:` names the case that can fail in the should-not-fire direction for this plugin. The pre-flight in the research repo refuses a run when the declared set and the discovered set disagree.
 
-Two cards have cases here. `decision-rights` has a should-fire case (`decision-rights-issue-bodies`) and its should-not-fire partner (`decision-rights-near-miss`). `subagent-handback` has three should-fire cases and one should-not-fire partner (`subagent-handback-celery-worker`). In `subagent-handback-dispatch`, the user dispatches and the agent writes the prompt. `subagent-handback-instructions` is the same request, worded "Draft the instructions I should give it" so that the word "prompt" does not appear. In `subagent-handback-self-dispatch`, the agent under test dispatches. The sweep is the same in all three; both variants were added for [#609](https://github.com/MrBinnacle/skills/issues/609).
+Two cards have cases here. `decision-rights` has a should-fire case (`decision-rights-issue-bodies`) and its should-not-fire partner (`decision-rights-near-miss`). `subagent-handback` has four should-fire cases and one should-not-fire partner (`subagent-handback-celery-worker`). In `subagent-handback-dispatch`, the user dispatches and the agent writes the prompt. `subagent-handback-instructions` and `subagent-handback-brief` make the same request in other words, "Draft the instructions I should give it" and "Write me a brief for it", so the word "prompt" does not appear. In `subagent-handback-self-dispatch`, the agent under test dispatches. The sweep is the same in all four; the three variants were added for [#609](https://github.com/MrBinnacle/skills/issues/609).
 
 ## Runs
 
-Three cases have been run: `subagent-handback-dispatch` (for [#601](https://github.com/MrBinnacle/skills/issues/601) and #609), `subagent-handback-self-dispatch` and `subagent-handback-celery-worker` (both for #609). The first three runs below checked the card's description as narrowed in #572, which opened "Use before dispatching a subagent for research". The later runs checked two candidate descriptions; see [The description that shipped](#the-description-that-shipped).
+Every `subagent-handback` case has been run. The first three runs below checked `subagent-handback-dispatch` and `subagent-handback-self-dispatch` (for [#601](https://github.com/MrBinnacle/skills/issues/601) and #609) against the card's description as narrowed in #572, which opened "Use before dispatching a subagent for research". The later runs checked three candidate descriptions; see [The description that shipped](#the-description-that-shipped).
 
 - 2026-10-22, Claude Code 2.1.308, `claude plugin eval` with `--runs 1 --model opus`. Each arm ran `claude-opus-5-5` once. The arm with the plugin did not invoke `subagent-handback`: it ran one `Glob` over `payments/` and then wrote the brief. The arm without the plugin did the same. The `skill-fires` grader scored both arms 0. The run cost USD 0.16.
 - 2026-10-22, `subagent-handback-dispatch`, Claude Code 2.1.308, `--runs 5 -j 4 --model opus --no-publish`. Each arm ran `claude-opus-5-5`. With the plugin: scores `[0, 0, 0, 0, 0]`. Without: `[0, 0, 0, 0, 0]`. Cost USD 0.82. Recorded in [#609](https://github.com/MrBinnacle/skills/issues/609). Pooled with the first run, the card was invoked in 0 of 6 with-plugin runs.
@@ -44,15 +45,20 @@ The card was invoked in 0 of 6 runs when the user dispatches and in 4 of 5 when 
 
 #609 left one question open: does the card cover a prompt the agent writes for a subagent that the user will dispatch? It does. A user who asks for that prompt is about to dispatch a research subagent, and the card's checks (a named return channel, a matching tool grant) belong in the prompt. So `subagent-handback-dispatch` stays a should-fire case, and the description was the defect, not the case.
 
-Two candidate descriptions were run on 2026-10-22 with Claude Code 2.1.309, `--model opus --no-publish`, 5 runs per arm, each arm on `claude-opus-5-5`. Scores are for the arm with the plugin; the arm without it scored 0 on every should-fire run.
+Three candidate descriptions were run on 2026-10-22 with Claude Code 2.1.309, `--model opus --no-publish`, 5 runs per arm, each arm on `claude-opus-5-5`. Each cell gives the runs that fired with the plugin. The arm without the plugin fired in none of the should-fire runs. "Not run" means the case did not yet exist or was not run under that description.
 
-| Description opens | `subagent-handback-dispatch` | `subagent-handback-self-dispatch` | `subagent-handback-celery-worker` (does not fire) |
-|---|---|---|---|
-| "Use when briefing or dispatching a research subagent" | 1 of 5 (USD 0.83) | 4 of 5 | 5 of 5 correct (both cases together, USD 3.68) |
-| "Use when prompting or dispatching a research subagent" | 5 of 5 (USD 0.98) | 5 of 5 (USD 2.28) | 10 of 10 correct, in two runs of 5 (USD 1.69 for one) |
+| Description opens | `-dispatch` ("the prompt") | `-instructions` | `-brief` | `-self-dispatch` | `-celery-worker` (correct = silent) |
+|---|---|---|---|---|---|
+| "Use when briefing or dispatching a research subagent" | 1 of 5 | not run | not run | 4 of 5 | 5 of 5 |
+| "Use when prompting or dispatching a research subagent" | 5 of 5 | 4 of 5 | 2 of 5 | 5 of 5 | 10 of 10, in two runs of 5 |
+| "Use when prompting, briefing or dispatching a research subagent" | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 |
 
-For the control, a correct run is one where the card did not fire and the agent still answered the question; the arm without the plugin also scored 5 of 5. The second description shipped: "Use when prompting or dispatching a research subagent, or when one goes idle with no report. Name a return channel (SendMessage or file), check its tool grant, verify every claim, negatives first."
+Costs, both arms together: under the first description, USD 0.83 for `-dispatch` and USD 3.68 for `-self-dispatch` and `-celery-worker` run together. Under the second, USD 0.98 for `-dispatch`, USD 0.94 for `-instructions`, USD 0.81 for `-brief`, USD 2.28 for `-self-dispatch`, and USD 1.69 for one of the two `-celery-worker` runs. Under the third, all five cases ran in one invocation for USD 6.21.
 
-The word "prompting" names the user's request in `subagent-handback-dispatch` ("Write me the prompt I should send it"), so part of its 5 of 5 can be a word match. `subagent-handback-instructions` tests that: it asks for "the instructions I should give it" and never says "prompt". Under the shipped description it fired in 4 of 5 runs with the plugin and 0 of 5 without (USD 0.94, same version and flags). The card therefore reaches this moment without the word match, at a rate one run lower on five. No case tests a request for a "brief".
+For the control, a correct run is one where the card did not fire and the agent still answered the question; the arm without the plugin was also correct in every run.
 
-All runs recorded here are observations, not measurements. `decision-rights-issue-bodies` and `decision-rights-near-miss` have not been run.
+The second description matched the user's own word in `-dispatch` ("Write me the prompt I should send it"), so its 5 of 5 there was partly a word match. The paraphrase cases show it: the same request worded as "instructions" fired in 4 of 5, and worded as "a brief" in 2 of 5. The third description names all three moments and fired in every run of every should-fire case. To stay within the 200-character limit, it drops the parenthesis "(SendMessage or file)" after "Name a return channel"; the card's body still names both channels.
+
+The third description shipped: "Use when prompting, briefing or dispatching a research subagent, or when one goes idle with no report. Name a return channel, check its tool grant, verify every claim, negatives first."
+
+All runs recorded here are observations at five runs per arm, not measurements, and no disposition verdict follows from them. `decision-rights-issue-bodies` and `decision-rights-near-miss` have not been run.

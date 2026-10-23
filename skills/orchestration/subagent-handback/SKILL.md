@@ -1,6 +1,6 @@
 ---
 name: subagent-handback
-description: Use when prompting or dispatching a research subagent, or when one goes idle with no report. Name a return channel (SendMessage or file), check its tool grant, verify every claim, negatives first.
+description: Use when prompting, briefing or dispatching a research subagent, or when one goes idle with no report. Name a return channel, check its tool grant, verify every claim, negatives first.
 ---
 
 # Subagent Research Reliability

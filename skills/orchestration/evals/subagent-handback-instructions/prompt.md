@@ -1,7 +1,7 @@
 ---
 name: subagent-handback-instructions
 description: About to dispatch a subagent, asked for its instructions rather than its prompt. Paraphrase variant of subagent-handback-dispatch (#609).
-expected_outcome: The agent invokes mrbinnacle-orchestration:subagent-handback. The card's description opens "Use when prompting or dispatching a research subagent", and the user asks for the instructions of a read-only research sweep that the user will dispatch, without the word prompt. ../MANIFEST.md records why this case exists.
+expected_outcome: The agent invokes mrbinnacle-orchestration:subagent-handback. The card's description opens "Use when prompting, briefing or dispatching a research subagent", and the user asks for the instructions of a read-only research sweep that the user will dispatch, without the word prompt. ../MANIFEST.md records why this case exists.
 tags: [variant, should-fire, mrbinnacle-orchestration]
 plugins: ["../.."]
 allowed_tools: [Read, Glob, Grep, Skill, TodoWrite]

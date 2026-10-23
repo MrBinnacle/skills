@@ -1,7 +1,7 @@
 ---
 name: subagent-handback-self-dispatch
 description: About to dispatch a subagent, where the agent under test is the dispatcher. Self-dispatch variant of subagent-handback-dispatch (#609).
-expected_outcome: The agent invokes mrbinnacle-orchestration:subagent-handback before it calls Agent. The card's description opens "Use when prompting or dispatching a research subagent", and here the agent under test is about to dispatch a read-only research sweep. ../MANIFEST.md records how this case differs from subagent-handback-dispatch.
+expected_outcome: The agent invokes mrbinnacle-orchestration:subagent-handback before it calls Agent. The card's description opens "Use when prompting, briefing or dispatching a research subagent", and here the agent under test is about to dispatch a read-only research sweep. ../MANIFEST.md records how this case differs from subagent-handback-dispatch.
 tags: [variant, should-fire, mrbinnacle-orchestration]
 plugins: ["../.."]
 max_turns: 10
