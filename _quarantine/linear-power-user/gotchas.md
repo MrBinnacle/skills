@@ -8,3 +8,5 @@
 - [RISK] Project, issue and initiative labels are distinct types.
 - [RISK] Templates may create prefilled fields or sub-issues server-side. Inspect before use and verify afterward.
 - [RISK] Missing acceptance evidence does not prove work is incomplete; Done does not prove the outcome was achieved.
+- [OBSERVED 2026-10-23] An issue label description longer than 255 characters fails with `400 invalid_request: description must be shorter than or equal to 255 characters`. Count characters before saving one that carries instructions.
+- [OBSERVED 2026-10-23] Do not send a comment that announces a status change in the same parallel batch as the change. In Claude Code auto mode, `save_comment` went through while `save_issue` (state Canceled) was denied twice as an external write, including once after the operator had granted permission. The comment then said "Closed" on an open issue. Make the mutation first, read it back, then write the comment.
