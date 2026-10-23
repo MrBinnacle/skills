@@ -71,6 +71,10 @@ clone.
   backs up any real dir it replaces; Windows symlinks need Developer Mode or an elevated shell.
 - Private, unpublished skills in a maintainer's local library are never linked and never enter
   this repo. Only what lives here is published.
+- `python scripts/ci_local.py` runs the shell steps of `.github/workflows/tests.yml` on the local
+  machine, one at a time, and names every skipped step (`--list` to see them, `--job` and `--match`
+  to narrow). Run it before opening a pull request instead of copying steps by hand. It needs
+  PyYAML, and CI does not run it.
 
 **This section used to say the opposite, and the correction is worth reading once.** Until
 2026-09-15 it said maintainers install published skills as symlinks back into a clone "so a
