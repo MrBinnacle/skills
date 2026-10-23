@@ -343,7 +343,7 @@ pin like a bucket's. O7 finds no cards in it. G1 stamps its version with the buc
 prices adding, removing or renaming a mod as it prices a card. A new mod's entry is entering
 until the next release ships it, and `check_marketplace_pin.py` reports it so. The admission
 test, the `EVIDENCE.md` rows and the card validators do not apply to a mod, because they test
-whether a skill earns its place in the context window and a mod loads nothing into it. A mod
+whether a skill deserves its place in the context window and a mod loads nothing into it. A mod
 enters when `claude plugin validate mods/<mod>` reports no error and `claude plugin test
 mods/<mod>` passes.
 

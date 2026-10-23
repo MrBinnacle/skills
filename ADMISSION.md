@@ -49,7 +49,7 @@ adding it does not bump this policy's version. [precondition added 2026-10-20]
 
 A Claude Code mod this collection authored is held under `mods/`, beside the cards. The
 authorship precondition above applies to it. The four questions do not, because they test
-whether a skill earns a place in the context window and a mod loads nothing into it. A mod
+whether a skill deserves a place in the context window and a mod loads nothing into it. A mod
 enters on its own conditions, recorded in
 [ADR 0009](docs/adr/0009-the-collection-also-ships-mods-it-authored.md). The four questions and
 what counts as answering them are unchanged, so this section does not bump this policy's

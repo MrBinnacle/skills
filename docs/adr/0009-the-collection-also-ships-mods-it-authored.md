@@ -33,7 +33,7 @@ marketplace entry is a `git-subdir` pin of this repository, the same form as a b
 that possession in a public tree reads as provenance, applies to any package, so this collection
 holds no mod it did not author.
 
-**The four admission questions do not apply to a mod.** They test whether a skill earns its
+**The four admission questions do not apply to a mod.** They test whether a skill deserves its
 place in the context window. Question 3 asks whether "a skill is the correct control surface",
 and for a mod the answer is no by construction. The `EVIDENCE.md` rows, the occasion count, the
 always-on bar and the card validators exist to answer those questions, so they do not apply
