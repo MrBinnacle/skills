@@ -45,7 +45,14 @@ WHAT IT CHECKS
         with a measured verdict. No other card or candidate may have one.
       - RETIRED.md and CATALOG.md say no card has left on a screen. Each row of
         `## On watch` and `## Retired from the collection` is read for its route.
-        A row that names no known route refuses.
+        A harness receipt in a retired row's Evidence cell marks a screen exit,
+        whatever its prose says. A row that names no known route refuses.
+      - Every card that was under `skills/` at a `v*` release tag and is gone
+        now has a row in On watch, Retired from the collection or Renamed. A
+        shallow or tagless clone refuses, because it cannot see the releases.
+      - ADMISSION.md says the with-skill arm never ran for a turned-away row.
+        No candidate in a `## Screened out at the gate` table may have a
+        measured Paired verdict in its record. (#599)
     Each sentence is pinned. A pinned sentence that is no longer on the page
     is refused, because a check whose input was reworded away examines nothing.
     "Every published card carries one" (a retirement trigger) is not
@@ -326,11 +333,26 @@ NO_SCREEN_EXIT_CLAIMS = (
 #: AGENTS.md Retirement: a policy withdrawal quotes the policy, and a
 #: platform-fix retires against the trigger its record pre-registered. A
 #: screen word anywhere in the cell wins, because reading a screen exit as
-#: another route is the error that would let the claim pass falsely.
-SCREEN_MARK = re.compile(r"\b(?:subsumed|no_lift|harmful|cut)\b|cut\(", re.IGNORECASE)
+#: another route is the error that would let the claim pass falsely. The
+#: verdict is `CUT` in capitals; the English verb "cut" is not a screen word
+#: (#599 item 2).
+SCREEN_MARK = re.compile(r"(?i:\b(?:subsumed|no_lift|harmful)\b)|\bCUT\b")
+#: AGENTS.md rotation step 7: the harness-cut route's evidence is the receipt.
+#: A receipt in the Evidence cell marks a screen exit whatever the prose cell
+#: says (#599 item 1). Receipts are JSON files in skill-harness.
+RECEIPT_LINK = re.compile(r"https://github\.com/MrBinnacle/skill-harness/blob/[^\s)]+\.json")
 POLICY_OPENING = "withdrawn on the policy"
 PLATFORM_FIX_MARK = "pre-registered"
 SCREEN, POLICY, PLATFORM_FIX = "screen", "policy", "platform-fix"
+
+#: ADMISSION.md's naming table says what a turned-away row is (#599 item 5).
+TURNED_AWAY_CLAIM = (
+    "ADMISSION.md",
+    re.compile(r"Turned-away rows and \"screened out at the gate\" prose .*the with-skill arm never ran"),
+)
+#: A card directory at any release tag: `skills/<bucket>/<card>/SKILL.md`, or
+#: `skills/<card>/SKILL.md` from the flat layout before buckets.
+SHIPPED_CARD_PATH = re.compile(r"^skills/(?:[^/]+/)?([^/]+)/SKILL\.md$")
 
 
 def _paragraphs(text: str) -> list[str]:
@@ -406,24 +428,36 @@ def check_paired_run_claim(root: Path) -> list[str]:
     return failures
 
 
-def _table_rows(text: str, heading: str) -> list[list[str]]:
-    """Body rows of the first table under a `## ` heading, as stripped cells."""
-    start = re.search(rf"^{re.escape(heading)}$", text, re.MULTILINE)
-    if start is None:
+def _cells(line: str) -> list[str]:
+    """A table row's cells. `\\|` is a literal pipe inside a cell, as GitHub renders it."""
+    inner = line.strip()[1:]
+    if inner.endswith("|") and not inner.endswith("\\|"):
+        inner = inner[:-1]
+    return [c.replace("\\|", "|").strip() for c in re.split(r"(?<!\\)\|", inner)]
+
+
+def _table_rows(text: str, heading: str, *, prefix: bool = False) -> list[list[str]]:
+    """Body rows of every table under a `## ` heading (or each heading it prefixes)."""
+    pattern = rf"^{re.escape(heading)}{'.*' if prefix else ''}$"
+    starts = list(re.finditer(pattern, text, re.MULTILINE))
+    if not starts:
         raise Refusal(f"RETIRED.md has no {heading!r} section, so no exit can be read")
-    body = text[start.end():]
-    end = re.search(r"^## ", body, re.MULTILINE)
     rows = []
-    for line in body[: end.start() if end else None].splitlines():
-        if not line.startswith("|") or re.match(r"^\|[\s|:-]+$", line):
-            continue
-        rows.append([c.strip() for c in line.strip().strip("|").split("|")])
-    return rows[1:]
+    for start in starts:
+        body = text[start.end():]
+        end = re.search(r"^## ", body, re.MULTILINE)
+        table = [
+            _cells(line)
+            for line in body[: end.start() if end else None].splitlines()
+            if line.startswith("|") and not re.match(r"^\|[\s|:-]+$", line)
+        ]
+        rows += table[1:]
+    return rows
 
 
-def _route_of_retired(cell: str) -> str | None:
+def _route_of_retired(cell: str, evidence: str = "") -> str | None:
     opening = cell.lstrip("* `_").lower()
-    if SCREEN_MARK.search(cell):
+    if SCREEN_MARK.search(cell) or RECEIPT_LINK.search(evidence):
         return SCREEN
     if opening.startswith(POLICY_OPENING):
         return POLICY
@@ -448,12 +482,12 @@ def departures(root: Path) -> list[tuple[str, str]]:
     text = (root / "RETIRED.md").read_text(encoding="utf-8")
     found = []
     for heading, column, classify in (
-        ("## On watch", 2, _route_of_watch),
-        ("## Retired from the collection", 2, _route_of_retired),
+        ("## On watch", 2, lambda cells: _route_of_watch(cells[2])),
+        ("## Retired from the collection", 2, lambda cells: _route_of_retired(cells[2], " ".join(cells[3:]))),
     ):
         for cells in _table_rows(text, heading):
             card = cells[0].strip("` ")
-            route = classify(cells[column]) if len(cells) > column else None
+            route = classify(cells) if len(cells) > column else None
             if route is None:
                 raise Refusal(
                     f"RETIRED.md {heading!r}: the row for {card} names no known route "
@@ -485,6 +519,63 @@ def check_no_screen_exit_claims(root: Path) -> list[str]:
     return failures
 
 
+def _git(root: Path, *args: str) -> str:
+    result = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise Refusal(f"git {' '.join(args)} failed in {root}: {result.stderr.strip()}")
+    return result.stdout
+
+
+def shipped_cards(root: Path) -> set[str]:
+    """Every card name present under `skills/` at any `v*` release tag.
+
+    A shallow or tagless clone cannot see the releases, and an empty set would
+    pass every card as recorded, so both refuse.
+    """
+    if _git(root, "rev-parse", "--is-shallow-repository").strip() == "true":
+        raise Refusal("the clone is shallow, so the cards each release shipped cannot be read")
+    tags = _git(root, "tag", "--list", "v*").split()
+    if not tags:
+        raise Refusal("the clone has no v* release tags, so the cards each release shipped cannot be read")
+    shipped: set[str] = set()
+    for tag in tags:
+        for path in _git(root, "ls-tree", "-r", "--name-only", tag, "--", "skills").splitlines():
+            match = SHIPPED_CARD_PATH.match(path)
+            if match:
+                shipped.add(match.group(1))
+    return shipped
+
+
+def check_departures_recorded(root: Path) -> list[str]:
+    """A card that shipped in a release and left `skills/` has a RETIRED.md row (#599 item 4)."""
+    text = (root / "RETIRED.md").read_text(encoding="utf-8")
+    recorded = {card for card, _route in departures(root)}
+    recorded |= {cells[0].strip("` ") for cells in _table_rows(text, "## Renamed", prefix=True)}
+    on_disk = {path.parent.name for path in (root / "skills").rglob("SKILL.md")}
+    silent = sorted(shipped_cards(root) - on_disk - recorded)
+    return [
+        f"RETIRED.md: `{card}` shipped in a release and is no longer under skills/, but no row in "
+        "On watch, Retired from the collection or Renamed records how it left"
+        for card in silent
+    ]
+
+
+def check_turned_away_claim(root: Path) -> list[str]:
+    """ADMISSION.md: the with-skill arm never ran for a turned-away row (#599 item 5)."""
+    name, pattern = TURNED_AWAY_CLAIM
+    if _find_claim(root, name, pattern) is None:
+        return [_missing_claim(name, pattern)]
+    text = (root / "RETIRED.md").read_text(encoding="utf-8")
+    turned_away = {cells[0].strip("` ") for cells in _table_rows(text, "## Screened out at the gate", prefix=True)}
+    paired = sorted(turned_away & paired_run_holders(root))
+    if not paired:
+        return []
+    return [
+        f"{name}: says the with-skill arm never ran for turned-away rows, but these turned-away "
+        f"candidates record a measured Paired verdict: {', '.join(paired)}"
+    ]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
@@ -497,6 +588,8 @@ def main(argv: list[str] | None = None) -> int:
         failures += check_documented_paths(root)
         failures += check_paired_run_claim(root)
         failures += check_no_screen_exit_claims(root)
+        failures += check_departures_recorded(root)
+        failures += check_turned_away_claim(root)
     except Refusal as refusal:
         print(f"UNINTERPRETABLE: {refusal}")
         return 2
@@ -512,7 +605,9 @@ def main(argv: list[str] | None = None) -> int:
         "directions; every path drawn in a README layout block exists; the vendored "
         "population contract matches its pinned digest; the paired-run claim holds over "
         f"{len(iter_skill_dirs(root))} published cards and {len(candidate_dirs(root))} "
-        f"candidates; the no-screen-exit claims hold over {len(departures(root))} departure(s)"
+        f"candidates; the no-screen-exit claims hold over {len(departures(root))} departure(s); "
+        f"every card that shipped in a release and left has a RETIRED.md row; no turned-away "
+        "candidate records a paired run"
     )
     return 0
 

@@ -286,15 +286,126 @@ def case_unrecognised_paired_verdict_is_uninterpretable(tmp: Path) -> None:
     print("  ok   case_unrecognised_paired_verdict_is_uninterpretable")
 
 
-def _append_retired_row(root: Path, cell: str) -> bool:
-    retired = root / "RETIRED.md"
-    text = retired.read_text(encoding="utf-8")
+def _append_retired_row(root: Path, cell: str, evidence: str = "planted", retired: str = "2026-10") -> bool:
+    page = root / "RETIRED.md"
+    text = page.read_text(encoding="utf-8")
     anchor = "| Skill | Retired | What made it unnecessary | Evidence |\n|---|---|---|---|\n"
     if anchor not in text:
         return False
-    row = f"| `planted-card` | 2026-10 | {cell} | planted |\n"
-    retired.write_text(text.replace(anchor, anchor + row, 1), encoding="utf-8")
+    row = f"| `planted-card` | {retired} | {cell} | {evidence} |\n"
+    page.write_text(text.replace(anchor, anchor + row, 1), encoding="utf-8")
     return True
+
+
+#: A harness receipt and a card record, in the link forms RETIRED.md uses.
+RECEIPT_LINK = (
+    "[receipt](https://github.com/MrBinnacle/skill-harness/blob/"
+    "f75429c57c33e1191fa4b65632fce5d668a78312/docs/sers/receipts/planted-card.json)"
+)
+RECORD_LINK = "[receipt (at `v3.1.0`)](https://github.com/MrBinnacle/skills/blob/v3.1.0/skills/engineering/planted-card/EVIDENCE.md)"
+
+
+def _expect_pass(case: str, root: Path) -> None:
+    """The check must accept the tree: the planted row is well formed."""
+    result = _run(root)
+    if result.returncode != 0:
+        fail(case, f"REFUSED a well-formed row, exit {result.returncode}\n{result.stdout}{result.stderr}")
+        return
+    print(f"  ok   {case}")
+
+
+def case_screen_exit_named_by_its_receipt_is_refused(tmp: Path) -> None:
+    """#599 item 1: a screen exit whose cell carries no screen word.
+
+    AGENTS.md rotation step 7: the harness-cut route's evidence is the receipt.
+    The cell alone reads as platform-fix; the receipt says which exit it was.
+    """
+    root = _tree(tmp)
+    if not _append_retired_row(root, "Retired when the pre-registered trigger fired", RECEIPT_LINK):
+        fail("case_screen_exit_named_by_its_receipt_is_refused", "anchor absent: retired table header")
+        return
+    expect_refusal("case_screen_exit_named_by_its_receipt_is_refused", root, "screen exit for: planted-card")
+
+
+def case_prose_cut_is_not_a_screen_word(tmp: Path) -> None:
+    """#599 item 2: the English verb "cut" in a platform-fix row is not `CUT`."""
+    root = _tree(tmp)
+    if not _append_retired_row(root, "Cut from a 15-line prompt; pre-registered trigger", RECORD_LINK):
+        fail("case_prose_cut_is_not_a_screen_word", "anchor absent: retired table header")
+        return
+    _expect_pass("case_prose_cut_is_not_a_screen_word", root)
+
+
+def case_escaped_pipe_stays_inside_its_cell(tmp: Path) -> None:
+    """#599 item 3: `\\|` is a literal pipe in a GitHub table, not a column break."""
+    root = _tree(tmp)
+    cell = "The trigger it pre-registered shipped"
+    if not _append_retired_row(root, cell, RECORD_LINK, retired="2026-10 \\| re-dated"):
+        fail("case_escaped_pipe_stays_inside_its_cell", "anchor absent: retired table header")
+        return
+    _expect_pass("case_escaped_pipe_stays_inside_its_cell", root)
+
+
+def case_shipped_card_with_no_departure_row_is_refused(tmp: Path) -> None:
+    """#599 item 4: a card that shipped in a release and left with no RETIRED.md row."""
+    root = _tree(tmp)
+    page = root / "RETIRED.md"
+    lines = page.read_text(encoding="utf-8").splitlines(keepends=True)
+    kept = [line for line in lines if not line.startswith("| `git-pull-rebase-trap` |")]
+    if len(kept) == len(lines):
+        fail("case_shipped_card_with_no_departure_row_is_refused", "anchor absent: renamed row")
+        return
+    page.write_text("".join(kept), encoding="utf-8")
+    expect_refusal("case_shipped_card_with_no_departure_row_is_refused", root, "git-pull-rebase-trap")
+
+
+def case_tagless_clone_is_uninterpretable(tmp: Path) -> None:
+    """With no release tags, no shipped card is visible, and that must not read as a pass.
+
+    The copy gets its own tagless repository from `git clone --no-tags`. Deleting
+    tags in the copy is not safe: in a linked worktree `.git` is a file that
+    points at the shared repository, so `git tag -d` there deletes the real tags.
+    """
+    root = _tree(tmp)
+    clone = tmp / "tagless"
+    subprocess.run(
+        ["git", "clone", "-q", "--no-checkout", "--no-tags", str(_REPO_ROOT), str(clone)],
+        capture_output=True,
+        check=True,
+    )
+    # Moved aside, not deleted: Windows refuses to delete git's read-only objects.
+    shutil.move(str(root / ".git"), str(tmp / "displaced-git"))
+    shutil.move(str(clone / ".git"), str(root / ".git"))
+    subprocess.run(["git", "-C", str(root), "reset", "-q"], capture_output=True, check=True)
+    tags = subprocess.run(
+        ["git", "-C", str(root), "tag", "--list", "v*"], capture_output=True, text=True, check=True
+    ).stdout.split()
+    if tags:
+        fail("case_tagless_clone_is_uninterpretable", f"anchor absent: the clone still carries tags {tags}")
+        return
+    result = _run(root)
+    output = result.stdout + result.stderr
+    if result.returncode != 2 or "no v* release tags" not in output:
+        fail("case_tagless_clone_is_uninterpretable", f"expected exit 2 naming the missing tags, got {result.returncode}\n{output}")
+        return
+    print("  ok   case_tagless_clone_is_uninterpretable")
+
+
+def case_turned_away_candidate_with_a_paired_run_is_refused(tmp: Path) -> None:
+    """#599 item 5: ADMISSION.md says the with-skill arm never ran for turned-away rows."""
+    root = _tree(tmp)
+    record = root / "_quarantine" / "bayesian-eval-discipline" / "EVIDENCE.md"
+    record.parent.mkdir()
+    shutil.copyfile(root / "_quarantine" / "walk-the-recipe" / "EVIDENCE.md", record)
+    if not _set_paired_verdict(record, "CANT_TELL_YET"):
+        fail("case_turned_away_candidate_with_a_paired_run_is_refused", "anchor absent: Paired verdict row")
+        return
+    expect_refusal(
+        "case_turned_away_candidate_with_a_paired_run_is_refused",
+        root,
+        "ADMISSION.md: says the with-skill arm never ran",
+    )
+
 
 
 def case_retired_row_with_a_screen_exit_is_refused(tmp: Path) -> None:
@@ -400,6 +511,12 @@ CASES = (
     case_on_watch_row_on_the_screen_route_is_refused,
     case_retired_routes_disagreeing_with_two_used_is_refused,
     case_unclassifiable_retired_row_is_uninterpretable,
+    case_screen_exit_named_by_its_receipt_is_refused,
+    case_prose_cut_is_not_a_screen_word,
+    case_escaped_pipe_stays_inside_its_cell,
+    case_shipped_card_with_no_departure_row_is_refused,
+    case_tagless_clone_is_uninterpretable,
+    case_turned_away_candidate_with_a_paired_run_is_refused,
     case_reworded_claim_sentence_is_refused,
     case_group_readme_omitting_a_card_is_refused,
     case_group_readme_inventing_a_card_is_refused,
