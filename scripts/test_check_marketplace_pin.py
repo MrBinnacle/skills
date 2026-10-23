@@ -12,8 +12,11 @@ apart:
   - main holds the release commit but not the pin commit yet: RED, by design.
     Every run in that window is refused until the pin lands;
   - an entry added since the release, whose path the release lacks, pinned to
-    that release: green, reported as entering (ADR 0009);
+    that release: green, reported as entering (ADR 0009), but red when the
+    branch holds no manifest at that path or one carrying another name;
   - an entry the release already lists whose path it lacks: red;
+  - a release whose marketplace cannot be read: red, so no entry can claim
+    entering by default;
   - --write on main after the release merges stamps the new pin: green.
 
 Run directly:  python scripts/test_check_marketplace_pin.py
@@ -47,6 +50,9 @@ def commit_version(root: Path, version: str, message: str) -> str:
     write_json(root / "package.json", {"name": "fixture", "version": version,
                                        "repository": {"url": URL.removesuffix(".git")}})
     write_json(root / "skills/alpha/.claude-plugin/plugin.json", {"name": "alpha", "version": version})
+    if not (root / ".claude-plugin/marketplace.json").exists():
+        write_json(root / ".claude-plugin/marketplace.json", {"name": "fixture", "plugins": [
+            {"name": "alpha", "source": "./skills/alpha"}]})
     git(root, "add", "-A")
     git(root, "commit", "-q", "-m", message)
     return git(root, "rev-parse", "HEAD")
@@ -123,9 +129,16 @@ def cases(tmp: Path) -> None:
     git(root, "tag", "-f", "v1.1.0", release)
 
     pin_with_new(root, release, "v1.1.0", "mods/beta")
+    expect("entering entry whose path the branch lacks is red", run(root), False,
+           "beta: entering, but mods/beta/.claude-plugin/plugin.json on this branch cannot be read")
+    write_json(root / "mods/beta/.claude-plugin/plugin.json", {"name": "betta", "version": "1.1.0"})
+    expect("entering entry whose branch manifest names another plugin is red", run(root), False,
+           "on this branch is named 'betta'")
+    write_json(root / "mods/beta/.claude-plugin/plugin.json", {"name": "beta", "version": "1.1.0"})
     expect("entry added since the release is entering, not red", run(root), True,
            "entering at the next release, installs nothing yet: beta")
     pin(root, release, "v1.1.0")
+    (root / "mods/beta/.claude-plugin/plugin.json").unlink()
 
     git(root, "switch", "-q", "-c", "release")
     commit_version(root, "1.2.0", "chore(release): v1.2.0")
@@ -147,6 +160,19 @@ def cases(tmp: Path) -> None:
     pin_with_new(root, listed, "v1.3.0", "mods/beta")
     expect("entry the release already lists cannot claim entering", run(root), False,
            "beta: git show")
+
+    (root / ".claude-plugin/marketplace.json").unlink()
+    write_json(root / "package.json", {"name": "fixture", "version": "1.4.0",
+                                       "repository": {"url": URL.removesuffix(".git")}})
+    write_json(root / "skills/alpha/.claude-plugin/plugin.json", {"name": "alpha", "version": "1.4.0"})
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "chore(release): v1.4.0 without a marketplace")
+    unreadable = git(root, "rev-parse", "HEAD")
+    git(root, "tag", "v1.4.0")
+    write_json(root / "mods/gamma/.claude-plugin/plugin.json", {"name": "gamma", "version": "1.4.0"})
+    pin_with_new(root, unreadable, "v1.4.0", "mods/gamma")
+    expect("a release whose marketplace cannot be read is red, not every entry entering", run(root), False,
+           f"git show {unreadable}:.claude-plugin/marketplace.json failed")
 
 
 def main() -> int:

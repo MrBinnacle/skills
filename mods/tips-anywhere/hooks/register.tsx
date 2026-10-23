@@ -151,15 +151,14 @@ async function offer($: EngineInterface, delivery: Delivery, found: Tip | null):
   }
 
   await update($, tip, () => found)
-  await deliver($, delivery, found)
+  deliver($, delivery, found)
 }
 
-async function deliver($: EngineInterface, delivery: Delivery, current: Tip): Promise<void> {
+function deliver($: EngineInterface, delivery: Delivery, current: Tip): void {
   $.ui.toast(`${HEAD}${current.line}`)
   if (delivery === 'buttons') {
     void requestAsk($, current).catch(() => undefined)
   }
-
 }
 
 async function scanStore($: EngineInterface, delivery: Delivery): Promise<void> {

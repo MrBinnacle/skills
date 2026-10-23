@@ -1313,11 +1313,12 @@ def _card_dir(path: str, cards: set[str]) -> str | None:
     change a release's price. A mod (ADR 0009) is ``mods/<mod>``, two segments.
     """
     parts = path.split("/")
+    if len(parts) < 3:
+        return None
     for depth in (3, 2):
-        if len(parts) > depth or (depth == 3 and len(parts) == 3):
-            candidate = "/".join(parts[:depth])
-            if candidate in cards:
-                return candidate
+        candidate = "/".join(parts[:depth])
+        if candidate in cards:
+            return candidate
     return None
 
 

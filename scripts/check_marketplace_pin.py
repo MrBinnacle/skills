@@ -51,6 +51,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
@@ -160,12 +161,16 @@ def read_manifest(root: Path) -> dict:
 
 
 def released_names(root: Path, release: Release) -> set[object]:
-    """Plugin names the marketplace at the pinned release carries."""
-    try:
-        plugins = json_at(root, release.sha, MANIFEST_REL).get("plugins")
-    except PinError:
-        return set()
-    return {p.get("name") for p in plugins if isinstance(p, dict)} if isinstance(plugins, list) else set()
+    """Plugin names the marketplace at the pinned release carries.
+
+    An unreadable manifest raises: an empty set would let every entry whose
+    path the release lacks claim entering, which is the deleted-plugin case
+    the exception must not hide.
+    """
+    plugins = json_at(root, release.sha, MANIFEST_REL).get("plugins")
+    if not isinstance(plugins, list):
+        raise PinError(f"{MANIFEST_REL} at {release.sha[:12]} declares no plugin list")
+    return {p.get("name") for p in plugins if isinstance(p, dict)}
 
 
 def entering(root: Path, entry: dict, release: Release, released: set[object]) -> bool:
@@ -199,9 +204,25 @@ def entry_errors(
         tagged = git(root, "rev-parse", f"refs/tags/{ref}^{{commit}}")
         if tagged != sha:
             errors.append(f"{name}: tag {ref} is commit {tagged}, not sha {sha}")
-    if not entering(root, entry, release, released):
+    if entering(root, entry, release, released):
+        errors.extend(branch_plugin_errors(root, name, source.get("path")))
+    else:
         errors.extend(plugin_errors(root, name, source.get("path"), release))
     return errors
+
+
+def branch_plugin_errors(root: Path, name: object, path: object) -> list[str]:
+    """An entering entry has no release to check against, so check the branch:
+    a mistyped path or name would otherwise stay green until the release."""
+    manifest = root / str(path) / PLUGIN_MANIFEST_REL
+    try:
+        plugin = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return [f"{name}: entering, but {path}/{PLUGIN_MANIFEST_REL} on this branch cannot be read: {exc}"]
+    found = plugin.get("name") if isinstance(plugin, dict) else plugin
+    if found != name:
+        return [f"{name}: entering, but {path}/{PLUGIN_MANIFEST_REL} on this branch is named {found!r}"]
+    return []
 
 
 def plugin_errors(root: Path, name: object, path: object, release: Release) -> list[str]:
@@ -222,7 +243,13 @@ def plugin_errors(root: Path, name: object, path: object, release: Release) -> l
     return errors
 
 
-def check(root: Path) -> tuple[Release, list[str], list[str]]:
+class PinResult(NamedTuple):
+    release: Release
+    errors: list[str]
+    entering: list[str]
+
+
+def check(root: Path) -> PinResult:
     release = expected_release(root)
     url = repo_url(root)
     released = released_names(root, release)
@@ -232,7 +259,7 @@ def check(root: Path) -> tuple[Release, list[str], list[str]]:
     declared = json.loads((root / "package.json").read_text(encoding="utf-8")).get("version")
     if not release.pending and declared != release.version:
         errors.append(f"package.json declares {declared}, the pinned release is {release.version}")
-    return release, errors, new
+    return PinResult(release, errors, new)
 
 
 def bucket_path(source: object) -> str:

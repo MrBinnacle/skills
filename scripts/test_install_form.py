@@ -177,7 +177,7 @@ def card_plugins() -> set[str]:
 def entering_plugins() -> set[str]:
     """Entries the pinned release does not hold yet; they install from the
     next release on (ADR 0009), so a cold install cannot reach them now."""
-    return set(pin_check(ROOT)[2])
+    return set(pin_check(ROOT).entering)
 
 
 def branch_plugin_versions() -> dict[str, str]:
