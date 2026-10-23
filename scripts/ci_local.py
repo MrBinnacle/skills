@@ -15,6 +15,9 @@ Skipped, and listed as skipped:
   - steps that read a `$RUNNER_TEMP/<name>` path a skipped step in the same job uses.
 `git init` makes `master`, as on the hosted runner, whatever the local git config says.
 `matrix.os == 'ubuntu-latest'` is treated as true, so this runs the ubuntu leg.
+A job whose actions/checkout is shallow in CI (no `fetch-depth: 0`) gets a NOTE line:
+this clone has full history and every remote ref, so a step that walks history or
+resolves origin/<branch> can pass here and fail there (PR #622, 2026-10-23).
 A step key the script does not model (`working-directory`, `shell`) is an error,
 so the runner fails loudly when the workflow grows one.
 
@@ -84,6 +87,19 @@ def load_steps(workflow: Path) -> list[Step]:
     return steps
 
 
+def shallow_jobs(workflow: Path) -> dict[str, int]:
+    """Map each job whose actions/checkout fetches less than full history to its CI fetch-depth."""
+    data = yaml.safe_load(workflow.read_text(encoding="utf-8"))
+    shallow = {}
+    for job, spec in data["jobs"].items():
+        for raw in spec["steps"]:
+            if str(raw.get("uses", "")).startswith("actions/checkout"):
+                depth = int((raw.get("with") or {}).get("fetch-depth", 1))
+                if depth != 0:
+                    shallow[job] = depth
+    return shallow
+
+
 def skip_reason(raw: dict) -> str | None:
     condition = str(raw.get("if", "")).strip()
     if condition in SKIP_IFS:
@@ -110,6 +126,10 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
     steps = [s for s in load_steps(args.workflow)
              if (not args.job or s.job in args.job) and (not args.match or args.match in s.name)]
+    shallow = shallow_jobs(args.workflow)
+    for job in sorted({s.job for s in steps} & shallow.keys()):
+        print(f"NOTE {job}: CI checks out with fetch-depth {shallow[job]}; this clone has full history and every"
+              " remote ref, so a step that walks history or resolves origin/<branch> can pass here and fail in CI")
     if args.list:
         for s in steps:
             print(f"{s.job}[{s.index}] {s.name}" + (f"  (skip: {s.skip})" if s.skip else ""))

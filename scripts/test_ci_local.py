@@ -10,7 +10,8 @@ The states it must tell apart:
     and so is a step that reads what a skipped step wrote;
   - git init makes master, as on the hosted runner;
   - an unmodelled step key or if: condition is refused, not run;
-  - a filter that leaves nothing to run exits non-zero.
+  - a filter that leaves nothing to run exits non-zero;
+  - a job with a shallow CI checkout is named, and a full-history one is not.
 
 Run directly:  python scripts/test_ci_local.py
 """
@@ -58,6 +59,9 @@ jobs:
   beta:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Broken step
         run: exit 3
 """
@@ -79,7 +83,7 @@ def run(workflow: str, *args: str) -> subprocess.CompletedProcess[str]:
 def main() -> int:
     whole = run(WORKFLOW)
     check("a failing step fails the run", whole.returncode == 1, f"rc={whole.returncode}")
-    check("the failure is named", "FAILED beta[0] Broken step" in whole.stdout, whole.stdout)
+    check("the failure is named", "FAILED beta[1] Broken step" in whole.stdout, whole.stdout)
     check("env and runner variables reach the step", "PASS rc=0 alpha[1] Env reaches the step" in whole.stdout,
           whole.stdout + whole.stderr)
     check("ubuntu-only steps run", "PASS rc=0 alpha[2] Ubuntu only" in whole.stdout, whole.stdout)
@@ -91,6 +95,10 @@ def main() -> int:
     check("git init makes master as on the runner", "PASS rc=0 alpha[7] Git init makes master" in whole.stdout,
           whole.stdout)
     check("the tally counts runs and skips", "4 ran, 4 skipped, 1 failed" in whole.stdout, whole.stdout)
+
+    check("a shallow CI checkout is named", "NOTE alpha: CI checks out with fetch-depth 1" in whole.stdout,
+          whole.stdout)
+    check("a full-history checkout is not named", "NOTE beta" not in whole.stdout, whole.stdout)
 
     alpha = run(WORKFLOW, "--job", "alpha")
     check("a green job exits 0", alpha.returncode == 0, alpha.stdout + alpha.stderr)
@@ -114,7 +122,7 @@ def main() -> int:
         for failure in FAILURES:
             print(f"  {failure}")
         return 1
-    print("PASS: ci_local suite, 15 checks")
+    print("PASS: ci_local suite, 17 checks")
     return 0
 
 
