@@ -359,6 +359,24 @@ def case_shipped_card_with_no_departure_row_is_refused(tmp: Path) -> None:
     expect_refusal("case_shipped_card_with_no_departure_row_is_refused", root, "git-pull-rebase-trap")
 
 
+def case_tagless_clone_is_uninterpretable(tmp: Path) -> None:
+    """With no release tags, no shipped card is visible, and that must not read as a pass."""
+    root = _tree(tmp)
+    tags = subprocess.run(
+        ["git", "-C", str(root), "tag", "--list", "v*"], capture_output=True, text=True, check=True
+    ).stdout.split()
+    if not tags:
+        fail("case_tagless_clone_is_uninterpretable", "anchor absent: the copy carries no v* tags")
+        return
+    subprocess.run(["git", "-C", str(root), "tag", "-d", *tags], capture_output=True, check=True)
+    result = _run(root)
+    output = result.stdout + result.stderr
+    if result.returncode != 2 or "no v* release tags" not in output:
+        fail("case_tagless_clone_is_uninterpretable", f"expected exit 2 naming the missing tags, got {result.returncode}\n{output}")
+        return
+    print("  ok   case_tagless_clone_is_uninterpretable")
+
+
 def case_turned_away_candidate_with_a_paired_run_is_refused(tmp: Path) -> None:
     """#599 item 5: ADMISSION.md says the with-skill arm never ran for turned-away rows."""
     root = _tree(tmp)
@@ -483,6 +501,7 @@ CASES = (
     case_prose_cut_is_not_a_screen_word,
     case_escaped_pipe_stays_inside_its_cell,
     case_shipped_card_with_no_departure_row_is_refused,
+    case_tagless_clone_is_uninterpretable,
     case_turned_away_candidate_with_a_paired_run_is_refused,
     case_reworded_claim_sentence_is_refused,
     case_group_readme_omitting_a_card_is_refused,
