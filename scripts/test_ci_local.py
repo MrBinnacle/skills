@@ -11,7 +11,9 @@ The states it must tell apart:
   - git init makes master, as on the hosted runner;
   - an unmodelled step key or if: condition is refused, not run;
   - a filter that leaves nothing to run exits non-zero;
-  - a job with a shallow CI checkout is named, and a full-history one is not.
+  - a job with a shallow CI checkout is named, and a full-history one is not;
+    a checkout of another repository does not count, the last checkout of
+    this one decides, and an expression depth is named as unknown.
 
 Run directly:  python scripts/test_ci_local.py
 """
@@ -25,6 +27,7 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent / "ci_local.py"
 FAILURES: list[str] = []
+CHECKED: list[str] = []
 
 WORKFLOW = """\
 jobs:
@@ -68,6 +71,7 @@ jobs:
 
 
 def check(label: str, ok: bool, detail: str = "") -> None:
+    CHECKED.append(label)
     if not ok:
         FAILURES.append(f"{label}: {detail}")
 
@@ -100,6 +104,22 @@ def main() -> int:
           whole.stdout)
     check("a full-history checkout is not named", "NOTE beta" not in whole.stdout, whole.stdout)
 
+    full = "      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n"
+    other = "      - uses: actions/checkout@v4\n        with:\n          repository: o/other\n"
+    side = WORKFLOW.replace(full, full + other)
+    check("another repository's checkout does not count", "NOTE beta" not in run(side, "--list").stdout, side)
+    later = WORKFLOW.replace("      - uses: actions/checkout@v4\n      - name: Env",
+                             "      - uses: actions/checkout@v4\n" + full + "      - name: Env")
+    check("the last checkout decides", "NOTE alpha" not in run(later, "--list").stdout, later)
+    vendored = WORKFLOW.replace("      - uses: actions/checkout@v4\n      - name: Env",
+                                "      - uses: actions/checkout-extra@v1\n      - name: Env")
+    check("only actions/checkout counts", "NOTE alpha" not in run(vendored, "--list").stdout, vendored)
+    expr = WORKFLOW.replace("fetch-depth: 0", "fetch-depth: ${{ inputs.depth }}")
+    listed = run(expr, "--list")
+    check("an expression depth is unknown, not a crash",
+          listed.returncode == 0 and "NOTE beta: CI checks out with fetch-depth unknown" in listed.stdout,
+          listed.stdout + listed.stderr)
+
     alpha = run(WORKFLOW, "--job", "alpha")
     check("a green job exits 0", alpha.returncode == 0, alpha.stdout + alpha.stderr)
 
@@ -122,7 +142,7 @@ def main() -> int:
         for failure in FAILURES:
             print(f"  {failure}")
         return 1
-    print("PASS: ci_local suite, 17 checks")
+    print(f"PASS: ci_local suite, {len(CHECKED)} checks")
     return 0
 
 

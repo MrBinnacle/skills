@@ -87,16 +87,22 @@ def load_steps(workflow: Path) -> list[Step]:
     return steps
 
 
-def shallow_jobs(workflow: Path) -> dict[str, int]:
-    """Map each job whose actions/checkout fetches less than full history to its CI fetch-depth."""
+def shallow_jobs(workflow: Path) -> dict[str, str]:
+    """Map each job whose checkout of this repo fetches less than full history to its CI fetch-depth.
+
+    The last `actions/checkout` step without `repository:` decides, as it leaves the workspace's history.
+    A depth that is not a literal integer (an expression) is reported as unknown, not read as full.
+    """
     data = yaml.safe_load(workflow.read_text(encoding="utf-8"))
     shallow = {}
     for job, spec in data["jobs"].items():
+        depth = None
         for raw in spec["steps"]:
-            if str(raw.get("uses", "")).startswith("actions/checkout"):
-                depth = int((raw.get("with") or {}).get("fetch-depth", 1))
-                if depth != 0:
-                    shallow[job] = depth
+            options = raw.get("with") or {}
+            if str(raw.get("uses", "")).split("@")[0] == "actions/checkout" and "repository" not in options:
+                depth = str(options.get("fetch-depth", 1)).strip()
+        if depth is not None and depth != "0":
+            shallow[job] = depth if depth.isdigit() else f"unknown ({depth})"
     return shallow
 
 
