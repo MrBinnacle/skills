@@ -173,7 +173,7 @@ import zlib
 from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, NamedTuple
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -536,13 +536,14 @@ def resolve_surfaces(
 ) -> list[tuple[str, str]]:
     """Every spec's copy, refusing a scanner that came back with nothing."""
     surfaces: list[tuple[str, str]] = []
-    seen: Counter[str] = Counter()
+    specs_of_kind: Counter[str] = Counter()
+    copy_of_kind: Counter[str] = Counter()
     for spec in specs:
         if not isinstance(spec, dict):
             raise Refusal("a surface entry is not an object")
         resolved = surface_copy(root, spec, tracked)
-        seen[spec["kind"]] += 1 + sum(len(text.strip()) for _, text in resolved)
-        seen[spec["kind"] + ":surfaces"] += 1
+        specs_of_kind[spec["kind"]] += 1
+        copy_of_kind[spec["kind"]] += sum(len(text.strip()) for _, text in resolved)
         surfaces.extend(resolved)
     blind = {
         "svg_copy": "the SVG scanner saw no copy in any asset. Either no asset carries "
@@ -555,8 +556,7 @@ def resolve_surfaces(
         "no text, or the parser has gone blind - and a blind scanner passes everything.",
     }
     for kind, message in blind.items():
-        surfaces_of_kind = seen[kind + ":surfaces"]
-        if surfaces_of_kind and seen[kind] == surfaces_of_kind:
+        if specs_of_kind[kind] and copy_of_kind[kind] == 0:
             raise Refusal(message)
     return surfaces
 
@@ -594,7 +594,13 @@ def _example_list(pattern: dict[str, Any], field: str, claim: str) -> list[str]:
     return examples
 
 
-def public_claim_patterns(block: Any) -> list[tuple[str, re.Pattern[str], str]]:
+class ClaimPattern(NamedTuple):
+    claim: str
+    matcher: re.Pattern[str]
+    why: str
+
+
+def public_claim_patterns(block: Any) -> list[ClaimPattern]:
     """(claim, compiled pattern, why), each proven against its own examples."""
     if not isinstance(block, dict):
         raise Refusal(
@@ -602,10 +608,13 @@ def public_claim_patterns(block: Any) -> list[tuple[str, re.Pattern[str], str]]:
             "docs/product/claims-ledger.md forbids on a public surface, and without "
             "it no check reads the landing page for a forbidden claim."
         )
+    specs = block.get("surfaces")
+    if not isinstance(specs, list) or not specs:
+        raise Refusal("public_claims.surfaces is empty, so the claim check reads nothing.")
     raw = block.get("patterns")
     if not isinstance(raw, list) or not raw:
         raise Refusal("public_claims.patterns is empty, so the claim check passes on every input.")
-    compiled: list[tuple[str, re.Pattern[str], str]] = []
+    compiled: list[ClaimPattern] = []
     for pattern in raw:
         if not isinstance(pattern, dict):
             raise Refusal("a public_claims pattern is not an object")
@@ -630,12 +639,12 @@ def public_claim_patterns(block: Any) -> list[tuple[str, re.Pattern[str], str]]:
                     f"public_claims pattern {claim} matches its own must_not_match "
                     f"example {ascii(example)}, so it refuses wording the ledger allows."
                 )
-        compiled.append((claim, matcher, why))
+        compiled.append(ClaimPattern(claim, matcher, why))
     return compiled
 
 
 def public_claim_violations(
-    surfaces: list[tuple[str, str]], patterns: list[tuple[str, re.Pattern[str], str]]
+    surfaces: list[tuple[str, str]], patterns: list[ClaimPattern]
 ) -> list[str]:
     violations: list[str] = []
     for label, text in surfaces:
@@ -1023,10 +1032,7 @@ def validate(root: Path) -> None:
 
     claim_block = tokens.get("public_claims")
     patterns = public_claim_patterns(claim_block)
-    assert isinstance(claim_block, dict)
-    claim_specs = claim_block.get("surfaces")
-    if not isinstance(claim_specs, list) or not claim_specs:
-        raise Refusal("public_claims.surfaces is empty, so the claim check reads nothing.")
+    claim_specs = claim_block["surfaces"]
     violations.extend(
         public_claim_violations(resolve_surfaces(root, claim_specs, tracked), patterns)
     )
