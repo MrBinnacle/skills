@@ -19,13 +19,18 @@ ONE TERM SOURCE
     a message that names a field it scrubbed leaks nothing.
 
     A private name that is deliberately absent from the yaml (the yaml says why:
-    a public block-list would itself de-anonymize) is not caught here either.
-    Keep such terms in a git-ignored local overlay.
+    a public block-list would itself de-anonymize) comes from outside the tree:
+    the `RESIDUE_PRIVATE_TERMS` variable (a repository secret in CI) and the
+    git-ignored `.residue-private.local` file. `private_residue.py` loads and
+    matches them (#580). A refusal names the line and the term's number and never
+    prints the matched text, because a CI log of a public repository is public.
+    `--require-private` exits 2 when no private term is loaded.
 
 Usage:
     python scripts/check_message_residue.py --range BASE..HEAD   # every commit message in the range
     python scripts/check_message_residue.py FILE [FILE ...]      # text files read whole (a PR title and body)
     python scripts/check_message_residue.py --commit-msg FILE    # the commit-msg hook; skips git's "# " help lines
+    python scripts/check_message_residue.py --require-private ...  # the CI form: no private term loaded is exit 2
 """
 from __future__ import annotations
 
@@ -34,6 +39,9 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import private_residue  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIG = REPO_ROOT / ".pre-commit-config.yaml"
@@ -102,11 +110,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("--range", dest="spec", help="a git log range, BASE..HEAD")
     parser.add_argument("--commit-msg", type=Path, help="the message file git hands a commit-msg hook")
+    parser.add_argument("--require-private", action="store_true", help="exit 2 when no private term is loaded")
     parser.add_argument("files", nargs="*", type=Path, help="text files read whole, such as a PR title and body")
     args = parser.parse_args()
     if not (args.spec or args.commit_msg or args.files):
         parser.error("give --range, --commit-msg or at least one file")
 
+    private = private_residue.patterns()
+    if args.require_private and not private:
+        print(
+            f"UNINTERPRETABLE: no private residue term loaded. Set the {private_residue.TERMS_ENV} "
+            "repository secret (CI) or write .residue-private.local (a local clone)."
+        )
+        return 2
     hooks = {hook_id: f for hook_id, f in parse_hooks().items() if hook_id.startswith("residue-")}
     messages = [(str(f), f.read_text(encoding="utf-8", errors="replace")) for f in args.files]
     if args.commit_msg:
@@ -115,6 +131,7 @@ def main() -> int:
         messages += range_messages(args.spec)
 
     breaches = [b for label, text in messages for b in message_breaches(label, text, hooks)]
+    breaches += [b for label, text in messages for b in private_residue.text_breaches(label, text, private)]
     for breach in breaches:
         print(f"  - {breach}")
     if breaches:
@@ -124,7 +141,10 @@ def main() -> int:
             "`git commit --amend`; a PR title or body: edit it on GitHub)."
         )
         return 1
-    print(f"PASS: {len(messages)} message(s) read against {len(hooks)} residue hook pattern(s), no residue term")
+    print(
+        f"PASS: {len(messages)} message(s) read against {len(hooks)} residue hook pattern(s) "
+        f"and {len(private)} private term(s), no residue term"
+    )
     return 0
 
 
