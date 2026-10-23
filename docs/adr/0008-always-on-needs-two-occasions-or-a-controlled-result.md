@@ -199,6 +199,11 @@ once.
 - **Revisable with new evidence:** leaving currency out of the bar. *Revisit if:* a card clears
   the bar only on a receipt that O5 reports stale for two consecutive rotation passes. That would
   show a stale result keeping a card always-on with nothing current behind it.
+
+  > **Replaced 2026-10-21.** This clause cannot fire as written. The
+  > [amendment of 2026-10-21](#amendment-2026-10-21-the-pull-rebase-citation-and-the-currency-revisit-if)
+  > below gives the reason and the clause that replaces it.
+
 - **Revisable with new evidence:** by hand rather than quarantine. *Revisit if:* a by-hand card
   records no dispatch and no new occasion across two rotation passes. That would show the card
   is not invoked by name either, and the withdrawn-on-the-policy route in ADR 0007 would then

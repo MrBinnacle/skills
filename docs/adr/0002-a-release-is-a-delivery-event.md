@@ -118,6 +118,10 @@ publication rather than advise it, and a model with no publication act has nothi
 *Revisit if:* the install routes stop tracking the default branch by default. That would change
 what a consumer receives without any decision here having been revisited.
 
+> **Fired 2026-10-20.** The install routes stopped delivering the released bytes by default.
+> The [amendment of 2026-10-20](#amendment-2026-10-20-delivery-happens-at-the-pin-commit) below
+> records the finding and the change, and carries the successor Revisit-if.
+
 ## Amendment, 2026-10-20: delivery happens at the pin commit
 
 This append comes from [#444](https://github.com/MrBinnacle/skills/issues/444). It rewrites no
