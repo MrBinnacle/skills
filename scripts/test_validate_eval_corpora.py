@@ -521,8 +521,19 @@ def case_tab_hash_in_plain_value_rejected(root: Path) -> None:
     )
 
 
+def case_tab_colon_in_plain_value_rejected(root: Path) -> None:
+    """A tab after ':' is a mapping colon too (Bun.YAML.parse refuses 'a:<TAB>b')."""
+    write_tree(root)
+    write_plugin_case(root, "a:\tb")
+    expect_rejection(
+        root,
+        "an eval case whose plain value holds ':' and a tab",
+        "a plain value may not hold ': '",
+    )
+
+
 def case_backslash_in_double_quotes_rejected(root: Path) -> None:
-    """Bun.YAML.parse accepts some escapes YAML forbids and refuses some it allows."""
+    """YAML refuses an unknown escape such as \\q; the check models no escape table."""
     write_tree(root)
     write_plugin_case(root, '"a\\qb"')
     expect_rejection(
@@ -668,6 +679,7 @@ def main() -> None:
         case_subset_extras_pass,
         case_tab_hash_in_plain_value_rejected,
         case_backslash_in_double_quotes_rejected,
+        case_tab_colon_in_plain_value_rejected,
         case_empty_value_rejected,
         case_flow_indicator_in_list_item_rejected,
     )

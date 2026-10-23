@@ -137,11 +137,12 @@ DOUBLE_QUOTED_RE: Final[re.Pattern[str]] = re.compile(r'"([^"]+)"')
 # refused, never skipped. A case that needs more YAML (a block list, a
 # multi-line value) is refused until the subset grows.
 FRONTMATTER_LINE_RE: Final[re.Pattern[str]] = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*):(?: (.*))?$")
-# A double-quoted value may hold no backslash. Bun.YAML.parse 1.3.11 reads
-# "a\qb", which YAML 1.2 forbids, and refuses "\x41", which YAML 1.2 allows, so
-# no escape rule here would match the loader. Single quotes need no escapes.
+# A double-quoted value may hold no backslash. YAML refuses an unknown escape
+# such as "\q" (Bun.YAML.parse 1.3.11 agrees), and this check does not model
+# the escape table. Single quotes need no escapes.
 QUOTED_VALUE_RE: Final[re.Pattern[str]] = re.compile(r"""^(?:"[^"\\]*"|'(?:[^']|'')*')$""")
 COMMENT_RE: Final[re.Pattern[str]] = re.compile(r"\s#")
+MAPPING_COLON_RE: Final[re.Pattern[str]] = re.compile(r":(?:\s|$)")
 FLOW_LIST_RE: Final[re.Pattern[str]] = re.compile(r"^\[(.*)\]$")
 PLAIN_INDICATORS: Final[str] = "-?:,[]{}#&*!|>'\"%@`"
 FLOW_INDICATORS: Final[str] = ",[]{}"
@@ -414,7 +415,7 @@ def scalar_fault(value: str, *, in_list: bool = False) -> str | None:
         return "the value is empty"
     if value[0] in PLAIN_INDICATORS:
         return f"a plain value may not open with {value[0]!r}; quote it"
-    if ": " in value or value.endswith(":"):
+    if MAPPING_COLON_RE.search(value):
         return "a plain value may not hold ': '; quote it"
     if COMMENT_RE.search(value):
         return "a plain value may not hold ' #', which YAML reads as a comment; quote it"
