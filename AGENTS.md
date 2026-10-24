@@ -1084,6 +1084,12 @@ number and never the matched text, because a CI log of this repository is public
 missing secret fails the gate. GitHub gives no secrets to a pull request from a fork, so that
 pull request fails the gate too. When you add a term, add it to both places.
 
+## Interface and experience
+
+Remove redundant UI copy. Use clear hierarchy, intuitive controls, and contextual cues to make interfaces self-explanatory. If users need extra text, redesign the interaction.
+
+Optimize UX, DX, and AX as one system. Maximize usability, clarity, and reliability without compromising security, accessibility, or existing functionality.
+
 ## Prose voice — literal-humanist register
 
 Default register for every substantive prose artifact in this repo: README, docs, skill
