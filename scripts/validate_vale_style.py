@@ -27,7 +27,7 @@ THE BINDING RULE, AND WHY THIS SCRIPT REFUSES A BINDING THE TOKEN FILE DOES NOT 
     and cannot read an SVG attribute, a JSON field, or the exclusions the prose surface
     carries. `validate_brand_kit.py` is the GATE for all four declared surfaces, including
     the whole-prose one. The generated Vale rule is an editor-and-CI convenience over the
-    one surface Vale can reach, README headings. A binding invented here rather than
+    one surface Vale can reach, bucket README headings. A binding invented here rather than
     declared in the token file would put Vale and `validate_brand_kit.py` on opposite
     sides of one word list - the failure this repository has already recorded once, where
     a renderer emitted the split its own guard banned.
@@ -80,7 +80,7 @@ GENERATED_HEADER = (
     "# scripts/validate_vale_style.py --write. Edit the token file, then regenerate.\n"
     "#\n"
     "# Scope: this rule is bound in .vale.ini to the globs declared in\n"
-    "# copy.words_to_avoid_surfaces, and it reaches README headings alone. The word list\n"
+    "# copy.words_to_avoid_surfaces, and it reaches bucket README headings alone. The word list\n"
     "# itself binds every line of prose the repository publishes (operator ruling,\n"
     "# 2026-09-06); scripts/validate_brand_kit.py is the gate that enforces the rest.\n"
 )
@@ -134,6 +134,16 @@ def declared_surface_globs() -> list[str]:
             raise Refusal("a declared surface states no glob")
         globs.append(glob)
     return sorted(set(globs))
+
+
+def declared_heading_globs() -> set[str]:
+    """The globs the token file restricts to headings (`kind: markdown_headings`)."""
+    specs = _load_json(TOKENS).get("copy", {}).get("words_to_avoid_surfaces", {}).get("surfaces", [])
+    return {
+        spec["glob"]
+        for spec in specs
+        if isinstance(spec, dict) and spec.get("kind") == "markdown_headings"
+    }
 
 
 def render_rule(words: list[str]) -> str:
@@ -233,15 +243,14 @@ def check_scope_binding() -> list[str]:
                 f"a decision, not a maintenance task. Declared surfaces: {globs}."
             )
 
-    # README.md is declared as HEADINGS only, so the rule must say so itself.
-    if "README.md" in enabling:
+    # A surface declared as HEADINGS only needs a rule that says so itself.
+    for section in sorted(set(enabling) & declared_heading_globs()):
         rule = GENERATED_RULE.read_text(encoding="utf-8") if GENERATED_RULE.is_file() else ""
         if "scope: heading" not in rule:
             problems.append(
-                "the marketing rule is bound to README.md but does not declare "
-                "'scope: heading'. assets/tokens.json restricts this surface to "
-                "'README headers only ... its body prose is working documentation and "
-                "out of scope'. Without the scope the rule reads the whole body."
+                f"the marketing rule is bound to [{section}] but does not declare "
+                "'scope: heading'. assets/tokens.json declares that surface as "
+                "markdown_headings. Without the scope the rule reads the whole body."
             )
     return problems
 
