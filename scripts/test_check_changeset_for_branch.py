@@ -2,8 +2,9 @@
 
 What this pins
     1. The issue number read from a branch name, as literal values.
-    2. The verdict: a numbered branch passes only on a changeset body citing
-       its number, whatever the file times say; a frontmatter-only mention, a
+    2. The verdict: a numbered branch passes only on a changeset newer than
+       the base whose body cites its number, so an issue's older changeset does
+       not cover a second branch; a frontmatter-only mention, a
        longer number and an HTML entity do not count; a branch with no number
        falls back to the file-time test and warns.
     3. The command line on a planted tree, including the replay of the #632
@@ -54,6 +55,8 @@ NUMBER_CASES = (
     ("automation/marketplace-pin-v3.1.0", None),
     ("chore/bump-node20", None),
     ("main", None),
+    ("dependabot/github_actions/actions/checkout-4", None),
+    ("dependabot/npm_and_yarn/setup-node-6", None),
     ("HEAD", None),
 )
 
@@ -65,6 +68,7 @@ def number_cases() -> None:
 
 
 OLD_632 = Changeset("issue-632-brand-surfaces.md", changeset("Brand checks read buckets (#632).\n"), BASE - 5)
+NEW_632 = Changeset("issue-632-second.md", changeset("Follow-up (#632).\n"), BASE + 5)
 NEW_OTHER = Changeset("other.md", changeset("Something else (#630).\n"), BASE + 5)
 NO_NUMBER = (
     "WARN: branch fix/changeset-step-content names no issue number, so this falls back to "
@@ -72,14 +76,16 @@ NO_NUMBER = (
     "of .changeset/ that does not keep file times passes it."
 )
 MISSING_632 = (
-    "FAIL: branch fix/632-replay carries #632 but no changeset in .changeset/ mentions #632 "
-    "in its body. Run npx changeset and cite #632."
+    "FAIL: branch fix/632-replay carries #632 but no changeset in .changeset/ that is newer "
+    "than the merge-base commit mentions #632 in its body. Run npx changeset and cite #632."
 )
 
 VERDICT_CASES = (
-    ("a numbered branch passes on an old changeset citing it",
-     "fix/632-replay", [OLD_632],
-     (True, ["PASS: branch fix/632-replay carries #632; .changeset/issue-632-brand-surfaces.md mentions it"])),
+    ("a numbered branch passes on a changeset newer than the base citing it",
+     "fix/632-replay", [NEW_632],
+     (True, ["PASS: branch fix/632-replay carries #632; .changeset/issue-632-second.md mentions it"])),
+    ("a second branch for an issue fails on the issue's older changeset alone (#634 verifier)",
+     "fix/632-replay", [OLD_632, NEW_OTHER], (False, [MISSING_632])),
     ("a numbered branch fails when only unrelated changesets are newer than the base",
      "fix/632-replay", [NEW_OTHER], (False, [MISSING_632])),
     ("a mention in the frontmatter only does not count",
@@ -156,8 +162,8 @@ def main() -> int:
         print(f"{len(FAILURES)} FAILED")
         return 1
     print(
-        "PASS: a branch naming an issue needs a changeset body citing it, whatever the file "
-        "times; a branch naming none falls back to the file-time test with a warning"
+        "PASS: a branch naming an issue needs a changeset newer than the base citing it; "
+        "a branch naming none falls back to the file-time test with a warning"
     )
     return 0
 
