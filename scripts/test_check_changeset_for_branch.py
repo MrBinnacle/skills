@@ -8,6 +8,7 @@ What this pins
        falls back to the file-time test and warns.
     3. The command line on a planted tree, including the replay of the #632
        false pass: every changeset newer than the base, none citing #632.
+       Without --branch, GITHUB_HEAD_REF names the branch.
 
 Run:  python scripts/test_check_changeset_for_branch.py
 """
@@ -106,7 +107,7 @@ def verdict_cases() -> None:
         check(name, got == expected, repr(got))
 
 
-def run_cli(files: dict[str, str], branch: str) -> tuple[int, str]:
+def run_cli(files: dict[str, str], branch: str | None, head_ref: str | None = None) -> tuple[int, str]:
     with tempfile.TemporaryDirectory() as tmp:
         Path(tmp, ".changeset").mkdir()
         for name, text in files.items():
@@ -114,10 +115,12 @@ def run_cli(files: dict[str, str], branch: str) -> tuple[int, str]:
             path.write_text(text, encoding="utf-8", newline="")
             os.utime(path, (BASE + 5, BASE + 5))
         env = {k: v for k, v in os.environ.items() if k != "GITHUB_HEAD_REF"}
-        result = subprocess.run(
-            [sys.executable, str(SCRIPT), "--root", tmp, "--branch", branch, "--base-ts", str(BASE)],
-            capture_output=True, text=True, check=False, env=env,
-        )
+        if head_ref is not None:
+            env["GITHUB_HEAD_REF"] = head_ref
+        args = [sys.executable, str(SCRIPT), "--root", tmp, "--base-ts", str(BASE)]
+        if branch is not None:
+            args += ["--branch", branch]
+        result = subprocess.run(args, capture_output=True, text=True, check=False, env=env)
         return result.returncode, result.stdout
 
 
@@ -134,6 +137,12 @@ def cli_cases() -> None:
         "the #632 replay passes once its changeset is back",
         got == (0, "PASS: branch fix/632-replay carries #632; "
                    ".changeset/issue-632-brand-surfaces.md mentions it\n"),
+        repr(got),
+    )
+    got = run_cli(restored, None, head_ref="fix/632-replay")
+    check(
+        "with no --branch, GITHUB_HEAD_REF names the branch",
+        got == (1, MISSING_632 + "\n"),
         repr(got),
     )
 
