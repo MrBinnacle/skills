@@ -41,7 +41,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from validate_scoreboard import iter_skill_dirs  # noqa: E402
 
 STANDING_COST_ROW: str = "Standing cost"
-PINNED_HARNESS_VERSION = "0.3.0"
+PINNED_HARNESS_VERSION = "0.4.0"
 # Pattern: "Description: N tokens, measured by ..."
 # The N is the calibrated figure we verify.
 CALIBRATED_RE = re.compile(r"Description:\s*(\d+)\s*tokens")

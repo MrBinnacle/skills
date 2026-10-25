@@ -64,7 +64,7 @@ def write_card(
     return card
 
 
-def write_snapshot(root: Path, *, version: str = "0.3.0") -> None:
+def write_snapshot(root: Path, *, version: str = "0.4.0") -> None:
     scripts = root / "scripts"
     scripts.mkdir(parents=True, exist_ok=True)
     snapshot = dict(STANDING_COSTS)
@@ -85,7 +85,7 @@ REAL_CLIRUNNER_SKILL_MD = REAL_SKILL_MD.read_text(encoding="utf-8")
 # Extract the real standing cost line from the real card for reconstruction
 REAL_CLIRUNNER_EVIDENCE_LINE = (
     f"Description: {REAL_CLIRUNNER_TOKENS} tokens, measured by "
-    f"`skill-harness skill audit` (skill-harness 0.3.0, 2026-09-22). "
+    f"`skill-harness skill audit` (skill-harness 0.4.0, 2026-09-22). "
     f"Body 5,866 B (measured 2026-08-24), loaded only on retrieval."
 )
 
@@ -140,7 +140,7 @@ def case_wrong_figure_in_temp_tree() -> None:
         wrong_tokens = REAL_CLIRUNNER_TOKENS + 999
         wrong_line = (
             f"Description: {wrong_tokens} tokens, measured by "
-            f"`skill-harness skill audit` (skill-harness 0.3.0, 2026-09-22). "
+            f"`skill-harness skill audit` (skill-harness 0.4.0, 2026-09-22). "
             f"Body 5,866 B."
         )
         write_card(root, "clirunner-env", wrong_line, REAL_CLIRUNNER_SKILL_MD)
@@ -215,7 +215,7 @@ def case_snapshot_version_is_pinned() -> None:
         check(
             "unpinned snapshot version is rejected",
             result.returncode != 0
-            and "expected pinned skill-harness 0.3.0, found '0.0.0'" in result.stderr,
+            and "expected pinned skill-harness 0.4.0, found '0.0.0'" in result.stderr,
             result.stderr,
         )
 
@@ -251,7 +251,7 @@ def case_subprocess_decodes_utf8() -> None:
     card = Path("SKILL.md")
     for name in ("validate_standing_costs", "refresh_standing_costs"):
         module = _load(name)
-        fake = _FakeRun("skill-harness, version 0.3.0")
+        fake = _FakeRun("skill-harness, version 0.4.0")
         _with_fake(module, fake, module.installed_harness)
         fake_audit = _FakeRun("")
         try:
@@ -347,7 +347,7 @@ def case_refresher_writes_run_date() -> None:
         write_card(root, "clirunner-env", REAL_CLIRUNNER_EVIDENCE_LINE, REAL_CLIRUNNER_SKILL_MD)
         (root / "scripts").mkdir()
         fake = _FakeRun(
-            "skill-harness, version 0.3.0\n"
+            "skill-harness, version 0.4.0\n"
             "Standing cost (mechanical): raw 40 tokens, calibrated 45 tokens\n"
         )
         _with_fake(r, fake, lambda: r.refresh(root))

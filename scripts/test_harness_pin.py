@@ -9,17 +9,19 @@ v0.3.0 tag and announced a breaking report_schema_version change.
 
 The rule this suite enforces, per workflow step that acquires skill-harness:
 
-- a `pip install` names a released version with `==`, and that version equals
-  PINNED_HARNESS_VERSION in validate_standing_costs.py;
+- a `pip install` or `pip download` names a released version with `==`, and
+  that version equals PINNED_HARNESS_VERSION in validate_standing_costs.py;
 - a git acquisition never clones (`git clone` and `gh repo clone` check out
   the default branch). An actions/checkout of the harness carries a full
   40-hex `ref:`. A fetch step declares SKILL_HARNESS_REF as a full 40-hex
   commit SHA, and every fetch of the harness fetches "$SKILL_HARNESS_REF".
 
-The SHA form is the interim. `_scope_line`, which the drift step compares
-against, is in no skill-harness release yet; 0.3.0 predates it. When a release
-carries it, the step moves to `pip install skill-harness==<that version>` and
-the version pin moves with it.
+The SHA form was the interim: 0.3.0 predates `_scope_line`, which the drift
+step compares against. 0.4.0 carries it, so the drift step now runs
+`pip download skill-harness==<version> --no-binary :all:` and unpacks the
+source package. The drift test imports `<root>/src/skill_harness/...`, a
+layout the source package has and the wheel does not. The git rules stay for
+any later step that fetches the harness.
 
 Fixture cases show each rule going red before the real workflows are read.
 
@@ -43,7 +45,7 @@ STEP_SPLIT_RE = re.compile(r"(?m)^\s*- (?=name:|uses:|run:)")
 # The repository named as a git URL, a `gh repo clone` argument or an
 # actions/checkout `repository:` input. GitHub owner names ignore case.
 HARNESS_REPO_RE = re.compile(r"(?i)(?:github\.com[/:]|repository:\s*|gh repo clone\s+)MrBinnacle/skill-harness\b")
-HARNESS_PIP_RE = re.compile(r"(?i)pip install[^\n]*?\bskill[-_]harness\b(==(\S+))?")
+HARNESS_PIP_RE = re.compile(r"(?i)pip (?:install|download)[^\n]*?\bskill[-_]harness\b(==(\S+))?")
 CLONE_RE = re.compile(r"(?i)(?:git\b[^\n]*\bclone|gh repo clone)\b[^\n]*skill-harness")
 HARNESS_FETCH_RE = re.compile(r"(?i)git\b[^\n]*\bfetch\b[^\n]*skill-harness[^\n]*")
 CHECKOUT_REPO_RE = re.compile(r"(?i)repository:\s*MrBinnacle/skill-harness\b")
@@ -83,10 +85,10 @@ def _pip_violations(pips: list[re.Match[str]], pinned_version: str) -> list[str]
     found = []
     for pip in pips:
         if pip.group(2) is None:
-            found.append("pip installs skill-harness with no == version")
+            found.append("pip acquires skill-harness with no == version")
         elif pip.group(2) != pinned_version:
             found.append(
-                f"pip installs skill-harness=={pip.group(2)}, "
+                f"pip acquires skill-harness=={pip.group(2)}, "
                 f"PINNED_HARNESS_VERSION is {pinned_version}"
             )
     return found
@@ -163,6 +165,9 @@ FIXTURES: list[tuple[str, str, int]] = [
     ("a full-SHA fetch", PINNED_STEP, 0),
     ("a comment that quotes an install", "      # then pip install skill-harness\n" + PINNED_STEP, 0),
     ("the pinned released version", "      - name: i\n        run: pip install skill-harness=={v}\n", 0),
+    ("an unversioned pip download", "      - run: pip download skill-harness --no-binary :all:\n", 1),
+    ("a pip download of a version that disagrees", "      - run: pip download skill-harness==0.0.1 --no-deps\n", 1),
+    ("a pip download of the pinned version", "      - run: pip download skill-harness=={v} --no-deps --no-binary :all:\n", 0),
 ]
 
 

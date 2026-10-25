@@ -1,6 +1,6 @@
 {
-  "skill_harness_version": "0.3.0",
-  "calibrated_on": "2026-10-22",
+  "skill_harness_version": "0.4.0",
+  "calibrated_on": "2026-10-25",
   "cards": {
     "clirunner-env": {
       "standing_cost_tokens": 0,
