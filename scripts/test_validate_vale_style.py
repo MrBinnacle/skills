@@ -145,6 +145,29 @@ def case_readme_binding_without_heading_scope_rejected(root: Path) -> None:
         )
 
 
+def case_prose_binding_needs_no_heading_scope(root: Path) -> None:
+    """The scope demand follows the declared kind, not the bound glob."""
+    baseline_tree(root)
+    tokens_path = root / "assets" / "tokens.json"
+    tokens = json.loads(tokens_path.read_text(encoding="utf-8"))
+    surfaces = tokens["copy"]["words_to_avoid_surfaces"]["surfaces"]
+    for spec in surfaces:
+        if spec.get("kind") == "markdown_headings":
+            spec["kind"] = "markdown_prose"
+    tokens_path.write_text(json.dumps(tokens), encoding="utf-8")
+    rule = root / "styles" / "Local" / "Marketing-copy.yml"
+    rule.write_text(
+        rule.read_text(encoding="utf-8").replace("scope: heading\n", ""),
+        encoding="utf-8",
+    )
+    result = run(root)
+    if "does not declare 'scope: heading'" in result.stderr:
+        fail(
+            "case_prose_binding_needs_no_heading_scope",
+            f"demanded a heading scope of a prose surface; got: {result.stderr.strip()}",
+        )
+
+
 # --------------------------------------------------------------------------
 # Vendor integrity.
 # --------------------------------------------------------------------------
@@ -356,6 +379,7 @@ def main() -> None:
     in_tempdir = (
         case_tree_wide_local_binding_rejected,
         case_readme_binding_without_heading_scope_rejected,
+        case_prose_binding_needs_no_heading_scope,
         case_baseline_passes,
         case_one_byte_edit_to_a_vendored_rule_fails,
         case_unrecorded_vendored_rule_fails,
