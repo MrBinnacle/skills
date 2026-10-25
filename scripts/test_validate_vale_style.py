@@ -122,7 +122,7 @@ def case_tree_wide_local_binding_rejected(root: Path) -> None:
 
 
 def case_readme_binding_without_heading_scope_rejected(root: Path) -> None:
-    """README.md is declared headings-only, so the rule must scope itself."""
+    """A headings-only surface needs a rule that scopes itself."""
     baseline_tree(root)
     rule = root / "styles" / "Local" / "Marketing-copy.yml"
     rule.write_text(

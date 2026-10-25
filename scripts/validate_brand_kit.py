@@ -92,12 +92,14 @@ WHY THE SCOPE RULE IS DATA, AND WHAT THE SCOPE NOW IS
     rather than a maintenance task.
 
 WHY THE PROSE SURFACE OVERLAPS THE HEADINGS SURFACE, AND WHY BOTH STAY
-    `markdown_prose` reads whole documents, so a README heading is inside both
-    it and `markdown_headings`, and a banned word there is reported twice. The
-    narrower surface is kept anyway: `.vale.ini` binds the fast Vale feedback to
-    the glob `README.md`, and `validate_vale_style.py` refuses a Vale binding to
-    any glob the token file does not declare. Dropping the README surface would
-    make the Vale binding a widening and redden that check.
+    `markdown_prose` reads whole documents, so a bucket README heading is inside
+    both it and `markdown_headings`, and a banned word there is reported twice.
+    The narrower surface is kept anyway: `.vale.ini` binds the fast Vale feedback
+    to the glob `skills/*/README.md`, and `validate_vale_style.py` refuses a Vale
+    binding to no glob or to a glob the token file does not declare. Until
+    2026-10-25 both the surface and the binding named `README.md`; #630
+    untracked that file, so the surface matched nothing and this check refused
+    every run, and #632 moved both to the tracked bucket READMEs.
 
 WHY THE PUBLISHED DIGEST IS OVER THE LIST AND NOT OVER THE FILE
     `copy.words_to_avoid_digest.sha256` is sha256 over
