@@ -14,7 +14,8 @@ because one of them is then wrong about it.
 
 `runs_by_hand` and `flag_set` are the shared readers of the flag. No other
 script imports them today; check_shared_readers.py names this module as their
-owner and refuses a new copy of the reader anywhere else.
+owner and refuses a new copy of the reader in any other tracked script under
+scripts/.
 
 A card line is `- [**name**](name/SKILL.md)`, and the marker counts only when it
 is the first thing after the link. A marker placed later in the line reads as
