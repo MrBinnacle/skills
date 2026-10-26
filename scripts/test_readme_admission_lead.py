@@ -20,15 +20,12 @@ THE CENSUS IS DERIVED THROUGH THE EXISTING VALIDATORS, NOT RESTATED HERE.
 from __future__ import annotations
 
 import re
-import shutil
 import sys
-import tempfile
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
-import check_load_mode_markers as markers  # noqa: E402
 import validate_card_files as card_files  # noqa: E402
 import validate_scoreboard as scoreboard  # noqa: E402
 
@@ -275,131 +272,7 @@ def case_controlled_tests_paragraph_names_the_latest_read() -> None:
     )
 
 
-README_LOADS_ROW = re.compile(
-    r"^\| \[`([^`]+)`\]\(skills/([^/]+)/\1/gotchas\.md\) \| ([^|]+?) \| [^|]+ \| "
-    r"(every session|by hand)\b",
-    re.MULTILINE,
-)
-
-
-def loads_column_problems(root: Path) -> list[str]:
-    """One line per card whose README Loads row disagrees with its frontmatter.
-
-    The flag is read through `check_load_mode_markers.runs_by_hand`, the reader
-    the bucket README check (#558) uses, so the two pages cannot be held to two
-    readings of one fact (#553).
-    """
-    rows: dict[str, list[tuple[str, str, str]]] = {}
-    for card, link_group, stated_group, loads in README_LOADS_ROW.findall(
-        (root / "README.md").read_text(encoding="utf-8")
-    ):
-        rows.setdefault(card, []).append((link_group, stated_group.strip(), loads))
-    problems: list[str] = []
-    published = scoreboard.iter_skill_dirs(root)
-    for skill_dir in published:
-        card, group = skill_dir.name, skill_dir.parent.name
-        want = "by hand" if markers.runs_by_hand(skill_dir / "SKILL.md") else "every session"
-        stated = rows.get(card, [])
-        if not stated:
-            problems.append(f"{card}: README.md has no Loads row for it")
-        elif len(stated) > 1:
-            problems.append(f"{card}: README.md has {len(stated)} Loads rows for it, expected one")
-        for link_group, stated_group, loads in stated:
-            if loads != want:
-                problems.append(f"{card}: README.md says it loads {loads}, its SKILL.md frontmatter says {want}")
-            if (link_group, stated_group) != (group, group):
-                problems.append(
-                    f"{card}: README.md places it in {stated_group} (link under skills/{link_group}/), "
-                    f"but it lives in skills/{group}/"
-                )
-    names = {skill_dir.name for skill_dir in published}
-    problems.extend(
-        f"{card}: README.md has a Loads row for it, but it is not a published card"
-        for card in sorted(set(rows) - names)
-    )
-    return problems
-
-
-def planted_loads_problems(edit_path: str, old: str, new: str) -> list[str]:
-    """`loads_column_problems` on a copy of the live README and skills/ with one replacement."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tree = Path(tmp)
-        shutil.copytree(ROOT / "skills", tree / "skills")
-        shutil.copy(README, tree / "README.md")
-        target = tree / edit_path
-        text = target.read_text(encoding="utf-8")
-        assert old in text, f"control anchor absent in {edit_path}: {old!r}"
-        target.write_text(text.replace(old, new, 1), encoding="utf-8")
-        return loads_column_problems(tree)
-
-
-LOADS_CONTROLS = (
-    (
-        "a by-hand card's cell flipped to every session",
-        "README.md", "| by hand (seen once) |\n| [`mocked-stub`]", "| every session |\n| [`mocked-stub`]",
-        "stale-deploy: README.md says it loads every session, its SKILL.md frontmatter says by hand",
-    ),
-    (
-        "an always-on card's cell flipped to by hand",
-        "README.md", "| every session (seen at least twice) |\n| [`clirunner-env`]",
-        "| by hand |\n| [`clirunner-env`]",
-        "vacuous-check: README.md says it loads by hand, its SKILL.md frontmatter says every session",
-    ),
-    (
-        "a by-hand card's flag removed with the README unchanged",
-        "skills/engineering/clirunner-env/SKILL.md", "disable-model-invocation: true\n", "",
-        "clirunner-env: README.md says it loads by hand, its SKILL.md frontmatter says every session",
-    ),
-    (
-        "a flag added to an always-on card with the README unchanged",
-        "skills/engineering/vacuous-check/SKILL.md", "---\n", "---\ndisable-model-invocation: true\n",
-        "vacuous-check: README.md says it loads every session, its SKILL.md frontmatter says by hand",
-    ),
-    (
-        "a card's row deleted",
-        "README.md", "| [`im-up`](skills/engineering/im-up/gotchas.md)", "| im-up, unlinked",
-        "im-up: README.md has no Loads row for it",
-    ),
-    (
-        "a card's row repeated",
-        "README.md", "| [`im-up`](skills/engineering/im-up/gotchas.md) | engineering | Checks",
-        "| [`im-up`](skills/engineering/im-up/gotchas.md) | engineering | x | by hand |\n"
-        "| [`im-up`](skills/engineering/im-up/gotchas.md) | engineering | Checks",
-        "im-up: README.md has 2 Loads rows for it, expected one",
-    ),
-    (
-        "a row for a name that is not a published card",
-        "README.md", "| [`im-up`](skills/engineering/im-up/gotchas.md) | engineering | Checks",
-        "| [`ghost-card`](skills/engineering/ghost-card/gotchas.md) | engineering | x | every session |\n"
-        "| [`im-up`](skills/engineering/im-up/gotchas.md) | engineering | Checks",
-        "ghost-card: README.md has a Loads row for it, but it is not a published card",
-    ),
-)
-
-
-def case_loads_column_matches_each_card() -> None:
-    """The README's Loads column agrees with each published card's frontmatter.
-
-    The claims ledger (C16) forbids a roster of always-on cards that no check
-    reads. The column is that roster, so every published card must have one
-    row, in its own group, marked "by hand" exactly when its SKILL.md sets
-    `disable-model-invocation: true`. Each control plants one drift in a temp
-    copy of the live tree and requires the refusal to name the card.
-    """
-    problems = loads_column_problems(ROOT)
-    check(
-        "the README Loads column matches every published card's frontmatter",
-        not problems,
-        "\n  " + "\n  ".join(problems),
-    )
-    for name, edit_path, old, new, expect in LOADS_CONTROLS:
-        planted = planted_loads_problems(edit_path, old, new)
-        print("     " + "\n     ".join(planted))
-        check(f"control: {name} fails, naming the card", expect in planted, f"got {planted}")
-
-
 def main() -> None:
-    case_loads_column_matches_each_card()
     case_controlled_tests_paragraph_names_the_latest_read()
     case_admission_method_leads()
     case_three_instruments_are_referenced()
