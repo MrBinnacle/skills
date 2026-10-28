@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import type { On, RenderSurface } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
-import { actPrompt, cardText, clean, isSource, lineOfRow, offerForSession, offerOf } from '../hooks/register'
+import { actPrompt, bandLine, cardText, clean, isSource, lineOfRow, offerForSession, offerOf } from '../hooks/register'
 
 const SURFACES = ['terminal', 'desktop', 'vscode', 'mobile'] as const
 const SESSION = 'this-session'
@@ -44,6 +44,7 @@ const row = (text: string) =>
 // as it does in a session, so its own state holds the heads-up.
 async function engineBeneath($: Engine, on: On, current: typeof TIP | null, surfaces: RenderSurface[] = []) {
   const prompts: string[] = []
+  const contexts: string[][] = []
   const toasts: string[] = []
   const store = current ? { sessions: [{ id: SESSION, view: { kind: 'offer', ...current } }] } : { sessions: [] }
   on('env.get', (_$, e) => ({ value: e.name === 'USERPROFILE' ? 'C:/Users/me' : undefined }))
@@ -55,6 +56,7 @@ async function engineBeneath($: Engine, on: On, current: typeof TIP | null, surf
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('prompt.submit', (_$, e) => {
     prompts.push(e.text)
+    contexts.push([...(e.context ?? [])])
 
     return { text: e.text }
   })
@@ -69,7 +71,7 @@ async function engineBeneath($: Engine, on: On, current: typeof TIP | null, surf
   on('tool.check', () => ({ decision: 'allow' as const }))
   await $.session.start({ cwd: '/', surface: 'mobile', isInteractive: true })
 
-  return { prompts, toasts }
+  return { prompts, contexts, toasts }
 }
 
 test("the store file yields this session's offer, not another's", () => {
@@ -292,4 +294,60 @@ test('a sample never replaces a real heads-up', async ($, on) => {
 
   expect((await tips($, 'demo')).text).toContain('A real heads-up is waiting')
   expect((await tips($)).text).toBe(cardText(TIP))
+})
+
+// The built-in's own send, as it reached a session on 2026-10-28: the person
+// pressed it on the computer eleven minutes after handing the same note over
+// from the phone, and Claude answered the note a second time.
+const NOTE = {
+  line: 'The first Prospectus can only show findings whose evidence passed a separate check session that only you can start, so new sections will wait on you.',
+  explanation: '**New Prospectus findings need your check sessions**',
+}
+const BAND_SEND = [
+  'Here is a note offered by a side agent:',
+  '',
+  `> Heads up · ${NOTE.line}`,
+  '>',
+  '> **New Prospectus findings need your check sessions**',
+  '> - FOSSE shows a finding to users only when every piece of evidence behind it is marked **text-verified**.',
+].join('\n')
+const typed = ($: Engine, text: string) => $.prompt.submit({ text, wait: false, origin: { kind: 'composer' } })
+
+test("the band's send names its heads-up by the line the mod keys it by", () => {
+  expect(bandLine(BAND_SEND)).toBe(NOTE.line)
+  expect(bandLine(`Earlier you wrote:\n${BAND_SEND}`)).toBe(null)
+  expect(bandLine('Here is a note offered by a side agent:\n\n> Not a heads-up.')).toBe(null)
+})
+
+test('a note handed over from the phone and then sent from the band reaches Claude marked as already handed', async ($, on) => {
+  const { prompts, contexts } = await engineBeneath($, on, NOTE)
+  await tips($, 'do')
+  for (let i = 0; i < 50 && prompts.length === 0; i++) await Promise.resolve()
+  expect(prompts.length).toBe(1)
+
+  await typed($, BAND_SEND)
+  expect(prompts.length).toBe(2)
+  expect(prompts[1]).toBe(BAND_SEND)
+  expect(contexts[1].join('\n')).toMatch(/already handed this heads-up to you earlier in this session/)
+})
+
+test('a note sent from the band first is settled, so the phone stops asking and /tips do sends nothing', async ($, on) => {
+  const { prompts, contexts } = await engineBeneath($, on, NOTE)
+
+  await typed($, BAND_SEND)
+  expect(contexts[0]).toEqual([])
+  expect((await tips($)).text).toBe('Nothing from the side agent is waiting.')
+  await tips($, 'do')
+  for (let i = 0; i < 50; i++) await Promise.resolve()
+  expect(prompts.length).toBe(1)
+})
+
+test('an ordinary prompt passes through untouched', async ($, on) => {
+  const { prompts, contexts } = await engineBeneath($, on, NOTE)
+  await tips($, 'do')
+  for (let i = 0; i < 50 && prompts.length === 0; i++) await Promise.resolve()
+
+  await typed($, `Why did you say: ${NOTE.line}`)
+  expect(contexts.at(-1)).toEqual([])
+  expect((await tips($)).text).toBe('Nothing from the side agent is waiting.')
 })

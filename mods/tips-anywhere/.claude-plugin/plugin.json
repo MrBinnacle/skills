@@ -1,6 +1,6 @@
 {
   "name": "tips-anywhere",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Brings the You should know side agent's heads-up notes to every Claude app, the phone and tablet included, as a question with buttons: hand it to Claude, show the details, or dismiss it",
   "types": "./types/index.d.ts",
   "userConfig": {

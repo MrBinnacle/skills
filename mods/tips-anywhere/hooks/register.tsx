@@ -137,6 +137,17 @@ function parse(text: string): unknown {
   }
 }
 
+// The band's own Send puts the note in as the person's prompt, opening with
+// this header and the line; its key is the line as offerOf cleans it.
+const BAND_SEND = /^Here is a note offered by a side agent:\s*>\s*Heads up\s*\S\s*([^\n]+)/
+
+export function bandLine(text: string): string | null {
+  const found = BAND_SEND.exec(text)?.[1]
+  const line = found ? clean(found, MAX_LINE).replace(/\s+/g, ' ') : ''
+
+  return line === '' ? null : line
+}
+
 export function isSource(origin: { plugin: string; tier: string }): boolean {
   return origin.tier === 'builtin' && origin.plugin === SOURCE_NAME
 }
@@ -345,6 +356,29 @@ export const register: Register = (on, options: PluginOptions) => {
     }
 
     return result
+  })
+
+  // One record for both routes. A note sent from the band after it was handed
+  // over or dismissed here still goes (it is the person's prompt, and a drop
+  // may not give it back), marked for Claude so it is not worked twice; a
+  // note sent from the band first is settled, so no app asks about it again.
+  on('prompt.submit', async ($, e, next) => {
+    const line = e.command ? null : bandLine(e.text)
+    if (!line) {
+      return next(e)
+    }
+
+    const earlier = (await read($, outcomes))[line]
+    if (!earlier) {
+      await settle($, line, 'handed')
+
+      return next(e)
+    }
+
+    const said = earlier === 'handed' ? 'already handed this heads-up to you' : 'dismissed this heads-up'
+    const note = `tips-anywhere: the person ${said} earlier in this session. Say so in one line, and add only what the longer details change.`
+
+    return next({ ...e, context: [...(e.context ?? []), note] })
   })
 
   on('turn.start', async ($, e, next) => {
