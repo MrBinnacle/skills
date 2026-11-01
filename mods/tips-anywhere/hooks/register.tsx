@@ -213,9 +213,19 @@ async function handOver($: EngineInterface, current: Tip): Promise<boolean> {
   void $.clock
     .sleep(0)
     .then(() => $.prompt.submit({ text: actPrompt(sent) }))
+    .then(result => (result.drop === undefined ? undefined : unsettleHandOver($, current, result.drop)))
     .catch(() => undefined)
 
   return true
+}
+
+// A hook refused the prompt, so Claude never got the note: it is waiting again.
+async function unsettleHandOver($: EngineInterface, current: Tip, reason: string): Promise<void> {
+  await update($, outcomes, ({ [current.line]: _, ...rest }) => rest)
+  // A newer heads-up may have arrived while the prompt waited: it stays current.
+  await update($, tip, now => now ?? current)
+  const isBack = (await read($, tip))?.line === current.line
+  $.ui.toast(`${HEAD}not handed to Claude: ${reason}. ${isBack ? '/tips shows it again.' : `The note was: ${current.line}`}`)
 }
 
 async function markShown($: EngineInterface, line: string): Promise<void> {
@@ -381,8 +391,11 @@ export const register: Register = (on, options: PluginOptions) => {
     return next({ ...e, context: [...(e.context ?? []), note] })
   })
 
+  // Subagents fire these too (`e.agentId`); only the main loop's reply counts.
   on('turn.start', async ($, e, next) => {
-    isTurnRunning = true
+    if (e.agentId === undefined) {
+      isTurnRunning = true
+    }
 
     return next(e)
   })
@@ -391,6 +404,10 @@ export const register: Register = (on, options: PluginOptions) => {
   // held back while Claude was replying.
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
+    if (e.agentId !== undefined) {
+      return result
+    }
+
     isTurnRunning = false
     void scanStore($, delivery)
       .then(() => flushAsk($))
