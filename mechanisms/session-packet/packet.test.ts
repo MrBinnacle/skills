@@ -75,6 +75,14 @@ describe("validateStructure field rules", () => {
     const text = fixture("fixture-clean.md") + "\nkey ghp_abcdefghijklmnopqrstuvwxyz0123\n";
     expect(validateStructure(extract(text), text)).toContain("possible secret detected");
   });
+
+  test("sk- inside a word is not a secret; a bare sk- key still is", () => {
+    const clean = fixture("fixture-clean.md");
+    const inWord = clean + "\nbranch task-session-packet-chain\n";
+    expect(validateStructure(extract(inWord), inWord)).not.toContain("possible secret detected");
+    const bare = clean + "\nkey sk-abcdefghijklmnopqrstuv\n";
+    expect(validateStructure(extract(bare), bare)).toContain("possible secret detected");
+  });
 });
 
 describe("placeholder detection", () => {

@@ -63,6 +63,15 @@ def lint_cases():
     assert not validator.lint_receiver_checks(failable), "fail-able check must not be flagged"
 
 
+def secret_cases():
+    """sk- inside an ordinary word is not a key; a bare sk- key still is."""
+    data, text = validator.extract(HERE / "fixture-clean.md")
+    in_word = text + "\nbranch task-session-packet-chain\n"
+    assert "possible secret detected" not in validator.validate_structure(data, in_word)
+    bare = text + "\nkey sk-abcdefghijklmnopqrstuv\n"
+    assert "possible secret detected" in validator.validate_structure(data, bare)
+
+
 def repository_cases():
     with tempfile.TemporaryDirectory() as tmp:
         repo = Path(tmp)
@@ -1440,6 +1449,7 @@ if __name__ == "__main__":
     expect_structure("fixture-failed-probe.md", True)
     placeholder_cases()
     lint_cases()
+    secret_cases()
     repository_cases()
     close_commit_cases()
     claimed_head_cases()
@@ -1466,7 +1476,7 @@ if __name__ == "__main__":
     parity_verified, parity_message = duplication_case()
     print(parity_message)
     roster = ("PASS: clean, stale, incomplete, failed-probe, placeholder, "
-              "unfailable-check, command-probe, close-commit, close-commit-cli, "
+              "unfailable-check, secret, command-probe, close-commit, close-commit-cli, "
               "claimed-head, claimed-head-cli, receive-mode-config, "
               "close-session, open-session, red-check, assertions-held, "
               "cache-hit, cache-outside, cache-directory, cache-fail, "
