@@ -5,7 +5,9 @@ import copy
 import importlib.util
 import json
 import subprocess
+import sys
 import tempfile
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -73,22 +75,33 @@ def secret_cases():
 
 
 def check_timeout_cases():
-    """A check that outruns its limit fails with exit 124, and the limit is passed."""
+    """A hung check ends at the limit with exit 124, and its child ends with it."""
+    assert validator.CHECK_TIMEOUT_S == 600
     with tempfile.TemporaryDirectory() as tmp:
-        passed = {}
-        real_run = subprocess.run
-
-        def hang(cmd, **kwargs):
-            passed.update(kwargs)
-            raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
-
-        subprocess.run = hang
+        root = Path(tmp)
+        marker = root / "child-survived"
+        child = root / "child.py"
+        child.write_text(
+            f"import time\ntime.sleep(4)\nopen({str(marker)!r}, 'w').close()\n", encoding="utf-8"
+        )
+        parent = root / "parent.py"
+        parent.write_text(
+            f"import subprocess, sys\nsubprocess.run([sys.executable, {str(child)!r}])\n", encoding="utf-8"
+        )
+        limit = validator.CHECK_TIMEOUT_S
+        validator.CHECK_TIMEOUT_S = 1
+        started = time.monotonic()
         try:
-            result = validator.run("sleep 999", Path(tmp))
+            result = validator.run(f'"{sys.executable}" "{parent}"', root)
         finally:
-            subprocess.run = real_run
-    assert passed["timeout"] == validator.CHECK_TIMEOUT_S
-    assert result.returncode == 124 and "timed out" in result.stderr
+            validator.CHECK_TIMEOUT_S = limit
+        elapsed = time.monotonic() - started
+        assert elapsed < 3.5, elapsed
+        assert result.returncode == 124 and "timed out" in result.stderr
+        time.sleep(5 - elapsed)
+        assert not marker.exists()
+        ok = validator.run(f'"{sys.executable}" -c "print(1)"', root)
+        assert ok.returncode == 0 and ok.stdout.strip() == "1"
 
 
 def repository_cases():

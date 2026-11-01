@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { extract } from "./packet";
-import { CHECK_TIMEOUT_MS, type Exec } from "./repo";
+import { execNetwork, type Exec } from "./repo";
 import type { PacketConfig } from "./settings";
 import { fixture, git, makeRepo, nodeExec, renderPacket } from "./testkit";
 import { validatePacket } from "./validate";
@@ -57,7 +57,7 @@ describe("validatePacket receipts", () => {
       return Promise.resolve({ code: 0, stdout: "", stderr: "", killed: true });
     };
     const receipt = await validatePacket({ text, packetPath, mode: "receive", repoRoot: root, config: GREEN, exec: hanging });
-    expect(limits).toEqual([CHECK_TIMEOUT_MS]);
+    expect(limits).toEqual([600_000]);
     expect(receipt.verdict).toBe("REJECTED");
     expect(receipt.checks[0]).toMatchObject({ status: "failed", exit_code: 124 });
     expect(receipt.checks[0]!.stderr).toContain("timed out");
@@ -116,4 +116,14 @@ describe("validatePacket receipts", () => {
     const receipt = await validatePacket({ text: "no markers", packetPath: join(root, "x.md"), mode: "receive", repoRoot: root, config: GREEN, exec: nodeExec });
     expect(receipt).toEqual({ verdict: "REJECTED", errors: ["packet markers are absent or out of order"] });
   });
+});
+
+test("a network call gets the 30-second limit, not the check limit", async () => {
+  const limits: (number | undefined)[] = [];
+  const recording: Exec = (_command, _args, options) => {
+    limits.push(options.timeout);
+    return Promise.resolve({ code: 0, stdout: "", stderr: "", killed: false });
+  };
+  await execNetwork(recording, "git", ["fetch"], ".");
+  expect(limits).toEqual([30_000]);
 });

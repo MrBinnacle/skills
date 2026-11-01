@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -50,13 +51,31 @@ def run(cmd: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     character outside cp1252 crashed the validator (issue #372). A check that
     outruns CHECK_TIMEOUT_S fails with exit 124, as coreutils `timeout` does.
     """
+    proc = subprocess.Popen(
+        cmd, cwd=cwd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        encoding="utf-8", errors="replace", start_new_session=os.name != "nt",
+    )
     try:
-        return subprocess.run(
-            cmd, cwd=cwd, shell=True, capture_output=True,
-            encoding="utf-8", errors="replace", timeout=CHECK_TIMEOUT_S,
-        )
+        stdout, stderr = proc.communicate(timeout=CHECK_TIMEOUT_S)
     except subprocess.TimeoutExpired:
+        kill_tree(proc)
         return subprocess.CompletedProcess(cmd, 124, "", f"timed out after {CHECK_TIMEOUT_S}s")
+    return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
+
+
+def kill_tree(proc: subprocess.Popen[str]) -> None:
+    """End the shell and its children: the check is a child, and it holds the pipes."""
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
+    else:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    try:
+        proc.communicate(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass  # A child that left the tree still holds the pipes; the limit still holds.
 
 
 def git(cwd: Path, *args: str) -> str:
