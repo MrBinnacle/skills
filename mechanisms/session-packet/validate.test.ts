@@ -1,10 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { extract } from "./packet";
 import { execNetwork, type Exec } from "./repo";
 import type { PacketConfig } from "./settings";
-import { fixture, git, makeRepo, nodeExec, renderPacket } from "./testkit";
+import { fixture, git, makeRepo, nodeExec, renderPacket, test } from "./testkit";
 import { validatePacket } from "./validate";
 
 const config = (over: Partial<PacketConfig> = {}): PacketConfig => ({

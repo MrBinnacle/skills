@@ -1,7 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { GIT_TIMEOUT, makeRepo, nodeExec } from "../session-packet/testkit";
+import { GIT_TIMEOUT, makeRepo, nodeExec, test } from "../session-packet/testkit";
 import { diffArgs, finalizeReview, newReviewId, renderReview, type Submission } from "./review";
 
 describe("diffArgs", () => {

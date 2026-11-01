@@ -37,6 +37,7 @@ import io
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -134,6 +135,21 @@ def run_step(step: Step, bash: str, temp: Path) -> int:
     return subprocess.run([bash, "-c", step.run], cwd=ROOT, env=env).returncode
 
 
+def remove_tree(path: Path) -> None:
+    # Git objects are read-only, and on Windows rmtree silently leaves them.
+    for folder, _, files in os.walk(path):
+        for name in files:
+            file = os.path.join(folder, name)
+            if not os.path.islink(file):  # chmod follows a link and would change its target
+                try:
+                    os.chmod(file, stat.S_IWRITE)
+                except OSError:
+                    pass  # the check below reports what stays
+    shutil.rmtree(path, ignore_errors=True)
+    if path.exists():
+        print(f"WARN could not remove {path}", file=sys.stderr)
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Run the shell steps of the CI workflow locally.")
     parser.add_argument("--list", action="store_true", help="print the steps and exit")
@@ -164,7 +180,9 @@ def main(argv: list[str]) -> int:
                 skipped += 1
                 print(f"SKIP {s.job}[{s.index}] {s.name} ({s.skip})", flush=True)
                 continue
-            temp = temps.setdefault(s.job, Path(tempfile.mkdtemp(prefix=f"ci-local-{s.job}-")))
+            if s.job not in temps:
+                temps[s.job] = Path(tempfile.mkdtemp(prefix=f"ci-local-{s.job}-"))
+            temp = temps[s.job]
             if s.note:
                 print(f"NOTE {s.job}[{s.index}] {s.name}: {s.note}", flush=True)
             rc = run_step(s, args.bash, temp)
@@ -174,7 +192,7 @@ def main(argv: list[str]) -> int:
                 failed.append(f"{s.job}[{s.index}] {s.name}")
     finally:
         for temp in temps.values():
-            shutil.rmtree(temp, ignore_errors=True)
+            remove_tree(temp)
     print(f"\n{ran} ran, {skipped} skipped, {len(failed)} failed")
     for name in failed:
         print(f"  FAILED {name}")
