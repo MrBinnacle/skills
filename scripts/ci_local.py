@@ -139,7 +139,12 @@ def remove_tree(path: Path) -> None:
     # Git objects are read-only, and on Windows rmtree silently leaves them.
     for folder, _, files in os.walk(path):
         for name in files:
-            os.chmod(os.path.join(folder, name), stat.S_IWRITE)
+            file = os.path.join(folder, name)
+            if not os.path.islink(file):  # chmod follows a link and would change its target
+                try:
+                    os.chmod(file, stat.S_IWRITE)
+                except OSError:
+                    pass  # the check below reports what stays
     shutil.rmtree(path, ignore_errors=True)
     if path.exists():
         print(f"WARN could not remove {path}", file=sys.stderr)
