@@ -330,7 +330,15 @@ FRONTMATTER_RE: Final[re.Pattern[str]] = re.compile(r"\A---\r?\n(.*?)\r?\n---", 
 DESCRIPTION_LINE_RE: Final[re.Pattern[str]] = re.compile(
     r"^description:\s*(\S.*?)\s*$", re.MULTILINE
 )
-QUOTE_CHARS: Final[str] = "\"'"
+QUOTED_VALUE_RE: Final[re.Pattern[str]] = re.compile(
+    r"""("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')(?:\s+#.*)?"""
+)
+# What YAML reads as a null, boolean, number or date when it is written unquoted.
+NOT_TEXT_RE: Final[re.Pattern[str]] = re.compile(
+    r"~|null|true|false|yes|no|on|off|[-+]?\.(?:inf|nan)|[-+.]?\d[\w.:+-]*"
+    r"|\d{4}-\d\d?-\d\d?\s+[\d:.]+(?:\s*(?:z|[-+][\d:]+))?",
+    re.IGNORECASE,
+)
 
 
 def description_spans_lines(card: Path) -> bool:
@@ -338,7 +346,8 @@ def description_spans_lines(card: Path) -> bool:
 
     The length bar reads one line, so any YAML form that continues the value
     elsewhere would escape it. Read before quotes are stripped: `">= two"` is a
-    one-line string, and `>=` unquoted is not.
+    one-line string, and `>=` unquoted is not. A blank line or a comment line does
+    not end a value, so the line that decides is the next one holding content.
     """
     block = FRONTMATTER_RE.match((card / "SKILL.md").read_text(encoding="utf-8-sig", errors="replace"))
     if block is None:
@@ -347,9 +356,9 @@ def description_spans_lines(card: Path) -> bool:
     for number, line in enumerate(lines):
         if line.startswith("description:"):
             raw = line[len("description:"):].strip()
-            following = lines[number + 1] if number + 1 < len(lines) else ""
-            is_open_quote = raw[:1] in tuple(QUOTE_CHARS) and (len(raw) < 2 or raw[-1] != raw[0])
-            return not raw or raw[0] in ">|!&*#" or is_open_quote or following[:1] in (" ", "\t")
+            following = next((text for text in lines[number + 1:] if text.strip() and text.lstrip()[0] != "#"), "")
+            is_open_quote = raw[:1] in ('"', "'") and QUOTED_VALUE_RE.fullmatch(raw) is None
+            return not raw or raw[0] in ">|!&*#[{" or is_open_quote or following[:1] in (" ", "\t")
     return False
 
 
@@ -359,7 +368,8 @@ def stated_description(card: Path) -> str | None:
     Surrounding quotes are stripped before measuring, so a quoted and an
     unquoted spelling of the same sentence measure the same. Quoting is a YAML
     requirement -- two published cards needed it for a colon on 2026-08-24 --
-    and it must not cost a card two characters of its budget.
+    and it must not cost a card two characters of its budget. A trailing comment
+    is not part of the value, and an unquoted `~` or `123` is not text.
     """
     skill_md = card / "SKILL.md"
     if not skill_md.is_file():
@@ -370,10 +380,11 @@ def stated_description(card: Path) -> str | None:
     found = DESCRIPTION_LINE_RE.search(block.group(1))
     if found is None:
         return None
-    value = found.group(1)
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in QUOTE_CHARS:
-        value = value[1:-1]
-    return value
+    quoted = QUOTED_VALUE_RE.fullmatch(found.group(1))
+    if quoted is not None:
+        return quoted.group(1)[1:-1]
+    value = re.sub(r"\s+#.*$", "", found.group(1))
+    return None if NOT_TEXT_RE.fullmatch(value) else value
 
 
 def description_breaches(card: Path) -> list[str]:
@@ -384,9 +395,10 @@ def description_breaches(card: Path) -> list[str]:
         return []
     if description_spans_lines(card):
         return [
-            "SKILL.md description is not a one-line value (a block scalar, a tag, "
-            "an anchor, or a continuation line), so this bar cannot measure its "
-            "length. Write it on one line"
+            "SKILL.md description is not a one-line value (it is empty on its key's "
+            "line, opens with a YAML indicator, leaves a quote open, or continues on "
+            "an indented line), so this bar cannot measure its length. Write it on "
+            "one line"
         ]
     description = stated_description(card)
     if not description:

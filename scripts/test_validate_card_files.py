@@ -1598,6 +1598,31 @@ def case_origin_sha_git_unavailable_is_rejected(root: Path) -> None:
     )
 
 
+def case_origin_sha_git_timeout_is_rejected(root: Path) -> None:
+    """A git that hangs has not vouched for the SHA either."""
+    fake_sha = "c" * 40
+    write_card(root, "slow-git-card", _observed_evidence(f"See commit {fake_sha}."), CONFORMING_GOTCHAS)
+    driver = (
+        "import runpy, subprocess, sys\n"
+        "real = subprocess.run\n"
+        "def run(args, **kw):\n"
+        f"    if {fake_sha!r} in ' '.join(map(str, args)):\n"
+        "        raise subprocess.TimeoutExpired(args, 10)\n"
+        "    return real(args, **kw)\n"
+        "subprocess.run = run\n"
+        "sys.argv = sys.argv[1:]\n"
+        "runpy.run_path(sys.argv[0], run_name='__main__')\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", driver, str(CHECKER), "--root", str(root)], capture_output=True, text=True
+    )
+    check(
+        "an origin SHA is refused when git times out",
+        result.returncode != 0 and "could not be checked" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
 def case_block_scalar_description_is_rejected(root: Path) -> None:
     long = "x" * 300
     forms = {
@@ -1609,6 +1634,14 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "alias-card": "*a",
         "plain-continued-card": f"short\n  {long}",
         "tab-continued-card": f"short\n\t{long}",
+        "blank-continued-card": f"short\n\n  {long}",
+        "two-blank-continued-card": f"short\n\n\n  {long}",
+        "comment-continued-card": f"short\n  # note\n  {long}",
+        "escaped-single-quote-card": f"'short''\n{long}'",
+        "escaped-double-quote-card": f'"short\\"\n{long}"',
+        "flow-list-card": "[a, b]",
+        "flow-map-card": "{a: b}",
+        "bare-key-before-key-card": "\nlicense: MIT",
         "quote-continued-card": f'"short\n  {long}"',
         "single-quote-open-card": "'",
         "bare-key-card": f"\n  {long}",
@@ -1620,20 +1653,58 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
     }
     for name, form in forms.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
-    for name, form in (("gt-card", '">= two occasions: use when testing"'), ("pipe-card", "'| pipe: use when testing'")):
+    one_line = {
+        "gt-card": '">= two occasions: use when testing"',
+        "pipe-card": "'| pipe: use when testing'",
+        "double-comment-card": '"Use when: testing" # note',
+        "single-comment-card": "'Use when: testing' # note",
+        "next-line-comment-card": "Use when testing\n  # note",
+        "doubled-quote-card": "'it''s for testing'",
+        "long-comment-card": f"Use when testing # {long}",
+        "quoted-null-card": '"null"',
+    }
+    for name, form in one_line.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
+    not_text = {
+        "tilde-card": "~",
+        "null-card": "null",
+        "true-card": "true",
+        "number-card": "123",
+        "float-card": "-1.5",
+        "date-card": "2026-11-01",
+        "timestamp-card": "2026-11-01 10:00:00",
+        "timestamp-zone-card": "2026-11-01 10:00:00 -5",
+        "infinity-card": ".inf",
+        "tilde-comment-card": "~ # note",
+    }
+    for name, form in not_text.items():
+        write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
+    bom = write_card(root, "bom-folded-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=f">-\n  {long}")
+    (bom / "SKILL.md").write_bytes(b"\xef\xbb\xbf" + (bom / "SKILL.md").read_bytes())
+    write_card(root, "quoted-hash-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=f'"short # {long}"')
     write_card(root, "empty-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description='""')
     write_card(root, "oversize-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=long)
     result = run_checker(root)
     lines = result.stderr.splitlines()
-    for name in forms:
+    for name in [*forms, "bom-folded-card"]:
         check(
             f"a description past one line is refused: {name}",
             any(name in line and "not a one-line value" in line for line in lines),
             result.stderr.strip(),
         )
-    for name in ("gt-card", "pipe-card"):
-        check(f"a quoted one-line description passes: {name}", not any(name in line for line in lines), result.stderr.strip())
+    for name in one_line:
+        check(f"a one-line description passes: {name}", not any(name in line for line in lines), result.stderr.strip())
+    for name in not_text:
+        check(
+            f"a value YAML does not read as text is no description: {name}",
+            any(name in line and "states no frontmatter description" in line for line in lines),
+            result.stderr.strip(),
+        )
+    check(
+        "a hash inside quotes is measured as part of the value",
+        any("quoted-hash-card" in line and "308 characters" in line for line in lines),
+        result.stderr.strip(),
+    )
     check(
         "an empty description reads as none, and the other cards are still reported",
         any("empty-card" in line and "states no frontmatter description" in line for line in lines)
@@ -2037,6 +2108,7 @@ def main() -> None:
         case_zero_cards_is_red,
         case_unpublished_buckets_owe_nothing,
         case_origin_sha_git_unavailable_is_rejected,
+        case_origin_sha_git_timeout_is_rejected,
         case_block_scalar_description_is_rejected,
         case_bom_does_not_hide_the_frontmatter,
         case_plugin_root_is_not_a_card,
