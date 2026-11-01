@@ -135,7 +135,7 @@ test('a hook that refuses the hand-over leaves the heads-up waiting and says why
   expect(prompts.length).toBe(0)
   expect(await ui.find({ key: 'act' })).toBeDefined()
   await ui.unmount()
-  expect(toasts.at(-1)).toContain('not handed to Claude: refused by a guard')
+  expect(toasts.at(-1)).toContain('not handed to Claude: refused by a guard. /tips shows it again.')
   expect((await tips($)).text).toBe(cardText(TIP))
 })
 
@@ -158,6 +158,7 @@ test('a refusal that arrives after a newer heads-up leaves the newer one current
   expect((await tips($)).text).toBe(cardText(NEWER))
   expect(toasts.at(-1)).toContain('not handed to Claude: late refusal')
   expect(toasts.at(-1)).not.toContain('/tips')
+  expect(toasts.at(-1)).toContain(TIP.line)
 })
 
 test('a successful answer whose drop key is undefined stays handed', async ($, on) => {

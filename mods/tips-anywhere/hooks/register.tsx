@@ -223,12 +223,9 @@ async function handOver($: EngineInterface, current: Tip): Promise<boolean> {
 async function unsettleHandOver($: EngineInterface, current: Tip, reason: string): Promise<void> {
   await update($, outcomes, ({ [current.line]: _, ...rest }) => rest)
   // A newer heads-up may have arrived while the prompt waited: it stays current.
-  const isBack = (await read($, tip)) === null
-  if (isBack) {
-    await update($, tip, () => current)
-  }
-
-  $.ui.toast(`${HEAD}not handed to Claude: ${reason}${isBack ? '. /tips shows it again.' : ''}`)
+  await update($, tip, now => now ?? current)
+  const isBack = (await read($, tip))?.line === current.line
+  $.ui.toast(`${HEAD}not handed to Claude: ${reason}. ${isBack ? '/tips shows it again.' : `The note was: ${current.line}`}`)
 }
 
 async function markShown($: EngineInterface, line: string): Promise<void> {
