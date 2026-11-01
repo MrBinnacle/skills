@@ -6,6 +6,7 @@ import { actPrompt, bandLine, cardText, clean, isSource, lineOfRow, offerForSess
 
 const SURFACES = ['terminal', 'desktop', 'vscode', 'mobile'] as const
 const SESSION = 'this-session'
+const NEWER = { line: 'A newer note.', explanation: 'newer details' }
 
 // A real offer, as the built-in stored it on 2026-10-23.
 const TIP = {
@@ -42,7 +43,7 @@ const row = (text: string) =>
 // The engine beneath the mod: the built-in's store file on disk, the session,
 // and a record of every prompt and card post. The mod reads the file at start,
 // as it does in a session, so its own state holds the heads-up.
-async function engineBeneath($: Engine, on: On, current: typeof TIP | null, surfaces: RenderSurface[] = [], drop?: string) {
+async function engineBeneath($: Engine, on: On, current: typeof TIP | null, surfaces: RenderSurface[] = [], answer?: () => unknown) {
   const prompts: string[] = []
   const contexts: string[][] = []
   const toasts: string[] = []
@@ -56,7 +57,7 @@ async function engineBeneath($: Engine, on: On, current: typeof TIP | null, surf
   on('command.register', () => ({ value: { command: 'tips' } }))
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('prompt.submit', (_$, e) => {
-    if (drop) return { drop }
+    if (answer) return answer() as never
     prompts.push(e.text)
     contexts.push([...(e.context ?? [])])
 
@@ -125,7 +126,7 @@ test('Hand to Claude sends the heads-up as your prompt and settles the card', as
 })
 
 test('a hook that refuses the hand-over leaves the heads-up waiting and says why', async ($, on) => {
-  const { prompts, toasts } = await engineBeneath($, on, TIP, [], 'refused by a guard')
+  const { prompts, toasts } = await engineBeneath($, on, TIP, [], () => ({ drop: 'refused by a guard' }))
 
   const ui = await $.ui.mount({ ...row(cardText(TIP)), surface: 'mobile' })
   await ui.press({ key: 'act' })
@@ -136,6 +137,63 @@ test('a hook that refuses the hand-over leaves the heads-up waiting and says why
   await ui.unmount()
   expect(toasts.at(-1)).toContain('not handed to Claude: refused by a guard')
   expect((await tips($)).text).toBe(cardText(TIP))
+})
+
+test('a refusal that arrives after a newer heads-up leaves the newer one current', async ($, on) => {
+  on('turn.start', (_$, e) => ({ turnId: e.turnId }))
+  on('turn.complete', (_$, e) => ({ text: e.answer }))
+  let refuse = (_: { drop: string }) => {}
+  const { offerNow, toasts } = await engineBeneath($, on, TIP, [], () => new Promise(done => (refuse = done)))
+  await tips($, 'do')
+  for (let i = 0; i < 500; i++) await Promise.resolve()
+  offerNow(NEWER)
+  await $.turn.start({ text: 'main', turnId: 'main' })
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, reason: 'answer', turnId: 'main' })
+  for (let i = 0; i < 500; i++) await Promise.resolve()
+  expect((await tips($)).text).toBe(cardText(NEWER))
+
+  refuse({ drop: 'late refusal' })
+  for (let i = 0; i < 500; i++) await Promise.resolve()
+
+  expect((await tips($)).text).toBe(cardText(NEWER))
+  expect(toasts.at(-1)).toContain('not handed to Claude: late refusal')
+  expect(toasts.at(-1)).not.toContain('/tips')
+})
+
+test('a successful answer whose drop key is undefined stays handed', async ($, on) => {
+  const { toasts } = await engineBeneath($, on, TIP, [], () => ({ text: 'sent', drop: undefined }))
+
+  await tips($, 'do')
+  for (let i = 0; i < 500; i++) await Promise.resolve()
+
+  expect(toasts.join()).not.toContain('not handed')
+  expect((await tips($)).text).toBe('Nothing from the side agent is waiting.')
+})
+
+test('the question waits for the end of your turn', { options: { deliver: 'buttons' } }, async ($, on) => {
+  let asks = 0
+  on('tool.call', (_$, e) => {
+    if (e.tool === 'AskUserQuestion') asks += 1
+
+    return { result: 'sent' }
+  })
+  on('turn.start', (_$, e) => ({ turnId: e.turnId }))
+  on('turn.complete', (_$, e) => ({ text: e.answer }))
+  await engineBeneath($, on, TIP)
+  const settle = async () => {
+    for (let i = 0; i < 5000; i++) await Promise.resolve()
+  }
+  await settle()
+  expect(asks).toBe(1)
+
+  await $.turn.start({ text: 'main', turnId: 'main' })
+  await tips($)
+  await settle()
+  expect(asks).toBe(1)
+
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, reason: 'answer', turnId: 'main' })
+  await settle()
+  expect(asks).toBe(2)
 })
 
 test('a subagent finishing inside your turn does not raise the question', { options: { deliver: 'buttons' } }, async ($, on) => {

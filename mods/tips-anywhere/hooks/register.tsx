@@ -213,7 +213,7 @@ async function handOver($: EngineInterface, current: Tip): Promise<boolean> {
   void $.clock
     .sleep(0)
     .then(() => $.prompt.submit({ text: actPrompt(sent) }))
-    .then(result => ('drop' in result ? unsettleHandOver($, current, result.drop) : undefined))
+    .then(result => (result.drop === undefined ? undefined : unsettleHandOver($, current, result.drop)))
     .catch(() => undefined)
 
   return true
@@ -222,8 +222,13 @@ async function handOver($: EngineInterface, current: Tip): Promise<boolean> {
 // A hook refused the prompt, so Claude never got the note: it is waiting again.
 async function unsettleHandOver($: EngineInterface, current: Tip, reason: string): Promise<void> {
   await update($, outcomes, ({ [current.line]: _, ...rest }) => rest)
-  await update($, tip, () => current)
-  $.ui.toast(`${HEAD}not handed to Claude: ${reason}`)
+  // A newer heads-up may have arrived while the prompt waited: it stays current.
+  const isBack = (await read($, tip)) === null
+  if (isBack) {
+    await update($, tip, () => current)
+  }
+
+  $.ui.toast(`${HEAD}not handed to Claude: ${reason}${isBack ? '. /tips shows it again.' : ''}`)
 }
 
 async function markShown($: EngineInterface, line: string): Promise<void> {
