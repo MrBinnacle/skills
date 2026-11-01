@@ -9,6 +9,9 @@ export type Severity = (typeof SEVERITIES)[number];
 export type Disposition = (typeof DISPOSITIONS)[number];
 export type Status = (typeof STATUSES)[number];
 
+/** `base` comes from the model; `--end-of-options` keeps `--output=<path>` from writing a file. */
+export const diffArgs = (base: string) => ["diff", "--end-of-options", base];
+
 /** What the reviewer submits. It never chooses ids. */
 export interface SubmittedFinding {
   severity: Severity;

@@ -11,6 +11,7 @@ import {
 import { Type } from "typebox";
 import { buildBrief, REVIEWER_SYSTEM_PROMPT } from "./brief";
 import {
+  diffArgs,
   DISPOSITIONS,
   finalizeReview,
   newReviewId,
@@ -97,7 +98,7 @@ async function runReview(
   const base = request.base?.trim() || "HEAD";
   const root = (await git(pi, ctx.cwd, ["rev-parse", "--show-toplevel"])).trim();
   const head = (await git(pi, root, ["rev-parse", "--short", "HEAD"])).trim();
-  const diff = await git(pi, root, ["diff", base]);
+  const diff = await git(pi, root, diffArgs(base));
   const untracked = (await git(pi, root, ["ls-files", "--others", "--exclude-standard"]))
     .split("\n")
     .filter(Boolean);

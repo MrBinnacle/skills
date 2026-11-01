@@ -5,7 +5,9 @@
  *                            is validated in produce mode when the agent stops (agent_before_settle).
  *                            With a branch store, an accepted fill is committed and pushed.
  * /packet-open [path]        validate the latest (or given) packet in receive mode; report the receipt.
- * session_start              same as /packet-open, only when the project declares `sessionPacket`.
+ *
+ * Nothing runs on session_start: receive mode runs the project's receiverChecks shell commands,
+ * so it must wait for an explicit command (../DESIGN.md).
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { readFileSync } from "node:fs";
@@ -48,7 +50,7 @@ export default function (pi: ExtensionAPI) {
   const exec: Exec = (command, args, options) => pi.exec(command, args, options);
   let pending: Pending | undefined;
 
-  async function receive(ctx: ExtensionContext, explicitPath: string | undefined, listed?: PacketListing): Promise<void> {
+  async function receive(ctx: ExtensionContext, explicitPath: string | undefined): Promise<void> {
     const loaded = loadPacketConfig(ctx.cwd);
     if (!loaded.ok) return report(ctx, `session-packet: ${loaded.error}`, "error");
     const repoRoot = await git(exec, ctx.cwd, "rev-parse", "--show-toplevel");
@@ -59,7 +61,7 @@ export default function (pi: ExtensionAPI) {
       packetPath = resolve(ctx.cwd, explicitPath);
       text = readFileSync(packetPath, "utf-8");
     } else {
-      listing = listed ?? (await listPackets({ repoRoot, config: loaded.config, exec }));
+      listing = await listPackets({ repoRoot, config: loaded.config, exec });
       const latest = listing.packets[0];
       if (!latest) {
         const where = loaded.config.store?.kind === "branch" ? `store branch ${loaded.config.store.ref}` : loaded.config.dir;
@@ -150,21 +152,6 @@ export default function (pi: ExtensionAPI) {
     } catch (e) {
       pending = undefined;
       report(ctx, `session-packet: validation failed: ${(e as Error).message}`, "error");
-    }
-  });
-
-  pi.on("session_start", async (event, ctx) => {
-    if (event.reason === "reload" || event.reason === "fork") return;
-    try {
-      const loaded = loadPacketConfig(ctx.cwd);
-      if (!loaded.ok) return report(ctx, `session-packet: ${loaded.error}`, "error");
-      if (!loaded.declared) return;
-      const repoRoot = await git(exec, ctx.cwd, "rev-parse", "--show-toplevel");
-      const listing = await listPackets({ repoRoot, config: loaded.config, exec });
-      if (!listing.packets.length) return;
-      await receive(ctx, undefined, listing);
-    } catch (e) {
-      report(ctx, `session-packet: startup check failed: ${(e as Error).message}`, "error");
     }
   });
 }
