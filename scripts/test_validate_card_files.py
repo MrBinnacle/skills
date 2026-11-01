@@ -1669,6 +1669,7 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "tilde-card": "~",
         "null-card": "null",
         "true-card": "true",
+        "upper-true-card": "TRUE",
         "number-card": "123",
         "float-card": "-1.5",
         "date-card": "2026-11-01",
