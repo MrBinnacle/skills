@@ -72,6 +72,25 @@ def secret_cases():
     assert "possible secret detected" in validator.validate_structure(data, bare)
 
 
+def check_timeout_cases():
+    """A check that outruns its limit fails with exit 124, and the limit is passed."""
+    with tempfile.TemporaryDirectory() as tmp:
+        passed = {}
+        real_run = subprocess.run
+
+        def hang(cmd, **kwargs):
+            passed.update(kwargs)
+            raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
+
+        subprocess.run = hang
+        try:
+            result = validator.run("sleep 999", Path(tmp))
+        finally:
+            subprocess.run = real_run
+    assert passed["timeout"] == validator.CHECK_TIMEOUT_S
+    assert result.returncode == 124 and "timed out" in result.stderr
+
+
 def repository_cases():
     with tempfile.TemporaryDirectory() as tmp:
         repo = Path(tmp)
@@ -1473,6 +1492,7 @@ if __name__ == "__main__":
     utf8_git_output_cases()
     utf8_snapshot_state_cases()
     utf8_close_git_cases()
+    check_timeout_cases()
     parity_verified, parity_message = duplication_case()
     print(parity_message)
     roster = ("PASS: clean, stale, incomplete, failed-probe, placeholder, "
@@ -1483,7 +1503,7 @@ if __name__ == "__main__":
               "cache-weekly, cache-no-inputs, cache-expand, cache-inputs-type, "
               "cache-close-shared, "
               "cache-atomic, cache-path-confined, utf8-output, utf8-git-output, "
-              "utf8-snapshot, utf8-close-git")
+              "utf8-snapshot, utf8-close-git, check-timeout")
     # no-drift appears in the pass roster only when parity was actually
     # compared; a single-card install reports NOT VERIFIED above instead.
     print(roster + ", no-drift" if parity_verified else roster)

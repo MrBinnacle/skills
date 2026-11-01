@@ -35,6 +35,8 @@ UNFAILABLE_CHECK = re.compile(r"^\s*git\s+status(\s+--porcelain(=\S+)?)*\s*$")
 # Receiver-check cache: once a week every cached check runs uncached and is
 # compared with its cached verdict. A disagreement fails the open.
 CACHE_WEEKLY_DAYS = 7
+# Long enough for a test suite, not for a hang on a lock or a prompt.
+CHECK_TIMEOUT_S = 600
 
 
 class PacketError(ValueError):
@@ -45,12 +47,16 @@ def run(cmd: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     """Run a trusted command, decoding its output as UTF-8 with replacement.
 
     Never the caller's locale encoding: on a cp1252 host a check printing a
-    character outside cp1252 crashed the validator (issue #372).
+    character outside cp1252 crashed the validator (issue #372). A check that
+    outruns CHECK_TIMEOUT_S fails with exit 124, as coreutils `timeout` does.
     """
-    return subprocess.run(
-        cmd, cwd=cwd, shell=True, capture_output=True,
-        encoding="utf-8", errors="replace",
-    )
+    try:
+        return subprocess.run(
+            cmd, cwd=cwd, shell=True, capture_output=True,
+            encoding="utf-8", errors="replace", timeout=CHECK_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(cmd, 124, "", f"timed out after {CHECK_TIMEOUT_S}s")
 
 
 def git(cwd: Path, *args: str) -> str:
