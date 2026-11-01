@@ -180,7 +180,9 @@ def main(argv: list[str]) -> int:
                 skipped += 1
                 print(f"SKIP {s.job}[{s.index}] {s.name} ({s.skip})", flush=True)
                 continue
-            temp = temps.setdefault(s.job, Path(tempfile.mkdtemp(prefix=f"ci-local-{s.job}-")))
+            if s.job not in temps:
+                temps[s.job] = Path(tempfile.mkdtemp(prefix=f"ci-local-{s.job}-"))
+            temp = temps[s.job]
             if s.note:
                 print(f"NOTE {s.job}[{s.index}] {s.name}: {s.note}", flush=True)
             rc = run_step(s, args.bash, temp)

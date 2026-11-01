@@ -32,4 +32,11 @@ describe("session-packet temp directories", () => {
     expect(left.some((name) => name.startsWith("session-packet-remote-"))).toBe(true);
     expect(stderr).toContain("kept 2 temp directories");
   }, 60_000);
+
+  test("a body that outlives its timeout keeps its repository, and the next test leaves it alone", () => {
+    const { code, left, stderr } = runFixture({ TEMP_LIFECYCLE_TIMEOUT: "1" });
+    expect(code).toBe(1);
+    expect(left.filter((name) => name.startsWith("session-packet-"))).toHaveLength(1);
+    expect(stderr).toContain("kept 1 temp directories");
+  }, 60_000);
 });

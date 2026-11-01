@@ -100,6 +100,8 @@ jobs:
         run: |
           touch "$RUNNER_TEMP/object"
           chmod 444 "$RUNNER_TEMP/object"
+      - name: A later step in the job shares the folder
+        run: test -f "$RUNNER_TEMP/object"
 """
 
 
@@ -110,8 +112,8 @@ def leaves_nothing_in_temp() -> bool:
         temp = Path(tmp) / "temp"
         temp.mkdir()
         env = {**os.environ, "TEMP": str(temp), "TMP": str(temp), "TMPDIR": str(temp)}
-        subprocess.run([sys.executable, str(SCRIPT), "--workflow", str(workflow)], capture_output=True, env=env)
-        return list(temp.iterdir()) == []
+        done = subprocess.run([sys.executable, str(SCRIPT), "--workflow", str(workflow)], capture_output=True, env=env)
+        return done.returncode == 0 and list(temp.iterdir()) == []
 
 
 def main() -> int:

@@ -1,7 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { git, GIT_TIMEOUT, makeRepo, nodeExec } from "../session-packet/testkit";
+import { git, GIT_TIMEOUT, makeRepo, nodeExec, test } from "../session-packet/testkit";
 import extension from "./index";
 
 type Handler = (...args: any[]) => any;
