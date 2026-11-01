@@ -15,13 +15,16 @@ The states it must tell apart:
   - a filter that leaves nothing to run exits non-zero;
   - a job with a shallow CI checkout is named, and a full-history one is not;
     a checkout of another repository does not count, the last checkout of
-    this one decides, and an expression depth is named as unknown.
+    this one decides, and an expression depth is named as unknown;
+  - the tally names the commit and any uncommitted changes, and a tree that
+    changed during the run exits 1, whichever way it changed.
 
 Run directly:  python scripts/test_ci_local.py
 """
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -90,6 +93,43 @@ def run(workflow: str, *args: str) -> subprocess.CompletedProcess[str]:
                               capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
+def tree_state_cases() -> None:
+    """Run a copy of the script from a fixture repo, so its steps can edit tracked code."""
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        root = Path(tmp)
+        (root / "scripts").mkdir()
+        shutil.copy(SCRIPT, root / "scripts" / "ci_local.py")
+        (root / "code.py").write_text("limit = 5\n", encoding="utf-8")
+        workflow = root / "flow.yml"
+
+        def git(*args: str) -> str:
+            return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=True).stdout.strip()
+
+        def gate(step: str) -> subprocess.CompletedProcess[str]:
+            workflow.write_text(f"jobs:\n  a:\n    steps:\n      - name: S\n        run: {step}\n", encoding="utf-8")
+            return subprocess.run([sys.executable, "scripts/ci_local.py", "--workflow", str(workflow)], cwd=root,
+                                  capture_output=True, text=True, encoding="utf-8", errors="replace")
+
+        git("init", "-q")
+        git("add", "code.py", "scripts")
+        git("-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "fixture")
+        head = git("rev-parse", "--short", "HEAD")
+
+        clean = gate("exit 0")
+        check("a clean run names its commit", clean.returncode == 0 and f"failed at {head}\n" in clean.stdout,
+              clean.stdout + clean.stderr)
+        changed = gate("echo 'limit = None' >> code.py")
+        check("a tree changed during the run voids it", changed.returncode == 1 and "VOID" in changed.stdout,
+              changed.stdout + changed.stderr)
+        dirty = gate("exit 0")
+        check("a dirty tree is named and does not fail",
+              dirty.returncode == 0 and f"failed at {head} plus uncommitted changes" in dirty.stdout
+              and "VOID" not in dirty.stdout, dirty.stdout + dirty.stderr)
+        restored = gate("git checkout code.py")
+        check("a mutant restored during the run voids it", restored.returncode == 1 and "VOID" in restored.stdout,
+              restored.stdout + restored.stderr)
+
+
 def main() -> int:
     whole = run(WORKFLOW)
     check("a failing step fails the run", whole.returncode == 1, f"rc={whole.returncode}")
@@ -149,6 +189,8 @@ def main() -> int:
     unknown_if = run(WORKFLOW.replace("matrix.os == 'ubuntu-latest'", "runner.os == 'Windows'"))
     check("an unmodelled if: is refused", unknown_if.returncode != 0 and "runner.os" in unknown_if.stderr,
           unknown_if.stdout + unknown_if.stderr)
+
+    tree_state_cases()
 
     if FAILURES:
         print("FAIL: ci_local suite")

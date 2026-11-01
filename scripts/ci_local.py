@@ -23,6 +23,8 @@ this clone has full history and every remote ref, so a step that walks history o
 resolves origin/<branch> can pass here and fail there (PR #622, 2026-10-23).
 A step key the script does not model (`working-directory`, `shell`) is an error,
 so the runner fails loudly when the workflow grows one.
+The tally names the commit under test and any uncommitted changes. A run whose tree
+changed while it ran exits 1, because its result describes no single state of the code.
 
 Needs PyYAML (maintainer machine only; CI does not run this script).
 
@@ -33,6 +35,7 @@ Needs PyYAML (maintainer machine only; CI does not run this script).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import os
 import re
@@ -134,6 +137,16 @@ def run_step(step: Step, bash: str, temp: Path) -> int:
     return subprocess.run([bash, "-c", step.run], cwd=ROOT, env=env).returncode
 
 
+def tree_state() -> str:
+    """Name the code under test, so a result cannot be read as a result for other code."""
+    def git(*args: str) -> bytes:
+        return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, check=True).stdout
+
+    head = git("rev-parse", "--short", "HEAD").decode().strip()
+    diff = git("diff", "HEAD")
+    return f"{head} plus uncommitted changes {hashlib.sha256(diff).hexdigest()[:8]}" if diff else head
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Run the shell steps of the CI workflow locally.")
     parser.add_argument("--list", action="store_true", help="print the steps and exit")
@@ -158,6 +171,8 @@ def main(argv: list[str]) -> int:
         return 2
     failed, skipped, ran = [], 0, 0
     temps: dict[str, Path] = {}
+    state = tree_state()
+    print(f"Testing {state}", flush=True)
     try:
         for s in steps:
             if s.skip:
@@ -175,10 +190,13 @@ def main(argv: list[str]) -> int:
     finally:
         for temp in temps.values():
             shutil.rmtree(temp, ignore_errors=True)
-    print(f"\n{ran} ran, {skipped} skipped, {len(failed)} failed")
+    print(f"\n{ran} ran, {skipped} skipped, {len(failed)} failed at {state}")
     for name in failed:
         print(f"  FAILED {name}")
-    return 1 if failed or not ran else 0
+    after = tree_state()
+    if after != state:
+        print(f"  VOID: the tree changed during the run, from {state} to {after}")
+    return 1 if failed or not ran or after != state else 0
 
 
 if __name__ == "__main__":
