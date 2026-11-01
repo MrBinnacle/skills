@@ -1,5 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { finalizeReview, newReviewId, renderReview, type Submission } from "./review";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { GIT_TIMEOUT, makeRepo, nodeExec } from "../session-packet/testkit";
+import { diffArgs, finalizeReview, newReviewId, renderReview, type Submission } from "./review";
+
+describe("diffArgs", () => {
+  test("a base of --output=<path> fails instead of writing the file", async () => {
+    const { root } = await makeRepo();
+    const target = join(root, "pwned");
+    const result = await nodeExec("git", ["-C", root, ...diffArgs(`--output=${target}`)], {});
+    expect(result.code).not.toBe(0);
+    expect(existsSync(target)).toBe(false);
+  }, GIT_TIMEOUT);
+});
 
 const META = { model: "anthropic/claude-opus-5-5", base: "HEAD", head: "abc1234" };
 

@@ -11,7 +11,7 @@ loaded as extensions; tests (`*.test.ts`) live inside subdirectories so Pi never
 | Verification gate | `verify-gate/` | `session_start` (config load), `before_agent_start`, `tool_result`, `agent_before_settle` |
 | Line-ending guard | `eol-guard/` | `session_start` (repo root via `pi.exec git`), `before_agent_start`, `tool_result` (appends to the result `content`) |
 | In-process reviewer | `reviewer/` | `/review` command, `review_diff` tool, `createAgentSession()` |
-| Session-boundary packet | `session-packet/` | `/packet-close`, `/packet-open` commands, `agent_before_settle` (fill validation), `session_start` check |
+| Session-boundary packet | `session-packet/` | `/packet-close`, `/packet-open` commands, `agent_before_settle` (fill validation) |
 
 ## Layout rule: pure core, thin adapter
 

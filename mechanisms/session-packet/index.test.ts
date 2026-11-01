@@ -1,4 +1,4 @@
-import { describe, expect, spyOn, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import extension from "./index";
@@ -48,11 +48,10 @@ function fillLatest(root: string) {
 const settle = { type: "agent_before_settle", outcome: "completed", entries: [], continue: false, context: { canContinue: true } };
 
 describe("session-packet adapter", () => {
-  test("registers both commands and the lifecycle handlers", () => {
+  test("registers both commands and only the settle handler: nothing runs at session start", () => {
     const { commands, events } = fakePi();
     expect([...commands.keys()].sort()).toEqual(["packet-close", "packet-open"]);
-    expect(events.has("session_start")).toBe(true);
-    expect(events.has("agent_before_settle")).toBe(true);
+    expect([...events.keys()]).toEqual(["agent_before_settle"]);
   });
 
   test("/packet-close without an objective refuses and asks the agent nothing", async () => {
@@ -132,22 +131,6 @@ describe("session-packet adapter", () => {
     expect(JSON.parse(notes.at(-1)!.message).errors).toContain("receive mode requires a sessionPacket config");
   }, GIT_TIMEOUT);
 
-  test("session_start checks the latest packet only when the project declares sessionPacket", async () => {
-    const { root } = await makeRepo();
-    writeConfig(root, undefined); // a config file with no sessionPacket section
-    const { commands, events } = fakePi();
-    const { ctx, notes } = fakeCtx(root);
-    await commands.get("packet-close")!("Ship", ctx);
-    fillLatest(root);
-    await events.get("agent_before_settle")!(settle, ctx);
-    const before = notes.length;
-    await events.get("session_start")!({ type: "session_start", reason: "startup" }, ctx);
-    expect(notes.length).toBe(before);
-    writeConfig(root, {});
-    await events.get("session_start")!({ type: "session_start", reason: "startup" }, ctx);
-    expect(notes.at(-1)?.message).toContain("ACCEPTED");
-  }, GIT_TIMEOUT);
-
   test("with a branch store, the accepted fill is committed and pushed, and open reads it back from the store", async () => {
     const { root } = await makeRepo();
     const bare = await makeRemote(root);
@@ -162,28 +145,8 @@ describe("session-packet adapter", () => {
     expect(notes.at(-1)?.level).toBe("info");
     expect(notes.at(-1)?.message).toContain("pushed");
     expect(await git(bare, "ls-tree", "--name-only", "session-log")).toBe(name);
-    await events.get("session_start")!({ type: "session_start", reason: "startup" }, ctx);
+    await commands.get("packet-open")!("", ctx);
     const receipt = JSON.parse(notes.at(-1)!.message);
     expect(receipt.verdict).toBe("ACCEPTED");
-  }, GIT_TIMEOUT);
-
-  test("session_start never throws: a failure is reported, on stderr when there is no UI", async () => {
-    const root = join(import.meta.dir, "fixtures");
-    const { events } = fakePi();
-    const { ctx, notes } = fakeCtx(root, false);
-    const spy = spyOn(console, "error").mockImplementation(() => {});
-    try {
-      // The fixtures directory is inside a repo but has no config: nothing to check, nothing thrown.
-      await events.get("session_start")!({ type: "session_start", reason: "startup" }, ctx);
-      const bad = (await makeRepo()).root;
-      mkdirSync(join(bad, ".pi"));
-      writeFileSync(join(bad, ".pi", "engineering-env.json"), "{ broken");
-      await events.get("session_start")!({ type: "session_start", reason: "startup" }, { ...ctx, cwd: bad });
-      expect(spy).toHaveBeenCalled();
-      expect(String(spy.mock.calls.at(-1)![0])).toContain("engineering-env.json");
-      expect(notes).toEqual([]);
-    } finally {
-      spy.mockRestore();
-    }
   }, GIT_TIMEOUT);
 });

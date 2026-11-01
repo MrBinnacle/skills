@@ -172,9 +172,9 @@ probed. A manifest without `parked` is not checked for it.
   error.
 - `/packet-open [path]` validates the latest packet (or the packet at `path`) in receive mode. It
   notifies the operator with the receipt JSON and also posts the receipt into the session.
-- `session_start` (reasons startup, new and resume) runs the same check as `/packet-open`. It runs
-  only when the project declares `sessionPacket` and a packet exists. It reports the verdict through
-  `ctx.ui.notify`, or through stderr when no UI exists. An exception is reported and never thrown.
+- Nothing runs at session start. Until 2026-10-31 a `session_start` handler ran the `/packet-open`
+  check when the project declared `sessionPacket`, which ran that project's `receiverChecks` shell
+  commands on open with no prompt. Receive mode runs only on the explicit command.
 
 ### Why two steps for the close
 
