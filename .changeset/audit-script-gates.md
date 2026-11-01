@@ -1,0 +1,5 @@
+---
+"mrbinnacle-skills": patch
+---
+
+Six gate fixes from the 2026-10-31 audit. `scripts/check_changeset_for_branch.py` and its suite are deleted. They existed only because `.changeset/` was untracked, they read dates and version suffixes in branch names as issue numbers, and they failed a changeset written before a rebase. The workflow step returns to `changeset status --since=origin/main`, which asks git. `validate_card_files.py` keys its allowlist on the exact breach text, so a listed card that gains a second unreachable file fails. It refuses an origin SHA it cannot check because git cannot run, refuses a block-scalar description, and reads a UTF-8 BOM as no BOM. `validate_spec_conformance.py` now validates a card before its first commit, handles a path with a space, and refuses a failed `git ls-files`. `ci_local.py` no longer skips `pip install`, so the three skill-harness steps run locally in a venv.

@@ -10,6 +10,7 @@ it: the stale label and the count written as prose.
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -1403,11 +1404,25 @@ def case_allowlisted_breach_does_not_block(root: Path) -> None:
         _validate_exits(root),
     )
     old = vcf._ALLOWLIST
-    vcf._ALLOWLIST = frozenset({(rel, "reachability")})
+    vcf._ALLOWLIST = frozenset({(rel, "reachability", vcf._UNREACHABLE + "orphan.md")})
     try:
         check(
             "an allowlisted breach does not fail the gate",
             not _validate_exits(root),
+        )
+        (card / "second-orphan.md").write_text("# second\n", encoding="utf-8")
+        # The new breach itself must block. The entry going stale fails the gate
+        # too, so the exit code alone would pass under a pair-keyed allowlist.
+        import contextlib
+        import io
+
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            exited = _validate_exits(root)
+        check(
+            "an allowlisted card that gains a second unreachable file is refused for that file",
+            exited and f"  - {rel}: {vcf._UNREACHABLE}orphan.md, second-orphan.md" in err.getvalue(),
+            err.getvalue()[:300],
         )
     finally:
         vcf._ALLOWLIST = old
@@ -1436,7 +1451,7 @@ def case_stale_allowlist_entry_is_rejected(root: Path) -> None:
     )
 
     old = vcf._ALLOWLIST
-    vcf._ALLOWLIST = frozenset({(rel, "reachability")})
+    vcf._ALLOWLIST = frozenset({(rel, "reachability", vcf._UNREACHABLE + "orphan.md")})
     try:
         check(
             "a stale allowlist entry FAILS the gate",
@@ -1457,7 +1472,7 @@ def case_allowlist_entry_for_an_absent_card_is_not_stale(root: Path) -> None:
 
     write_card(root, "unrelated-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
     old = vcf._ALLOWLIST
-    vcf._ALLOWLIST = frozenset({("skills/engineering/not-in-this-tree", "size")})
+    vcf._ALLOWLIST = frozenset({("skills/engineering/not-in-this-tree", "size", "too big")})
     try:
         # The card present here breaches reachability, so the gate rejects -- but
         # it must not additionally claim the absent card's entry is stale.
@@ -1562,6 +1577,47 @@ def case_observed_origin_bad_sha_is_rejected(root: Path) -> None:
         "OBSERVED origin with non-existent commit SHA is rejected",
         result.returncode != 0 and fake_sha[:12] in result.stderr
         and "not present in this repository" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_origin_sha_git_unavailable_is_rejected(root: Path) -> None:
+    """A SHA that cannot be checked is a breach, not a pass."""
+    fake_sha = "b" * 40
+    write_card(root, "no-git-card", _observed_evidence(f"See commit {fake_sha}."), CONFORMING_GOTCHAS)
+    result = subprocess.run(
+        [sys.executable, str(CHECKER), "--root", str(root)],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PATH": str(root)},
+    )
+    check(
+        "an origin SHA is refused when git cannot run",
+        result.returncode != 0 and "could not be checked" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_block_scalar_description_is_rejected(root: Path) -> None:
+    for name, marker in (("folded-card", ">-"), ("literal-card", "|")):
+        write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=f"{marker}\n  long text")
+    result = run_checker(root)
+    for name in ("folded-card", "literal-card"):
+        check(
+            f"a block scalar description is refused: {name}",
+            any(name in line and "block scalar" in line for line in result.stderr.splitlines()),
+            result.stderr.strip(),
+        )
+
+
+def case_bom_does_not_hide_the_frontmatter(root: Path) -> None:
+    card = write_card(root, "bom-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    skill = card / "SKILL.md"
+    skill.write_bytes(b"\xef\xbb\xbf" + skill.read_bytes())
+    result = run_checker(root)
+    check(
+        "a UTF-8 BOM does not read as a missing description or by-hand flag",
+        "states no frontmatter description" not in result.stderr and "always-on bar" not in result.stderr,
         result.stderr.strip(),
     )
 
@@ -1948,6 +2004,9 @@ def main() -> None:
         case_missing_description_is_rejected,
         case_zero_cards_is_red,
         case_unpublished_buckets_owe_nothing,
+        case_origin_sha_git_unavailable_is_rejected,
+        case_block_scalar_description_is_rejected,
+        case_bom_does_not_hide_the_frontmatter,
         case_plugin_root_is_not_a_card,
         case_plugin_eval_directory_is_not_a_card,
         case_skill_too_small_is_rejected,

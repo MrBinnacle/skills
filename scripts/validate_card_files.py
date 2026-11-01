@@ -213,26 +213,31 @@ _SKIP_DIRS: Final[frozenset[str]] = frozenset({"__pycache__", ".git"})
 # stale and FAILS the gate, so a card that gets fixed forces the entry out rather
 # than quietly keeping its exemption. Nothing here can rot unnoticed.
 #
-# An entry is (card path relative to the repo root, rule kind). Rule kinds are the
+# An entry is (card path relative to the repo root, rule kind, exact breach text).
+# The text is part of the key, so a card on this list that gains a second breach of
+# the same kind is refused rather than waived with the first. Rule kinds are the
 # names in _RULES below; a typo is caught because the entry can never match and is
 # reported stale on the next run.
 _ALLOWLIST_RECORDED: Final[str] = "2026-09-06"
-_ALLOWLIST: Final[frozenset[tuple[str, str]]] = frozenset({
+_UNREACHABLE: Final[str] = "not reachable from SKILL.md through local links: "
+_ALLOWLIST: Final[frozenset[tuple[str, str, str]]] = frozenset({
     # No card is over the 7,168-byte ceiling any more: decision-rights (#385)
     # and subagent-handback (#384) left this list on 2026-10-17.
     # EVIDENCE.md and gotchas.md are not reachable from these cards' SKILL.md.
     # Twelve of fourteen cards, measured 2026-09-06. pull-rebase left on
     # 2026-10-19 (#467 slice A): its SKILL.md now links EVIDENCE.md.
-    ("skills/engineering/clirunner-env", "reachability"),
-    ("skills/engineering/stale-deploy", "reachability"),
-    ("skills/engineering/halt-as-deliverable", "reachability"),
-    ("skills/engineering/im-down", "reachability"),
-    ("skills/engineering/im-up", "reachability"),
-    ("skills/engineering/mocked-stub", "reachability"),
-    ("skills/engineering/pretooluse-prose", "reachability"),
-    ("skills/engineering/vacuous-check", "reachability"),
-    ("skills/meta/dead-predicate", "reachability"),
-    ("skills/orchestration/decision-rights", "reachability"),
+    ("skills/engineering/clirunner-env", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/engineering/stale-deploy", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/engineering/halt-as-deliverable", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/engineering/im-down", "reachability",
+     _UNREACHABLE + "EVIDENCE.md, close_session.py, snapshot_state.py, validate_packet.py"),
+    ("skills/engineering/im-up", "reachability",
+     _UNREACHABLE + "EVIDENCE.md, open_session.py, validate_packet.py"),
+    ("skills/engineering/mocked-stub", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/engineering/pretooluse-prose", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/engineering/vacuous-check", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/meta/dead-predicate", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/orchestration/decision-rights", "reachability", _UNREACHABLE + "EVIDENCE.md"),
 })
 
 
@@ -339,7 +344,7 @@ def stated_description(card: Path) -> str | None:
     skill_md = card / "SKILL.md"
     if not skill_md.is_file():
         return None
-    block = FRONTMATTER_RE.match(skill_md.read_text(encoding="utf-8", errors="replace"))
+    block = FRONTMATTER_RE.match(skill_md.read_text(encoding="utf-8-sig", errors="replace"))
     if block is None:
         return None
     found = DESCRIPTION_LINE_RE.search(block.group(1))
@@ -362,6 +367,11 @@ def description_breaches(card: Path) -> list[str]:
         return [
             "SKILL.md states no frontmatter description. It is the only thing "
             "that decides whether a model-invocable card is ever reached"
+        ]
+    if description[0] in ">|":
+        return [
+            "SKILL.md description is a YAML block scalar, whose length this bar "
+            "cannot measure. Write it on one line"
         ]
     if len(description) > DESCRIPTION_LIMIT:
         return [
@@ -496,7 +506,7 @@ def evidence_breaches(card: Path) -> list[str]:
 def is_by_hand(card: Path) -> bool:
     """True when the card's frontmatter sets `disable-model-invocation: true`."""
     block = FRONTMATTER_RE.match(
-        (card / "SKILL.md").read_text(encoding="utf-8", errors="replace")
+        (card / "SKILL.md").read_text(encoding="utf-8-sig", errors="replace")
     )
     return block is not None and BY_HAND_RE.search(block.group(1)) is not None
 
@@ -646,10 +656,13 @@ def origin_locator_breaches(card: Path) -> list[str]:
                         f"Origin locator names commit SHA {loc[:12]}... which "
                         "is not present in this repository"
                     )
-            except (subprocess.TimeoutExpired, OSError):
-                # If git is unavailable, skip this check -- the SHA is at
-                # least structurally present even if unresolvable.
-                pass
+            except (subprocess.TimeoutExpired, OSError) as error:
+                # A check that cannot run has not passed: a fabricated SHA
+                # would otherwise clear this gate wherever git is missing.
+                breaches.append(
+                    f"Origin locator names commit SHA {loc[:12]}... which could "
+                    f"not be checked: {error}"
+                )
             continue
 
         # External reference: accepted as a locator (reviewer can follow it).
@@ -1049,9 +1062,9 @@ def validate(root: Path) -> None:
             for detail in details:
                 found.append((rel, kind, detail))
 
-    allowed = [f for f in found if (f[0], f[1]) in _ALLOWLIST]
+    allowed = [f for f in found if f in _ALLOWLIST]
     blocking = [f"  - {rel}: {detail}" for rel, kind, detail in found
-                if (rel, kind) not in _ALLOWLIST]
+                if (rel, kind, detail) not in _ALLOWLIST]
 
     # The allowlist can only shrink. An entry whose breach no longer occurs has
     # been fixed, and the entry must go with it -- otherwise the list keeps
@@ -1062,7 +1075,7 @@ def validate(root: Path) -> None:
     # entries as stale, and the shrink check would fire on trees it says nothing
     # about.
     present = {card.relative_to(root).as_posix() for card in cards}
-    live = {(rel, kind) for rel, kind, _ in found}
+    live = set(found)
     applicable = {entry for entry in _ALLOWLIST if entry[0] in present}
     for entry in sorted(applicable - live):
         blocking.append(

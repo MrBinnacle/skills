@@ -21,7 +21,9 @@ Run directly:  python scripts/test_validate_spec_conformance.py
 """
 from __future__ import annotations
 
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -181,6 +183,29 @@ def case_declared_divergences_carry_reasons() -> None:
         )
 
 
+def case_card_dirs_sees_untracked_cards_and_spaces() -> None:
+    """A new card counts before its first commit; a space does not split a path."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        (root / ".gitignore").write_text("skills/ignored/\n", encoding="utf-8")
+        for name in ("engineering/new card", "ignored/card"):
+            (root / "skills" / name).mkdir(parents=True)
+            (root / "skills" / name / "SKILL.md").write_text("x\n", encoding="utf-8")
+        cards = spec.card_dirs(root, "skills")
+        check("an untracked card with a space is found whole", cards == [root / "skills/engineering/new card"], repr(cards))
+
+
+def case_card_dirs_refuses_a_failed_git() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            spec.card_dirs(Path(tmp), "skills")
+            refused = False
+        except SystemExit:
+            refused = True
+    check("a failed git ls-files is refused, not read as no cards", refused)
+
+
 def main() -> None:
     case_published_tolerates_only_the_declared_key()
     case_candidate_tolerates_exactly_what_promotion_fixes()
@@ -189,6 +214,8 @@ def main() -> None:
     case_error_lines_are_read_per_bullet()
     case_a_success_run_yields_no_error_lines()
     case_declared_divergences_carry_reasons()
+    case_card_dirs_sees_untracked_cards_and_spaces()
+    case_card_dirs_refuses_a_failed_git()
 
     note(
         "the live subprocess run against the real reference validator is NOT "

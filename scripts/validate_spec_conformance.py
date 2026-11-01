@@ -136,15 +136,19 @@ def card_dirs(root: Path, tree: str) -> list[Path]:
 
     `git ls-files` is used for the same reason AGENTS.md gives elsewhere: on
     this maintainer's Windows host the published cards are junctions, and a
-    plain walk silently undercounts them.
+    plain walk silently undercounts them. Untracked cards count: a new card is
+    the one under review, and the run comes before its first commit.
     """
     proc = subprocess.run(
-        ["git", "ls-files", f"{tree}/**/SKILL.md"],
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard", f"{tree}/**/SKILL.md"],
         cwd=root,
         capture_output=True,
         text=True,
     )
-    return [root / line.rsplit("/", 1)[0] for line in proc.stdout.split() if line]
+    if proc.returncode != 0:
+        print(f"REJECTED: git ls-files failed: {proc.stderr.strip()}", file=sys.stderr)
+        raise SystemExit(1)
+    return [root / line.rsplit("/", 1)[0] for line in proc.stdout.split("\0") if line]
 
 
 def spec_cli_available() -> bool:
