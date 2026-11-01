@@ -42,11 +42,12 @@ const row = (text: string) =>
 // The engine beneath the mod: the built-in's store file on disk, the session,
 // and a record of every prompt and card post. The mod reads the file at start,
 // as it does in a session, so its own state holds the heads-up.
-async function engineBeneath($: Engine, on: On, current: typeof TIP | null, surfaces: RenderSurface[] = []) {
+async function engineBeneath($: Engine, on: On, current: typeof TIP | null, surfaces: RenderSurface[] = [], drop?: string) {
   const prompts: string[] = []
   const contexts: string[][] = []
   const toasts: string[] = []
-  const store = current ? { sessions: [{ id: SESSION, view: { kind: 'offer', ...current } }] } : { sessions: [] }
+  const storeOf = (offer: typeof TIP | null) => (offer ? { sessions: [{ id: SESSION, view: { kind: 'offer', ...offer } }] } : { sessions: [] })
+  let store = storeOf(current)
   on('env.get', (_$, e) => ({ value: e.name === 'USERPROFILE' ? 'C:/Users/me' : undefined }))
   on('fs.list', () => ({ value: [{ name: 'cc-plugin-you-should-know_builtin-1.json', kind: 'file', size: 1, mtimeMs: 0, isLink: false }] }))
   on('fs.read', () => ({ value: JSON.stringify(store) }))
@@ -55,6 +56,7 @@ async function engineBeneath($: Engine, on: On, current: typeof TIP | null, surf
   on('command.register', () => ({ value: { command: 'tips' } }))
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('prompt.submit', (_$, e) => {
+    if (drop) return { drop }
     prompts.push(e.text)
     contexts.push([...(e.context ?? [])])
 
@@ -71,7 +73,11 @@ async function engineBeneath($: Engine, on: On, current: typeof TIP | null, surf
   on('tool.check', () => ({ decision: 'allow' as const }))
   await $.session.start({ cwd: '/', surface: 'mobile', isInteractive: true })
 
-  return { prompts, contexts, toasts }
+  const offerNow = (offer: typeof TIP) => {
+    store = storeOf(offer)
+  }
+
+  return { prompts, contexts, toasts, offerNow }
 }
 
 test("the store file yields this session's offer, not another's", () => {
@@ -116,6 +122,65 @@ test('Hand to Claude sends the heads-up as your prompt and settles the card', as
   expect(await ui.find({ key: 'act' })).toBeUndefined()
   expect((await ui.find({ type: 'Text', text: /Handed to Claude/ }))).toBeDefined()
   await ui.unmount()
+})
+
+test('a hook that refuses the hand-over leaves the heads-up waiting and says why', async ($, on) => {
+  const { prompts, toasts } = await engineBeneath($, on, TIP, [], 'refused by a guard')
+
+  const ui = await $.ui.mount({ ...row(cardText(TIP)), surface: 'mobile' })
+  await ui.press({ key: 'act' })
+  for (let i = 0; i < 500; i++) await Promise.resolve()
+
+  expect(prompts.length).toBe(0)
+  expect(await ui.find({ key: 'act' })).toBeDefined()
+  await ui.unmount()
+  expect(toasts.at(-1)).toContain('not handed to Claude: refused by a guard')
+  expect((await tips($)).text).toBe(cardText(TIP))
+})
+
+test('a subagent finishing inside your turn does not raise the question', { options: { deliver: 'buttons' } }, async ($, on) => {
+  let asks = 0
+  on('tool.call', (_$, e) => {
+    if (e.tool === 'AskUserQuestion') asks += 1
+
+    return { result: 'sent' }
+  })
+  on('turn.start', (_$, e) => ({ turnId: e.turnId }))
+  on('turn.complete', (_$, e) => ({ text: e.answer }))
+  const { offerNow } = await engineBeneath($, on, null)
+  offerNow(TIP)
+  const settle = async () => {
+    for (let i = 0; i < 5000; i++) await Promise.resolve()
+  }
+  const ending = { answer: '', durationMs: 1, isAborted: false, reason: 'answer' as const }
+
+  await $.turn.start({ text: 'main', turnId: 'main' })
+  await $.turn.start({ text: 'sub', turnId: 'sub', agentId: 'agent' })
+  await $.turn.complete({ ...ending, turnId: 'sub', agentId: 'agent' })
+  await settle()
+  expect(asks).toBe(0)
+
+  await $.turn.complete({ ...ending, turnId: 'main' })
+  await settle()
+  expect(asks).toBe(1)
+})
+
+test('a subagent running while you are idle does not hold /tips back', { options: { deliver: 'buttons' } }, async ($, on) => {
+  let asks = 0
+  on('tool.call', (_$, e) => {
+    if (e.tool === 'AskUserQuestion') asks += 1
+
+    return { result: 'sent' }
+  })
+  on('turn.start', (_$, e) => ({ turnId: e.turnId }))
+  await engineBeneath($, on, TIP)
+  for (let i = 0; i < 5000; i++) await Promise.resolve()
+  expect(asks).toBe(1)
+
+  await $.turn.start({ text: 'sub', turnId: 'sub', agentId: 'agent' })
+  await tips($)
+  for (let i = 0; i < 5000; i++) await Promise.resolve()
+  expect(asks).toBe(2)
 })
 
 test('Dismiss settles the card and sends nothing', async ($, on) => {
