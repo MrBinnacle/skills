@@ -1599,15 +1599,47 @@ def case_origin_sha_git_unavailable_is_rejected(root: Path) -> None:
 
 
 def case_block_scalar_description_is_rejected(root: Path) -> None:
-    for name, marker in (("folded-card", ">-"), ("literal-card", "|")):
-        write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=f"{marker}\n  long text")
+    long = "x" * 300
+    forms = {
+        "folded-card": f">-\n  {long}",
+        "literal-card": f"|\n  {long}",
+        "tag-card": f"!!str >-\n  {long}",
+        "anchor-card": f"&a >-\n  {long}",
+        "comment-card": f"# note\n  {long}",
+        "alias-card": "*a",
+        "plain-continued-card": f"short\n  {long}",
+        "tab-continued-card": f"short\n\t{long}",
+        "quote-continued-card": f'"short\n  {long}"',
+        "single-quote-open-card": "'",
+        "bare-key-card": f"\n  {long}",
+        "bare-folded-card": ">-",
+        "bare-literal-card": "|",
+        "bare-tag-card": "!!str short",
+        "bare-anchor-card": "&a short",
+        "bare-comment-card": "# note",
+    }
+    for name, form in forms.items():
+        write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
+    for name, form in (("gt-card", '">= two occasions: use when testing"'), ("pipe-card", "'| pipe: use when testing'")):
+        write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
+    write_card(root, "empty-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description='""')
+    write_card(root, "oversize-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=long)
     result = run_checker(root)
-    for name in ("folded-card", "literal-card"):
+    lines = result.stderr.splitlines()
+    for name in forms:
         check(
-            f"a block scalar description is refused: {name}",
-            any(name in line and "block scalar" in line for line in result.stderr.splitlines()),
+            f"a description past one line is refused: {name}",
+            any(name in line and "not a one-line value" in line for line in lines),
             result.stderr.strip(),
         )
+    for name in ("gt-card", "pipe-card"):
+        check(f"a quoted one-line description passes: {name}", not any(name in line for line in lines), result.stderr.strip())
+    check(
+        "an empty description reads as none, and the other cards are still reported",
+        any("empty-card" in line and "states no frontmatter description" in line for line in lines)
+        and any("oversize-card" in line and "300 characters" in line for line in lines),
+        result.stderr.strip(),
+    )
 
 
 def case_bom_does_not_hide_the_frontmatter(root: Path) -> None:

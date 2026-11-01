@@ -333,6 +333,26 @@ DESCRIPTION_LINE_RE: Final[re.Pattern[str]] = re.compile(
 QUOTE_CHARS: Final[str] = "\"'"
 
 
+def description_spans_lines(card: Path) -> bool:
+    """True when the description key's value may reach past its own line.
+
+    The length bar reads one line, so any YAML form that continues the value
+    elsewhere would escape it. Read before quotes are stripped: `">= two"` is a
+    one-line string, and `>=` unquoted is not.
+    """
+    block = FRONTMATTER_RE.match((card / "SKILL.md").read_text(encoding="utf-8-sig", errors="replace"))
+    if block is None:
+        return False
+    lines = block.group(1).splitlines()
+    for number, line in enumerate(lines):
+        if line.startswith("description:"):
+            raw = line[len("description:"):].strip()
+            following = lines[number + 1] if number + 1 < len(lines) else ""
+            is_open_quote = raw[:1] in tuple(QUOTE_CHARS) and (len(raw) < 2 or raw[-1] != raw[0])
+            return not raw or raw[0] in ">|!&*#" or is_open_quote or following[:1] in (" ", "\t")
+    return False
+
+
 def stated_description(card: Path) -> str | None:
     """The card's description as written, or None if it states none.
 
@@ -362,16 +382,17 @@ def description_breaches(card: Path) -> list[str]:
         # Already reported as a missing required file. Saying it twice in
         # different words would inflate the breach count over one defect.
         return []
+    if description_spans_lines(card):
+        return [
+            "SKILL.md description is not a one-line value (a block scalar, a tag, "
+            "an anchor, or a continuation line), so this bar cannot measure its "
+            "length. Write it on one line"
+        ]
     description = stated_description(card)
-    if description is None:
+    if not description:
         return [
             "SKILL.md states no frontmatter description. It is the only thing "
             "that decides whether a model-invocable card is ever reached"
-        ]
-    if description[0] in ">|":
-        return [
-            "SKILL.md description is a YAML block scalar, whose length this bar "
-            "cannot measure. Write it on one line"
         ]
     if len(description) > DESCRIPTION_LIMIT:
         return [
@@ -1081,7 +1102,7 @@ def validate(root: Path) -> None:
         blocking.append(
             f"  - allowlist entry no longer applies and must be removed: "
             f"{entry[0]} ({entry[1]}). Recorded {_ALLOWLIST_RECORDED}; "
-            f"that breach is fixed, so delete the entry."
+            f"its exact text no longer appears, so delete or correct the entry."
         )
 
     # Exemption staleness is tree-wide, never per-card, and is not allowlistable.

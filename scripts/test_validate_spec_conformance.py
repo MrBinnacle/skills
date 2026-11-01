@@ -189,11 +189,11 @@ def case_card_dirs_sees_untracked_cards_and_spaces() -> None:
         root = Path(tmp)
         subprocess.run(["git", "init", "-q"], cwd=root, check=True)
         (root / ".gitignore").write_text("skills/ignored/\n", encoding="utf-8")
-        for name in ("engineering/new card", "ignored/card"):
+        for name in ("engineering/new card", "engineering/second", "ignored/card"):
             (root / "skills" / name).mkdir(parents=True)
             (root / "skills" / name / "SKILL.md").write_text("x\n", encoding="utf-8")
         cards = spec.card_dirs(root, "skills")
-        check("an untracked card with a space is found whole", cards == [root / "skills/engineering/new card"], repr(cards))
+        check("an untracked card with a space is found whole", cards == [root / "skills/engineering/new card", root / "skills/engineering/second"], repr(cards))
 
 
 def case_card_dirs_refuses_a_failed_git() -> None:
