@@ -38,6 +38,7 @@ UNFAILABLE_CHECK = re.compile(r"^\s*git\s+status(\s+--porcelain(=\S+)?)*\s*$")
 CACHE_WEEKLY_DAYS = 7
 # Long enough for a test suite, not for a hang on a lock or a prompt.
 CHECK_TIMEOUT_S = 600
+KILL_GRACE_S = 5
 
 
 class PacketError(ValueError):
@@ -66,14 +67,20 @@ def run(cmd: str, cwd: Path) -> subprocess.CompletedProcess[str]:
 def kill_tree(proc: subprocess.Popen[str]) -> None:
     """End the shell and its children: the check is a child, and it holds the pipes."""
     if os.name == "nt":
-        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
+        try:
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                capture_output=True, timeout=KILL_GRACE_S,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            proc.kill()
     else:
         try:
             os.killpg(proc.pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
     try:
-        proc.communicate(timeout=5)
+        proc.communicate(timeout=KILL_GRACE_S)
     except subprocess.TimeoutExpired:
         pass  # A child that left the tree still holds the pipes; the limit still holds.
 
