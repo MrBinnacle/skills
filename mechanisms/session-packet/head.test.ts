@@ -1,10 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ghSquashMergeProbe, type SquashMergeProbe, type SquashMergeResult } from "./head";
 import { extract, type Manifest } from "./packet";
 import { type Exec, validateRepository } from "./repo";
-import { cloneRepo, fixture, git, makeRemote, makeRepo, nodeExec, renderPacket } from "./testkit";
+import { cloneRepo, fixture, git, makeRemote, makeRepo, nodeExec, renderPacket, test } from "./testkit";
 import { validatePacket } from "./validate";
 
 function packetAt(root: string, head: string, branch = "main"): Manifest {

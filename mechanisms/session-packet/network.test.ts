@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect } from "bun:test";
 import { readFileSync } from "node:fs";
 import { snapshotPacket, validateFilled } from "./close";
 import { ghSquashMergeProbe, remoteBranch } from "./head";
@@ -6,7 +6,7 @@ import { extract } from "./packet";
 import { type Exec, validateRepository } from "./repo";
 import type { PacketConfig } from "./settings";
 import { listPackets, publishPacket } from "./store";
-import { fillScaffold, fixture, git, makeRemote, makeRepo, nodeExec } from "./testkit";
+import { fillScaffold, fixture, git, makeRemote, makeRepo, nodeExec, test } from "./testkit";
 
 const NETWORK = new Set(["fetch", "ls-remote", "push"]);
 const NON_INTERACTIVE = ["-c", "credential.interactive=never", "-c", "core.askPass=", "-c", "core.sshCommand=ssh -o BatchMode=yes"];

@@ -37,6 +37,7 @@ import io
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -134,6 +135,16 @@ def run_step(step: Step, bash: str, temp: Path) -> int:
     return subprocess.run([bash, "-c", step.run], cwd=ROOT, env=env).returncode
 
 
+def remove_tree(path: Path) -> None:
+    # Git objects are read-only, and on Windows rmtree silently leaves them.
+    for folder, _, files in os.walk(path):
+        for name in files:
+            os.chmod(os.path.join(folder, name), stat.S_IWRITE)
+    shutil.rmtree(path, ignore_errors=True)
+    if path.exists():
+        print(f"WARN could not remove {path}", file=sys.stderr)
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Run the shell steps of the CI workflow locally.")
     parser.add_argument("--list", action="store_true", help="print the steps and exit")
@@ -174,7 +185,7 @@ def main(argv: list[str]) -> int:
                 failed.append(f"{s.job}[{s.index}] {s.name}")
     finally:
         for temp in temps.values():
-            shutil.rmtree(temp, ignore_errors=True)
+            remove_tree(temp)
     print(f"\n{ran} ran, {skipped} skipped, {len(failed)} failed")
     for name in failed:
         print(f"  FAILED {name}")

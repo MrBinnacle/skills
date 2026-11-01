@@ -1,8 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect } from "bun:test";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import extension from "./index";
-import { fillScaffold, git, GIT_TIMEOUT, makeRemote, makeRepo, nodeExec } from "./testkit";
+import { fillScaffold, git, GIT_TIMEOUT, makeRemote, makeRepo, nodeExec, test } from "./testkit";
 
 type Handler = (...args: any[]) => any;
 

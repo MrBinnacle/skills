@@ -1,5 +1,6 @@
+import { test as bunTest } from "bun:test";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Exec } from "./repo";
@@ -13,6 +14,50 @@ export const FIXTURES = join(import.meta.dir, "fixtures");
  * slow pure test still fails.
  */
 export const GIT_TIMEOUT = 30_000;
+
+let tempDirs: string[] = [];
+
+/** A temp directory the running test owns. It goes when the test passes and stays when the test fails. */
+function tempDir(prefix: string): string {
+  const dir = realpathSync.native(mkdtempSync(join(tmpdir(), prefix)));
+  tempDirs.push(dir);
+  return dir;
+}
+
+/** Hand a directory the test made itself, such as a sibling worktree, to the same cleanup. */
+export function ownTempDir(dir: string): void {
+  tempDirs.push(dir);
+}
+
+type TestBody = (...args: never[]) => unknown;
+
+// bun:test gives hooks no pass or fail status (1.3.11), and a module-level afterAll binds to one test file only,
+// so the wrapper around each test body does the cleanup. A body that timed out never reaches it and keeps its directories.
+const cleaned = (body: TestBody) => async (...args: never[]) => {
+  const dirs: string[] = (tempDirs = []);
+  try {
+    await body(...args);
+  } catch (e) {
+    if (dirs.length > 0) console.error(`session-packet: kept ${dirs.length} temp directories for diagnosis: ${dirs.join(" ")}`);
+    throw e;
+  }
+  for (const dir of dirs) {
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    } catch (e) {
+      console.error(`session-packet: could not remove ${dir}: ${e}`);
+    }
+  }
+};
+
+/** bun:test's `test` and `test.each`, with temp directory cleanup. */
+export const test = Object.assign(
+  (name: string, body: TestBody, timeout?: number) => bunTest(name, cleaned(body), timeout),
+  {
+    each: (table: readonly unknown[]) => (name: string, body: TestBody, timeout?: number) =>
+      bunTest.each(table as unknown[])(name, cleaned(body) as never, timeout),
+  },
+) as unknown as typeof bunTest;
 
 export function fixture(name: string): string {
   return readFileSync(join(FIXTURES, name), "utf-8");
@@ -38,7 +83,7 @@ export async function git(cwd: string, ...args: string[]): Promise<string> {
 
 /** A temp repo on branch main with README.md committed under `message`. */
 export async function makeRepo(message = "fixture"): Promise<{ root: string; head: string }> {
-  const root = realpathSync.native(mkdtempSync(join(tmpdir(), "session-packet-")));
+  const root = tempDir("session-packet-");
   await git(root, "init", "-b", "main");
   await git(root, "config", "user.email", "test@example.com");
   await git(root, "config", "user.name", "Test");
@@ -51,7 +96,7 @@ export async function makeRepo(message = "fixture"): Promise<{ root: string; hea
 
 /** A bare repository in a temp dir, added to `root` as `origin` with main pushed and origin/HEAD set. */
 export async function makeRemote(root: string): Promise<string> {
-  const bare = realpathSync.native(mkdtempSync(join(tmpdir(), "session-packet-remote-")));
+  const bare = tempDir("session-packet-remote-");
   await git(bare, "init", "--bare", "-b", "main");
   await git(root, "remote", "add", "origin", bare);
   await git(root, "push", "-q", "-u", "origin", "main");
@@ -61,7 +106,7 @@ export async function makeRemote(root: string): Promise<string> {
 
 /** A second working clone of `bare`, standing in for another machine. */
 export async function cloneRepo(bare: string): Promise<string> {
-  const root = join(realpathSync.native(mkdtempSync(join(tmpdir(), "session-packet-clone-"))), "clone");
+  const root = join(tempDir("session-packet-clone-"), "clone");
   await git(tmpdir(), "clone", "-q", bare, root);
   await git(root, "config", "user.email", "test@example.com");
   await git(root, "config", "user.name", "Test");
