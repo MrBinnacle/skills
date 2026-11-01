@@ -71,7 +71,7 @@ def kill_tree(proc: subprocess.Popen[str]) -> None:
     else:
         try:
             os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):  # macOS: PermissionError once the shell has exited.
             pass
     try:
         proc.communicate(timeout=KILL_GRACE_S)
