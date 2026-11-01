@@ -259,13 +259,12 @@ def case_count_scan_can_fail() -> None:
 # immutability constraint, the token prerequisite, and the maintainer as the actor.
 
 
-AGENTS = ROOT / "AGENTS.md"
+RELEASE_DOC = ROOT / "docs" / "agents" / "release.md"
 
 
 def release_procedure(text: str) -> str:
-    """Step 4 of the 'Every change' procedure in AGENTS.md, through its warning block,
-    ending at the next top-level bold heading."""
-    match = re.search(r"(?ms)^4\. .*?(?=^\*\*)", text)
+    """Step 4 of the 'Every change' procedure, through the end of its document."""
+    match = re.search(r"(?ms)^4\. .*", text)
     return match.group(0) if match else ""
 
 
@@ -273,15 +272,15 @@ def case_agents_procedure_describes_delivery_event_not_tag_by_hand() -> None:
     """Criterion 1: the procedure describes the delivery-event model rather than
     tagging by hand if wanted. The old text said 'tag by hand if wanted', which treats
     the tag as optional decoration; ADR 0002 made the merge the delivery, not the tag."""
-    body = release_procedure(AGENTS.read_text(encoding="utf-8"))
+    body = release_procedure(RELEASE_DOC.read_text(encoding="utf-8"))
     collapsed = " ".join(body.split())
     check(
-        "AGENTS.md release procedure does not say 'tag by hand if wanted'",
+        "docs/agents/release.md release procedure does not say 'tag by hand if wanted'",
         "tag by hand if wanted" not in collapsed,
         collapsed,
     )
     check(
-        "AGENTS.md release procedure states the merge is the delivery event",
+        "docs/agents/release.md release procedure states the merge is the delivery event",
         "delivery event" in collapsed.lower() and "merge" in collapsed.lower(),
         collapsed,
     )
@@ -296,20 +295,20 @@ def case_agents_names_the_release_fitness_command() -> None:
     name --write so the stamp and the fitness report are the same step a maintainer
     actually runs; naming the script without the flag describes a command that cannot
     pass on the tree it is supposed to clear."""
-    body = release_procedure(AGENTS.read_text(encoding="utf-8"))
+    body = release_procedure(RELEASE_DOC.read_text(encoding="utf-8"))
     collapsed = " ".join(body.split())
     check(
-        "AGENTS.md names the release gate command",
+        "docs/agents/release.md names the release gate command",
         "release_gate.py" in collapsed,
         collapsed,
     )
     check(
-        "AGENTS.md names --write so the post-bump gate can pass lockstep",
+        "docs/agents/release.md names --write so the post-bump gate can pass lockstep",
         "--write" in collapsed,
         collapsed,
     )
     check(
-        "AGENTS.md states the gate reports all failures at once",
+        "docs/agents/release.md states the gate reports all failures at once",
         "every stale surface" in collapsed.lower() and "one run" in collapsed.lower(),
         collapsed,
     )
@@ -318,15 +317,15 @@ def case_agents_names_the_release_fitness_command() -> None:
 def case_agents_states_release_immutability() -> None:
     """Criterion 3: the procedure states that release immutability is enabled and that a
     tag name cannot be reused once spent."""
-    body = release_procedure(AGENTS.read_text(encoding="utf-8"))
+    body = release_procedure(RELEASE_DOC.read_text(encoding="utf-8"))
     collapsed = " ".join(body.split())
     check(
-        "AGENTS.md states release immutability is enabled",
+        "docs/agents/release.md states release immutability is enabled",
         "release immutability" in collapsed.lower() and "enabled" in collapsed.lower(),
         collapsed,
     )
     check(
-        "AGENTS.md states a tag name cannot be reused once spent",
+        "docs/agents/release.md states a tag name cannot be reused once spent",
         "tag name" in collapsed.lower() and "cannot be reused" in collapsed.lower(),
         collapsed,
     )
@@ -335,10 +334,10 @@ def case_agents_states_release_immutability() -> None:
 def case_agents_states_the_token_prerequisite() -> None:
     """Criterion 4: the procedure states the token prerequisite the changelog generator
     needs (GITHUB_TOKEN with public_repo scope)."""
-    body = release_procedure(AGENTS.read_text(encoding="utf-8"))
+    body = release_procedure(RELEASE_DOC.read_text(encoding="utf-8"))
     collapsed = " ".join(body.split())
     check(
-        "AGENTS.md states the GITHUB_TOKEN prerequisite",
+        "docs/agents/release.md states the GITHUB_TOKEN prerequisite",
         "GITHUB_TOKEN" in collapsed,
         collapsed,
     )
@@ -348,10 +347,10 @@ def case_agents_names_who_performs_the_delivering_merge() -> None:
     """Criterion 5: the procedure names who performs the delivering merge. The
     maintainer holds merge authority; the delivery is the merge of the version-bump
     pull request."""
-    body = release_procedure(AGENTS.read_text(encoding="utf-8"))
+    body = release_procedure(RELEASE_DOC.read_text(encoding="utf-8"))
     collapsed = " ".join(body.split())
     check(
-        "AGENTS.md names the maintainer as who performs the delivering merge",
+        "docs/agents/release.md names the maintainer as who performs the delivering merge",
         "maintainer" in collapsed.lower() and "merge" in collapsed.lower(),
         collapsed,
     )
@@ -364,20 +363,20 @@ def case_agents_procedure_follows_the_authoring_discipline() -> None:
     active voice (naming the actor). The old text used a label ('manual step') and an
     imperative without an actor where the register requires the mechanism and the named
     actor."""
-    body = release_procedure(AGENTS.read_text(encoding="utf-8"))
+    body = release_procedure(RELEASE_DOC.read_text(encoding="utf-8"))
     collapsed = " ".join(body.split()).lower()
     check(
-        "AGENTS.md procedure names the mechanism (the merge is the delivery event)",
+        "docs/agents/release.md procedure names the mechanism (the merge is the delivery event)",
         "delivery event" in collapsed,
         collapsed,
     )
     check(
-        "AGENTS.md procedure states the consequence (the gate blocks before the merge)",
+        "docs/agents/release.md procedure states the consequence (the gate blocks before the merge)",
         "block" in collapsed and "before" in collapsed,
         collapsed,
     )
     check(
-        "AGENTS.md procedure uses active voice (the maintainer merges)",
+        "docs/agents/release.md procedure uses active voice (the maintainer merges)",
         "the maintainer merges" in collapsed,
         collapsed,
     )
