@@ -33,7 +33,7 @@ const REQUIRED = [
 ];
 
 const SECRET_PATTERNS = [
-  /sk-[A-Za-z0-9_-]{16,}/,
+  /(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{16,}/,
   /gh[pousr]_[A-Za-z0-9]{20,}/,
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
 ];

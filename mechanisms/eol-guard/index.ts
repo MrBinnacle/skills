@@ -34,7 +34,10 @@ export default function (pi: ExtensionAPI) {
         }
       },
       async readHead(rel) {
-        const r = await pi.exec("git", ["show", `HEAD:${rel}`], { cwd: root });
+        // --filters applies the checkout conversion (core.autocrlf, .gitattributes eol), so HEAD is
+        // read as the working tree would hold it; `git show` gives the raw blob, which is LF under
+        // autocrlf=true and would mark every untouched CRLF checkout as converted.
+        const r = await pi.exec("git", ["cat-file", "--filters", `HEAD:${rel}`], { cwd: root });
         // stdout is decoded text; `\r` survives decoding, which is all the count needs.
         return r.code === 0 ? new TextEncoder().encode(r.stdout) : undefined;
       },
