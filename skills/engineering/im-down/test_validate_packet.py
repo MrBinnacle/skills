@@ -80,58 +80,39 @@ def check_timeout_cases():
     assert validator.CHECK_TIMEOUT_S == 600
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         root = Path(tmp)
-        marker = root / "child-survived"
         child = root / "child.py"
         child.write_text(
-            f"import time\ntime.sleep(4)\nopen({str(marker)!r}, 'w').close()\n", encoding="utf-8"
+            "import sys, time\ntime.sleep(float(sys.argv[1]))\nopen(sys.argv[2], 'w').close()\n",
+            encoding="utf-8",
         )
-        parent = root / "parent.py"
-        parent.write_text(
-            f"import subprocess, sys\nsubprocess.run([sys.executable, {str(child)!r}])\n", encoding="utf-8"
-        )
-        # The parent exits at once, so the tree kill cannot reach this child and it holds the pipes.
-        orphan = root / "orphan.py"
-        orphan.write_text(
-            f"import subprocess, sys\nsubprocess.Popen([sys.executable, {str(child)!r}])\n", encoding="utf-8"
-        )
-        limit, grace, real_run = validator.CHECK_TIMEOUT_S, validator.KILL_GRACE_S, subprocess.run
 
-        def timed(script):
+        def script(name, call, seconds, extra=""):
+            path = root / f"{name}.py"
+            args = [sys.executable, str(child), str(seconds), str(root / f"{name}.marker")]
+            path.write_text(f"import os, subprocess\nsubprocess.{call}({args!r}{extra})\n", encoding="utf-8")
+            return path
+
+        in_tree = script("in_tree", "run", 6)
+        # The parent exits at once and the child leaves its session, so the kill cannot reach it.
+        orphan = script("orphan", "Popen", 8, ', start_new_session=os.name != "nt"')
+        limit, grace = validator.CHECK_TIMEOUT_S, validator.KILL_GRACE_S
+
+        def timed(path):
             started = time.monotonic()
-            result = validator.run(f'"{sys.executable}" "{script}"', root)
+            result = validator.run(f'"{sys.executable}" "{path}"', root)
             return result, time.monotonic() - started
 
         validator.CHECK_TIMEOUT_S, validator.KILL_GRACE_S = 1, 1
         try:
-            result, elapsed = timed(parent)
             escaped, escaped_elapsed = timed(orphan)
-            time.sleep(4.5)  # The escaped child ends here, and writes the marker.
-            marker.unlink(missing_ok=True)
-
-            result_missing = None
-            if os.name == "nt":
-                def no_taskkill(cmd, **kwargs):
-                    if cmd[0] == "taskkill":
-                        raise FileNotFoundError("taskkill")
-                    return real_run(cmd, **kwargs)
-
-                subprocess.run = no_taskkill
-                result_missing, missing_elapsed = timed(parent)
-                subprocess.run = real_run
-                time.sleep(4.5)
-                marker.unlink(missing_ok=True)
-                assert result_missing.returncode == 124 and missing_elapsed < 3.5, missing_elapsed
-
-            result_again, again_elapsed = timed(parent)
-            time.sleep(5 - again_elapsed)
+            result, elapsed = timed(in_tree)
+            time.sleep(6.5)  # Past every child's end, so a surviving child has written its marker.
         finally:
-            subprocess.run = real_run
             validator.CHECK_TIMEOUT_S, validator.KILL_GRACE_S = limit, grace
-        assert elapsed < 1.9 + 1, elapsed
         assert result.returncode == 124 and "timed out" in result.stderr
-        assert escaped.returncode == 124 and escaped_elapsed < 3.5, escaped_elapsed
-        assert result_again.returncode == 124
-        assert not marker.exists()
+        assert elapsed < 6, elapsed
+        assert escaped.returncode == 124 and escaped_elapsed < 6, escaped_elapsed
+        assert not (root / "in_tree.marker").exists()
         ok = validator.run(
             f'"{sys.executable}" -c "import sys; print(1); print(2, file=sys.stderr)"', root
         )

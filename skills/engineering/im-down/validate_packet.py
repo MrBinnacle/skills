@@ -67,13 +67,7 @@ def run(cmd: str, cwd: Path) -> subprocess.CompletedProcess[str]:
 def kill_tree(proc: subprocess.Popen[str]) -> None:
     """End the shell and its children: the check is a child, and it holds the pipes."""
     if os.name == "nt":
-        try:
-            subprocess.run(
-                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                capture_output=True, timeout=KILL_GRACE_S,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            proc.kill()
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
     else:
         try:
             os.killpg(proc.pid, signal.SIGKILL)
