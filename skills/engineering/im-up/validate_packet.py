@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -35,6 +36,9 @@ UNFAILABLE_CHECK = re.compile(r"^\s*git\s+status(\s+--porcelain(=\S+)?)*\s*$")
 # Receiver-check cache: once a week every cached check runs uncached and is
 # compared with its cached verdict. A disagreement fails the open.
 CACHE_WEEKLY_DAYS = 7
+# Long enough for a test suite, not for a hang on a lock or a prompt.
+CHECK_TIMEOUT_S = 600
+KILL_GRACE_S = 5
 
 
 class PacketError(ValueError):
@@ -45,12 +49,34 @@ def run(cmd: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     """Run a trusted command, decoding its output as UTF-8 with replacement.
 
     Never the caller's locale encoding: on a cp1252 host a check printing a
-    character outside cp1252 crashed the validator (issue #372).
+    character outside cp1252 crashed the validator (issue #372). A check that
+    outruns CHECK_TIMEOUT_S fails with exit 124, as coreutils `timeout` does.
     """
-    return subprocess.run(
-        cmd, cwd=cwd, shell=True, capture_output=True,
-        encoding="utf-8", errors="replace",
+    proc = subprocess.Popen(
+        cmd, cwd=cwd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        encoding="utf-8", errors="replace", start_new_session=os.name != "nt",
     )
+    try:
+        stdout, stderr = proc.communicate(timeout=CHECK_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        kill_tree(proc)
+        return subprocess.CompletedProcess(cmd, 124, "", f"timed out after {CHECK_TIMEOUT_S}s")
+    return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
+
+
+def kill_tree(proc: subprocess.Popen[str]) -> None:
+    """End the shell and its children: the check is a child, and it holds the pipes."""
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
+    else:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):  # macOS: PermissionError once the shell has exited.
+            pass
+    try:
+        proc.communicate(timeout=KILL_GRACE_S)
+    except subprocess.TimeoutExpired:
+        pass  # A child that left the tree still holds the pipes; the limit still holds.
 
 
 def git(cwd: Path, *args: str) -> str:
