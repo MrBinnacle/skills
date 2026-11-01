@@ -8,6 +8,8 @@ The states it must tell apart:
   - step env, RUNNER_TEMP and GITHUB_BASE_REF reach the step;
   - pull_request-only, uses:, global-install and git-fetch steps are skipped,
     and so is a step that reads what a skipped step wrote;
+  - a step after a skipped global install runs without its *_STRICT env flag and
+    says so, and keeps the flag when nothing was skipped;
   - git init makes master, as on the hosted runner;
   - an unmodelled step key or if: condition is refused, not run;
   - a filter that leaves nothing to run exits non-zero;
@@ -59,6 +61,10 @@ jobs:
         run: |
           git init -q "$RUNNER_TEMP/repo"
           git -C "$RUNNER_TEMP/repo" symbolic-ref HEAD | grep -qx refs/heads/master
+      - name: Strict after a skipped install
+        env:
+          FIXTURE_STRICT: "1"
+        run: test -z "${FIXTURE_STRICT:-}"
   beta:
     runs-on: ubuntu-latest
     steps:
@@ -98,7 +104,14 @@ def main() -> int:
           whole.stdout)
     check("git init makes master as on the runner", "PASS rc=0 alpha[7] Git init makes master" in whole.stdout,
           whole.stdout)
-    check("the tally counts runs and skips", "4 ran, 4 skipped, 1 failed" in whole.stdout, whole.stdout)
+    check("a strict flag is dropped after a skipped global install, with a note",
+          "NOTE alpha[8] Strict after a skipped install: runs without FIXTURE_STRICT: step 4" in whole.stdout
+          and "PASS rc=0 alpha[8] Strict after a skipped install" in whole.stdout, whole.stdout)
+    check("the tally counts runs and skips", "5 ran, 4 skipped, 1 failed" in whole.stdout, whole.stdout)
+    no_install = run(WORKFLOW.replace("npm install --global left-pad", "echo tool"), "--match", "Strict after")
+    check("the strict flag reaches the step when no global install was skipped",
+          "FAIL rc=1 alpha[8] Strict after a skipped install" in no_install.stdout and "NOTE alpha[8]" not in no_install.stdout,
+          no_install.stdout)
 
     check("a shallow CI checkout is named", "NOTE alpha: CI checks out with fetch-depth 1" in whole.stdout,
           whole.stdout)

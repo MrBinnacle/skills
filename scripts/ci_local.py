@@ -13,6 +13,9 @@ Skipped, and listed as skipped:
   - steps that install software globally (`npm install --global`, `pip install`)
     or fetch from the remote (`git fetch`);
   - steps that read a `$RUNNER_TEMP/<name>` path a skipped step in the same job uses.
+A step after a skipped `npm install --global` in its job runs against the tool on this
+machine, not the version CI pins, so it runs without any `*_STRICT` env flag and gets a
+NOTE line; a suite in strict mode would otherwise fail on the version alone (#425).
 `git init` makes `master`, as on the hosted runner, whatever the local git config says.
 `matrix.os == 'ubuntu-latest'` is treated as true, so this runs the ubuntu leg.
 A job whose actions/checkout is shallow in CI (no `fetch-depth: 0`) gets a NOTE line:
@@ -61,6 +64,7 @@ class Step:
     run: str
     env: dict[str, str]
     skip: str | None
+    note: str | None = None
 
 
 def load_steps(workflow: Path) -> list[Step]:
@@ -69,6 +73,7 @@ def load_steps(workflow: Path) -> list[Step]:
     for job, spec in data["jobs"].items():
         # A step that reads a $RUNNER_TEMP path a skipped step builds would fail for that reason alone.
         skipped_paths: dict[str, int] = {}
+        pinned_tool: int | None = None  # a skipped global install: later steps see the local tool, not CI's pin
         for index, raw in enumerate(spec["steps"]):
             if "run" not in raw:
                 continue
@@ -82,8 +87,15 @@ def load_steps(workflow: Path) -> list[Step]:
                 skip = f"needs {needed[0]} from skipped step {skipped_paths[needed[0]]}"
             if skip:
                 skipped_paths.update({p: index for p in paths if p not in skipped_paths})
-            steps.append(Step(job, index, raw.get("name", f"step {index}"), raw["run"],
-                              {k: str(v) for k, v in (raw.get("env") or {}).items()}, skip))
+            env = {k: str(v) for k, v in (raw.get("env") or {}).items()}
+            strict = sorted(k for k in env if k.endswith("_STRICT")) if pinned_tool is not None else []
+            for key in strict:
+                env.pop(key)
+            note = (f"runs without {', '.join(strict)}: step {pinned_tool} installs the tool CI pins and was"
+                    " skipped, so this step sees the local one") if strict else None
+            if skip and "npm install --global" in raw["run"]:
+                pinned_tool = index
+            steps.append(Step(job, index, raw.get("name", f"step {index}"), raw["run"], env, skip, note))
     return steps
 
 
@@ -138,7 +150,8 @@ def main(argv: list[str]) -> int:
               " remote ref, so a step that walks history or resolves origin/<branch> can pass here and fail in CI")
     if args.list:
         for s in steps:
-            print(f"{s.job}[{s.index}] {s.name}" + (f"  (skip: {s.skip})" if s.skip else ""))
+            print(f"{s.job}[{s.index}] {s.name}" + (f"  (skip: {s.skip})" if s.skip else "")
+                  + (f"  (note: {s.note})" if s.note else ""))
         return 0
     if not args.bash:
         print("no bash on PATH; pass --bash", file=sys.stderr)
@@ -152,6 +165,8 @@ def main(argv: list[str]) -> int:
                 print(f"SKIP {s.job}[{s.index}] {s.name} ({s.skip})", flush=True)
                 continue
             temp = temps.setdefault(s.job, Path(tempfile.mkdtemp(prefix=f"ci-local-{s.job}-")))
+            if s.note:
+                print(f"NOTE {s.job}[{s.index}] {s.name}: {s.note}", flush=True)
             rc = run_step(s, args.bash, temp)
             ran += 1
             print(f"{'PASS' if rc == 0 else 'FAIL'} rc={rc} {s.job}[{s.index}] {s.name}", flush=True)
