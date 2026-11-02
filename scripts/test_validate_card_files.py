@@ -1662,6 +1662,7 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "doubled-quote-card": "'it''s for testing'",
         "long-comment-card": f"Use when testing # {long}",
         "quoted-null-card": '"null"',
+        "escaped-quote-one-line-card": r'"say \"hi\" when testing"',
     }
     for name, form in one_line.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
@@ -1670,6 +1671,12 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "null-card": "null",
         "true-card": "true",
         "upper-true-card": "TRUE",
+        "false-card": "false",
+        "yes-card": "yes",
+        "no-card": "no",
+        "on-card": "on",
+        "off-card": "off",
+        "nan-card": ".nan",
         "number-card": "123",
         "float-card": "-1.5",
         "date-card": "2026-11-01",
