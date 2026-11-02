@@ -64,7 +64,7 @@ export function createGate(checkCommands: readonly string[], projectRoot?: strin
       // a successful follow-up after recording that mutation; failures stay pending.
       if (receipt?.followUp.status === "succeeded" &&
           patterns.some((p) => p.test(receipt.followUp.command))) unchecked.clear();
-      if ((toolName === "bash" || toolName === "powershell") && patterns.some((p) => p.test(String(input.command)))) {
+      if ((toolName === "bash" || toolName === "powershell") && !isError && patterns.some((p) => p.test(String(input.command)))) {
         unchecked.clear();
       }
     },

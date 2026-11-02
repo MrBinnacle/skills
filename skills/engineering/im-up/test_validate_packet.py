@@ -4,8 +4,11 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import os
 import subprocess
+import sys
 import tempfile
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -70,6 +73,50 @@ def secret_cases():
     assert "possible secret detected" not in validator.validate_structure(data, in_word)
     bare = text + "\nkey sk-abcdefghijklmnopqrstuv\n"
     assert "possible secret detected" in validator.validate_structure(data, bare)
+
+
+def check_timeout_cases():
+    """A hung check ends at the limit with exit 124, and its child ends with it."""
+    assert validator.CHECK_TIMEOUT_S == 600
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        root = Path(tmp)
+        child = root / "child.py"
+        child.write_text(
+            "import sys, time\ntime.sleep(float(sys.argv[1]))\nopen(sys.argv[2], 'w').close()\n",
+            encoding="utf-8",
+        )
+
+        def script(name, call, seconds, extra=""):
+            path = root / f"{name}.py"
+            args = [sys.executable, str(child), str(seconds), str(root / f"{name}.marker")]
+            path.write_text(f"import os, subprocess\nsubprocess.{call}({args!r}{extra})\n", encoding="utf-8")
+            return path
+
+        in_tree = script("in_tree", "run", 6)
+        # The parent exits at once and the child leaves its session, so the kill cannot reach it.
+        orphan = script("orphan", "Popen", 8, ', start_new_session=os.name != "nt"')
+        limit, grace = validator.CHECK_TIMEOUT_S, validator.KILL_GRACE_S
+
+        def timed(path):
+            started = time.monotonic()
+            result = validator.run(f'"{sys.executable}" "{path}"', root)
+            return result, time.monotonic() - started
+
+        validator.CHECK_TIMEOUT_S, validator.KILL_GRACE_S = 1, 1
+        try:
+            escaped, escaped_elapsed = timed(orphan)
+            result, elapsed = timed(in_tree)
+            time.sleep(6.5)  # Past every child's end, so a surviving child has written its marker.
+        finally:
+            validator.CHECK_TIMEOUT_S, validator.KILL_GRACE_S = limit, grace
+        assert result.returncode == 124 and "timed out" in result.stderr
+        assert elapsed < 6, elapsed
+        assert escaped.returncode == 124 and escaped_elapsed < 6, escaped_elapsed
+        assert not (root / "in_tree.marker").exists()
+        ok = validator.run(
+            f'"{sys.executable}" -c "import sys; print(1); print(2, file=sys.stderr)"', root
+        )
+        assert ok.returncode == 0 and ok.stdout.strip() == "1" and ok.stderr.strip() == "2"
 
 
 def repository_cases():
@@ -1473,6 +1520,7 @@ if __name__ == "__main__":
     utf8_git_output_cases()
     utf8_snapshot_state_cases()
     utf8_close_git_cases()
+    check_timeout_cases()
     parity_verified, parity_message = duplication_case()
     print(parity_message)
     roster = ("PASS: clean, stale, incomplete, failed-probe, placeholder, "
@@ -1483,7 +1531,7 @@ if __name__ == "__main__":
               "cache-weekly, cache-no-inputs, cache-expand, cache-inputs-type, "
               "cache-close-shared, "
               "cache-atomic, cache-path-confined, utf8-output, utf8-git-output, "
-              "utf8-snapshot, utf8-close-git")
+              "utf8-snapshot, utf8-close-git, check-timeout")
     # no-drift appears in the pass roster only when parity was actually
     # compared; a single-card install reports NOT VERIFIED above instead.
     print(roster + ", no-drift" if parity_verified else roster)

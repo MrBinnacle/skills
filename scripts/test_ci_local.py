@@ -22,6 +22,7 @@ Run directly:  python scripts/test_ci_local.py
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -92,7 +93,34 @@ def run(workflow: str, *args: str) -> subprocess.CompletedProcess[str]:
                               capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
+READ_ONLY_FILE_WORKFLOW = """\
+jobs:
+  alpha:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Leaves a read-only file
+        run: |
+          touch "$RUNNER_TEMP/object"
+          chmod 444 "$RUNNER_TEMP/object"
+      - name: A later step in the job shares the folder
+        run: test -f "$RUNNER_TEMP/object"
+"""
+
+
+def leaves_nothing_in_temp() -> bool:
+    with tempfile.TemporaryDirectory() as tmp:
+        workflow = Path(tmp) / "tests.yml"
+        workflow.write_text(READ_ONLY_FILE_WORKFLOW, encoding="utf-8")
+        temp = Path(tmp) / "temp"
+        temp.mkdir()
+        env = {**os.environ, "TEMP": str(temp), "TMP": str(temp), "TMPDIR": str(temp)}
+        done = subprocess.run([sys.executable, str(SCRIPT), "--workflow", str(workflow)], capture_output=True, env=env)
+        return done.returncode == 0 and list(temp.iterdir()) == []
+
+
 def main() -> int:
+    check("a step's temp folder goes, read-only files included", leaves_nothing_in_temp())
+
     whole = run(WORKFLOW)
     check("a failing step fails the run", whole.returncode == 1, f"rc={whole.returncode}")
     check("the failure is named", "FAILED beta[1] Broken step" in whole.stdout, whole.stdout)

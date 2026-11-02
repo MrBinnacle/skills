@@ -1,10 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { extract, validateStructure } from "./packet";
 import { verifyParked } from "./parked";
-import { fixture, git, GIT_TIMEOUT, makeRemote, makeRepo, nodeExec, renderPacket } from "./testkit";
+import { fixture, git, GIT_TIMEOUT, makeRemote, makeRepo, nodeExec, ownTempDir, renderPacket, test } from "./testkit";
 import { validatePacket } from "./validate";
 
 const parkedPacket = (parked: unknown) => {
@@ -79,6 +79,7 @@ describe("verifyParked (real git repo)", () => {
   test("worktree-exists resolves its path against the repository root", async () => {
     const { root } = await makeRepo();
     const name = `${basename(root)}-wt`;
+    ownTempDir(join(root, "..", name));
     await git(root, "worktree", "add", "-q", "-b", "wt-branch", join("..", name));
     const result = await verifyParked({ data: parkedPacket([entry("worktree-exists", `../${name}`), entry("worktree-exists", "../nowhere")]), repoRoot: root, exec: nodeExec });
     expect(result.errors).toEqual(["parked[1] worktree-exists probe failed: ../nowhere (parked for later)"]);
