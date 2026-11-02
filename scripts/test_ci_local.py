@@ -74,6 +74,8 @@ jobs:
           fetch-depth: 0
       - name: Broken step
         run: exit 3
+      - name: Installs into a venv
+        run: echo pip install left-pad
 """
 
 
@@ -135,7 +137,8 @@ def main() -> int:
     check("a strict flag is dropped after a skipped global install, with a note",
           "NOTE alpha[8] Strict after a skipped install: runs without FIXTURE_STRICT: step 4" in whole.stdout
           and "PASS rc=0 alpha[8] Strict after a skipped install" in whole.stdout, whole.stdout)
-    check("the tally counts runs and skips", "5 ran, 4 skipped, 1 failed" in whole.stdout, whole.stdout)
+    check("a pip install step runs", "PASS rc=0 beta[2] Installs into a venv" in whole.stdout, whole.stdout)
+    check("the tally counts runs and skips", "6 ran, 4 skipped, 1 failed" in whole.stdout, whole.stdout)
     no_install = run(WORKFLOW.replace("npm install --global left-pad", "echo tool"), "--match", "Strict after")
     check("the strict flag reaches the step when no global install was skipped",
           "FAIL rc=1 alpha[8] Strict after a skipped install" in no_install.stdout and "NOTE alpha[8]" not in no_install.stdout,

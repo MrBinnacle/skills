@@ -10,8 +10,9 @@ GITHUB_BASE_REF set to local stand-ins.
 Skipped, and listed as skipped:
   - `uses:` steps (checkout, setup-python, setup-node, setup-bun);
   - steps whose `if:` holds only on a pull_request event;
-  - steps that install software globally (`npm install --global`, `pip install`)
-    or fetch from the remote (`git fetch`);
+  - steps that install software globally (`npm install --global`) or fetch from the
+    remote (`git fetch`). `pip install` runs: the one step that uses it installs into
+    a venv under $RUNNER_TEMP, and no other runner has its checks since #630;
   - steps that read a `$RUNNER_TEMP/<name>` path a skipped step in the same job uses.
 A step after a skipped `npm install --global` in its job runs against the tool on this
 machine, not the version CI pins, so it runs without any `*_STRICT` env flag and gets a
@@ -51,7 +52,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "tests.yml"
 MODELLED_KEYS = {"name", "run", "env", "if", "id"}
 TRUE_IFS = {"matrix.os == 'ubuntu-latest'"}
 SKIP_IFS = {"github.event_name == 'pull_request'"}
-SKIP_COMMANDS = re.compile(r"npm install --global|pip install|git fetch")
+SKIP_COMMANDS = re.compile(r"npm install --global|git fetch")
 RUNNER_TEMP_PATH = re.compile(r"\$RUNNER_TEMP/[\w.-]+")
 # The hosted runner's git has no init.defaultBranch, so `git init` makes `master`; fixture steps rely on it.
 RUNNER_GIT = {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "init.defaultBranch", "GIT_CONFIG_VALUE_0": "master"}
