@@ -88,7 +88,9 @@ When `gh` cannot run, or origin cannot be reached, the receipt gets a note and t
 error. A missing tool never turns drift into a pass.
 
 Every call that reaches the network (`git fetch`, `git ls-remote`, `git push` and `gh`) runs with
-a timeout of 30 seconds. A call that times out is a failure that says `timed out`, never a success.
+a timeout of 30 seconds. A receiver check or other trusted command has a timeout of 600 seconds.
+A call that times out is a failure that says `timed out`, never a success. Pi kills only the
+`sh` it started, so a child of that shell can run on after the timeout and keep a lock.
 Every git network call also runs with `-c credential.interactive=never -c core.askPass= -c
 "core.sshCommand=ssh -o BatchMode=yes"`, so a credential prompt with no terminal to answer it
 fails at once instead of hanging the session. A branch change is a note

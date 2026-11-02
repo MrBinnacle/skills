@@ -1,9 +1,9 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect } from "bun:test";
 import { extract } from "./packet";
 import { type Exec, isInsideRelative, validateCloseCommit, validateRepository, validateUnclaimedHead } from "./repo";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { fixture, GIT_TIMEOUT, makeRepo, nodeExec } from "./testkit";
+import { fixture, GIT_TIMEOUT, makeRepo, nodeExec, test } from "./testkit";
 
 async function cleanAt(root: string, head: string) {
   const m = extract(fixture("fixture-clean.md"));

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect } from "bun:test";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -7,7 +7,7 @@ import { extract } from "./packet";
 import type { Exec } from "./repo";
 import type { PacketConfig } from "./settings";
 import { listPackets, publishPacket } from "./store";
-import { cloneRepo, fillScaffold, git, makeRemote, makeRepo, nodeExec } from "./testkit";
+import { cloneRepo, fillScaffold, git, makeRemote, makeRepo, nodeExec, test } from "./testkit";
 import { validatePacket } from "./validate";
 
 const REF = "session-log";

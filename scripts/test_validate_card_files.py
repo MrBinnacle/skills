@@ -10,6 +10,7 @@ it: the stale label and the count written as prose.
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -1403,11 +1404,25 @@ def case_allowlisted_breach_does_not_block(root: Path) -> None:
         _validate_exits(root),
     )
     old = vcf._ALLOWLIST
-    vcf._ALLOWLIST = frozenset({(rel, "reachability")})
+    vcf._ALLOWLIST = frozenset({(rel, "reachability", vcf._UNREACHABLE + "orphan.md")})
     try:
         check(
             "an allowlisted breach does not fail the gate",
             not _validate_exits(root),
+        )
+        (card / "second-orphan.md").write_text("# second\n", encoding="utf-8")
+        # The new breach itself must block. The entry going stale fails the gate
+        # too, so the exit code alone would pass under a pair-keyed allowlist.
+        import contextlib
+        import io
+
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            exited = _validate_exits(root)
+        check(
+            "an allowlisted card that gains a second unreachable file is refused for that file",
+            exited and f"  - {rel}: {vcf._UNREACHABLE}orphan.md, second-orphan.md" in err.getvalue(),
+            err.getvalue()[:300],
         )
     finally:
         vcf._ALLOWLIST = old
@@ -1436,7 +1451,7 @@ def case_stale_allowlist_entry_is_rejected(root: Path) -> None:
     )
 
     old = vcf._ALLOWLIST
-    vcf._ALLOWLIST = frozenset({(rel, "reachability")})
+    vcf._ALLOWLIST = frozenset({(rel, "reachability", vcf._UNREACHABLE + "orphan.md")})
     try:
         check(
             "a stale allowlist entry FAILS the gate",
@@ -1457,7 +1472,7 @@ def case_allowlist_entry_for_an_absent_card_is_not_stale(root: Path) -> None:
 
     write_card(root, "unrelated-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
     old = vcf._ALLOWLIST
-    vcf._ALLOWLIST = frozenset({("skills/engineering/not-in-this-tree", "size")})
+    vcf._ALLOWLIST = frozenset({("skills/engineering/not-in-this-tree", "size", "too big")})
     try:
         # The card present here breaches reachability, so the gate rejects -- but
         # it must not additionally claim the absent card's entry is stale.
@@ -1562,6 +1577,151 @@ def case_observed_origin_bad_sha_is_rejected(root: Path) -> None:
         "OBSERVED origin with non-existent commit SHA is rejected",
         result.returncode != 0 and fake_sha[:12] in result.stderr
         and "not present in this repository" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_origin_sha_git_unavailable_is_rejected(root: Path) -> None:
+    """A SHA that cannot be checked is a breach, not a pass."""
+    fake_sha = "b" * 40
+    write_card(root, "no-git-card", _observed_evidence(f"See commit {fake_sha}."), CONFORMING_GOTCHAS)
+    result = subprocess.run(
+        [sys.executable, str(CHECKER), "--root", str(root)],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PATH": str(root)},
+    )
+    check(
+        "an origin SHA is refused when git cannot run",
+        result.returncode != 0 and "could not be checked" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_origin_sha_git_timeout_is_rejected(root: Path) -> None:
+    """A git that hangs has not vouched for the SHA either."""
+    fake_sha = "c" * 40
+    write_card(root, "slow-git-card", _observed_evidence(f"See commit {fake_sha}."), CONFORMING_GOTCHAS)
+    driver = (
+        "import runpy, subprocess, sys\n"
+        "real = subprocess.run\n"
+        "def run(args, **kw):\n"
+        f"    if {fake_sha!r} in ' '.join(map(str, args)):\n"
+        "        raise subprocess.TimeoutExpired(args, 10)\n"
+        "    return real(args, **kw)\n"
+        "subprocess.run = run\n"
+        "sys.argv = sys.argv[1:]\n"
+        "runpy.run_path(sys.argv[0], run_name='__main__')\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", driver, str(CHECKER), "--root", str(root)], capture_output=True, text=True
+    )
+    check(
+        "an origin SHA is refused when git times out",
+        result.returncode != 0 and "could not be checked" in result.stderr,
+        result.stderr.strip(),
+    )
+
+
+def case_block_scalar_description_is_rejected(root: Path) -> None:
+    long = "x" * 300
+    forms = {
+        "folded-card": f">-\n  {long}",
+        "literal-card": f"|\n  {long}",
+        "tag-card": f"!!str >-\n  {long}",
+        "anchor-card": f"&a >-\n  {long}",
+        "comment-card": f"# note\n  {long}",
+        "alias-card": "*a",
+        "plain-continued-card": f"short\n  {long}",
+        "tab-continued-card": f"short\n\t{long}",
+        "blank-continued-card": f"short\n\n  {long}",
+        "two-blank-continued-card": f"short\n\n\n  {long}",
+        "comment-continued-card": f"short\n  # note\n  {long}",
+        "escaped-single-quote-card": f"'short''\n{long}'",
+        "escaped-double-quote-card": f'"short\\"\n{long}"',
+        "flow-list-card": "[a, b]",
+        "flow-map-card": "{a: b}",
+        "bare-key-before-key-card": "\nlicense: MIT",
+        "quote-continued-card": f'"short\n  {long}"',
+        "single-quote-open-card": "'",
+        "bare-key-card": f"\n  {long}",
+        "bare-folded-card": ">-",
+        "bare-literal-card": "|",
+        "bare-tag-card": "!!str short",
+        "bare-anchor-card": "&a short",
+        "bare-comment-card": "# note",
+    }
+    for name, form in forms.items():
+        write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
+    one_line = {
+        "gt-card": '">= two occasions: use when testing"',
+        "pipe-card": "'| pipe: use when testing'",
+        "double-comment-card": '"Use when: testing" # note',
+        "single-comment-card": "'Use when: testing' # note",
+        "next-line-comment-card": "Use when testing\n  # note",
+        "doubled-quote-card": "'it''s for testing'",
+        "long-comment-card": f"Use when testing # {long}",
+        "quoted-null-card": '"null"',
+    }
+    for name, form in one_line.items():
+        write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
+    not_text = {
+        "tilde-card": "~",
+        "null-card": "null",
+        "true-card": "true",
+        "upper-true-card": "TRUE",
+        "number-card": "123",
+        "float-card": "-1.5",
+        "date-card": "2026-11-01",
+        "timestamp-card": "2026-11-01 10:00:00",
+        "timestamp-zone-card": "2026-11-01 10:00:00 -5",
+        "infinity-card": ".inf",
+        "tilde-comment-card": "~ # note",
+    }
+    for name, form in not_text.items():
+        write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
+    bom = write_card(root, "bom-folded-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=f">-\n  {long}")
+    (bom / "SKILL.md").write_bytes(b"\xef\xbb\xbf" + (bom / "SKILL.md").read_bytes())
+    write_card(root, "quoted-hash-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=f'"short # {long}"')
+    write_card(root, "empty-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description='""')
+    write_card(root, "oversize-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=long)
+    result = run_checker(root)
+    lines = result.stderr.splitlines()
+    for name in [*forms, "bom-folded-card"]:
+        check(
+            f"a description past one line is refused: {name}",
+            any(name in line and "not a one-line value" in line for line in lines),
+            result.stderr.strip(),
+        )
+    for name in one_line:
+        check(f"a one-line description passes: {name}", not any(name in line for line in lines), result.stderr.strip())
+    for name in not_text:
+        check(
+            f"a value YAML does not read as text is no description: {name}",
+            any(name in line and "states no frontmatter description" in line for line in lines),
+            result.stderr.strip(),
+        )
+    check(
+        "a hash inside quotes is measured as part of the value",
+        any("quoted-hash-card" in line and "308 characters" in line for line in lines),
+        result.stderr.strip(),
+    )
+    check(
+        "an empty description reads as none, and the other cards are still reported",
+        any("empty-card" in line and "states no frontmatter description" in line for line in lines)
+        and any("oversize-card" in line and "300 characters" in line for line in lines),
+        result.stderr.strip(),
+    )
+
+
+def case_bom_does_not_hide_the_frontmatter(root: Path) -> None:
+    card = write_card(root, "bom-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS)
+    skill = card / "SKILL.md"
+    skill.write_bytes(b"\xef\xbb\xbf" + skill.read_bytes())
+    result = run_checker(root)
+    check(
+        "a UTF-8 BOM does not read as a missing description or by-hand flag",
+        "states no frontmatter description" not in result.stderr and "always-on bar" not in result.stderr,
         result.stderr.strip(),
     )
 
@@ -1948,6 +2108,10 @@ def main() -> None:
         case_missing_description_is_rejected,
         case_zero_cards_is_red,
         case_unpublished_buckets_owe_nothing,
+        case_origin_sha_git_unavailable_is_rejected,
+        case_origin_sha_git_timeout_is_rejected,
+        case_block_scalar_description_is_rejected,
+        case_bom_does_not_hide_the_frontmatter,
         case_plugin_root_is_not_a_card,
         case_plugin_eval_directory_is_not_a_card,
         case_skill_too_small_is_rejected,

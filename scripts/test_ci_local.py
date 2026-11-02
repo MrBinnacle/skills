@@ -24,6 +24,7 @@ Run directly:  python scripts/test_ci_local.py
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -76,6 +77,8 @@ jobs:
           fetch-depth: 0
       - name: Broken step
         run: exit 3
+      - name: Installs into a venv
+        run: echo pip install left-pad
 """
 
 
@@ -130,7 +133,34 @@ def tree_state_cases() -> None:
               restored.stdout + restored.stderr)
 
 
+READ_ONLY_FILE_WORKFLOW = """\
+jobs:
+  alpha:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Leaves a read-only file
+        run: |
+          touch "$RUNNER_TEMP/object"
+          chmod 444 "$RUNNER_TEMP/object"
+      - name: A later step in the job shares the folder
+        run: test -f "$RUNNER_TEMP/object"
+"""
+
+
+def leaves_nothing_in_temp() -> bool:
+    with tempfile.TemporaryDirectory() as tmp:
+        workflow = Path(tmp) / "tests.yml"
+        workflow.write_text(READ_ONLY_FILE_WORKFLOW, encoding="utf-8")
+        temp = Path(tmp) / "temp"
+        temp.mkdir()
+        env = {**os.environ, "TEMP": str(temp), "TMP": str(temp), "TMPDIR": str(temp)}
+        done = subprocess.run([sys.executable, str(SCRIPT), "--workflow", str(workflow)], capture_output=True, env=env)
+        return done.returncode == 0 and list(temp.iterdir()) == []
+
+
 def main() -> int:
+    check("a step's temp folder goes, read-only files included", leaves_nothing_in_temp())
+
     whole = run(WORKFLOW)
     check("a failing step fails the run", whole.returncode == 1, f"rc={whole.returncode}")
     check("the failure is named", "FAILED beta[1] Broken step" in whole.stdout, whole.stdout)
@@ -147,7 +177,8 @@ def main() -> int:
     check("a strict flag is dropped after a skipped global install, with a note",
           "NOTE alpha[8] Strict after a skipped install: runs without FIXTURE_STRICT: step 4" in whole.stdout
           and "PASS rc=0 alpha[8] Strict after a skipped install" in whole.stdout, whole.stdout)
-    check("the tally counts runs and skips", "5 ran, 4 skipped, 1 failed" in whole.stdout, whole.stdout)
+    check("a pip install step runs", "PASS rc=0 beta[2] Installs into a venv" in whole.stdout, whole.stdout)
+    check("the tally counts runs and skips", "6 ran, 4 skipped, 1 failed" in whole.stdout, whole.stdout)
     no_install = run(WORKFLOW.replace("npm install --global left-pad", "echo tool"), "--match", "Strict after")
     check("the strict flag reaches the step when no global install was skipped",
           "FAIL rc=1 alpha[8] Strict after a skipped install" in no_install.stdout and "NOTE alpha[8]" not in no_install.stdout,

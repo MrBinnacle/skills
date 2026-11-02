@@ -213,26 +213,31 @@ _SKIP_DIRS: Final[frozenset[str]] = frozenset({"__pycache__", ".git"})
 # stale and FAILS the gate, so a card that gets fixed forces the entry out rather
 # than quietly keeping its exemption. Nothing here can rot unnoticed.
 #
-# An entry is (card path relative to the repo root, rule kind). Rule kinds are the
+# An entry is (card path relative to the repo root, rule kind, exact breach text).
+# The text is part of the key, so a card on this list that gains a second breach of
+# the same kind is refused rather than waived with the first. Rule kinds are the
 # names in _RULES below; a typo is caught because the entry can never match and is
 # reported stale on the next run.
 _ALLOWLIST_RECORDED: Final[str] = "2026-09-06"
-_ALLOWLIST: Final[frozenset[tuple[str, str]]] = frozenset({
+_UNREACHABLE: Final[str] = "not reachable from SKILL.md through local links: "
+_ALLOWLIST: Final[frozenset[tuple[str, str, str]]] = frozenset({
     # No card is over the 7,168-byte ceiling any more: decision-rights (#385)
     # and subagent-handback (#384) left this list on 2026-10-17.
     # EVIDENCE.md and gotchas.md are not reachable from these cards' SKILL.md.
     # Twelve of fourteen cards, measured 2026-09-06. pull-rebase left on
     # 2026-10-19 (#467 slice A): its SKILL.md now links EVIDENCE.md.
-    ("skills/engineering/clirunner-env", "reachability"),
-    ("skills/engineering/stale-deploy", "reachability"),
-    ("skills/engineering/halt-as-deliverable", "reachability"),
-    ("skills/engineering/im-down", "reachability"),
-    ("skills/engineering/im-up", "reachability"),
-    ("skills/engineering/mocked-stub", "reachability"),
-    ("skills/engineering/pretooluse-prose", "reachability"),
-    ("skills/engineering/vacuous-check", "reachability"),
-    ("skills/meta/dead-predicate", "reachability"),
-    ("skills/orchestration/decision-rights", "reachability"),
+    ("skills/engineering/clirunner-env", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/engineering/stale-deploy", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/engineering/halt-as-deliverable", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/engineering/im-down", "reachability",
+     _UNREACHABLE + "EVIDENCE.md, close_session.py, snapshot_state.py, validate_packet.py"),
+    ("skills/engineering/im-up", "reachability",
+     _UNREACHABLE + "EVIDENCE.md, open_session.py, validate_packet.py"),
+    ("skills/engineering/mocked-stub", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/engineering/pretooluse-prose", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/engineering/vacuous-check", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/meta/dead-predicate", "reachability", _UNREACHABLE + "EVIDENCE.md"),
+    ("skills/orchestration/decision-rights", "reachability", _UNREACHABLE + "EVIDENCE.md"),
 })
 
 
@@ -325,7 +330,36 @@ FRONTMATTER_RE: Final[re.Pattern[str]] = re.compile(r"\A---\r?\n(.*?)\r?\n---", 
 DESCRIPTION_LINE_RE: Final[re.Pattern[str]] = re.compile(
     r"^description:\s*(\S.*?)\s*$", re.MULTILINE
 )
-QUOTE_CHARS: Final[str] = "\"'"
+QUOTED_VALUE_RE: Final[re.Pattern[str]] = re.compile(
+    r"""("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')(?:\s+#.*)?"""
+)
+# What YAML reads as a null, boolean, number or date when it is written unquoted.
+NOT_TEXT_RE: Final[re.Pattern[str]] = re.compile(
+    r"~|null|true|false|yes|no|on|off|[-+]?\.(?:inf|nan)|[-+.]?\d[\w.:+-]*"
+    r"|\d{4}-\d\d?-\d\d?\s+[\d:.]+(?:\s*(?:z|[-+][\d:]+))?",
+    re.IGNORECASE,
+)
+
+
+def description_spans_lines(card: Path) -> bool:
+    """True when the description key's value may reach past its own line.
+
+    The length bar reads one line, so any YAML form that continues the value
+    elsewhere would escape it. Read before quotes are stripped: `">= two"` is a
+    one-line string, and `>=` unquoted is not. A blank line or a comment line does
+    not end a value, so the line that decides is the next one holding content.
+    """
+    block = FRONTMATTER_RE.match((card / "SKILL.md").read_text(encoding="utf-8-sig", errors="replace"))
+    if block is None:
+        return False
+    lines = block.group(1).splitlines()
+    for number, line in enumerate(lines):
+        if line.startswith("description:"):
+            raw = line[len("description:"):].strip()
+            following = next((text for text in lines[number + 1:] if text.strip() and text.lstrip()[0] != "#"), "")
+            is_open_quote = raw[:1] in ('"', "'") and QUOTED_VALUE_RE.fullmatch(raw) is None
+            return not raw or raw[0] in ">|!&*#[{" or is_open_quote or following[:1] in (" ", "\t")
+    return False
 
 
 def stated_description(card: Path) -> str | None:
@@ -334,21 +368,23 @@ def stated_description(card: Path) -> str | None:
     Surrounding quotes are stripped before measuring, so a quoted and an
     unquoted spelling of the same sentence measure the same. Quoting is a YAML
     requirement -- two published cards needed it for a colon on 2026-08-24 --
-    and it must not cost a card two characters of its budget.
+    and it must not cost a card two characters of its budget. A trailing comment
+    is not part of the value, and an unquoted `~` or `123` is not text.
     """
     skill_md = card / "SKILL.md"
     if not skill_md.is_file():
         return None
-    block = FRONTMATTER_RE.match(skill_md.read_text(encoding="utf-8", errors="replace"))
+    block = FRONTMATTER_RE.match(skill_md.read_text(encoding="utf-8-sig", errors="replace"))
     if block is None:
         return None
     found = DESCRIPTION_LINE_RE.search(block.group(1))
     if found is None:
         return None
-    value = found.group(1)
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in QUOTE_CHARS:
-        value = value[1:-1]
-    return value
+    quoted = QUOTED_VALUE_RE.fullmatch(found.group(1))
+    if quoted is not None:
+        return quoted.group(1)[1:-1]
+    value = re.sub(r"\s+#.*$", "", found.group(1))
+    return None if NOT_TEXT_RE.fullmatch(value) else value
 
 
 def description_breaches(card: Path) -> list[str]:
@@ -357,8 +393,15 @@ def description_breaches(card: Path) -> list[str]:
         # Already reported as a missing required file. Saying it twice in
         # different words would inflate the breach count over one defect.
         return []
+    if description_spans_lines(card):
+        return [
+            "SKILL.md description is not a one-line value (it is empty on its key's "
+            "line, opens with a YAML indicator, leaves a quote open, or continues on "
+            "an indented line), so this bar cannot measure its length. Write it on "
+            "one line"
+        ]
     description = stated_description(card)
-    if description is None:
+    if not description:
         return [
             "SKILL.md states no frontmatter description. It is the only thing "
             "that decides whether a model-invocable card is ever reached"
@@ -496,7 +539,7 @@ def evidence_breaches(card: Path) -> list[str]:
 def is_by_hand(card: Path) -> bool:
     """True when the card's frontmatter sets `disable-model-invocation: true`."""
     block = FRONTMATTER_RE.match(
-        (card / "SKILL.md").read_text(encoding="utf-8", errors="replace")
+        (card / "SKILL.md").read_text(encoding="utf-8-sig", errors="replace")
     )
     return block is not None and BY_HAND_RE.search(block.group(1)) is not None
 
@@ -646,10 +689,13 @@ def origin_locator_breaches(card: Path) -> list[str]:
                         f"Origin locator names commit SHA {loc[:12]}... which "
                         "is not present in this repository"
                     )
-            except (subprocess.TimeoutExpired, OSError):
-                # If git is unavailable, skip this check -- the SHA is at
-                # least structurally present even if unresolvable.
-                pass
+            except (subprocess.TimeoutExpired, OSError) as error:
+                # A check that cannot run has not passed: a fabricated SHA
+                # would otherwise clear this gate wherever git is missing.
+                breaches.append(
+                    f"Origin locator names commit SHA {loc[:12]}... which could "
+                    f"not be checked: {error}"
+                )
             continue
 
         # External reference: accepted as a locator (reviewer can follow it).
@@ -1049,9 +1095,9 @@ def validate(root: Path) -> None:
             for detail in details:
                 found.append((rel, kind, detail))
 
-    allowed = [f for f in found if (f[0], f[1]) in _ALLOWLIST]
+    allowed = [f for f in found if f in _ALLOWLIST]
     blocking = [f"  - {rel}: {detail}" for rel, kind, detail in found
-                if (rel, kind) not in _ALLOWLIST]
+                if (rel, kind, detail) not in _ALLOWLIST]
 
     # The allowlist can only shrink. An entry whose breach no longer occurs has
     # been fixed, and the entry must go with it -- otherwise the list keeps
@@ -1062,13 +1108,13 @@ def validate(root: Path) -> None:
     # entries as stale, and the shrink check would fire on trees it says nothing
     # about.
     present = {card.relative_to(root).as_posix() for card in cards}
-    live = {(rel, kind) for rel, kind, _ in found}
+    live = set(found)
     applicable = {entry for entry in _ALLOWLIST if entry[0] in present}
     for entry in sorted(applicable - live):
         blocking.append(
             f"  - allowlist entry no longer applies and must be removed: "
             f"{entry[0]} ({entry[1]}). Recorded {_ALLOWLIST_RECORDED}; "
-            f"that breach is fixed, so delete the entry."
+            f"its exact text no longer appears, so delete or correct the entry."
         )
 
     # Exemption staleness is tree-wide, never per-card, and is not allowlistable.

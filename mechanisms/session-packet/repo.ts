@@ -24,17 +24,24 @@ export type Exec = (command: string, args: string[], options: { cwd: string; tim
 
 /** How long a call that reaches the network (git fetch, ls-remote, push; gh) may run. */
 export const NETWORK_TIMEOUT_MS = 30_000;
-/** The exit code a timed-out network call reports, as coreutils `timeout` does. */
+/** How long a receiver check or claim probe may run: long enough for a test suite, not for a hang on a lock or a prompt. */
+export const CHECK_TIMEOUT_MS = 600_000;
+/** The exit code a timed-out call reports, as coreutils `timeout` does. */
 export const TIMED_OUT_CODE = 124;
 
 /**
- * Run a command that reaches the network, with a timeout. A killed child is reported as a
- * failure carrying "timed out", never read as success: Pi's exec resolves it with code 0.
+ * Run a command with a timeout. A killed child is reported as a failure carrying "timed out",
+ * never read as success: Pi's exec resolves it with code 0.
  */
-export async function execNetwork(exec: Exec, command: string, args: string[], cwd: string): Promise<ExecResult> {
-  const result = await exec(command, args, { cwd, timeout: NETWORK_TIMEOUT_MS });
+async function execTimed(exec: Exec, command: string, args: string[], cwd: string, timeout: number): Promise<ExecResult> {
+  const result = await exec(command, args, { cwd, timeout });
   if (!result.killed) return result;
-  return { code: TIMED_OUT_CODE, stdout: result.stdout, stderr: `${command} timed out after ${NETWORK_TIMEOUT_MS / 1000}s` };
+  return { code: TIMED_OUT_CODE, stdout: result.stdout, stderr: `${command} timed out after ${timeout / 1000}s` };
+}
+
+/** Run a command that reaches the network. */
+export function execNetwork(exec: Exec, command: string, args: string[], cwd: string): Promise<ExecResult> {
+  return execTimed(exec, command, args, cwd, NETWORK_TIMEOUT_MS);
 }
 
 /**
@@ -67,7 +74,7 @@ export async function git(exec: Exec, cwd: string, ...args: string[]): Promise<s
 
 /** Run a trusted command line. `sh` resolves to Git's sh on Windows; `bash` may resolve to WSL. */
 export function shell(exec: Exec, cwd: string, command: string): Promise<ExecResult> {
-  return exec("sh", ["-c", command], { cwd });
+  return execTimed(exec, "sh", ["-c", command], cwd, CHECK_TIMEOUT_MS);
 }
 
 /** True when `rel`, a slash-form `relative()` result, names a path strictly inside its base. */

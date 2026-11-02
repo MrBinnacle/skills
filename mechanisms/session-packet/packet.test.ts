@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect } from "bun:test";
 import { extract, lintReceiverChecks, validateRecordedChecks, validateStructure } from "./packet";
-import { fixture, renderPacket } from "./testkit";
+import { fixture, renderPacket, test } from "./testkit";
 
 describe("extract", () => {
   test("reads the hidden manifest", () => {

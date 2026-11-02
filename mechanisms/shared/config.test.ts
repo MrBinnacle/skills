@@ -1,11 +1,17 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_CHECK_COMMANDS, loadConfig } from "./config";
 
+const roots: string[] = [];
+afterAll(() => {
+  for (const root of roots) rmSync(root, { recursive: true, force: true });
+});
+
 function project(configText?: string): string {
   const root = mkdtempSync(join(tmpdir(), "pi-env-config-"));
+  roots.push(root);
   if (configText !== undefined) {
     mkdirSync(join(root, ".pi"));
     writeFileSync(join(root, ".pi", "engineering-env.json"), configText);

@@ -10,8 +10,9 @@ GITHUB_BASE_REF set to local stand-ins.
 Skipped, and listed as skipped:
   - `uses:` steps (checkout, setup-python, setup-node, setup-bun);
   - steps whose `if:` holds only on a pull_request event;
-  - steps that install software globally (`npm install --global`, `pip install`)
-    or fetch from the remote (`git fetch`);
+  - steps that install software globally (`npm install --global`) or fetch from the
+    remote (`git fetch`). `pip install` runs: the one step that uses it installs into
+    a venv under $RUNNER_TEMP, and no other runner has its checks since #630;
   - steps that read a `$RUNNER_TEMP/<name>` path a skipped step in the same job uses.
 A step after a skipped `npm install --global` in its job runs against the tool on this
 machine, not the version CI pins, so it runs without any `*_STRICT` env flag and gets a
@@ -40,6 +41,7 @@ import io
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -53,7 +55,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "tests.yml"
 MODELLED_KEYS = {"name", "run", "env", "if", "id"}
 TRUE_IFS = {"matrix.os == 'ubuntu-latest'"}
 SKIP_IFS = {"github.event_name == 'pull_request'"}
-SKIP_COMMANDS = re.compile(r"npm install --global|pip install|git fetch")
+SKIP_COMMANDS = re.compile(r"npm install --global|git fetch")
 RUNNER_TEMP_PATH = re.compile(r"\$RUNNER_TEMP/[\w.-]+")
 # The hosted runner's git has no init.defaultBranch, so `git init` makes `master`; fixture steps rely on it.
 RUNNER_GIT = {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "init.defaultBranch", "GIT_CONFIG_VALUE_0": "master"}
@@ -147,6 +149,21 @@ def tree_state() -> str:
     return f"{head} plus uncommitted changes {hashlib.sha256(diff).hexdigest()[:8]}" if diff else head
 
 
+def remove_tree(path: Path) -> None:
+    # Git objects are read-only, and on Windows rmtree silently leaves them.
+    for folder, _, files in os.walk(path):
+        for name in files:
+            file = os.path.join(folder, name)
+            if not os.path.islink(file):  # chmod follows a link and would change its target
+                try:
+                    os.chmod(file, stat.S_IWRITE)
+                except OSError:
+                    pass  # the check below reports what stays
+    shutil.rmtree(path, ignore_errors=True)
+    if path.exists():
+        print(f"WARN could not remove {path}", file=sys.stderr)
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Run the shell steps of the CI workflow locally.")
     parser.add_argument("--list", action="store_true", help="print the steps and exit")
@@ -179,7 +196,9 @@ def main(argv: list[str]) -> int:
                 skipped += 1
                 print(f"SKIP {s.job}[{s.index}] {s.name} ({s.skip})", flush=True)
                 continue
-            temp = temps.setdefault(s.job, Path(tempfile.mkdtemp(prefix=f"ci-local-{s.job}-")))
+            if s.job not in temps:
+                temps[s.job] = Path(tempfile.mkdtemp(prefix=f"ci-local-{s.job}-"))
+            temp = temps[s.job]
             if s.note:
                 print(f"NOTE {s.job}[{s.index}] {s.name}: {s.note}", flush=True)
             rc = run_step(s, args.bash, temp)
@@ -189,7 +208,7 @@ def main(argv: list[str]) -> int:
                 failed.append(f"{s.job}[{s.index}] {s.name}")
     finally:
         for temp in temps.values():
-            shutil.rmtree(temp, ignore_errors=True)
+            remove_tree(temp)
     print(f"\n{ran} ran, {skipped} skipped, {len(failed)} failed at {state}")
     for name in failed:
         print(f"  FAILED {name}")

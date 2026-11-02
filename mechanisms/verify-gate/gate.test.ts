@@ -71,6 +71,14 @@ describe("verification gate", () => {
     expect(gate.beforeSettle("completed")).toBeUndefined();
   });
 
+  test.each(["bash", "powershell"])("a failed check through %s leaves the files unchecked", (tool) => {
+    const gate = createGate(CHECKS);
+    gate.runStarted();
+    gate.toolFinished("edit", { path: "a.ts" }, false);
+    gate.toolFinished(tool, { command: "bun test" }, true);
+    expect(gate.beforeSettle("completed")).toContain("a.ts");
+  });
+
   test("a file outside the project root is not tracked; one inside it, by any spelling, is", () => {
     // An absolute path is absolute only in the host's own spelling: on POSIX,
     // "C:/work/repo" is relative and resolves inside the root.
