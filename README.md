@@ -29,7 +29,7 @@ Some cards load in every session and some run only when you type `/` and their n
 
 ## Install
 
-The install is for Claude Code. Run these two commands one at a time, because Claude Code reads a paste of both as one malformed URL.
+There are two installs: Claude Code here, and [Pi](#pi) below. For Claude Code, run these two commands one at a time, because Claude Code reads a paste of both as one malformed URL.
 
 ```text
 /plugin marketplace add https://github.com/MrBinnacle/skills.git
@@ -66,6 +66,16 @@ Verified forms, Claude Code 2.1.287, from a clean `CLAUDE_CONFIG_DIR` with no SS
 The 2026-10-02 cold-install transcript is in the pull request that changed this section (#340). The 2026-10-17 shell forms ran in the `Install form` CI job on Ubuntu and Windows.
 
 </details>
+
+### Pi
+
+```bash
+pi install git:github.com/MrBinnacle/skills
+```
+
+This installs the same cards and the four Pi extensions in [mechanisms/](mechanisms/README.md): a guard that sends a run which edited files back to run a check before it finishes, a line-ending guard, a reviewer, and a session handoff. Pi reads the `pi` key of `package.json` to find them. Confirm the install with `pi list`.
+
+Checked with Pi 1.5.0 on Windows on 2026-11-08, from an empty Pi configuration directory with skills in `~/.agents/skills` excluded. Pi's own resource loader found every card and all four extensions, with no errors. That shows what Pi loads. It does not show how a model uses them, and it has not been run on Linux or macOS. To install the cards without the extensions, list the package in Pi's `settings.json` as `{"source": "git:github.com/MrBinnacle/skills", "extensions": []}`.
 
 ## License
 
