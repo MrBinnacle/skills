@@ -20,6 +20,30 @@ measured verdict.
 | [`reviewer/`](reviewer/) | `reviewer-horizon` (candidate in `_quarantine/`, not admitted), [`disposition-schema`](../skills/orchestration/disposition-schema/SKILL.md), [`decision-rights`](../skills/orchestration/decision-rights/SKILL.md) | `/review` command and `review_diff` tool; opens a fresh read-only session with a brief that separates the task, the evidence and the decision, and returns typed findings |
 | [`session-packet/`](session-packet/) | [`im-down`](../skills/engineering/im-down/SKILL.md), [`im-up`](../skills/engineering/im-up/SKILL.md) | `/packet-close` and `/packet-open` commands; `agent_before_settle` validates a fill |
 
+## See it fire
+
+From the repository root, with Pi installed:
+
+```sh
+node mechanisms/verify-gate/demo.mjs
+```
+
+It needs no API key and takes a few seconds. It runs Pi's own agent loop twice on a
+throwaway project, with Pi's real `edit` and `bash` tools. The agent is asked to give every
+order a 10% discount and writes `subtotal * 0.1`, a bug the project's test catches.
+
+- **Run 1, gate not loaded.** The agent edits, says "Done.", and the run ends. The demo then
+  runs the project's tests itself, and they fail: the bug would have shipped.
+- **Run 2, `verify-gate/` loaded as shipped.** After "Done." the gate's message appears, the
+  agent runs `npm test`, the test fails, and the agent's last reply quotes the failure.
+
+The model's replies are scripted, so this shows what the gate does, not how a real model
+responds to it. The last reply is built from the real test output in the transcript. The demo
+checks its own result and exits non-zero when the gate does not fire. It finds Pi through the
+managed install under `~/.pi/agent/install/`, then `npm root -g`; set `PI_CODING_AGENT_PACKAGE`
+to the `@earendil-works/pi-coding-agent` directory to point it elsewhere. Checked with Pi 1.5.0
+on Windows on 2026-11-08; not run on Linux or macOS.
+
 `shared/` holds the project-config reader every mechanism uses. It has no `index.ts`, so Pi
 does not load it as an extension.
 

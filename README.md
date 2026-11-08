@@ -25,7 +25,7 @@ Some cards load in every session and some run only when you type `/` and their n
 
 ## Read
 
-- [mechanisms/](mechanisms/README.md) holds Pi extensions: code that runs on a tool result, a command or the end of a run, so it does not wait for the agent to remember a card. Its table says what each one backs, including rules no admitted card states.
+- [mechanisms/](mechanisms/README.md) holds Pi extensions: code that runs on a tool result, a command or the end of a run, so it does not wait for the agent to remember a card. Its table says what each one backs, including rules no admitted card states, and [one command](mechanisms/README.md#see-it-fire) runs the verification guard against a scripted agent.
 - [CATALOG.md](CATALOG.md) lists every card with its evidence.
 - [skills/engineering](skills/engineering/README.md), [skills/orchestration](skills/orchestration/README.md) and [skills/meta](skills/meta/README.md) hold the cards, grouped by subject.
 - [ADMISSION.md](ADMISSION.md) is the rule for what gets in. Its default answer is no.
