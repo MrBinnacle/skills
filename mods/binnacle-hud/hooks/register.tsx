@@ -97,20 +97,46 @@ const LIGHT = '#e2e0ae' // the board's one light: only the thing that wants you
 const DRAB = '#484838'
 const TONE: Record<string, string> = { remember: 'success', warning: '#d0493a', claude: LIGHT }
 
-export const register: Register = on => {
+// Claude Code alone decides dock or inline: dock needs fullscreen and 110
+// columns (d.ts 2532). The one choice left to the person is what the HUD does
+// when it cannot dock.
+const NARROW = ['hide', 'strip'] as const
+type Narrow = (typeof NARROW)[number]
+export const narrowOf = (v: unknown): Narrow => NARROW.find(one => one === v) ?? 'hide'
+const DOCK_COLUMNS = 110
+
+export const whyNoDock = (isFullscreen: boolean | undefined, columns: number | undefined): string | undefined =>
+  isFullscreen === false ? 'needs fullscreen (/tui fullscreen)'
+  : columns !== undefined && columns < DOCK_COLUMNS ? `needs ${DOCK_COLUMNS} columns, now ${columns}`
+  : undefined
+
+export const register: Register = (on, options) => {
+  const noDock = narrowOf(options.narrow)
+  // rows is the inline height alone; a docked pane ignores it.
+  const pane = { id: PANE, title: 'Binnacle', columns: 46, rows: noDock === 'hide' ? 1 : 7 }
+
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'hud', description: 'Design mock 2: open the Binnacle HUD' })
-    // Unasked, the pane docks from 144 columns in fullscreen (d.ts 2532-2533)
-    // and otherwise waits; the command below places it at any width.
-    void $.ui.open({ id: PANE, title: 'Binnacle', columns: 46, rows: 7 })
+    await $.command.register({ name: 'hud', description: 'Open the Binnacle HUD. /hud narrow hide|strip sets what it does without room to dock' })
+    // Unasked, the pane waits undrawn below 144 columns (d.ts 2532-2533).
+    void $.ui.open(pane)
     return next(e)
   })
 
-  on('command.run', { command: 'hud' }, async $ => {
-    const opened = await $.ui.open({ id: PANE, title: 'Binnacle', columns: 46, rows: 7 })
-    return { text: opened.isPlaced
-      ? 'Binnacle mock 2 open. ctrl+x tab enters it; Tab off the field, then 1-5.'
-      : `Binnacle mock 2 not placed: ${opened.reason}` }
+  on('command.run', { command: 'hud' }, async ($, e) => {
+    const [word = '', value = ''] = e.args.trim().toLowerCase().split(/\s+/)
+    if (word === 'narrow') {
+      const wanted = NARROW.find(one => one === value)
+      if (!wanted) return { text: `Without room for the side panel the HUD will ${noDock}. Change it with /hud narrow hide or /hud narrow strip.` }
+      const set = await $.config.set({ key: 'binnacle-hud.narrow', value: wanted })
+      return { text: set.deny ? `Could not change it: ${set.deny}` : `Done. Without room for the side panel the HUD will ${wanted === 'hide' ? 'shrink to one line' : 'show as a strip above the prompt'}.` }
+    }
+    // Asked, the composer is empty again, so focus is honoured (d.ts PaneOpenArgs.focus).
+    const opened = await $.ui.open({ ...pane, focus: true })
+    const why = whyNoDock(e.presentation.isFullscreen, e.presentation.columns)
+    if (!opened.isPlaced) return { text: `Binnacle not placed: ${opened.reason}` }
+    return { text: !why ? 'Binnacle open beside the chat, ready to type. Esc returns to the prompt.'
+      : noDock === 'hide' ? `The side panel ${why}: widen or maximize the window. Until then it shows one line. /hud narrow strip shows the full HUD above the prompt instead.`
+      : `The side panel ${why}: widen or maximize the window. Showing it above the prompt for now.` }
   })
 
   // Where the ring stands decides which keys the key line shows.
@@ -250,7 +276,7 @@ export const register: Register = on => {
     // --- key line: only the keys that can fire now -------------------------
     const keyline = (
       <Text dimColor wrap="truncate-end">
-        {!focused ? 'ctrl+x tab to write'
+        {!focused ? '/hud or a click to write'
           : st.ring === 1 ? 'enter saves · tab actions · esc prompt'
           : inline ? 'm w l expand · esc prompt'
           : 's send · v diff · q quote · d dismiss · esc prompt'}
@@ -265,6 +291,16 @@ export const register: Register = on => {
         ))}
       </Box>
     )
+
+    // --- inline, hide: one line saying how to get the side panel ----------
+    const why = inline && noDock === 'hide' ? whyNoDock(e.viewport?.isFullscreen, e.viewport?.columns) ?? 'is not available here' : undefined
+    if (why) {
+      return (
+        <Box paddingX={1}>
+          <Text wrap="truncate-end"><Text bold><Text color={MARK[0]}>◆</Text> Binnacle</Text><Text dimColor>  side panel {why} · or /hud narrow strip</Text></Text>
+        </Box>
+      )
+    }
 
     // --- inline: one summary row, the one thing that wants you, the field ---
     if (inline) {
