@@ -7,6 +7,10 @@
 
 # MRBINNACLE / skills
 
+Skills that started with problems I encountered.
+
+Skills cost something every turn. How much, and to what degree, have you ever questioned the ROI?
+
 This repository records mistakes that coding agents made in real engineering work. A coding agent is an AI model that edits code and runs commands for you. Each record is a card: a dated log of each time the mistake was seen (`gotchas.md`), a note of where the card came from and what has been measured about it (`EVIDENCE.md`), and a skill (`SKILL.md`), a file of instructions that an agent such as Claude Code can load.
 
 The records are the main offer, and you can read them with no install. No skill here has been shown to make an agent less likely to repeat its mistake. Each card's `EVIDENCE.md` says what has and has not been measured.
