@@ -90,9 +90,12 @@ const SCENES: Scene[] = [
     log: { items: LOG } },
 ]
 
-// One brass hairline under the masthead: the only raw colour in the pane.
-// Color admits any string (d.ts 1719); the fade ends in the theme's dim.
-const BRASS = ['#d4af6a', '#c9a35f', '#b08d57', '#937651', '#76604a']
+// Binnacle Board palette, dark (artifact AQriRu2Xwo2ACiR981H89b, via the skills session 2026-11-08).
+// shortcut: dark values only; add the light variants once a theme read exists.
+const MARK = ['#9a9d78', '#85876a', '#70725c', '#5c5d4a', '#484838'] // olive fading to drab
+const LIGHT = '#e2e0ae' // the board's one light: only the thing that wants you
+const DRAB = '#484838'
+const TONE: Record<string, string> = { remember: 'success', warning: '#d0493a', claude: LIGHT }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
@@ -136,20 +139,20 @@ export const register: Register = on => {
     const seg = Math.max(1, Math.floor(w * 0.08))
     const hairline = (
       <Box flexDirection="row">
-        {BRASS.map((c, i) => <Text key={`hl-${i}`} color={c}>{'─'.repeat(seg)}</Text>)}
-        <Text dimColor>{'─'.repeat(Math.max(0, w - BRASS.length * seg))}</Text>
+        {MARK.map((c, i) => <Text key={`hl-${i}`} color={c}>{'─'.repeat(seg)}</Text>)}
+        <Text dimColor>{'─'.repeat(Math.max(0, w - MARK.length * seg))}</Text>
       </Box>
     )
     const masthead = (
       <Box flexDirection="row" justifyContent="space-between">
-        <Text bold><Text color={BRASS[0]}>◆</Text> Binnacle</Text>
+        <Text bold><Text color={MARK[0]}>◆</Text> Binnacle</Text>
         <Text dimColor>{narrow ? s.claude.split(' ')[0] : s.claude}</Text>
       </Box>
     )
     const header = (label: string, status: string, tone?: 'remember' | 'warning' | 'claude') => (
       <Box flexDirection="row" justifyContent="space-between" marginTop={1}>
         <Text bold>{label}</Text>
-        <Text color={tone} dimColor={!tone} wrap="truncate-start">{status}</Text>
+        <Text color={tone && TONE[tone]} dimColor={!tone} wrap="truncate-start">{status}</Text>
       </Box>
     )
     const quiet = (t?: string) => (t ? <Text dimColor wrap="wrap">{t}</Text> : null)
@@ -171,7 +174,7 @@ export const register: Register = on => {
       <Box flexDirection="column">
         {header('Memory', s.memory.status, s.memory.tone)}
         {s.memory.tone === 'warning' && (
-          <Box flexDirection="row"><Text color="warning">▎</Text><Text dimColor wrap="wrap">Claude is working from the summary alone.</Text></Box>
+          <Box flexDirection="row"><Text color={TONE.warning}>▎</Text><Text dimColor wrap="wrap">Claude is working from the summary alone.</Text></Box>
         )}
         {st.diff && s.memory.action === 'send'
           ? <Code format="diff" source={DIFF} wrap="truncate-end" />
@@ -180,7 +183,7 @@ export const register: Register = on => {
         {hot && s.memory.action && (
           <Box flexDirection="row" gap={2}>
             {st.armed
-              ? <Box flexDirection="row" gap={1}><Text color="claude">send?</Text>{key('s', 'yes', () => set({ armed: false, scene: 1, diff: false }), true)}<Text dimColor>esc: no</Text></Box>
+              ? <Box flexDirection="row" gap={1}><Text color={LIGHT}>send?</Text>{key('s', 'yes', () => set({ armed: false, scene: 1, diff: false }), true)}<Text dimColor>esc: no</Text></Box>
               : key('s', s.memory.action, () => set({ armed: true }), true)}
             {s.memory.action === 'send' && key('v', st.diff ? 'lines' : 'diff', () => set({ diff: !st.diff }))}
           </Box>
@@ -192,7 +195,7 @@ export const register: Register = on => {
     const finding = (f: Finding, i: number) => (
       <Box key={`watch-${i}`} flexDirection="column">
         <Box flexDirection="row">
-          <Text color={f.settled ? undefined : 'claude'} dimColor={!!f.settled}>▎</Text>
+          <Text color={f.settled ? undefined : LIGHT} dimColor={!!f.settled}>▎</Text>
           <Text wrap="truncate-end" dimColor={!!f.settled} hover={{ bold: true }}>{f.text}</Text>
         </Box>
         <Box flexDirection="row" justifyContent="space-between">
@@ -230,7 +233,7 @@ export const register: Register = on => {
       </Box>
     )
     const field = (
-      <Box borderStyle="round" borderColor={focused ? 'promptBorder' : undefined} borderDimColor={!focused} paddingX={1}>
+      <Box borderStyle="round" borderColor={focused ? LIGHT : DRAB} paddingX={1}>
         <Input key="thought" label="›" placeholder="a thought" submitLabel="save" value={s.log.typing} autoFocus
           onSubmit={() => {}} />
       </Box>
@@ -271,7 +274,7 @@ export const register: Register = on => {
       return (
         <Box flexDirection="column" paddingX={1}>
           <Box flexDirection="row" justifyContent="space-between">
-            <Text wrap="truncate-end"><Text bold><Text color={BRASS[0]}>◆</Text> Binnacle</Text><Text dimColor>  {parts.join(' · ')}</Text></Text>
+            <Text wrap="truncate-end"><Text bold><Text color={MARK[0]}>◆</Text> Binnacle</Text><Text dimColor>  {parts.join(' · ')}</Text></Text>
             <Text dimColor> {s.claude}</Text>
           </Box>
           {section ?? (live && finding(live, 0))}
