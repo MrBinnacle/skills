@@ -165,7 +165,7 @@ try {
   const run1 = await runAgent(loaded, cwd1, false);
   const tests1 = runTests(cwd1);
   console.log(`  The run settled after ${run1.modelCalls} model calls and ${run1.bashCalls.length} checks.`);
-  console.log(`  The demo now runs the project's tests itself: ${tests1.passed ? "PASS" : "FAIL"}. The bug would have shipped.\n`);
+  console.log(`  The demo now runs the project's tests itself: ${tests1.passed ? "PASS." : "FAIL. The bug would have shipped."}\n`);
   check(run1.modelCalls === 2, `run 1: expected 2 model calls, got ${run1.modelCalls}`);
   check(run1.bashCalls.length === 0, "run 1: expected no check to run");
   check(run1.gateMessages.length === 0, "run 1: expected no verify-gate message");
@@ -174,7 +174,8 @@ try {
   console.log(`Run 2: verify-gate loaded from ${GATE_DIR}, same script`);
   const run2 = await runAgent(loaded, cwd2, true);
   const npmTest = run2.bashCalls[0];
-  console.log(`  The run settled after ${run2.modelCalls} model calls. The gate sent the agent back to check.\n`);
+  const sentBack = run2.gateMessages.length > 0 && run2.bashCalls.length > 0;
+  console.log(`  The run settled after ${run2.modelCalls} model calls.${sentBack ? " The gate sent the agent back to check." : ""}\n`);
   check(run2.gateMessages.length === 1, `run 2: expected one verify-gate message, got ${run2.gateMessages.length}`);
   check(run2.bashCalls.length === 1, `run 2: expected one npm test call, got ${run2.bashCalls.length}`);
   check(npmTest?.command === "npm test", "run 2: expected the agent to run npm test");
