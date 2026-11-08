@@ -1,7 +1,7 @@
 """Pi package manifest contract.
 
 `pi install git:github.com/MrBinnacle/skills` reads the `pi` key of the root
-`package.json`. Without that key Pi loads the 14 cards from `skills/` and none
+`package.json`. Without that key Pi loads the cards from `skills/` and none
 of the extensions in `mechanisms/` (observed with Pi 1.5.0 on 2026-11-08).
 
 This suite checks the published bytes, not a Pi run:
