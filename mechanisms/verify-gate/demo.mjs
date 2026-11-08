@@ -140,7 +140,7 @@ async function runAgent({ pi, ai }, cwd, withGate) {
       if (textOf(m)) show("agent", textOf(m));
     } else if (m.role === "toolResult") {
       const call = trace.bashCalls.at(-1);
-      if (m.toolName === "bash" && call) call.isError = m.isError;
+      if (m.toolName === "bash" && call) Object.assign(call, { isError: m.isError, output: textOf(m) });
       show("tool", `${m.toolName} ${m.isError ? "FAILED" : "ok"}`);
     }
   }
@@ -171,7 +171,7 @@ try {
   check(run1.gateMessages.length === 0, "run 1: expected no verify-gate message");
   check(!tests1.passed, "run 1: expected the project's tests to fail on the bug");
 
-  console.log(`Run 2: verify-gate loaded from ${GATE_DIR}, same script`);
+  console.log("Run 2: verify-gate loaded from mechanisms/verify-gate/, same script");
   const run2 = await runAgent(loaded, cwd2, true);
   const npmTest = run2.bashCalls[0];
   const sentBack = run2.gateMessages.length > 0 && run2.bashCalls.length > 0;
@@ -179,17 +179,21 @@ try {
   check(run2.gateMessages.length === 1, `run 2: expected one verify-gate message, got ${run2.gateMessages.length}`);
   check(run2.bashCalls.length === 1, `run 2: expected one npm test call, got ${run2.bashCalls.length}`);
   check(npmTest?.command === "npm test", "run 2: expected the agent to run npm test");
+  check(run2.modelCalls === 4, `run 2: expected 4 model calls, got ${run2.modelCalls}`);
   check(npmTest?.isError === true, "run 2: expected npm test to fail");
+  // A failed npm test proves nothing unless the discount test itself ran and failed.
+  check(/expected: 90\b/.test(npmTest?.output ?? "") && /actual: 10\b/.test(npmTest?.output ?? ""),
+    "run 2: expected npm test output to show the discount test failing (expected: 90, actual: 10)");
 } finally {
   rmSync(cwd1, { recursive: true, force: true });
   rmSync(cwd2, { recursive: true, force: true });
 }
 
-console.log("Real: Pi's agent loop, its edit and bash tools, npm test, and the verify-gate extension as shipped.");
-console.log("Scripted: the model's replies. The last one reads the real test output from the transcript.");
-console.log(`Guard: mechanisms/verify-gate/ (gate.ts holds the rule). Took ${((Date.now() - started) / 1000).toFixed(1)}s.`);
-
 if (failures.length) {
   console.error(`\nDEMO FAILED: the gate did not behave as expected.\n- ${failures.join("\n- ")}`);
   process.exit(1);
 }
+
+console.log("Real: Pi's agent loop, its edit and bash tools, npm test, and the verify-gate extension as shipped.");
+console.log("Scripted: the model's replies. The last one reads the real test output from the transcript.");
+console.log(`Guard: mechanisms/verify-gate/ (gate.ts holds the rule). Took ${((Date.now() - started) / 1000).toFixed(1)}s.`);
