@@ -18,6 +18,8 @@ installed users when a version is released, not on every merge to `main`. See
 
 ### Patch Changes
 
+- [#651](https://github.com/MrBinnacle/skills/pull/651) [`209f0c4`](https://github.com/MrBinnacle/skills/commit/209f0c426cf68ae95fdd376a7fb7cf14663503d8) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The front page opens with two of the owner's own lines: where the cards came from, and the question of what a skill costs every turn. Both are recorded in VERBATIM.md with their source.
+
 - [#629](https://github.com/MrBinnacle/skills/pull/629) [`c1df12d`](https://github.com/MrBinnacle/skills/commit/c1df12d9df9c1d735810a8ce3ab15a0516886978) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `AGENTS.md` gains an "Interface and experience" section, placed ahead of "Prose voice". It carries two maintainer rules for agent work in this repository: remove redundant UI copy so an interface explains itself, and treat user, developer and agent experience as one system without trading away security, accessibility or existing behaviour. No card changes.
 
 - [#534](https://github.com/MrBinnacle/skills/pull/534) [`bfd6e54`](https://github.com/MrBinnacle/skills/commit/bfd6e544079c73520e936b6dcd0d2bcd363f3ec4) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `AGENTS.md` no longer files the banner-lockstep block under "Staged retirement (ADR 0007)". The block covers the banner line, the scoreboard validator and the origin tiering, none of which concerns retirement staging. It now sits at the end of the `Retirement` section, ahead of the staged subsection, where it stood before the staged-retirement subsection was added. No text changes and no card changes.
