@@ -44,8 +44,32 @@ describe("render-demo", () => {
     expect(render(OUTPUT.replace("10% discount.", "a < b & c"))).toContain("a &lt; b &amp; c");
   });
 
-  test("every attribute is separated from the one before it", () => {
-    const tags = render(OUTPUT).replace(/<style>[\s\S]*?<\/style>/, "");
-    expect(tags).not.toMatch(/"[\w-]+=/);
+  test("the picture is well-formed XML: every tag parses and every open tag closes", () => {
+    expect(xmlProblem(render(OUTPUT))).toBe("");
+    expect(xmlProblem('<svg><filter id="a"x="0"/></svg>')).not.toBe("");
+    expect(xmlProblem("<svg><g></svg>")).not.toBe("");
+    expect(xmlProblem("<svg>a & b</svg>")).not.toBe("");
   });
 });
+
+// A strict scan of the subset of XML the renderer writes: tags with quoted attributes, escaped
+// text, and one <style> block. Returns "" when the document is well-formed.
+function xmlProblem(svg: string): string {
+  const open: string[] = [];
+  const body = svg.replace(/<style>[\s\S]*?<\/style>/g, "<style/>");
+  for (const [, tag, text] of body.matchAll(/(<[^>]*>)|([^<]+)/g)) {
+    if (text !== undefined) {
+      if (/&(?!(amp|lt|gt|quot|apos);)/.test(text) || text.includes(">")) return `bad text: ${text.slice(0, 40)}`;
+      continue;
+    }
+    const close = tag.match(/^<\/([\w:-]+)>$/);
+    if (close) {
+      if (open.pop() !== close[1]) return `mismatched </${close[1]}>`;
+      continue;
+    }
+    const m = tag.match(/^<([\w:-]+)((?:\s+[\w:-]+="[^"<]*")*)\s*(\/?)>$/);
+    if (!m) return `bad tag: ${tag.slice(0, 60)}`;
+    if (!m[3]) open.push(m[1]);
+  }
+  return open.length ? `unclosed <${open.at(-1)}>` : "";
+}
