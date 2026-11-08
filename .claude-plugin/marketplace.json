@@ -10,22 +10,22 @@
   "plugins": [
     {
       "name": "mrbinnacle-engineering",
-      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/engineering", "ref": "v3.1.0", "sha": "5c68213e4772f97673d4f7fa83e739d92c2ab8a5"},
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/engineering", "ref": "v4.0.0", "sha": "52ea225e93fc3f2dc377ac6dde2d1954ccd6deb1"},
       "description": "Workflow disciplines for shipping software: mistakes that report success, guards and gates that stop your work, and the rituals at phase and session boundaries."
     },
     {
       "name": "mrbinnacle-orchestration",
-      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/orchestration", "ref": "v3.1.0", "sha": "5c68213e4772f97673d4f7fa83e739d92c2ab8a5"},
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/orchestration", "ref": "v4.0.0", "sha": "52ea225e93fc3f2dc377ac6dde2d1954ccd6deb1"},
       "description": "Disciplines for multi-agent work - dispatch, joinability, and synthesis across parallel agents."
     },
     {
       "name": "mrbinnacle-meta",
-      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/meta", "ref": "v3.1.0", "sha": "5c68213e4772f97673d4f7fa83e739d92c2ab8a5"},
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/meta", "ref": "v4.0.0", "sha": "52ea225e93fc3f2dc377ac6dde2d1954ccd6deb1"},
       "description": "Skills about the skill system itself: whether a skill can be reached."
     },
     {
       "name": "tips-anywhere",
-      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "mods/tips-anywhere", "ref": "v3.1.0", "sha": "5c68213e4772f97673d4f7fa83e739d92c2ab8a5"},
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "mods/tips-anywhere", "ref": "v4.0.0", "sha": "52ea225e93fc3f2dc377ac6dde2d1954ccd6deb1"},
       "description": "A Claude Code mod, not a skill: brings the You should know side agent's heads-up notes to the phone and tablet apps as a question with buttons."
     }
   ]
