@@ -5,7 +5,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SVG_PATH = join(HERE, "demo.svg");
@@ -199,6 +199,30 @@ function runDemo() {
   return res.stdout;
 }
 
+// A matching file can still be a picture no browser draws, so load it in a real Chrome or Edge,
+// which puts a <parsererror> element in the page when the SVG does not parse.
+const BROWSERS = [
+  process.env.CHROME_PATH,
+  "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+  "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  "google-chrome", "chromium", "microsoft-edge",
+].filter(Boolean);
+
+function browserParse() {
+  for (const exe of BROWSERS) {
+    const res = spawnSync(exe, ["--headless=new", "--disable-gpu", "--dump-dom", pathToFileURL(SVG_PATH).href], { encoding: "utf-8" });
+    if (res.error || res.status !== 0 || !res.stdout) continue;
+    if (res.stdout.includes("parsererror")) {
+      console.error(`demo.svg does not parse in ${exe}; a browser shows an error page instead of the picture.`);
+      process.exit(1);
+    }
+    console.log(`demo.svg parses in ${exe}.`);
+    return;
+  }
+  console.log("Browser parse skipped: no Chrome or Edge found. Set CHROME_PATH to run it.");
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
   const svg = render(runDemo());
   if (process.argv.includes("--check")) {
@@ -209,6 +233,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync(process.a
       process.exit(1);
     }
     console.log("demo.svg matches the demo's output.");
+    browserParse();
   } else {
     writeFileSync(SVG_PATH, svg);
     console.log(`wrote ${SVG_PATH}`);
