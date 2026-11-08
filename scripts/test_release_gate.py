@@ -1631,6 +1631,19 @@ def case_pi_install_on_an_old_tag_is_refused() -> None:
         )
 
 
+def case_stale_settings_form_alone_is_refused() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        stale = PI_README.format(ref="@v1.2.0").replace('skills@v1.2.0"', 'skills"')
+        write(root / "README.md", stale)
+        result = run_gate("--root", str(root))
+        check(
+            "G12: the settings.json form alone left untagged is refused",
+            result.returncode == 1 and "no tag" in result.stdout,
+            result.stdout,
+        )
+
+
 def case_write_pins_every_pi_source() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = seeded_tree(Path(tmp))
@@ -2333,6 +2346,7 @@ def main() -> None:
         case_pi_install_pinned_to_the_version_passes,
         case_unpinned_pi_install_is_refused,
         case_pi_install_on_an_old_tag_is_refused,
+        case_stale_settings_form_alone_is_refused,
         case_write_pins_every_pi_source,
         case_live_tree_in_lockstep,
         case_ci_runs_the_same_argumentless_command,
