@@ -1591,6 +1591,72 @@ def case_write_fails_closed_on_unreadable_inputs() -> None:
                 )
 
 
+# ------------------------------------------------------------- G12 Pi pin
+
+PI_README = (
+    "pi install git:github.com/MrBinnacle/skills{ref}\n\n"
+    '`{{"source": "git:github.com/MrBinnacle/skills{ref}", "extensions": []}}`\n'
+)
+
+
+def case_pi_install_pinned_to_the_version_passes() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / "README.md", PI_README.format(ref="@v1.2.0"))
+        result = run_gate("--root", str(root))
+        check("G12: a Pi install pinned to v<version> passes", result.returncode == 0, result.stdout)
+
+
+def case_unpinned_pi_install_is_refused() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / "README.md", PI_README.format(ref=""))
+        result = run_gate("--root", str(root))
+        check(
+            "G12: a Pi install with no tag is refused in its own words",
+            result.returncode == 1 and "G12: Pi install drift" in result.stdout and "no tag" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_pi_install_on_an_old_tag_is_refused() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / "README.md", PI_README.format(ref="@v1.2.0").replace("@v1.2.0", "@v1.1.0", 1))
+        result = run_gate("--root", str(root))
+        check(
+            "G12: one Pi source on an old tag is refused, naming that tag",
+            result.returncode == 1 and "names v1.1.0" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_stale_settings_form_alone_is_refused() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        stale = PI_README.format(ref="@v1.2.0").replace('skills@v1.2.0"', 'skills"')
+        write(root / "README.md", stale)
+        result = run_gate("--root", str(root))
+        check(
+            "G12: the settings.json form alone left untagged is refused",
+            result.returncode == 1 and "no tag" in result.stdout,
+            result.stdout,
+        )
+
+
+def case_write_pins_every_pi_source() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = seeded_tree(Path(tmp))
+        write(root / "README.md", PI_README.format(ref="@v1.1.0").replace("@v1.1.0", "", 1))
+        result = run_gate("--root", str(root), "--write")
+        text = (root / "README.md").read_text("utf-8")
+        check(
+            "G12: --write pins every Pi source, tagged or not, then passes",
+            result.returncode == 0 and text == PI_README.format(ref="@v1.2.0"),
+            result.stdout + text,
+        )
+
+
 def case_live_tree_in_lockstep() -> None:
     """The shipped tree, checked exactly as a maintainer checks it: no
     arguments. This pins the acceptance criterion against the real artifact --
@@ -2277,6 +2343,11 @@ def main() -> None:
         case_write_derives_every_entry_from_the_package,
         case_write_is_idempotent,
         case_write_fails_closed_on_unreadable_inputs,
+        case_pi_install_pinned_to_the_version_passes,
+        case_unpinned_pi_install_is_refused,
+        case_pi_install_on_an_old_tag_is_refused,
+        case_stale_settings_form_alone_is_refused,
+        case_write_pins_every_pi_source,
         case_live_tree_in_lockstep,
         case_ci_runs_the_same_argumentless_command,
         case_ci_job_is_blocking_and_on_every_pull_request,

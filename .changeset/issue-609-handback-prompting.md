@@ -1,5 +1,0 @@
----
-"mrbinnacle-skills": patch
----
-
-`subagent-handback` now fires when an agent writes the prompt or brief for a research subagent that the user will dispatch, not only when the agent dispatches one itself. Its description opens "Use when prompting, briefing or dispatching a research subagent" in place of "Use before dispatching a subagent for research", and it no longer spells out "(SendMessage or file)" after "Name a return channel"; the card's body still names both. In `claude plugin eval` runs on `claude-opus-5-5`, the card fired in 0 of 6 runs of the user-dispatch case under the old description. Under the new one it fired in 5 of 5 runs of each of four should-fire cases, two of them new: `subagent-handback-instructions` and `subagent-handback-brief` ask for "instructions" and "a brief" instead of "the prompt". The celery-worker control stayed silent in 5 of 5. The card's `EVIDENCE.md` Applicability scope row and the orchestration bucket README line now say the same, and its recorded standing cost falls from 52 to 49 tokens. The orchestration eval manifest records every run. Installed users need do nothing.

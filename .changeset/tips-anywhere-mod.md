@@ -1,5 +1,0 @@
----
-"mrbinnacle-skills": minor
----
-
-The collection ships its first Claude Code mod, `tips-anywhere`, at `mods/tips-anywhere/`. A mod is a plugin whose hooks module runs inside the session; it loads no text into the context window, so it is not a card. This mod asks about each heads-up note from Claude Code's built-in "You should know" side agent in the chat, with buttons, so the notes reach the phone and tablet apps. ADR 0009 (`docs/adr/0009-the-collection-also-ships-mods-it-authored.md`) widens the scope in `CLAUDE.md` to mods this collection authored, keeps the authorship precondition, exempts mods from the four admission questions, and prices a mod as a card. `release_gate.py` G10 now prices a `mods/*/` directory as it prices a card, and `check_marketplace_pin.py` reports a plugin listed since the pinned release as entering instead of failing it. Adding a mod is priced as admitting a card, so this is minor. The new `tips-anywhere` marketplace entry installs nothing until the release that carries this changeset is pinned.
