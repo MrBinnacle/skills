@@ -15,8 +15,13 @@ Controlled tests, with and without a card, run in a separate repository, [skill-
 
 The site, **https://mrbinnacle.github.io/skills/**, is a one-page summary: the install, the rules for how cards get in and out, and what a version promises. The detail for each card is in [CATALOG.md](CATALOG.md) and in the card's own files.
 
+## What a card costs
+
+Some cards load in every session and some run only when you type `/` and their name. A card that loads in every session costs about 70 to 80 tokens of context, as `/context`, Claude Code's own context counter, counts them (Claude Code 2.1.305, measured 2026-10-20, [#361](https://github.com/MrBinnacle/skills/issues/361#issuecomment-6304133476)). When Claude Code lists a card by name only, which it decides from the space it has for the list, the card costs under 20 tokens. A card that runs by hand costs nothing until you call it.
+
 ## Read
 
+- [mechanisms/](mechanisms/README.md) holds Pi extensions: code that runs on a tool result, a command or the end of a run, so it does not wait for the agent to remember a card. Its table says what each one backs, including rules no admitted card states.
 - [CATALOG.md](CATALOG.md) lists every card with its evidence.
 - [skills/engineering](skills/engineering/README.md), [skills/orchestration](skills/orchestration/README.md) and [skills/meta](skills/meta/README.md) hold the cards, grouped by subject.
 - [ADMISSION.md](ADMISSION.md) is the rule for what gets in. Its default answer is no.
@@ -37,8 +42,6 @@ The install is for Claude Code. Run these two commands one at a time, because Cl
 Install `mrbinnacle-orchestration` and `mrbinnacle-meta` the same way if you want them.
 
 The cards appear after `/reload-plugins`. If Claude Code reports the reload as pending, run `/reload-plugins --force`. Confirm what you installed with `claude plugin list`. It reports the installed plugins and their versions.
-
-Some cards load in every session and some run only when you type `/` and their name. A card that loads in every session costs about 70 to 80 tokens of context, as `/context`, Claude Code's own context counter, counts them (Claude Code 2.1.305, measured 2026-10-20, [#361](https://github.com/MrBinnacle/skills/issues/361#issuecomment-6304133476)). When Claude Code lists a card by name only, which it decides from the space it has for the list, the card costs under 20 tokens. A card that runs by hand costs nothing until you call it.
 
 <details>
 <summary>Shell form and install receipts</summary>
