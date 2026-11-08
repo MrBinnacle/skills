@@ -174,6 +174,15 @@ Checks (all must pass; failures are listed, not first-fail):
       and the check refused every release. ``scripts/ci_local.py`` runs those
       steps on the releasing machine instead.
 
+  G12 Pi install pin: every Pi git source in README.md names the tag
+      ``v<package.json version>``. An unpinned git source follows main, and
+      ``pi update`` resets it to main's latest commit, while a tag stays
+      pinned (Pi packages docs, read 2026-11-08). The Pi package carries the
+      extensions in ``mechanisms/``, code that runs in the user's sessions, so
+      an unpinned command would deliver every merge to main without a release.
+      ``--write`` stamps the tag. A README with no Pi source passes: there is
+      no install to pin. Runs in both modes.
+
 Mode detection (#153):
   A release ref is one whose ``package.json`` version CHANGED relative to its
   merge-base with the default branch. The release-only checks (G3, G5, G6, G7,
@@ -239,6 +248,8 @@ CHANGELOG_REL = "CHANGELOG.md"
 CHANGESET_DIR_REL = ".changeset"
 CHANGESET_README = "README.md"
 WORKFLOW_DIR_REL = ".github/workflows"
+README_REL = "README.md"
+PI_SOURCE_RE = re.compile(r"git:github\.com/MrBinnacle/skills(?:@([^\s\"`]+))?")
 
 # Delegated predicates, imported (not restated) so the release gate's
 # re-assertion cannot drift from the per-PR check it re-runs. O7 lives in
@@ -1950,6 +1961,32 @@ def write_manifest_versions(root: Path, errors: list[str]) -> bool:
     return True
 
 
+def gate_pi_install_pin(root: Path, errors: list[str], declared: str | None) -> None:
+    """G12: every Pi source in README.md pins the tag v<declared>."""
+    path = root / README_REL
+    if declared is None or not path.is_file():
+        return
+    refs = [m.group(1) for m in PI_SOURCE_RE.finditer(path.read_text(encoding="utf-8"))]
+    stale = sorted({ref or "no tag" for ref in refs if ref != f"v{declared}"})
+    if stale:
+        errors.append(
+            f"G12: Pi install drift - {README_REL} names {', '.join(stale)} but "
+            f"{PACKAGE_REL} declares {declared}; run with --write to pin v{declared}"
+        )
+
+
+def write_pi_install_pin(root: Path, version: str) -> None:
+    """--write: pin every Pi source in README.md to v<version>, LF endings kept."""
+    path = root / README_REL
+    if not path.is_file():
+        return
+    text = path.read_text(encoding="utf-8")
+    pinned = PI_SOURCE_RE.sub(f"git:github.com/MrBinnacle/skills@v{version}", text)
+    if pinned != text:
+        path.write_text(pinned, encoding="utf-8", newline="\n")
+        print(f"RELEASE GATE: WRITE - pinned the Pi install in {README_REL} to v{version}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Release gate - refuses a release whose public surfaces have gone stale."
@@ -1989,10 +2026,13 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     package_data, declared = read_package_source(root, errors)
+    if args.write and declared is not None:
+        write_pi_install_pin(root, declared)
     workspace = workspace_packages(root, package_data) if package_data is not None else None
     version = gate_manifest_version_lockstep(root, errors, declared) or "unknown"
     gate_changeset_plan(root, errors, workspace)
     gate_changelog_section(root, errors, declared)
+    gate_pi_install_pin(root, errors, declared)
     # Release mode is declared two ways: the --release flag (an override a
     # fixture or explicit run uses) and auto-detection, which treats a ref
     # whose package.json version changed relative to its merge-base with the
