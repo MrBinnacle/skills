@@ -3,7 +3,7 @@
 //   (no flag) run the demo and write demo.svg
 //   --check   run the demo and exit 1 if demo.svg no longer matches what it prints
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -82,7 +82,7 @@ function planks(height) {
 
 // An SVG shown through <img> cannot fetch web fonts, so Barlow travels inside the file. The
 // subsets in fonts/ keep the font's name table, which carries its SIL Open Font License.
-export function fontFaces() {
+function fontFaces() {
   const face = (family, weight, file) => {
     const data = readFileSync(join(HERE, "fonts", file)).toString("base64");
     return `@font-face{font-family:'${family}';font-weight:${weight};src:url(data:font/ttf;base64,${data}) format('truetype')}`;
@@ -199,7 +199,7 @@ function runDemo() {
   return res.stdout;
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
   const svg = render(runDemo());
   if (process.argv.includes("--check")) {
     let committed = "";
