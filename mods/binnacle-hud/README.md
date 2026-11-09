@@ -13,7 +13,8 @@ The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has th
 ## Give Claude your Memory lines
 
 1. Type a line in the field. Press Tab to reach the actions, then press `a` to add the line to Memory.
-2. To remove a line, press its number.
+   If you pressed Enter by habit, the line is in the Log. Press Tab, then `p`, to copy the newest Log thought into Memory. The Log keeps it.
+2. To remove a line, press its number. With more than nine lines, `0` removes the last one.
 3. Press `s` to send. Claude Code shows the lines and asks, for example, "Give Claude these 2 lines now?". Choose **Send**.
 
 The mod adds one row to the conversation that reads "Memory the operator approved at HH:MM:", followed by the lines. The row starts no model turn. Claude reads it on its next turn.

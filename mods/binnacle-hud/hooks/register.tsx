@@ -82,6 +82,13 @@ async function addLine($: EngineInterface): Promise<void> {
   await update($, typed, () => '')
 }
 
+// Enter keeps a thought in the Log, so a line meant for Memory can land
+// there by habit. This copies the newest Log thought into Memory; the Log keeps it.
+async function promote($: EngineInterface): Promise<void> {
+  const last = (await read($, kept)).at(-1)?.text
+  if (last) await update($, draft, lines => lines.at(-1) === last ? lines : [...lines, last])
+}
+
 async function removeLine($: EngineInterface, at: number): Promise<void> {
   await update($, draft, lines => lines.filter((_, i) => i !== at))
 }
@@ -263,6 +270,7 @@ export const register: Register = (on, options) => {
     type Act = { k: string; label: string; run: () => void; primary?: boolean }
     const showsMemory = !inline || st.expand === 1
     const writing = now.trim() !== ''
+    const newest = thoughts.at(-1)?.text
     const toggle = (n: number): Act => ({ k: 'mwl'[n - 1]!, label: ['memory', 'watch', 'log'][n - 1]!,
       run: () => void update($, view, v => ({ ...v, expand: v.expand === n ? 0 : n })) })
     const press = () => {
@@ -273,9 +281,11 @@ export const register: Register = (on, options) => {
     const acts: Act[] = [
       ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
       ...(writing ? [{ k: 'a', label: 'to memory', run: () => void addLine($) }] : []),
+      ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($) }] : []),
       ...(showsMemory && lines.length && !(snap && same(lines, snap.lines)) ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
-      // shortcut: a line past the ninth has no remove key; add paging if Memory grows that long.
+      // shortcut: lines past the ninth have only 0, which removes the last one; add paging if Memory grows that long.
       ...(showsMemory && !writing ? lines.slice(0, 9).map((_, i) => ({ k: String(i + 1), label: 'remove', run: () => void removeLine($, i) })) : []),
+      ...(showsMemory && !writing && lines.length > 9 ? [{ k: '0', label: 'remove last', run: () => void removeLine($, lines.length - 1) }] : []),
     ]
     const rail = focused && (
       <Box flexDirection="row" flexWrap="wrap" gap={1}>

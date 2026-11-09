@@ -177,3 +177,36 @@ test('a is offered only with text in the field, and adds it as a line', async ($
   expect(store.memory).toEqual(['ship slice 1'])
   expect(store.typed).toBe('')
 })
+
+// Enter keeps a thought in the Log, so a Memory line typed by habit lands
+// there. p copies the newest Log thought into Memory, so nothing is retyped.
+const thought = (text: string) => ({ text, at: '2026-11-09T14:00:00.000Z', from: 'terminal' })
+
+test('p copies the newest Log thought into Memory and keeps it in the Log', async ($, on) => {
+  const store: Store = { memory: [], log: [thought('older'), thought('ship slice 1')], typed: '' }
+  const session = mock.session(on)
+  await start($, on, store)
+  const ui = await $.ui.mount(pane())
+  await ui.press({ key: 'k-p' })
+  expect(store.memory).toEqual(['ship slice 1'])
+  expect(store.log.map((t: any) => t.text)).toEqual(['older', 'ship slice 1'])
+  expect(session.appended()).toHaveLength(0)
+})
+
+test('p is not offered when the newest Log thought is already a Memory line', async ($, on) => {
+  const store: Store = { memory: ['ship slice 1'], log: [thought('ship slice 1')], typed: '' }
+  mock.session(on)
+  await start($, on, store)
+  const ui = await $.ui.mount(pane())
+  expect(await shown(ui)).not.toContain('"k-p"')
+})
+
+test('0 removes the last line, so a tenth line is never stuck', async ($, on) => {
+  const ten = Array.from({ length: 10 }, (_, i) => `line ${i + 1}`)
+  const store: Store = { memory: ten, typed: '' }
+  mock.session(on)
+  await start($, on, store)
+  const ui = await $.ui.mount(pane())
+  await ui.press({ key: 'k-0' })
+  expect(store.memory).toEqual(ten.slice(0, 9))
+})
