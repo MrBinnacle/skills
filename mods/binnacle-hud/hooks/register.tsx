@@ -1,24 +1,25 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
+import type { Thought } from '../types'
 
-// Binnacle HUD, design 2 (Pi session, 2026-11-08). A drop-in replacement for
-// mods/binnacle-hud/hooks/register.tsx: fixed sample data, nothing saved or
-// sent. What is real in this mock: the pane's placement (dock or inline), its
-// width, whether it holds the keys, where the focus ring stands, hover.
+// Binnacle HUD, design 2 (Pi session, 2026-11-08). Memory and Watch are fixed
+// sample data, nothing saved or sent. Real: the Log, the pane's placement
+// (dock or inline), its width, whether it holds the keys, the focus ring, hover.
 //
 // Keys inside the pane (after /hud, ctrl+x tab or a click, then Tab off the
 // field): the action row under the field is the whole list, built from what
 // is on screen, so no key is shown that has no button. In the dock, 1-5 pick a
 // preview scene from their own row at the bottom.
 //
-// State lives under two keys CC's types/index.d.ts declares: `scene`, a
-// number packed as digits, and `typed`, the field's text, echoed wrapped above
-// it because the host's Input cuts a long line off at the edge (native,
-// 2026-11-08). The real mod declares its own keys.
+// State lives under keys types/index.d.ts declares: `scene`, a number packed
+// as digits; `typed`, the field's text, echoed wrapped above it because the
+// host's Input cuts a long line off at the edge (native, 2026-11-08); and
+// `log`, the kept thoughts, newest last. None of it reaches the model.
 const PANE = 'binnacle-hud'
 const SEND = 'k-s' // the send button's key, as ui.focus names it
 const packed = atom({ plugin: 'binnacle-hud', key: 'scene' } as const, 0, { shape: 'scene-2' })
 const typed = atom({ plugin: 'binnacle-hud', key: 'typed' } as const, '')
+const kept = atom({ plugin: 'binnacle-hud', key: 'log' } as const, [] as Thought[])
 
 type Ring = 0 | 1 | 2 // 0 no element, 1 the thought field, 2 a button
 type View = { scene: number; diff: boolean; expand: number; ring: Ring; armed: boolean }
@@ -34,13 +35,11 @@ const pack = (s: View): number =>
 
 type Line = { who: 'you' | 'claude'; text: string; changed?: boolean }
 type Finding = { text: string; why: string; source: string; age: string; settled?: string }
-type Thought = { at: string; text: string }
 type Scene = {
   name: string
   claude: string
   memory: { status: string; tone?: 'remember' | 'warning'; lines: Line[]; action?: string; empty?: string }
   watch: { status: string; items: Finding[]; empty?: string }
-  log: { items: Thought[]; typing?: string }
 }
 
 const MEMORY: Line[] = [
@@ -59,11 +58,6 @@ const DIFF = [
   '+Probe step 2 decides the design; step 3 is the focus probe',
   '+Model slice 2 before building it',
 ].join('\n')
-const LOG: Thought[] = [
-  { at: '14:01', text: 'Check ctrl+x tab over a draft' },
-  { at: '14:05', text: 'Ask config where $.store lives on disk' },
-  { at: '14:09', text: 'Rerun the naive config before slice 2' },
-]
 const FINDING: Finding = {
   text: 'Tests were skipped in the last run',
   why: 'The test step printed "skipped: 12" and exited 0, so the green result covers only 3 of 15 tests. The skip came from a missing fixture file, not a marker.',
@@ -74,24 +68,19 @@ const FINDING: Finding = {
 const SCENES: Scene[] = [
   { name: 'idle', claude: 'waiting for you',
     memory: { status: 'nothing sent', lines: [], empty: 'Nothing sent. After compaction Claude keeps only its summary.' },
-    watch: { status: 'quiet', items: [], empty: 'Nothing reported.' },
-    log: { items: [] } },
+    watch: { status: 'quiet', items: [], empty: 'Nothing reported.' } },
   { name: 'busy', claude: 'working · 2m',
     memory: { status: 'sent 14:02', tone: 'remember', lines: MEMORY },
-    watch: { status: 'quiet', items: [], empty: 'Nothing reported.' },
-    log: { items: LOG, typing: 'remember to rerun the naive con' } },
+    watch: { status: 'quiet', items: [], empty: 'Nothing reported.' } },
   { name: 'finding', claude: 'working · 4m',
     memory: { status: 'sent 14:02', tone: 'remember', lines: MEMORY },
-    watch: { status: '1 new', items: [FINDING] },
-    log: { items: LOG } },
+    watch: { status: '1 new', items: [FINDING] } },
   { name: 'edited', claude: 'waiting for you',
     memory: { status: '2 lines changed since Send', lines: EDITED, action: 'send' },
-    watch: { status: 'quiet', items: [{ ...FINDING, settled: 'answered on phone 14:07' }] },
-    log: { items: LOG } },
+    watch: { status: 'quiet', items: [{ ...FINDING, settled: 'answered on phone 14:07' }] } },
   { name: 'failed', claude: 'waiting for you',
     memory: { status: 'not attached · compaction 14:20', tone: 'warning', lines: MEMORY, action: 'send again' },
-    watch: { status: 'quiet', items: [], empty: 'Nothing reported.' },
-    log: { items: LOG } },
+    watch: { status: 'quiet', items: [], empty: 'Nothing reported.' } },
 ]
 
 // Binnacle Board palette, dark (artifact AQriRu2Xwo2ACiR981H89b, via the skills session 2026-11-08).
@@ -113,6 +102,18 @@ export const whyNoDock = (isFullscreen: boolean | undefined, columns: number | u
   isFullscreen === false ? 'needs fullscreen (/tui fullscreen)'
   : columns !== undefined && columns < DOCK_COLUMNS ? `needs ${DOCK_COLUMNS} columns, now ${columns}`
   : undefined
+
+// Appends in one update, so two quick keeps cannot overwrite each other.
+async function keep($: EngineInterface, text: string, from: Thought['from']): Promise<boolean> {
+  if (!text.trim()) return false
+  await update($, kept, items => [...items, { text, at: new Date().toISOString(), from }])
+  return true
+}
+
+// Clears the field after a keep: a drawn value different from the typing replaces it.
+async function submit($: EngineInterface, text: string): Promise<void> {
+  if (await keep($, text, 'terminal')) await update($, typed, () => '')
+}
 
 export const register: Register = (on, options) => {
   const noDock = narrowOf(options.narrow)
@@ -159,6 +160,7 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button, Input, Code } = $.ui.resolve(e)
     const st = unpack(await read($, packed))
     const now = await read($, typed)
+    const thoughts = await read($, kept)
     const s = SCENES[st.scene % SCENES.length] ?? SCENES[0]!
     const set = (patch: Partial<View>) => void update($, packed, v => pack({ ...unpack(v), ...patch }))
 
@@ -245,7 +247,7 @@ export const register: Register = (on, options) => {
     // --- log ---------------------------------------------------------------
     const thought = (t: Thought, i: number) => (
       <Box key={`log-${i}`} flexDirection="row" justifyContent="space-between">
-        <Text wrap={inline ? 'truncate-end' : 'wrap'}>{narrow ? '  ' : <Text dimColor>{t.at}  </Text>}{t.text}</Text>
+        <Text wrap={inline ? 'truncate-end' : 'wrap'}>{narrow ? '  ' : <Text dimColor>{new Date(t.at).toTimeString().slice(0, 5)}{t.from === 'phone' ? ' phone' : ''}  </Text>}{t.text}</Text>
         <Box display="none" hover={{ display: 'flex' }} flexDirection="row" gap={1}>
           <Button key={`log-quote-${i}`} plain dimColor onPress={() => {}}>quote</Button>
           <Button key={`log-done-${i}`} plain dimColor onPress={() => {}}>done</Button>
@@ -257,17 +259,17 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column">
         {now.length > shown && <Text dimColor wrap="wrap">{now}</Text>}
         <Box borderStyle="round" borderColor={focused ? LIGHT : DRAB} paddingX={1}>
-          <Input key="thought" label="›" placeholder="preview: nothing typed here is kept" submitLabel="not kept"
-            value={s.log.typing} autoFocus onSubmit={() => {}}
+          <Input key="thought" label="›" placeholder="a thought for later" submitLabel="keep"
+            value={now} autoFocus onSubmit={v => void submit($, v)}
             onInput={v => void update($, typed, () => v).catch(() => undefined)} />
         </Box>
       </Box>
     )
     const log = (
       <Box flexDirection="column" flexGrow={1} justifyContent="flex-end">
-        {header('Log', s.log.items.length ? `${s.log.items.length} sample` : 'empty')}
-        {s.log.items.length === 0 && quiet('Preview: Enter keeps nothing yet. When it does, nothing in the log reaches Claude.')}
-        {s.log.items.map(thought)}
+        {header('Log', thoughts.length ? `${thoughts.length} kept` : 'empty')}
+        {thoughts.length === 0 && quiet('Nothing kept yet. Nothing in the log reaches Claude.')}
+        {thoughts.map(thought)}
         {field}
       </Box>
     )
@@ -299,7 +301,7 @@ export const register: Register = (on, options) => {
         <Text dimColor>{armed ? 'esc no' : 'esc prompt'}</Text>
       </Box>
     )
-    const hint = !focused ? '/hud or a click to write' : st.ring === 1 ? 'preview: enter keeps nothing · tab to the actions' : undefined
+    const hint = !focused ? '/hud or a click to write' : st.ring === 1 ? 'enter keeps it · tab to the actions' : undefined
     const keyline = hint && <Text dimColor wrap="truncate-end">{hint}</Text>
     const scenes = focused && (
       <Box flexDirection="row" flexWrap="wrap" gap={1} marginTop={1}>
@@ -323,7 +325,7 @@ export const register: Register = (on, options) => {
 
     // --- inline: summary, actions, the one thing that wants you, the field --
     if (inline) {
-      const parts = [`memory ${s.memory.status}`, `watch ${s.watch.status}`, `log ${s.log.items.length}`]
+      const parts = [`memory ${s.memory.status}`, `watch ${s.watch.status}`, `log ${thoughts.length}`]
       const section = st.expand === 1 ? memory : st.expand === 2 ? watch : st.expand === 3 ? log : null
       const hasField = !section || st.expand === 3
       return (

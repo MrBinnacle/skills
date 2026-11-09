@@ -16,14 +16,18 @@ const pane = (placement: 'dock' | 'inline', isFocused: boolean) => ({
   },
 }) as const
 
-const start = async ($: any, on: any, value: number, writes: number[] = [], typed = '') => {
+const start = async ($: any, on: any, value: number, writes: number[] = [], typed = '', sets: Record<string, unknown[]> = {}) => {
   on('command.register', () => ({ value: { command: 'hud' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
-  on('state.get', (_: unknown, e: { key: string }) => ({ value: e.key === 'typed'
-    ? { value: typed, version: 1 }
+  on('state.get', (_: unknown, e: { key: string }) => ({ value: e.key === 'typed' ? { value: typed, version: 1 }
+    : e.key === 'log' ? { value: [], version: 1 }
     : { value: { shape: 'scene-2', value }, version: 1 } }))
-  on('state.set', (_: unknown, e: { value: { value: number } }) => { writes.push(e.value.value); return { value: { isSet: true, version: 2 } } })
+  on('state.set', (_: unknown, e: { key: string; value: any }) => {
+    if (e.key === 'scene') writes.push(e.value.value)
+    ;(sets[e.key] ??= []).push(e.value)
+    return { value: { isSet: true, version: 2 } }
+  })
   on('ui.focus', () => ({ value: {} }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 }
@@ -62,10 +66,29 @@ test('unfocused: no buttons, so no hotkeys to fall through', async ($, on) => {
   expect(await keys(ui)).toEqual([])
 })
 
-test('the field says it keeps nothing while it holds the keys', async ($, on) => {
+test('the field says Enter keeps the thought while it holds the keys', async ($, on) => {
   await start($, on, RING(1))
   const ui = await $.ui.mount(pane('dock', true))
-  expect(JSON.stringify(await ui.drawn())).toContain('preview: enter keeps nothing')
+  expect(JSON.stringify(await ui.drawn())).toContain('enter keeps it')
+})
+
+test('Enter in the field keeps the thought in the log and clears the field', async ($, on) => {
+  const sets: Record<string, unknown[]> = {}
+  await start($, on, RING(1), [], 'rerun the naive config', sets)
+  await $.ui.mount(pane('dock', true))
+  await $.ui.input({ plugin: 'binnacle-hud', key: 'thought', text: 'rerun the naive config' })
+  const logged = sets.log as { text: string; from: string }[][]
+  expect(logged).toHaveLength(1)
+  expect(logged[0]!.map(t => [t.text, t.from])).toEqual([['rerun the naive config', 'terminal']])
+  expect(sets.typed?.at(-1)).toBe('')
+})
+
+test('Enter on an empty field keeps nothing', async ($, on) => {
+  const sets: Record<string, unknown[]> = {}
+  await start($, on, RING(1), [], '', sets)
+  await $.ui.mount(pane('dock', true))
+  await $.ui.input({ plugin: 'binnacle-hud', key: 'thought', text: '   ' })
+  expect(sets.log).toBeUndefined()
 })
 
 test('armed shows the question only while focused', async ($, on) => {
@@ -121,7 +144,8 @@ test('dock, edited memory: the field comes before send and diff', async ($, on) 
 })
 
 const LONG = 'the quick brown fox jumps over the lazy dog and keeps running past the edge'
-const echoed = async (ui: any, text: string) => JSON.stringify(await ui.drawn()).includes(`"${text}"`)
+// The field holds the text as its value, so an echo is a second copy.
+const echoed = async (ui: any, text: string) => JSON.stringify(await ui.drawn()).split(`"${text}"`).length > 2
 
 test('dock: a thought too long for the field is shown whole above it', async ($, on) => {
   await start($, on, RING(1), [], LONG)
