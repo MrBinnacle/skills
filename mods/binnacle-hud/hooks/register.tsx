@@ -141,6 +141,9 @@ async function send($: EngineInterface): Promise<void> {
   await update($, view, v => ({ ...v, failed: out.deny ?? '' }))
 }
 
+// A submit sets `sentAt` to the newest event number. That is this clear's
+// own number when the submit came while this clear was still on its way in,
+// and the number before it when the submit came first.
 // Applies one change to the box. A clear that empties a draft nobody
 // submitted keeps the draft as lost. A stash or recall that brings the lost
 // text back drops it. A keystroke touches no state.
@@ -149,15 +152,21 @@ async function boxChanged($: EngineInterface, text: string, kind: string, seen: 
   applied = seen
   const before = box
   box = text
-  if (kind === 'clear' && sentAt !== seen - 1 && before.trim() && !before.startsWith('/') && text !== before) {
+  if (kind === 'clear' && sentAt !== seen - 1 && sentAt !== seen && before.trim() && !before.startsWith('/') && text !== before) {
     lossAt = seen
-    const rec = { text: before, at: await $.clock.now(), moves: seen }
-    // On a retry, a newer clear's draft wins.
-    lossWrite = update($, lost, now => lossAt === seen ? rec : now).then(() => undefined, () => undefined)
+    // Assigned before any await, so a submit arriving right after this clear
+    // waits for this write and then drops it (live order on 2.1.321).
+    lossWrite = keepLoss($, before, seen)
     await lossWrite
   } else if (kind !== 'edit' && text && (await read($, lost).catch(() => null))?.text === text) {
     await update($, lost, now => now && now.text === text ? null : now).catch(() => undefined)
   }
+}
+
+async function keepLoss($: EngineInterface, before: string, seen: number): Promise<void> {
+  const rec = { text: before, at: await $.clock.now(), moves: seen }
+  // On a retry, a newer clear's draft wins.
+  await update($, lost, now => lossAt === seen ? rec : now).catch(() => undefined)
 }
 
 // The person submitted. When the clear came first, that clear was the submit,

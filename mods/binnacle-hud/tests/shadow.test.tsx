@@ -17,8 +17,9 @@ const deferred = () => {
   return { promise, resolve }
 }
 
-const start = async ($: any, on: any, opts: { holdFirstLost?: { promise: Promise<void> }; entered?: () => void; refuseCopy?: boolean; holdEdit?: { promise: Promise<void> } } = {}) => {
-  const clock = mock.clock(on)
+const start = async ($: any, on: any, opts: { holdFirstLost?: { promise: Promise<void> }; entered?: () => void; refuseCopy?: boolean; holdEdit?: { promise: Promise<void> }; holdClock?: { promise: Promise<void> } } = {}) => {
+  const clock = opts.holdClock ? { settle: async () => { for (let i = 0; i < 20; i++) await new Promise(r => setTimeout(r, 2)) } } : mock.clock(on)
+  if (opts.holdClock) on('clock.now', async () => { opts.entered?.(); await opts.holdClock!.promise; return { value: 0 } })
   const state: Record<string, { value: any; version: number }> = {}
   const cell = (k: string) => state[k] ?? { value: undefined, version: 0 }
   const host = { box: '', fills: [] as unknown[], copies: [] as string[], submits: 0 }
@@ -221,4 +222,33 @@ test('an older clear whose write retries does not replace a newer cleared draft'
   await first
   await s.settle()
   expect(s.lost()?.text).toBe('new draft')
+})
+
+// Live order on 2.1.321 (review of fbacf549): the clear arrives, then the
+// submit 17 ms later, before the clear's loss write has even started.
+test('a submit that arrives right after its clear, before the loss is written, records nothing', async ($, on) => {
+  const s = await start($, on)
+  await s.type('the submitted question')
+  const clearing = s.change('clear')
+  const submitting = s.submit()
+  await clearing
+  await submitting
+  await s.settle()
+  expect(s.lost()).toBe(null)
+})
+
+test('a submit that arrives while the clear reads the clock records nothing', async ($, on) => {
+  const hold = deferred()
+  const entered = deferred()
+  const s = await start($, on, { holdClock: hold, entered: entered.resolve })
+  await s.type('the submitted question')
+  const clearing = s.change('clear')
+  await entered.promise
+  const submitting = s.submit()
+  await s.settle()
+  hold.resolve()
+  await clearing
+  await submitting
+  await s.settle()
+  expect(s.lost()).toBe(null)
 })
