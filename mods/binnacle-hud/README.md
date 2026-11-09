@@ -1,6 +1,6 @@
 # binnacle-hud
 
-Keep a private Log of thoughts beside a Claude Code session, from the terminal or from the Claude app on your phone. Nothing in the Log is sent to Claude.
+Keep a Log of thoughts beside a Claude Code session, from the terminal or from the Claude app on your phone. The mod keeps each thought in session state. It does not send a thought to Claude or add it to the conversation. Whether a thought stays out of a later model request has not been verified.
 
 The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has three sections:
 
@@ -53,7 +53,7 @@ The reply is "Kept in the Log." The reply never repeats the thought. In the HUD,
 
 If you type text after `/log`, the mod keeps nothing and asks you to use the dialog. Text after a command is part of the conversation.
 
-## How the mod keeps the Log private
+## What the mod does with a kept thought
 
 - A kept thought starts no model turn, and the mod adds nothing to Claude's context.
 - The command line and the mod's reply are part of the conversation, so neither one carries the thought.
@@ -61,10 +61,10 @@ If you type text after `/log`, the mod keeps nothing and asks you to use the dia
 
 ### Where a kept thought goes
 
-- Claude Code holds the Log in the mod's session state. The mod writes no file and keeps no store between sessions.
+- The mod keeps Log entries in Claude Code's session state. It writes no kept thought to a file or to a store of its own. This describes the mod's code, not Claude Code's own logging, syncing or retention.
 - The mod's code makes no network call.
-- Other plugins in the same session can read the Log. Claude Code lets any plugin read another plugin's session state, though only the owner can change it. Install only plugins you trust.
-- A thought sent from the phone travels over Remote Control, Anthropic's connection between the Claude app and your terminal session, before the mod keeps it. A thought typed in the terminal never leaves your machine through the mod.
+- Other plugins in the same session can read the Log. A plugin cannot write another plugin's state directly, but it can intercept a state write and change it. The Log is not isolated from other plugins. Install only plugins you trust.
+- A thought sent from the phone travels over Remote Control, Anthropic's connection between the Claude app and your terminal session, before the mod keeps it. A thought typed in the terminal goes to session state with no network call by the mod. Claude Code and other plugins are outside what the mod can promise.
 
 ## What was tested
 
