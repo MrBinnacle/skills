@@ -6,4 +6,4 @@ The collection ships a second Claude Code mod, `binnacle-hud`, at `mods/binnacle
 
 `/log` asks for the thought in Claude Code's question dialog, because the phone draws that dialog but not a mod's panel. It refuses text typed after the command, because the conversation records the command line. The panel's Memory and Watch sections are a design preview with sample data.
 
-ADR 0009 prices a new mod as a new card, so this changeset is minor. The new marketplace entry installs nothing until the release that carries this changeset is pinned.
+ADR 0009 prices adding a mod as admitting a card, so this changeset is minor. The new marketplace entry installs nothing until the release that carries this changeset is pinned.
