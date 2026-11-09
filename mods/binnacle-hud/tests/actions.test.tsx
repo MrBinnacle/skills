@@ -94,6 +94,7 @@ test('dock: kept thoughts draw in the Log, and only the phone one is marked phon
   expect(tree).toContain('"call the venue about the 14th"')
   expect(tree).toContain('"rerun the naive config"')
   expect(tree.split('" phone"').length - 1).toBe(1)
+  expect(tree.indexOf('" phone"')).toBeLessThan(tree.indexOf('"call the venue about the 14th"'))
 })
 
 test('Enter on an empty field keeps nothing', async ($, on) => {
