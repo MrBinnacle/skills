@@ -264,10 +264,6 @@ export const register: Register = (on, options) => {
     const thought = (t: Thought, i: number) => (
       <Box key={`log-${i}`} flexDirection="row" justifyContent="space-between">
         <Text wrap={inline ? 'truncate-end' : 'wrap'}>{narrow ? '  ' : <Text dimColor>{new Date(t.at).toTimeString().slice(0, 5)}{t.from === 'phone' ? ' phone' : ''}  </Text>}{t.text}</Text>
-        <Box display="none" hover={{ display: 'flex' }} flexDirection="row" gap={1}>
-          <Button key={`log-quote-${i}`} plain dimColor onPress={() => {}}>quote</Button>
-          <Button key={`log-done-${i}`} plain dimColor onPress={() => {}}>done</Button>
-        </Box>
       </Box>
     )
     const shown = w - 12 // the field's width less its frame, label and Enter hint
