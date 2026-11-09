@@ -4,10 +4,6 @@ import { expect, test } from 'claude-code/testing'
 // keys, on the terminal. The one thing this proves: no tree is refused (a
 // refused Pane tree closes the pane in a live session). It proves nothing
 // about paint, hover or focus: only the terminal shows those.
-//
-// Run from the mod folder once design-2-register.tsx is its hooks/register.tsx
-// and this file sits in tests/: `claude plugin test <mod folder>`. Not run by
-// the Pi session that wrote it (2026-11-08); the typecheck is the only check.
 
 const PANE = {
   plugin: 'binnacle-hud',
