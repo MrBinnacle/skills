@@ -25,6 +25,8 @@ const kept = atom({ plugin: 'binnacle-hud', key: 'log' } as const, [] as Thought
 const failed = atom({ plugin: 'binnacle-hud', key: 'failed' } as const, [] as string[])
 // Counts edits for both capture actions: equality cannot identify a retyped draft.
 let edits = 0
+// Counts failed keeps, so a dismissal can tell a new failure from an old one with the same text.
+let failures = 0
 const draft = atom({ plugin: 'binnacle-hud', key: 'memory' } as const, [] as string[])
 const approved = atom({ plugin: 'binnacle-hud', key: 'approved' } as const, null as Approved | null)
 const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, expand: 0, failed: '' } as View)
@@ -72,6 +74,7 @@ async function keep($: EngineInterface, text: string, from: Thought['from']): Pr
     await update($, kept, items => [...items, { text, at: new Date().toISOString(), from }])
     return true
   } catch {
+    failures += 1
     await update($, failed, items => [...items, text]).catch(() => undefined)
     return null
   }
@@ -130,11 +133,12 @@ async function send($: EngineInterface): Promise<void> {
   await update($, view, v => ({ ...v, failed: out.deny ?? '', unrecorded: out.deny ? v.unrecorded : unrecorded }))
 }
 
-// Drops exactly the failed keeps on screen. When the list no longer starts
-// with them (a second press, or a retry after another dismissal), it changes
-// nothing, so a keep that failed since is never dropped unseen.
+// Drops exactly the failed keeps on screen. It changes nothing when the list
+// no longer starts with them (a second press) or when any keep failed since
+// the press (equal text is not the same failure), so none is dropped unseen.
 async function dismissFailed($: EngineInterface, seen: readonly string[]): Promise<void> {
-  await update($, failed, items => same(items.slice(0, seen.length), seen) ? items.slice(seen.length) : items).catch(() => undefined)
+  const at = failures
+  await update($, failed, items => failures === at && same(items.slice(0, seen.length), seen) ? items.slice(seen.length) : items).catch(() => undefined)
 }
 
 export const register: Register = (on, options) => {

@@ -63,8 +63,9 @@ for (const placement of ['dock', 'inline']) {
     expect(text).toContain('Claude has the lines sent at')
   })
 }
-test('review: overlapping dismissals preserve a failure arriving after the first dismissal landed', async ($, on) => {
-  const s = await setup($, on, {failed: ['old visible failure']}, true)
+for (const visible of ['old visible failure', 'new unseen failure']) {
+test(`review: overlapping dismissals preserve fresh failure, old text=${visible}`, async ($, on) => {
+  const s = await setup($, on, {failed: [visible]}, true)
   const ui = await $.ui.mount(pane())
   await ui.press({key: 'k-d'}); await s.entered.promise
   await ui.press({key: 'k-d'}); await s.otherDismissed.promise
@@ -77,3 +78,4 @@ test('review: overlapping dismissals preserve a failure arriving after the first
   await ui.unmount()
   expect(s.cell('failed').value).toEqual(['new unseen failure'])
 })
+}
