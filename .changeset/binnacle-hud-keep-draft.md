@@ -2,4 +2,4 @@
 "mrbinnacle-skills": patch
 ---
 
-`binnacle-hud` keeps a draft typed while a thought is still saving. The Log's field used to clear after every save, so a second thought typed during the save was lost. The `phone` mark on a Log row now also shows when the panel is narrower than 36 columns.
+binnacle-hud keeps a draft typed while a keep is saving, even when it is the same text typed again, and keeps the `phone` mark at every width. When a keep fails, the field stays as it is and the Log says which thought was not kept.

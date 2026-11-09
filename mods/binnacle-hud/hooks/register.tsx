@@ -23,6 +23,10 @@ const CANCEL = 'Cancel'
 const packed = atom({ plugin: 'binnacle-hud', key: 'scene' } as const, 0, { shape: 'scene-2' })
 const typed = atom({ plugin: 'binnacle-hud', key: 'typed' } as const, '')
 const kept = atom({ plugin: 'binnacle-hud', key: 'log' } as const, [] as Thought[])
+const failed = atom({ plugin: 'binnacle-hud', key: 'failed' } as const, '')
+// Counts the field's edits, so a keep clears the field only when nobody typed
+// while it saved. Text equality cannot tell a retyped draft from an untouched one.
+let edits = 0
 
 type Ring = 0 | 1 | 2 // 0 no element, 1 the thought field, 2 a button
 type View = { scene: number; diff: boolean; expand: number; ring: Ring; armed: boolean }
@@ -114,9 +118,15 @@ async function keep($: EngineInterface, text: string, from: Thought['from']): Pr
 }
 
 // Clears the field after a keep, unless typing went on while the keep was
-// saving. A draft that matches the kept text is in the Log, so clearing it loses nothing.
+// saving. A keep that fails leaves the field alone and records the text it did
+// not keep, so newer typing never hides the loss.
 async function submit($: EngineInterface, text: string): Promise<void> {
-  if (await keep($, text, 'terminal')) await update($, typed, now => now === text ? '' : now)
+  const at = edits
+  const isKept = await keep($, text, 'terminal').catch(() => null)
+  if (isKept === null) return void (await update($, failed, () => text).catch(() => undefined))
+  if (!isKept) return
+  await update($, failed, () => '').catch(() => undefined)
+  await update($, typed, now => edits === at ? '' : now).catch(() => undefined)
 }
 
 export const register: Register = (on, options) => {
@@ -177,6 +187,7 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button, Input, Code } = $.ui.resolve(e)
     const st = unpack(await read($, packed))
     const now = await read($, typed)
+    const lost = await read($, failed)
     const thoughts = await read($, kept)
     const s = SCENES[st.scene % SCENES.length] ?? SCENES[0]!
     const set = (patch: Partial<View>) => void update($, packed, v => pack({ ...unpack(v), ...patch }))
@@ -274,15 +285,16 @@ export const register: Register = (on, options) => {
         <Box borderStyle="round" borderColor={focused ? LIGHT : DRAB} paddingX={1}>
           <Input key="thought" label="›" placeholder="a thought for later" submitLabel="keep"
             value={now} autoFocus onSubmit={v => void submit($, v)}
-            onInput={v => void update($, typed, () => v).catch(() => undefined)} />
+            onInput={v => { edits += 1; void update($, typed, () => v).catch(() => undefined) }} />
         </Box>
       </Box>
     )
     const log = (
       <Box flexDirection="column" flexGrow={1} justifyContent="flex-end">
         {header('Log', thoughts.length ? `${thoughts.length} kept` : 'empty')}
-        {thoughts.length === 0 && quiet('Nothing kept yet. Nothing in the log reaches Claude.')}
+        {thoughts.length === 0 && quiet('Nothing kept yet. The mod does not send the Log to Claude.')}
         {thoughts.map(thought)}
+        {typeof lost === 'string' && lost && <Text color="warning" wrap="wrap">Not kept, the save failed: {lost}</Text>}
         {field}
       </Box>
     )

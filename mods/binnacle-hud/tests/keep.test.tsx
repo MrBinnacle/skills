@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 // Two ways a kept thought could lose something: a slow save clearing a newer
 // draft, and a narrow layout dropping the phone mark. Both came from the
@@ -33,12 +33,15 @@ for (const [placement, columns] of [['inline', 90], ['dock', 24], ['inline', 30]
   })
 }
 
-// Holds the Log write open, types a new draft, then lets the write finish.
-const slowKeep = async ($: any, on: any, draft: string) => {
+// Holds the Log write open, types a new draft (none when draft is null), then
+// lets the write finish, or refuses it when fail is set.
+const slowKeep = async ($: any, on: any, draft: string | null, fail = false) => {
   setup(on)
+  const clock = mock.clock(on)
   const state: Record<string, { value: any; version: number }> = {
     scene: { value: { shape: 'scene-2', value: 1000 }, version: 1 },
     typed: { value: 'first capture', version: 1 }, log: { value: [], version: 1 },
+    failed: { value: '', version: 1 },
   }
   let release = () => {}
   const gate = new Promise<void>(r => { release = r })
@@ -48,21 +51,23 @@ const slowKeep = async ($: any, on: any, draft: string) => {
   const draftStored = new Promise<void>(r => { stored = r })
   on('state.get', (_: unknown, e: { key: string }) => ({ value: { ...state[e.key] } }))
   on('state.set', async (_: unknown, e: { key: string; value: any }) => {
-    if (e.key === 'log') { entered(); await gate }
+    if (e.key === 'log') { entered(); await gate; if (fail) return { deny: 'the disk is full' } }
     const version = state[e.key]!.version + 1
     state[e.key] = { value: e.value, version }
     if (e.key === 'typed' && e.value === draft) stored()
     return { value: { isSet: true, version } }
   })
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-  await $.ui.mount(pane('dock', 46))
+  const ui = await $.ui.mount(pane('dock', 46))
   const saving = $.ui.input({ plugin: 'binnacle-hud', key: 'thought', text: 'first capture' })
   await logPending
-  const editing = $.ui.input({ plugin: 'binnacle-hud', key: 'thought', text: draft, kind: 'change' })
-  await draftStored
+  const editing = draft === null ? Promise.resolve()
+    : $.ui.input({ plugin: 'binnacle-hud', key: 'thought', text: draft, kind: 'change' })
+  if (draft !== null) await draftStored
   release()
   await Promise.all([saving, editing])
-  return state
+  await clock.settle()
+  return Object.assign(state, { ui }) as any
 }
 
 test('a slow keep does not clear a draft typed while it saved', async ($, on) => {
@@ -71,8 +76,30 @@ test('a slow keep does not clear a draft typed while it saved', async ($, on) =>
   expect(state.typed!.value).toBe('next draft')
 })
 
-test('a slow keep still clears the field when the draft is the kept text', async ($, on) => {
+test('a draft retyped to the kept text while the keep saved survives', async ($, on) => {
   const state = await slowKeep($, on, 'first capture')
   expect(state.log!.value.map((t: any) => t.text)).toEqual(['first capture'])
+  expect(state.typed!.value).toBe('first capture')
+})
+
+test('a slow keep clears the field when nothing was typed while it saved', async ($, on) => {
+  const state = await slowKeep($, on, null)
+  expect(state.log!.value.map((t: any) => t.text)).toEqual(['first capture'])
   expect(state.typed!.value).toBe('')
+})
+
+test('a failed keep leaves the field and records what was not kept', async ($, on) => {
+  const state = await slowKeep($, on, null, true)
+  expect(state.log!.value).toEqual([])
+  expect(state.typed!.value).toBe('first capture')
+  expect(state.failed!.value).toBe('first capture')
+  await state.ui.unmount()
+  const again = await $.ui.mount(pane('dock', 46))
+  expect(JSON.stringify(await again.drawn())).toContain('Not kept, the save failed')
+})
+
+test('a failed keep after newer typing keeps both the new draft and the failed text', async ($, on) => {
+  const state = await slowKeep($, on, 'next draft', true)
+  expect(state.typed!.value).toBe('next draft')
+  expect(state.failed!.value).toBe('first capture')
 })

@@ -5,6 +5,6 @@ export type Thought = { text: string; at: string; from: 'phone' | 'terminal' }
 
 declare module 'claude-code' {
   interface PluginState {
-    'binnacle-hud': { scene: Shaped<Scene>; typed: string; log: Thought[] }
+    'binnacle-hud': { scene: Shaped<Scene>; typed: string; log: Thought[]; failed: string }
   }
 }
