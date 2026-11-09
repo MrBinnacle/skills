@@ -2,10 +2,31 @@
 
 Keep a private Log of thoughts beside a Claude Code session, from the terminal or from the Claude app on your phone. Nothing in the Log is sent to Claude.
 
+Keep the decisions you and Claude agreed in Memory. Memory reaches Claude only when you press Send and confirm it.
+
 The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has three sections:
 
 - **Log** works. Type a thought in its field and press Enter, or send `/log` from the phone. The mod keeps the thought with the time and where it came from.
-- **Memory** and **Watch** are a design preview. They show fixed sample data, and their buttons save or send nothing.
+- **Memory** holds the lines you want Claude to keep. Send gives Claude those lines at once, after you confirm.
+- **Watch** is a preview. It shows one sample finding and is not connected to an observer yet.
+
+## Give Claude your Memory lines
+
+1. Type a line in the field. Press Tab to reach the actions, then press `a` to add the line to Memory.
+2. To remove a line, press its number.
+3. Press `s` to send. Claude Code shows the lines and asks, for example, "Give Claude these 2 lines now?". Choose **Send**.
+
+The mod adds one row to the conversation that reads "Memory the operator approved at HH:MM:", followed by the lines. The row starts no model turn. Claude reads it on its next turn.
+
+The line under the Memory heading says where things stand:
+
+| Status | Meaning |
+| --- | --- |
+| Not sent. | Claude has no Memory lines from this session. |
+| In Claude's context since HH:MM. | Claude has exactly the lines shown. |
+| Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines. |
+
+If Claude Code refuses the row, the HUD shows "Not sent." and the reason, and the previous Send stays in force. To change a line, remove it and add the new wording.
 
 ## Install the mod
 
@@ -49,6 +70,8 @@ If you type text after `/log`, the mod keeps nothing and asks you to use the dia
 - A kept thought starts no model turn, and the mod adds nothing to Claude's context.
 - The command line and the mod's reply are part of the conversation, so neither one carries the thought.
 - The Log lasts as long as the session. A new session starts with an empty Log.
+- Memory is the one section that reaches Claude. Its lines reach Claude only when you press Send and choose **Send** in the dialog. A kept thought never goes into Memory.
+- The mod writes no file. Memory, like the Log, lasts as long as the session.
 
 ## What was tested
 
@@ -58,9 +81,11 @@ On Claude Code 2.1.319, on 2026-11-08 and 2026-11-09, in a terminal session and 
 - From the phone, `/log` kept a thought and replied "Kept in the Log." The session stayed at 0 turns.
 - A conversation export taken afterwards held `/log` and the reply, but not the thought.
 
-The mod's tests cover the field, `/log`, the refusal of text after `/log`, and the panel's key row. Run them with `claude plugin test mods/binnacle-hud`.
+The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, and Memory: Send only after a confirmation, the lines sent exactly as shown when Send was pressed, an edit after Send that leaves the sent lines unchanged, a refused row, and a kept thought that never reaches Memory. Run them with `claude plugin test mods/binnacle-hud`.
 
 These are not verified:
+
+- Memory in a live session. Its tests run against the test kit, not a terminal or the phone.
 
 - That the thought is absent from what Claude reads on a later turn. The export suggests so, but no turn was sent to check it.
 - Pasting, dictation, and long text in the phone's dialog.

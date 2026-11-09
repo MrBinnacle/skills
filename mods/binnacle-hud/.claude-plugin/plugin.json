@@ -1,7 +1,7 @@
 {
   "name": "binnacle-hud",
   "version": "4.0.0",
-  "description": "A side panel with a private Log of thoughts kept from the terminal or the phone and never sent to Claude, beside a design preview of Memory and Watch",
+  "description": "A side panel with a private Log of thoughts kept from the terminal or the phone and never sent to Claude, Memory lines that reach Claude only on a confirmed Send, and a preview of Watch",
   "types": "./types/index.d.ts",
   "userConfig": {
     "narrow": {
