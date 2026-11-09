@@ -113,14 +113,15 @@ test('a second Send while the confirmation is open asks nothing more', async ($,
   const store: Store = { memory: ['ship slice 1'] }
   const session = mock.session(on)
   const asked: string[] = []
-  let release = (_: string) => {}
-  await start($, on, store, () => new Promise<string>(r => { release = r }), asked)
+  const releases: ((answer: string) => void)[] = []
+  await start($, on, store, () => new Promise<string>(r => { releases.push(r) }), asked)
   const ui = await $.ui.mount(pane())
   const first = ui.press({ key: 'k-s' })
   await until(ui, () => asked.length > 0)
-  await ui.press({ key: 'k-s' })
-  release('Send')
-  await first
+  const second = ui.press({ key: 'k-s' })
+  await until(ui, () => asked.length > 1)
+  releases.forEach(release => release('Send'))
+  await Promise.all([first, second])
   expect(asked).toHaveLength(1)
   expect(session.appended()).toHaveLength(1)
 })
