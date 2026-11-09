@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import type { Approved, Thought, View } from '../types'
+import type { Approved, Lost, Thought, View } from '../types'
 
 // Binnacle HUD. The mod does not send the Log to Claude; absence from later
 // model requests is unverified. Memory holds a draft and the snapshot a confirmed Send
@@ -29,6 +29,20 @@ let edits = 0
 const draft = atom({ plugin: 'binnacle-hud', key: 'memory' } as const, [] as string[])
 const approved = atom({ plugin: 'binnacle-hud', key: 'approved' } as const, null as Approved | null)
 const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, expand: 0, failed: '' } as View)
+
+// The draft shadow. `box` is the prompt box as the newest edit or change left
+// it, held in module memory, so no other plugin can read a draft that was
+// never cleared. Only a cleared draft goes to session state. A process kill
+// loses both. Each box event takes the next number in `moves` when it
+// arrives, so an event that finishes late cannot overwrite a newer one, and a
+// submit can tell the clear it caused from a clear after more typing.
+let box = ''
+let moves = 0
+let applied = 0
+let lossAt = 0
+let sentAt = -1
+let lossWrite: Promise<void> = Promise.resolve()
+const lost = atom({ plugin: 'binnacle-hud', key: 'lost' } as const, null as Lost | null)
 
 type Finding = { text: string; why: string; source: string; age: string }
 const FINDING: Finding = {
@@ -127,6 +141,57 @@ async function send($: EngineInterface): Promise<void> {
   await update($, view, v => ({ ...v, failed: out.deny ?? '' }))
 }
 
+// A submit sets `sentAt` to the newest event number. That is this clear's
+// own number when the submit came while this clear was still on its way in,
+// and the number before it when the submit came first.
+// Applies one change to the box. A clear that empties a draft nobody
+// submitted keeps the draft as lost. A stash or recall that brings the lost
+// text back drops it. A keystroke touches no state.
+async function boxChanged($: EngineInterface, text: string, kind: string, seen: number): Promise<void> {
+  if (seen < applied) return
+  applied = seen
+  const before = box
+  box = text
+  if (kind === 'clear' && sentAt !== seen - 1 && sentAt !== seen && before.trim() && !before.startsWith('/') && text !== before) {
+    lossAt = seen
+    // Assigned before any await, so a submit arriving right after this clear
+    // waits for this write and then drops it (live order on 2.1.321).
+    lossWrite = keepLoss($, before, seen)
+    await lossWrite
+  } else if (kind !== 'edit' && text && (await read($, lost).catch(() => null))?.text === text) {
+    await update($, lost, now => now && now.text === text ? null : now).catch(() => undefined)
+  }
+}
+
+async function keepLoss($: EngineInterface, before: string, seen: number): Promise<void> {
+  const rec = { text: before, at: await $.clock.now(), moves: seen }
+  // On a retry, a newer clear's draft wins.
+  await update($, lost, now => lossAt === seen ? rec : now).catch(() => undefined)
+}
+
+// The person submitted. When the clear came first, that clear was the submit,
+// so its loss, written or still being written, is dropped.
+async function submitted($: EngineInterface): Promise<void> {
+  const at = sentAt = moves
+  await lossWrite
+  await update($, lost, now => now && now.moves === at ? null : now).catch(() => undefined)
+}
+
+// Copies the cleared draft for the person to paste. It never writes the
+// prompt box: prompt.fill has no "only if still empty" form, so a fill in
+// flight could mix into text typed meanwhile (live repro, review of d372767).
+async function copyLost($: EngineInterface, rec: Lost): Promise<void> {
+  const out = await $.ui.copy({ text: rec.text }).catch(() => null)
+  const restoring = out?.isCopied ? 'Copied. Paste it into the prompt with Ctrl+V.'
+    : `Not copied${out && !out.isCopied ? `: ${out.reason}` : ''}.`
+  await update($, view, v => ({ ...v, restoring })).catch(() => undefined)
+}
+
+async function forgetLost($: EngineInterface, rec: Lost): Promise<void> {
+  await update($, lost, cur => cur && cur.at === rec.at && cur.moves === rec.moves ? null : cur).catch(() => undefined)
+  await update($, view, v => ({ ...v, restoring: '' })).catch(() => undefined)
+}
+
 export const register: Register = (on, options) => {
   const noDock = narrowOf(options.narrow)
   // rows is the inline height alone; a docked pane ignores it.
@@ -173,6 +238,26 @@ export const register: Register = (on, options) => {
     return { text: saved === null ? 'Not kept, the save failed. The thought is shown in the HUD.' : saved ? 'Kept in the Log.' : 'Nothing kept.' }
   })
 
+  // Each event takes its number on arrival, before the chain below can delay it.
+  on('prompt.edit', async ($, e, next) => {
+    const seen = ++moves
+    const out = await next(e)
+    if (typeof out?.text === 'string') await boxChanged($, out.text, 'edit', seen)
+    return out
+  })
+
+  on('prompt.change', async ($, e, next) => {
+    const seen = ++moves
+    const out = await next(e)
+    await boxChanged($, e.text, e.origin.kind, seen)
+    return out
+  })
+
+  on('prompt.submit', async ($, e, next) => {
+    if (e.origin.kind === 'composer') await submitted($)
+    return next(e)
+  })
+
   // Where the ring stands decides the key line.
   on('ui.focus', async ($, e, next) => {
     if (e.component === 'Pane' && e.requestId === PANE) {
@@ -186,7 +271,8 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button, Input } = $.ui.resolve(e)
     const st = await read($, view)
     const now = await read($, typed)
-    const lost = await read($, failed)
+    const unsaved = await read($, failed)
+    const gone = await read($, lost)
     const thoughts = await read($, kept)
     const lines = await read($, draft)
     const snap = await read($, approved)
@@ -263,7 +349,9 @@ export const register: Register = (on, options) => {
     const shown = w - 12 // the field's width less its frame, label and Enter hint
     const field = (
       <Box flexDirection="column">
-        {lost.map((text, i) => <Text key={`failed-${i}`} color="warning" wrap="wrap">Not kept, the save failed: {text}</Text>)}
+        {gone && <Text color={LIGHT} wrap="truncate-end">Last cleared draft {hhmm(gone.at)} · {gone.text.length} chars: {gone.text}</Text>}
+        {gone && st.restoring && <Text dimColor wrap="wrap">{st.restoring}</Text>}
+        {unsaved.map((text, i) => <Text key={`failed-${i}`} color="warning" wrap="wrap">Not kept, the save failed: {text}</Text>)}
         {now.length > shown && <Text dimColor wrap="wrap">{now}</Text>}
         <Box borderStyle="round" borderColor={focused ? LIGHT : DRAB} paddingX={1}>
           <Input key="thought" label="›" placeholder="a thought for later" submitLabel="keep"
@@ -298,6 +386,7 @@ export const register: Register = (on, options) => {
       return send($).finally(() => { sending = false })
     }
     const acts: Act[] = [
+      ...(gone ? [{ k: 'c', label: 'copy draft', run: () => void copyLost($, gone) }, { k: 'x', label: 'forget draft', run: () => void forgetLost($, gone) }] : []),
       ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
       ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($) }] : []),
       ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($) }] : []),
