@@ -9,7 +9,16 @@ The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has th
 
 ## Install the mod
 
-Run each command on its own at the prompt of a Claude Code terminal session. If you paste both at once, Claude Code reads them as one malformed URL.
+The collection's current release, v4.0.0, does not contain this mod, so `/plugin install binnacle-hud` finds no mod yet. Until the next release, load it from a clone of the repository:
+
+```text
+git clone https://github.com/MrBinnacle/skills.git
+claude --plugin-dir skills/mods/binnacle-hud
+```
+
+`--plugin-dir` loads the mod for that session only. Pass it each time you start Claude Code.
+
+After the next release, install it from the marketplace. Run each command on its own at the prompt of a Claude Code terminal session. If you paste both at once, Claude Code reads them as one malformed URL.
 
 ```text
 /plugin marketplace add https://github.com/MrBinnacle/skills.git
@@ -49,6 +58,13 @@ If you type text after `/log`, the mod keeps nothing and asks you to use the dia
 - A kept thought starts no model turn, and the mod adds nothing to Claude's context.
 - The command line and the mod's reply are part of the conversation, so neither one carries the thought.
 - The Log lasts as long as the session. A new session starts with an empty Log.
+
+### Where a kept thought goes
+
+- Claude Code holds the Log in the mod's session state. The mod writes no file and keeps no store between sessions.
+- The mod's code makes no network call.
+- Other plugins in the same session can read the Log. Claude Code lets any plugin read another plugin's session state, though only the owner can change it. Install only plugins you trust.
+- A thought sent from the phone travels over Remote Control, Anthropic's connection between the Claude app and your terminal session, before the mod keeps it. A thought typed in the terminal never leaves your machine through the mod.
 
 ## What was tested
 
