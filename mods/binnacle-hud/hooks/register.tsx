@@ -17,6 +17,9 @@ import type { Thought } from '../types'
 // `log`, the kept thoughts, newest last. None of it reaches the model.
 const PANE = 'binnacle-hud'
 const SEND = 'k-s' // the send button's key, as ui.focus names it
+// $.ui.ask needs two labels; neither keeps anything.
+const NOT_NOW = 'Not now'
+const CANCEL = 'Cancel'
 const packed = atom({ plugin: 'binnacle-hud', key: 'scene' } as const, 0, { shape: 'scene-2' })
 const typed = atom({ plugin: 'binnacle-hud', key: 'typed' } as const, '')
 const kept = atom({ plugin: 'binnacle-hud', key: 'log' } as const, [] as Thought[])
@@ -122,6 +125,7 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'hud', description: 'Open the Binnacle HUD. /hud narrow hide|strip sets what it does without room to dock' })
+    await $.command.register({ name: 'log', description: 'Keep a thought in the Binnacle Log, from any surface, the phone included' })
     // Unasked, the pane waits undrawn below 144 columns (d.ts 2532-2533).
     void $.ui.open(pane)
     return next(e)
@@ -142,6 +146,18 @@ export const register: Register = (on, options) => {
     return { text: !why ? 'Binnacle open beside the chat, ready to type. Esc returns to the prompt.'
       : noDock === 'hide' ? `The side panel ${why}: widen or maximize the window. Until then it shows one line. /hud narrow strip shows the full HUD above the prompt instead.`
       : `The side panel ${why}: widen or maximize the window. Showing it above the prompt for now.` }
+  })
+
+  // The phone draws no pane, but it draws the question dialog, and text typed
+  // under Other reaches the mod without entering the conversation (phone probe,
+  // 2026-11-09). The command line and its reply are recorded, so neither
+  // carries the thought.
+  on('command.run', { command: 'log' }, async ($, e) => {
+    if (e.args.trim()) return { text: 'Nothing kept. Text after /log is in the conversation; run /log alone and type the thought in the dialog.' }
+    const answer = await $.ui.ask("What's the thought? Type it under Other.", [NOT_NOW, CANCEL]).catch(() => NOT_NOW)
+    if (answer === NOT_NOW || answer === CANCEL) return { text: 'Nothing kept.' }
+    const from = e.origin.kind === 'bridge' ? 'phone' : 'terminal'
+    return { text: await keep($, answer, from) ? 'Kept in the Log.' : 'Nothing kept.' }
   })
 
   // Where the ring stands decides the key line. Any move but onto the send
