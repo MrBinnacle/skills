@@ -26,7 +26,7 @@ The line under the Memory heading says where things stand:
 | Not sent. | Claude has no Memory lines from this session. |
 | In Claude's context since HH:MM. | Claude has exactly the lines shown. |
 | Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines. |
-| Claude has the lines sent at HH:MM. The HUD could not record that Send. | The row reached the conversation, so Claude has the lines. Claude Code refused the HUD's own record of the Send, so the line stays until the next Send. |
+| Claude has the lines sent at HH:MM. The HUD could not record that Send. | The row reached the conversation, so Claude has the lines. Claude Code refused the HUD's own record of the Send, so the line stays until the next Send that lands. A refused Send shows its reason beside it. |
 
 If Claude Code refuses the row, the HUD shows "Not sent." and the reason, and the previous Send stays in force. To change a line, remove it and add the new wording.
 

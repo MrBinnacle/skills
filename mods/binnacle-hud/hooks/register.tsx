@@ -124,15 +124,17 @@ async function send($: EngineInterface): Promise<void> {
     .catch((err: unknown) => ({ deny: err instanceof Error ? err.message : String(err) }))
   // The append landed but the snapshot write can still fail. Then Claude has
   // the lines and the HUD must not say "Not sent."
+  // A refused Send changes nothing Claude has, so it keeps the earlier notice.
   let unrecorded = 0
   if (!out.deny) await update($, approved, () => ({ lines, at })).catch(() => { unrecorded = at })
-  await update($, view, v => ({ ...v, failed: out.deny ?? '', unrecorded }))
+  await update($, view, v => ({ ...v, failed: out.deny ?? '', unrecorded: out.deny ? v.unrecorded : unrecorded }))
 }
 
-// Failed keeps are only appended, so dropping the first n drops exactly the
-// ones on screen and keeps any that failed since.
-async function dismissFailed($: EngineInterface, n: number): Promise<void> {
-  await update($, failed, items => items.slice(n)).catch(() => undefined)
+// Drops exactly the failed keeps on screen. When the list no longer starts
+// with them (a second press, or a retry after another dismissal), it changes
+// nothing, so a keep that failed since is never dropped unseen.
+async function dismissFailed($: EngineInterface, seen: readonly string[]): Promise<void> {
+  await update($, failed, items => same(items.slice(0, seen.length), seen) ? items.slice(seen.length) : items).catch(() => undefined)
 }
 
 export const register: Register = (on, options) => {
@@ -234,7 +236,7 @@ export const register: Register = (on, options) => {
     const memory = (
       <Box flexDirection="column">
         {header('Memory', lines.length ? `${lines.length} lines` : 'empty')}
-        {!(st.failed && !snap) && (st.unrecorded
+        {!(st.failed && !snap && !st.unrecorded) && (st.unrecorded
           ? <Text wrap="wrap" color={TONE.warning}>{status}</Text>
           : <Text wrap="wrap" color={!snap ? undefined : same(lines, snap.lines) ? TONE.remember : LIGHT} dimColor={!snap}>{status}</Text>
         )}
@@ -309,7 +311,7 @@ export const register: Register = (on, options) => {
       return send($).finally(() => { sending = false })
     }
     const acts: Act[] = [
-      ...(lost.length ? [{ k: 'd', label: 'dismiss failed', run: () => void dismissFailed($, lost.length) }] : []),
+      ...(lost.length ? [{ k: 'd', label: 'dismiss failed', run: () => void dismissFailed($, lost) }] : []),
       ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
       ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($) }] : []),
       ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($) }] : []),
@@ -339,7 +341,7 @@ export const register: Register = (on, options) => {
 
     // --- inline: summary, actions, the field -------------------------------
     if (inline) {
-      const parts = [`memory ${st.failed ? `Not sent. ${st.failed}` : status}`, 'watch preview', `log ${thoughts.length}`]
+      const parts = [`memory ${st.failed ? `Not sent. ${st.failed}${st.unrecorded ? ` ${status}` : ''}` : status}`, 'watch preview', `log ${thoughts.length}`]
       const section = st.expand === 1 ? memory : st.expand === 2 ? watch : st.expand === 3 ? log : null
       const hasField = !section || st.expand === 3
       return (

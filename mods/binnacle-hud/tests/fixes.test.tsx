@@ -50,6 +50,15 @@ test('a Send whose append landed but whose snapshot write failed does not say No
   expect(text).not.toContain('Not sent.')
 })
 
+test('the collapsed strip keeps an unrecorded Send beside a later refusal', { options: { narrow: 'strip' } }, async ($, on) => {
+  const at = NOW - 60_000
+  await start($, on, { memory: ['ship slice 1'], view: { ring: 2, expand: 0, failed: 'refused', unrecorded: at } })
+  const ui = await $.ui.mount({ ...pane, props: { ...pane.props, placement: 'inline', bodyColumns: 200 } })
+  const drawn = JSON.stringify(await ui.drawn())
+  await ui.unmount()
+  expect(drawn).toContain(`memory Not sent. refused Claude has the lines sent at ${hhmm(at)}.`)
+})
+
 test('d dismisses the failed keeps on screen and keeps one that failed since', async ($, on) => {
   const store: Store = { failed: ['first lost', 'second lost'] }
   await start($, on, store)
