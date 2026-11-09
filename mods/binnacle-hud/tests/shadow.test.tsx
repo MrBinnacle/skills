@@ -17,11 +17,11 @@ const deferred = () => {
   return { promise, resolve }
 }
 
-const start = async ($: any, on: any, opts: { holdFirstLost?: { promise: Promise<void> }; entered?: () => void; refuseFill?: boolean } = {}) => {
+const start = async ($: any, on: any, opts: { holdFirstLost?: { promise: Promise<void> }; entered?: () => void; refuseCopy?: boolean; holdEdit?: { promise: Promise<void> } } = {}) => {
   const clock = mock.clock(on)
   const state: Record<string, { value: any; version: number }> = {}
   const cell = (k: string) => state[k] ?? { value: undefined, version: 0 }
-  const host = { box: '', fills: [] as unknown[], submits: 0 }
+  const host = { box: '', fills: [] as unknown[], copies: [] as string[], submits: 0 }
   let lostWrites = 0
   const sets: string[] = []
   on('command.register', () => ({ value: undefined }))
@@ -37,18 +37,20 @@ const start = async ($: any, on: any, opts: { holdFirstLost?: { promise: Promise
     state[e.key] = { value: e.value, version: now.version + 1 }
     return { value: { isSet: true, version: now.version + 1 } }
   })
-  on('prompt.edit', (_: unknown, e: any) => {
+  let editsHeld = 0
+  on('prompt.edit', async (_: unknown, e: any) => {
     host.box = e.text.slice(0, e.start) + e.inputText + e.text.slice(e.end)
-    return { text: host.box, cursor: e.start + e.inputText.length }
+    const out = { text: host.box, cursor: e.start + e.inputText.length }
+    if (opts.holdEdit && editsHeld++ === 0) { opts.entered?.(); await opts.holdEdit.promise }
+    return out
   })
   on('prompt.change', (_: unknown, e: any) => ({ text: e.text }))
   on('prompt.submit', (_: unknown, e: any) => { host.submits += 1; return { text: e.text } })
-  on('prompt.read', () => ({ value: { text: host.box, cursor: host.box.length } }))
-  on('prompt.fill', (_: unknown, e: any) => {
-    host.fills.push(e)
-    if (opts.refuseFill) return { isFilled: false, refusal: 'dialog', text: host.box, cursor: host.box.length }
-    host.box = e.text
-    return { isFilled: true, text: host.box, cursor: host.box.length }
+  on('prompt.fill', (_: unknown, e: any) => { host.fills.push(e); return { isFilled: false, text: host.box, cursor: host.box.length } })
+  on('ui.copy', (_: unknown, e: any) => {
+    if (opts.refuseCopy) return { value: { isCopied: false, reason: 'no-clipboard' } }
+    host.copies.push(e.text)
+    return { value: { isCopied: true } }
   })
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
@@ -133,37 +135,28 @@ test('a stash put back drops the lost draft', async ($, on) => {
   expect(s.lost()).toBe(null)
 })
 
-test('r fills an empty box with the lost draft and never submits', async ($, on) => {
+test('c copies the cleared draft, never touches the prompt box, and never submits', async ($, on) => {
   const s = await start($, on)
   await s.type('bring me back')
   await s.change('clear')
-  const before = s.host.submits
-  await s.press('r')
-  expect(s.host.fills).toEqual([expect.objectContaining({ text: 'bring me back', mode: 'insert' })])
-  expect(s.host.box).toBe('bring me back')
-  expect(s.host.submits).toBe(before)
-  expect(s.lost()).toBe(null)
-})
-
-test('r leaves a box that holds text alone, and says why', async ($, on) => {
-  const s = await start($, on)
-  await s.type('lost one')
-  await s.change('clear')
   await s.type('new text')
-  await s.press('r')
+  const before = s.host.submits
+  await s.press('c')
+  expect(s.host.copies).toEqual(['bring me back'])
   expect(s.host.fills).toEqual([])
   expect(s.host.box).toBe('new text')
-  expect(s.lost()?.text).toBe('lost one')
-  expect(await s.shown()).toContain('The prompt box has text')
+  expect(s.host.submits).toBe(before)
+  expect(s.lost()?.text).toBe('bring me back')
+  expect(await s.shown()).toContain('Copied. Paste it into the prompt with Ctrl+V.')
 })
 
-test('a refused restore keeps the lost draft and says why', async ($, on) => {
-  const s = await start($, on, { refuseFill: true })
+test('a refused copy keeps the cleared draft and says why', async ($, on) => {
+  const s = await start($, on, { refuseCopy: true })
   await s.type('keep me')
   await s.change('clear')
-  await s.press('r')
+  await s.press('c')
   expect(s.lost()?.text).toBe('keep me')
-  expect(await s.shown()).toContain('Not restored')
+  expect(await s.shown()).toContain('Not copied')
 })
 
 test('x forgets the lost draft', async ($, on) => {
@@ -198,4 +191,34 @@ test('typing writes nothing to session state', async ($, on) => {
   await s.type('b')
   expect(s.lost()).toBe(null)
   expect(s.writes()).toEqual([])
+})
+
+// From the review of d372767: a late event or a retried write must not undo a newer one.
+test('an edit that finishes late does not replace the newer box text', async ($, on) => {
+  const hold = deferred()
+  const entered = deferred()
+  const s = await start($, on, { holdEdit: hold, entered: entered.resolve })
+  const first = s.type('first')
+  await entered.promise
+  await s.type(' second')
+  hold.resolve()
+  await first
+  await s.change('clear')
+  expect(s.lost()?.text).toBe('first second')
+})
+
+test('an older clear whose write retries does not replace a newer cleared draft', async ($, on) => {
+  const hold = deferred()
+  const entered = deferred()
+  const s = await start($, on, { holdFirstLost: hold, entered: entered.resolve })
+  await s.type('old draft')
+  const first = s.change('clear')
+  await entered.promise
+  await s.type('new draft')
+  await s.change('clear')
+  expect(s.lost()?.text).toBe('new draft')
+  hold.resolve()
+  await first
+  await s.settle()
+  expect(s.lost()?.text).toBe('new draft')
 })

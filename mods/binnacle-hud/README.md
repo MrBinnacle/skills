@@ -36,12 +36,12 @@ To set a draft aside on purpose, use Claude Code's own Ctrl+S stash. This sectio
 When anything other than a submit empties the Claude prompt box, the HUD keeps the text it held. The Log then shows "Last cleared draft HH:MM · N chars:" followed by the text.
 
 1. Open the HUD with `/hud` or a click, and press Tab to reach the actions.
-2. Press `r` to put the text back. The mod puts it back only when the prompt box is empty, and it never submits it. Press Enter yourself when you want to send it.
+2. Press `c` to copy the text. Then paste it into the prompt with Ctrl+V. The mod never writes into the prompt box and never submits, so nothing you type there can be changed by it.
 3. Press `x` to forget the copy instead.
 
 The HUD keeps one cleared draft, the newest. A submit and a cleared slash command leave nothing. Claude Code reports a Ctrl+S stash the same way as Ctrl+C, so a stash also shows here until you press Ctrl+S again to put it back, which drops the copy. The Up and Down arrows already bring a draft back, so the mod does not track them.
 
-A crash or a closed window still loses the prompt. While you type, the mod holds the text only in its own memory and gives it to no other plugin. A cleared draft goes into session state, where other plugins in the session can read it, until you restore or forget it or the session ends. The mod writes no draft to disk.
+A crash or a closed window still loses the prompt. While you type, the mod holds the text only in its own memory and gives it to no other plugin. A cleared draft goes into session state, where other plugins in the session can read it, until you forget it or the session ends. Copying it does not remove it. The mod writes no draft to disk.
 
 ## Install the mod
 
@@ -118,11 +118,11 @@ On Claude Code 2.1.319, on 2026-11-08 and 2026-11-09, in a terminal session and 
 
 The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, approval only after append, refusal and dismissal, and capture without appending or touching the Claude prompt. Run them with `claude plugin test mods/binnacle-hud`.
 
-The draft tests cover Ctrl+C, a submit with its clear before or after it, a submit that lands while the loss is still being saved, Up and Down, a cleared slash command, a stash put back, `r` into an empty box and into a box with text, `x`, and typing that writes no state. The events they replay follow what a logging probe recorded in a real Windows terminal on 2.1.319.
+The draft tests cover Ctrl+C, a submit with its clear before or after it, a submit that lands while the loss is still being saved, Up and Down, a cleared slash command, a stash put back, `c` copying without touching the prompt box, a refused copy, `x`, an edit that finishes late, a retried write against a newer cleared draft, and typing that writes no state. The events they replay follow what a logging probe recorded in a real Windows terminal on 2.1.319.
 
 These are not verified:
 
-- Restoring a cleared draft in a live session. Its tests replay the measured events against the test kit.
+- Copying a cleared draft in a live session. Its tests replay the measured events against the test kit. The SDK says the terminal copies the way `/copy` does.
 - A pasted image, or a large paste shown as a placeholder. The mod keeps only the text the prompt box reports.
 - Memory in a live session. Its tests run against the test kit, not a terminal or the phone.
 - That the thought is absent from what Claude reads on a later turn. The export suggests so, but no turn was sent to check it.
