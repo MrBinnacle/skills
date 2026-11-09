@@ -16,12 +16,12 @@ const pane = (placement: 'dock' | 'inline', isFocused: boolean) => ({
   },
 }) as const
 
-const start = async ($: any, on: any, value: number, writes: number[] = [], typed = '', sets: Record<string, unknown[]> = {}) => {
+const start = async ($: any, on: any, value: number, writes: number[] = [], typed = '', sets: Record<string, unknown[]> = {}, log: unknown[] = []) => {
   on('command.register', () => ({ value: { command: 'hud' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('state.get', (_: unknown, e: { key: string }) => ({ value: e.key === 'typed' ? { value: typed, version: 1 }
-    : e.key === 'log' ? { value: [], version: 1 }
+    : e.key === 'log' ? { value: log, version: 1 }
     : { value: { shape: 'scene-2', value }, version: 1 } }))
   on('state.set', (_: unknown, e: { key: string; value: any }) => {
     if (e.key === 'scene') writes.push(e.value.value)
@@ -81,6 +81,20 @@ test('Enter in the field keeps the thought in the log and clears the field', asy
   expect(logged).toHaveLength(1)
   expect(logged[0]!.map(t => [t.text, t.from])).toEqual([['rerun the naive config', 'terminal']])
   expect(sets.typed?.at(-1)).toBe('')
+})
+
+test('dock: kept thoughts draw in the Log, and only the phone one is marked phone', async ($, on) => {
+  const log = [
+    { text: 'call the venue about the 14th', at: '2026-11-09T09:00:00.000Z', from: 'phone' },
+    { text: 'rerun the naive config', at: '2026-11-09T09:05:00.000Z', from: 'terminal' },
+  ]
+  await start($, on, RING(1), [], '', {}, log)
+  const tree = JSON.stringify(await (await $.ui.mount(pane('dock', true))).drawn())
+  expect(tree).toContain('2 kept')
+  expect(tree).toContain('"call the venue about the 14th"')
+  expect(tree).toContain('"rerun the naive config"')
+  expect(tree.split('" phone"').length - 1).toBe(1)
+  expect(tree.indexOf('" phone"')).toBeLessThan(tree.indexOf('"call the venue about the 14th"'))
 })
 
 test('Enter on an empty field keeps nothing', async ($, on) => {
