@@ -7,16 +7,18 @@ import type { Register } from 'claude-code'
 // width, whether it holds the keys, where the focus ring stands, hover.
 //
 // Keys inside the pane (after /hud, ctrl+x tab or a click, then Tab off the
-// field): the action row under the masthead is the whole list, built from what
+// field): the action row under the field is the whole list, built from what
 // is on screen, so no key is shown that has no button. In the dock, 1-5 pick a
 // preview scene from their own row at the bottom.
 //
-// State lives under the one key CC's types/index.d.ts declares (`scene`, a
-// number), packed as digits, so this file replaces register.tsx alone. The
-// real mod declares its own keys.
+// State lives under two keys CC's types/index.d.ts declares: `scene`, a
+// number packed as digits, and `typed`, the field's text, echoed wrapped above
+// it because the host's Input cuts a long line off at the edge (native,
+// 2026-11-08). The real mod declares its own keys.
 const PANE = 'binnacle-hud'
 const SEND = 'k-s' // the send button's key, as ui.focus names it
 const packed = atom({ plugin: 'binnacle-hud', key: 'scene' } as const, 0, { shape: 'scene-2' })
+const typed = atom({ plugin: 'binnacle-hud', key: 'typed' } as const, '')
 
 type Ring = 0 | 1 | 2 // 0 no element, 1 the thought field, 2 a button
 type View = { scene: number; diff: boolean; expand: number; ring: Ring; armed: boolean }
@@ -156,6 +158,7 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button, Input, Code } = $.ui.resolve(e)
     const st = unpack(await read($, packed))
+    const now = await read($, typed)
     const s = SCENES[st.scene % SCENES.length] ?? SCENES[0]!
     const set = (patch: Partial<View>) => void update($, packed, v => pack({ ...unpack(v), ...patch }))
 
@@ -242,17 +245,22 @@ export const register: Register = (on, options) => {
     // --- log ---------------------------------------------------------------
     const thought = (t: Thought, i: number) => (
       <Box key={`log-${i}`} flexDirection="row" justifyContent="space-between">
-        <Text wrap="truncate-end">{narrow ? '  ' : <Text dimColor>{t.at}  </Text>}{t.text}</Text>
+        <Text wrap={inline ? 'truncate-end' : 'wrap'}>{narrow ? '  ' : <Text dimColor>{t.at}  </Text>}{t.text}</Text>
         <Box display="none" hover={{ display: 'flex' }} flexDirection="row" gap={1}>
           <Button key={`log-quote-${i}`} plain dimColor onPress={() => {}}>quote</Button>
           <Button key={`log-done-${i}`} plain dimColor onPress={() => {}}>done</Button>
         </Box>
       </Box>
     )
+    const shown = w - 12 // the field's width less its frame, label and Enter hint
     const field = (
-      <Box borderStyle="round" borderColor={focused ? LIGHT : DRAB} paddingX={1}>
-        <Input key="thought" label="›" placeholder="preview: nothing typed here is kept" submitLabel="not kept"
-          value={s.log.typing} autoFocus onSubmit={() => {}} />
+      <Box flexDirection="column">
+        {now.length > shown && <Text dimColor wrap="wrap">{now}</Text>}
+        <Box borderStyle="round" borderColor={focused ? LIGHT : DRAB} paddingX={1}>
+          <Input key="thought" label="›" placeholder="preview: nothing typed here is kept" submitLabel="not kept"
+            value={s.log.typing} autoFocus onSubmit={() => {}}
+            onInput={v => void update($, typed, () => v).catch(() => undefined)} />
+        </Box>
       </Box>
     )
     const log = (
@@ -265,8 +273,10 @@ export const register: Register = (on, options) => {
     )
 
     // --- actions: one list, built from what is on screen -----------------
-    // The row that shows a key is the row that holds its button, drawn near
-    // the top so the pane's scroll window always holds it.
+    // The row that shows a key is the row that holds its button. It follows
+    // the field: a click hands the ring to the first focusable element drawn,
+    // not to autoFocus (native, 2026-11-08). With no field shown it stays near
+    // the top, inside the scroll window.
     type Act = { k: string; label: string; run: () => void; primary?: boolean }
     const live = s.watch.items.find(f => !f.settled)
     const showsMemory = !inline || st.expand === 1
@@ -315,15 +325,17 @@ export const register: Register = (on, options) => {
     if (inline) {
       const parts = [`memory ${s.memory.status}`, `watch ${s.watch.status}`, `log ${s.log.items.length}`]
       const section = st.expand === 1 ? memory : st.expand === 2 ? watch : st.expand === 3 ? log : null
+      const hasField = !section || st.expand === 3
       return (
         <Box flexDirection="column" paddingX={1}>
           <Box flexDirection="row" justifyContent="space-between">
             <Text wrap="truncate-end"><Text bold><Text color={MARK[0]}>◆</Text> Binnacle <Text color={TONE.warning}>preview</Text></Text><Text dimColor>  {parts.join(' · ')}</Text></Text>
             <Text dimColor> {s.claude}</Text>
           </Box>
-          {rail}
+          {!hasField && rail}
           {section ?? (live && finding(live, 0))}
           {!section && field}
+          {hasField && rail}
           {keyline}
         </Box>
       )
@@ -334,10 +346,10 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column" paddingX={1} height={e.props.scroll.bodyRows}>
         {masthead}
         {hairline}
-        {rail}
         {memory}
         {watch}
         {log}
+        {rail}
         {keyline}
         {scenes}
       </Box>

@@ -16,11 +16,13 @@ const pane = (placement: 'dock' | 'inline', isFocused: boolean) => ({
   },
 }) as const
 
-const start = async ($: any, on: any, value: number, writes: number[] = []) => {
+const start = async ($: any, on: any, value: number, writes: number[] = [], typed = '') => {
   on('command.register', () => ({ value: { command: 'hud' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
-  on('state.get', () => ({ value: { value: { shape: 'scene-2', value }, version: 1 } }))
+  on('state.get', (_: unknown, e: { key: string }) => ({ value: e.key === 'typed'
+    ? { value: typed, version: 1 }
+    : { value: { shape: 'scene-2', value }, version: 1 } }))
   on('state.set', (_: unknown, e: { value: { value: number } }) => { writes.push(e.value.value); return { value: { isSet: true, version: 2 } } })
   on('ui.focus', () => ({ value: {} }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
@@ -92,4 +94,41 @@ test('the ring staying on send keeps it armed', async ($, on) => {
   await $.ui.focus(focusOn('k-s'))
   expect(writes).toHaveLength(1)
   expect(writes[0]! >= ARMED).toBe(true)
+})
+
+// A click hands the ring to the first focusable element drawn, not to the
+// autoFocus field (native, 2026-11-08), so the field must come before every key.
+const fieldFirst = async (ui: any) => {
+  const tree = JSON.stringify(await ui.drawn())
+  const field = tree.indexOf('"thought"')
+  const firstKey = tree.search(/"k-[a-z]"/)
+  return field >= 0 && firstKey > field
+}
+
+test('strip: the field comes before the action keys', { options: { narrow: 'strip' } }, async ($, on) => {
+  await start($, on, RING(0))
+  expect(await fieldFirst(await $.ui.mount(pane('inline', true)))).toBe(true)
+})
+
+test('strip, log expanded: the field still comes first', { options: { narrow: 'strip' } }, async ($, on) => {
+  await start($, on, 300 + RING(0))
+  expect(await fieldFirst(await $.ui.mount(pane('inline', true)))).toBe(true)
+})
+
+test('dock, edited memory: the field comes before send and diff', async ($, on) => {
+  await start($, on, 3 + RING(0))
+  expect(await fieldFirst(await $.ui.mount(pane('dock', true)))).toBe(true)
+})
+
+const LONG = 'the quick brown fox jumps over the lazy dog and keeps running past the edge'
+const echoed = async (ui: any, text: string) => JSON.stringify(await ui.drawn()).includes(`"${text}"`)
+
+test('dock: a thought too long for the field is shown whole above it', async ($, on) => {
+  await start($, on, RING(1), [], LONG)
+  expect(await echoed(await $.ui.mount(pane('dock', true)), LONG)).toBe(true)
+})
+
+test('dock: a short thought is not echoed', async ($, on) => {
+  await start($, on, RING(1), [], 'short')
+  expect(await echoed(await $.ui.mount(pane('dock', true)), 'short')).toBe(false)
 })
