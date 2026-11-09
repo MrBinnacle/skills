@@ -1,7 +1,7 @@
 {
   "name": "binnacle-hud",
-  "version": "0.1.0",
-  "description": "Design mock: the Binnacle continuity HUD in six fixed states, sample data only",
+  "version": "4.0.0",
+  "description": "The Binnacle continuity HUD: a private Log of thoughts you keep from the terminal or the phone, none of it sent to Claude, beside a design preview of Memory and Watch",
   "types": "./types/index.d.ts",
   "userConfig": {
     "narrow": {
@@ -14,5 +14,11 @@
       ],
       "default": "hide"
     }
-  }
+  },
+  "author": {
+    "name": "MrBinnacle"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/MrBinnacle/skills",
+  "homepage": "https://github.com/MrBinnacle/skills/tree/main/mods/binnacle-hud"
 }
