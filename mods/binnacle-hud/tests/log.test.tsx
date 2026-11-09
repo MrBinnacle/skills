@@ -3,12 +3,16 @@ import { expect, test } from 'claude-code/testing'
 // /log is the phone's way in: the question dialog draws there, and what is
 // typed under Other reaches the mod without entering the conversation.
 
-const start = async ($: any, on: any, answer: string | undefined, sets: Record<string, unknown[]>, asked: string[] = []) => {
+const start = async ($: any, on: any, answer: string | undefined, sets: Record<string, unknown[]>, asked: string[] = [], deny = false) => {
   on('command.register', () => ({ value: undefined }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
-  on('state.get', (_: unknown, e: { key: string }) => ({ value: { value: e.key === 'log' ? [] : '', version: 1 } }))
-  on('state.set', (_: unknown, e: { key: string; value: unknown }) => { (sets[e.key] ??= []).push(e.value); return { value: { isSet: true, version: 2 } } })
+  on('state.get', (_: unknown, e: { key: string }) => ({ value: { value: e.key === 'log' || e.key === 'failed' ? [] : '', version: 1 } }))
+  on('state.set', (_: unknown, e: { key: string; value: unknown }) => {
+    if (deny && e.key === 'log') { return { deny: 'disk full' } }
+    (sets[e.key] ??= []).push(e.value)
+    return { value: { isSet: true, version: 2 } }
+  })
   on('tool.call', (_: unknown, e: any) => {
     asked.push(e.questions[0].question)
     return answer === undefined ? { deny: 'dismissed' } : { result: { answers: { [e.questions[0].question]: answer } } }
@@ -26,6 +30,17 @@ test('a thought typed under Other on the phone is kept, marked phone, and not ec
   const kept = sets.log as { text: string; from: string }[][]
   expect(kept.at(-1)!.map(t => [t.text, t.from])).toEqual([['call the venue about the 14th', 'phone']])
   expect(JSON.stringify(out)).not.toContain('venue')
+  expect(sets.typed).toBeUndefined()
+})
+
+test('a failed phone keep records the thought and reports failure without echoing it', async ($, on) => {
+  const sets: Record<string, unknown[]> = {}
+  await start($, on, 'call the venue', sets, [], true)
+  const out = JSON.stringify(await run($, 'bridge'))
+  expect(out).toContain('Not kept, the save failed')
+  expect(out).not.toContain('venue')
+  expect(sets.failed).toEqual([['call the venue']])
+  expect(sets.log).toBeUndefined()
   expect(sets.typed).toBeUndefined()
 })
 

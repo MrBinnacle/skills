@@ -21,7 +21,7 @@ const start = async ($: any, on: any) => {
   on('command.register', () => ({ value: { command: 'hud' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
-  on('state.get', (_: unknown, e: { key: string }) => ({ value: e.key === 'typed' ? { value: '', version: 1 } : e.key === 'log' ? { value: [], version: 1 } : { value: { shape: 'scene-2', value: 2 }, version: 1 } }))
+  on('state.get', () => ({ value: { value: undefined, version: 0 } }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 }
 
