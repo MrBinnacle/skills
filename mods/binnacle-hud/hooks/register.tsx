@@ -268,7 +268,7 @@ export const register: Register = (on, options) => {
         <Box borderStyle="round" borderColor={focused ? LIGHT : DRAB} paddingX={1}>
           <Input key="thought" label="›" placeholder="a thought for later" submitLabel="keep"
             value={now} autoFocus onSubmit={v => void submit($, v)}
-            onInput={v => { edits += 1; void update($, typed, () => v).catch(() => undefined) }} />
+            onInput={v => { const mine = ++edits; void update($, typed, now => edits === mine ? v : now).catch(() => undefined) }} />
         </Box>
       </Box>
     )
