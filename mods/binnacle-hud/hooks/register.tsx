@@ -113,9 +113,10 @@ async function keep($: EngineInterface, text: string, from: Thought['from']): Pr
   return true
 }
 
-// Clears the field after a keep: a drawn value different from the typing replaces it.
+// Clears the field after a keep, unless typing went on while the keep was
+// saving. A draft that matches the kept text is in the Log, so clearing it loses nothing.
 async function submit($: EngineInterface, text: string): Promise<void> {
-  if (await keep($, text, 'terminal')) await update($, typed, () => '')
+  if (await keep($, text, 'terminal')) await update($, typed, now => now === text ? '' : now)
 }
 
 export const register: Register = (on, options) => {
@@ -263,7 +264,7 @@ export const register: Register = (on, options) => {
     // --- log ---------------------------------------------------------------
     const thought = (t: Thought, i: number) => (
       <Box key={`log-${i}`} flexDirection="row" justifyContent="space-between">
-        <Text wrap={inline ? 'truncate-end' : 'wrap'}>{narrow ? '  ' : <Text dimColor>{new Date(t.at).toTimeString().slice(0, 5)}{t.from === 'phone' ? ' phone' : ''}  </Text>}{t.text}</Text>
+        <Text wrap={inline ? 'truncate-end' : 'wrap'}><Text dimColor>{narrow ? '' : new Date(t.at).toTimeString().slice(0, 5)}{t.from === 'phone' ? ' phone' : ''}  </Text>{t.text}</Text>
       </Box>
     )
     const shown = w - 12 // the field's width less its frame, label and Enter hint
