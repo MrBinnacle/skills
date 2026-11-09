@@ -181,6 +181,9 @@ def main() -> int:
     if FAILURES:
         print(f"FAIL: {len(FAILURES)} case(s): {', '.join(FAILURES)}")
         return 1
+    regression = subprocess.run([sys.executable, str(SCRIPT.with_name("test_install_form_expectations.py"))])
+    if regression.returncode:
+        return regression.returncode
     print("PASS: marketplace pin check refuses every stale pin and accepts the release states")
     return 0
 
