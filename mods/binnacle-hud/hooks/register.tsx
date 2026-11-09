@@ -6,8 +6,7 @@ import type { Approved, Thought, View } from '../types'
 // model requests is unverified. Memory holds a draft and the snapshot a confirmed Send
 // gave Claude. Watch is still a preview with one sample finding.
 //
-// Keys inside the pane (after /hud, ctrl+x tab or a click, then Tab off the
-// field): the action row under the field is the whole list, built from what
+// Keys inside the pane (after /hud or a click, then Tab off the field): the action row under the field is the whole list, built from what
 // is on screen, so no key is shown that has no button.
 //
 // State lives under keys types/index.d.ts declares: `view`, the pane's own UI
@@ -123,8 +122,17 @@ async function send($: EngineInterface): Promise<void> {
   const text = [`Memory the operator approved at ${hhmm(at)}:`, ...lines].join('\n')
   const out = await $.session.append({ message: { type: 'user', content: [{ type: 'text', text }] } })
     .catch((err: unknown) => ({ deny: err instanceof Error ? err.message : String(err) }))
-  if (!out.deny) await update($, approved, () => ({ lines, at }))
-  await update($, view, v => ({ ...v, failed: out.deny ?? '' }))
+  // The append landed but the snapshot write can still fail. Then Claude has
+  // the lines and the HUD must not say "Not sent."
+  let unrecorded = 0
+  if (!out.deny) await update($, approved, () => ({ lines, at })).catch(() => { unrecorded = at })
+  await update($, view, v => ({ ...v, failed: out.deny ?? '', unrecorded }))
+}
+
+// Failed keeps are only appended, so dropping the first n drops exactly the
+// ones on screen and keeps any that failed since.
+async function dismissFailed($: EngineInterface, n: number): Promise<void> {
+  await update($, failed, items => items.slice(n)).catch(() => undefined)
 }
 
 export const register: Register = (on, options) => {
@@ -190,7 +198,9 @@ export const register: Register = (on, options) => {
     const thoughts = await read($, kept)
     const lines = await read($, draft)
     const snap = await read($, approved)
-    const status = statusOf(lines, snap)
+    const status = st.unrecorded
+      ? `Claude has the lines sent at ${hhmm(st.unrecorded)}. The HUD could not record that Send.`
+      : statusOf(lines, snap)
 
     const focused = e.props.isFocused
     const inline = e.props.placement === 'inline'
@@ -224,8 +234,9 @@ export const register: Register = (on, options) => {
     const memory = (
       <Box flexDirection="column">
         {header('Memory', lines.length ? `${lines.length} lines` : 'empty')}
-        {!(st.failed && !snap) && (
-          <Text wrap="wrap" color={!snap ? undefined : same(lines, snap.lines) ? TONE.remember : LIGHT} dimColor={!snap}>{status}</Text>
+        {!(st.failed && !snap) && (st.unrecorded
+          ? <Text wrap="wrap" color={TONE.warning}>{status}</Text>
+          : <Text wrap="wrap" color={!snap ? undefined : same(lines, snap.lines) ? TONE.remember : LIGHT} dimColor={!snap}>{status}</Text>
         )}
         {st.failed && <Text wrap="wrap" color={TONE.warning}>{`Not sent. ${st.failed}`}</Text>}
         {lines.map((l, i) => (
@@ -298,6 +309,7 @@ export const register: Register = (on, options) => {
       return send($).finally(() => { sending = false })
     }
     const acts: Act[] = [
+      ...(lost.length ? [{ k: 'd', label: 'dismiss failed', run: () => void dismissFailed($, lost.length) }] : []),
       ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
       ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($) }] : []),
       ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($) }] : []),
