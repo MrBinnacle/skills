@@ -36,7 +36,7 @@ for (const scene of [0, 1, 2, 3, 4]) {
     on('ui.open', () => ({ value: { isPlaced: true } }))
     on('session.start', (_, e) => ({ cwd: e.cwd }))
     // ring 2 (a button holds the ring) so the hotkey rows draw too.
-    on('state.get', () => ({ value: { value: scene + 2000, version: 1 }, shape: 'scene-2' }))
+    on('state.get', () => ({ value: { value: { shape: 'scene-2', value: scene + 2000 }, version: 1 } }))
 
     await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 

@@ -6,14 +6,16 @@ import type { Register } from 'claude-code'
 // sent. What is real in this mock: the pane's placement (dock or inline), its
 // width, whether it holds the keys, where the focus ring stands, hover.
 //
-// Keys inside the pane (after ctrl+x tab or a click, then Tab off the field):
-//   1-5 scenes · s send (press twice) · v diff · q quote · d dismiss
-//   m / w / l expand a section while the pane sits inline above the prompt
+// Keys inside the pane (after /hud, ctrl+x tab or a click, then Tab off the
+// field): the action row under the masthead is the whole list, built from what
+// is on screen, so no key is shown that has no button. In the dock, 1-5 pick a
+// preview scene from their own row at the bottom.
 //
 // State lives under the one key CC's types/index.d.ts declares (`scene`, a
 // number), packed as digits, so this file replaces register.tsx alone. The
 // real mod declares its own keys.
 const PANE = 'binnacle-hud'
+const SEND = 'k-s' // the send button's key, as ui.focus names it
 const packed = atom({ plugin: 'binnacle-hud', key: 'scene' } as const, 0, { shape: 'scene-2' })
 
 type Ring = 0 | 1 | 2 // 0 no element, 1 the thought field, 2 a button
@@ -113,7 +115,7 @@ export const whyNoDock = (isFullscreen: boolean | undefined, columns: number | u
 export const register: Register = (on, options) => {
   const noDock = narrowOf(options.narrow)
   // rows is the inline height alone; a docked pane ignores it.
-  const pane = { id: PANE, title: 'Binnacle', columns: 46, rows: noDock === 'hide' ? 1 : 7 }
+  const pane = { id: PANE, title: 'Binnacle', columns: 46, rows: noDock === 'hide' ? 1 : 8 }
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'hud', description: 'Open the Binnacle HUD. /hud narrow hide|strip sets what it does without room to dock' })
@@ -139,11 +141,14 @@ export const register: Register = (on, options) => {
       : `The side panel ${why}: widen or maximize the window. Showing it above the prompt for now.` }
   })
 
-  // Where the ring stands decides which keys the key line shows.
+  // Where the ring stands decides the key line. Any move but onto the send
+  // button itself disarms a pending send, so leaving and coming back never
+  // finds it armed: the site taking the keys again moves the ring to the field.
   on('ui.focus', async ($, e, next) => {
     if (e.component === 'Pane' && e.requestId === PANE) {
       const ring: Ring = e.element === undefined ? 0 : e.element === 'thought' ? 1 : 2
-      void update($, packed, v => pack({ ...unpack(v), ring })).catch(() => undefined)
+      const keep = e.element === SEND
+      void update($, packed, v => { const u = unpack(v); return pack({ ...u, ring, armed: keep && u.armed }) }).catch(() => undefined)
     }
     return next(e)
   })
@@ -159,7 +164,9 @@ export const register: Register = (on, options) => {
     const cols = e.props.bodyColumns
     const w = Math.max(20, cols - 2) // paddingX 1
     const narrow = w < 36
-    const hot = focused && st.ring === 2 // hotkeys fire only off the field (d.ts 5712-5714)
+    // Buttons draw whenever the pane holds the keys: a hotkey whose button is
+    // absent falls through to the main prompt. They fire only off the field.
+    const armed = focused && st.armed
 
     // --- vocabulary -------------------------------------------------------
     const seg = Math.max(1, Math.floor(w * 0.08))
@@ -171,7 +178,7 @@ export const register: Register = (on, options) => {
     )
     const masthead = (
       <Box flexDirection="row" justifyContent="space-between">
-        <Text bold><Text color={MARK[0]}>◆</Text> Binnacle</Text>
+        <Text bold><Text color={MARK[0]}>◆</Text> Binnacle <Text color={TONE.warning}>preview</Text></Text>
         <Text dimColor>{narrow ? s.claude.split(' ')[0] : s.claude}</Text>
       </Box>
     )
@@ -206,14 +213,6 @@ export const register: Register = (on, options) => {
           ? <Code format="diff" source={DIFF} wrap="truncate-end" />
           : s.memory.lines.map(memoryLine)}
         {quiet(s.memory.empty)}
-        {hot && s.memory.action && (
-          <Box flexDirection="row" gap={2}>
-            {st.armed
-              ? <Box flexDirection="row" gap={1}><Text color={LIGHT}>send?</Text>{key('s', 'yes', () => set({ armed: false, scene: 1, diff: false }), true)}<Text dimColor>esc: no</Text></Box>
-              : key('s', s.memory.action, () => set({ armed: true }), true)}
-            {s.memory.action === 'send' && key('v', st.diff ? 'lines' : 'diff', () => set({ diff: !st.diff }))}
-          </Box>
-        )}
       </Box>
     )
 
@@ -224,15 +223,7 @@ export const register: Register = (on, options) => {
           <Text color={f.settled ? undefined : LIGHT} dimColor={!!f.settled}>▎</Text>
           <Text wrap="truncate-end" dimColor={!!f.settled} hover={{ bold: true }}>{f.text}</Text>
         </Box>
-        <Box flexDirection="row" justifyContent="space-between">
-          <Text dimColor>▎{f.source} · {f.age}{f.settled ? ` · ${f.settled}` : ''}</Text>
-          {hot && !f.settled && (
-            <Box flexDirection="row" gap={1}>
-              {key('q', 'quote', () => set({ scene: 1 }))}
-              {key('d', 'dismiss', () => set({ scene: 1 }))}
-            </Box>
-          )}
-        </Box>
+        <Text dimColor>▎{f.source} · {f.age}{f.settled ? ` · ${f.settled}` : ''}</Text>
         <Box position="absolute" top={2} left={1} width={w - 2} display="none" hover={{ display: 'flex' }}
           borderStyle="round" borderDimColor paddingX={1} flexDirection="column">
           <Text wrap="wrap">{f.why}</Text>
@@ -260,31 +251,49 @@ export const register: Register = (on, options) => {
     )
     const field = (
       <Box borderStyle="round" borderColor={focused ? LIGHT : DRAB} paddingX={1}>
-        <Input key="thought" label="›" placeholder="a thought" submitLabel="save" value={s.log.typing} autoFocus
-          onSubmit={() => {}} />
+        <Input key="thought" label="›" placeholder="preview: nothing typed here is kept" submitLabel="not kept"
+          value={s.log.typing} autoFocus onSubmit={() => {}} />
       </Box>
     )
     const log = (
       <Box flexDirection="column" flexGrow={1} justifyContent="flex-end">
-        {header('Log', s.log.items.length ? `${s.log.items.length} saved` : 'empty')}
-        {s.log.items.length === 0 && quiet('Type below; Enter saves here. Nothing in the log reaches Claude.')}
+        {header('Log', s.log.items.length ? `${s.log.items.length} sample` : 'empty')}
+        {s.log.items.length === 0 && quiet('Preview: Enter keeps nothing yet. When it does, nothing in the log reaches Claude.')}
         {s.log.items.map(thought)}
         {field}
       </Box>
     )
 
-    // --- key line: only the keys that can fire now -------------------------
-    const keyline = (
-      <Text dimColor wrap="truncate-end">
-        {!focused ? '/hud or a click to write'
-          : st.ring === 1 ? 'enter saves · tab actions · esc prompt'
-          : inline ? 'm w l expand · esc prompt'
-          : 's send · v diff · q quote · d dismiss · esc prompt'}
-      </Text>
+    // --- actions: one list, built from what is on screen -----------------
+    // The row that shows a key is the row that holds its button, drawn near
+    // the top so the pane's scroll window always holds it.
+    type Act = { k: string; label: string; run: () => void; primary?: boolean }
+    const live = s.watch.items.find(f => !f.settled)
+    const showsMemory = !inline || st.expand === 1
+    const showsFinding = live && (!inline || st.expand === 2 || st.expand === 0)
+    const toggle = (n: number): Act => ({ k: 'mwl'[n - 1]!, label: ['memory', 'watch', 'log'][n - 1]!,
+      run: () => set({ expand: st.expand === n ? 0 : n }) })
+    const acts: Act[] = [
+      ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
+      ...(showsMemory && s.memory.action
+        ? [armed ? { k: 's', label: 'yes, send', run: () => set({ armed: false, scene: 1, diff: false }), primary: true }
+                 : { k: 's', label: s.memory.action, run: () => set({ armed: true }), primary: true }]
+        : []),
+      ...(showsMemory && s.memory.action === 'send' && !armed ? [{ k: 'v', label: st.diff ? 'lines' : 'diff', run: () => set({ diff: !st.diff }) }] : []),
+      ...(showsFinding && !armed ? [{ k: 'q', label: 'quote', run: () => set({ scene: 1 }) }, { k: 'd', label: 'dismiss', run: () => set({ scene: 1 }) }] : []),
+    ]
+    const rail = focused && (
+      <Box flexDirection="row" flexWrap="wrap" gap={1}>
+        {armed && <Text color={LIGHT}>send this memory?</Text>}
+        {acts.map(a => key(a.k, a.label, a.run, a.primary))}
+        <Text dimColor>{armed ? 'esc no' : 'esc prompt'}</Text>
+      </Box>
     )
-    const scenes = (
-      <Box flexDirection="row" gap={1}>
-        <Text dimColor>mock</Text>
+    const hint = !focused ? '/hud or a click to write' : st.ring === 1 ? 'preview: enter keeps nothing · tab to the actions' : undefined
+    const keyline = hint && <Text dimColor wrap="truncate-end">{hint}</Text>
+    const scenes = focused && (
+      <Box flexDirection="row" flexWrap="wrap" gap={1} marginTop={1}>
+        <Text dimColor>preview scene</Text>
         {SCENES.map((one, i) => (
           <Button key={`scene-${i}`} hotkey={String(i + 1)} plain dimColor={st.scene !== i}
             onPress={() => set({ scene: i, diff: false, armed: false })}>{one.name}</Button>
@@ -302,30 +311,20 @@ export const register: Register = (on, options) => {
       )
     }
 
-    // --- inline: one summary row, the one thing that wants you, the field ---
+    // --- inline: summary, actions, the one thing that wants you, the field --
     if (inline) {
       const parts = [`memory ${s.memory.status}`, `watch ${s.watch.status}`, `log ${s.log.items.length}`]
       const section = st.expand === 1 ? memory : st.expand === 2 ? watch : st.expand === 3 ? log : null
-      const live = s.watch.items.find(f => !f.settled)
       return (
         <Box flexDirection="column" paddingX={1}>
           <Box flexDirection="row" justifyContent="space-between">
-            <Text wrap="truncate-end"><Text bold><Text color={MARK[0]}>◆</Text> Binnacle</Text><Text dimColor>  {parts.join(' · ')}</Text></Text>
+            <Text wrap="truncate-end"><Text bold><Text color={MARK[0]}>◆</Text> Binnacle <Text color={TONE.warning}>preview</Text></Text><Text dimColor>  {parts.join(' · ')}</Text></Text>
             <Text dimColor> {s.claude}</Text>
           </Box>
+          {rail}
           {section ?? (live && finding(live, 0))}
           {!section && field}
-          <Box flexDirection="row" justifyContent="space-between">
-            {keyline}
-            {hot && (
-              <Box flexDirection="row" gap={1}>
-                {key('m', 'memory', () => set({ expand: st.expand === 1 ? 0 : 1 }))}
-                {key('w', 'watch', () => set({ expand: st.expand === 2 ? 0 : 2 }))}
-                {key('l', 'log', () => set({ expand: st.expand === 3 ? 0 : 3 }))}
-              </Box>
-            )}
-          </Box>
-          {hot && scenes}
+          {keyline}
         </Box>
       )
     }
@@ -335,13 +334,12 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column" paddingX={1} height={e.props.scroll.bodyRows}>
         {masthead}
         {hairline}
+        {rail}
         {memory}
         {watch}
         {log}
-        <Box flexDirection="row" justifyContent="space-between" marginTop={1}>
-          {keyline}
-          {hot && scenes}
-        </Box>
+        {keyline}
+        {scenes}
       </Box>
     )
   })
