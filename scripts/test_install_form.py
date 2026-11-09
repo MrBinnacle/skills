@@ -65,6 +65,13 @@ Live cold install
        installed from that tree. This is the case that would see a break this
        branch makes in `.claude-plugin/marketplace.json`.
 
+    Each case resolves its own marketplace snapshot's pinned plugins and versions.
+    The published snapshot is the one the cold add stored in known_marketplaces.json;
+    the candidate is this checkout. ROOT must hold the pinned commits in Git history.
+    A release branch intentionally still installs the previous release until its
+    separate pin commit (ADR 0002); entering mods follow ADR 0009. The separate pin
+    checker still enforces release freshness.
+
     Both cases live under one temporary root that is removed when the suite
     exits, whether it passes, fails or raises; a named check compares the
     temp-folder listing before and after.
@@ -89,7 +96,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from check_marketplace_pin import bucket_path, check as pin_check
+import check_marketplace_pin as pin
 
 ROOT = Path(__file__).resolve().parent.parent
 README = ROOT / "README.md"
@@ -164,20 +171,64 @@ def declared_plugins() -> set[str]:
     return {entry["name"] for entry in data.get("plugins", [])}
 
 
-def card_plugins() -> set[str]:
-    """Plugins that carry cards. A mod under mods/ carries none (ADR 0009)."""
-    data = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
-    return {
-        entry["name"]
-        for entry in data.get("plugins", [])
-        if bucket_path(entry.get("source")).startswith("skills/")
-    }
+def install_expectations(marketplace_root: Path) -> tuple[dict[str, str], set[str]]:
+    """Resolve this marketplace's pins, not the installed result or branch versions.
+
+    ROOT supplies Git history; marketplace_root supplies the actual catalog and
+    entering manifests. Pin freshness remains check_marketplace_pin.py's job.
+    """
+    expected: dict[str, str] = {}
+    cards: set[str] = set()
+    seen: set[str] = set()
+    for entry in pin.read_manifest(marketplace_root)["plugins"]:
+        if not isinstance(entry, dict):
+            raise ValueError("marketplace entry is not an object")
+        name, source = entry.get("name"), entry.get("source")
+        if not isinstance(name, str) or not name or name in seen:
+            raise ValueError(f"missing or duplicate plugin name: {name!r}")
+        seen.add(name)
+        if not isinstance(source, dict) or source.get("source") != "git-subdir":
+            raise ValueError(f"{name}: expected a git-subdir pin")
+        sha, path = source.get("sha"), source.get("path")
+        if not isinstance(sha, str) or not pin.FULL_SHA_RE.fullmatch(sha):
+            raise ValueError(f"{name}: expected a full commit SHA")
+        if (not isinstance(path, str) or not path or Path(path).anchor
+                or ".." in Path(path).parts or source.get("url") != pin.repo_url(ROOT)):
+            raise ValueError(f"{name}: invalid source path or repository URL")
+        version = pin.json_at(ROOT, sha, "package.json").get("version")
+        if not isinstance(version, str) or version_key(version) is None or source.get("ref") != f"v{version}":
+            raise ValueError(f"{name}: missing version or ref disagrees with pinned package")
+        release = pin.Release(sha, version, False)
+        released = pin.released_names(ROOT, release)
+        catalog = pin.json_at(ROOT, sha, pin.MANIFEST_REL)["plugins"]
+        if (not catalog or any(not isinstance(p, dict) or not isinstance(p.get("name"), str)
+                               or not p["name"] for p in catalog) or len(released) != len(catalog)):
+            raise ValueError(f"{name}: malformed pinned marketplace names")
+        if pin.entering(ROOT, entry, release, released):
+            errors = pin.branch_plugin_errors(marketplace_root, name, path)
+        else:
+            errors = pin.plugin_errors(ROOT, name, path, release)
+            expected[name] = version
+            if pin.bucket_path(source).startswith("skills/"):
+                cards.add(name)
+        if errors:
+            raise ValueError("; ".join(errors))
+    if not expected or len(set(expected.values())) != 1:
+        raise ValueError("marketplace must resolve a nonempty set at one release version")
+    return expected, cards
 
 
-def entering_plugins() -> set[str]:
-    """Entries the pinned release does not hold yet; they install from the
-    next release on (ADR 0009), so a cold install cannot reach them now."""
-    return set(pin_check(ROOT).entering)
+def published_marketplace(env: dict[str, str]) -> Path:
+    """Read the snapshot fetched by this cold add, not a later remote HEAD."""
+    config = Path(env["CLAUDE_CONFIG_DIR"])
+    registry = json.loads((config / "plugins/known_marketplaces.json").read_text(encoding="utf-8"))
+    location = registry["mrbinnacle-skills"]["installLocation"]
+    if not isinstance(location, str) or not location:
+        raise ValueError("cold marketplace registry has no installLocation")
+    root = Path(location).resolve()
+    if not root.is_relative_to(config.resolve()):
+        raise ValueError("published marketplace is outside the cold configuration")
+    return root
 
 
 def branch_plugin_versions() -> dict[str, str]:
@@ -682,7 +733,6 @@ def main() -> int:
             temp_root,
             install_fences,
             shell_install_commands,
-            declared - entering_plugins(),
             readme_claude_version,
             readme_plugin_version,
         )
@@ -708,7 +758,7 @@ def main() -> int:
     print(
         "PASS: install form is the HTTPS URL on every reader surface, "
         "published and checked-out-tree cold installs are green, and the "
-        "Verified forms record matches the CLI"
+        "dated Verified forms record was checked (see any warnings above)"
     )
     return 0
 
@@ -737,7 +787,6 @@ def live_cold_installs(
     temp_root: Path,
     install_fences: list[str],
     shell_install_commands: list[list[str]],
-    declared: set[str],
     readme_claude_version: str | None,
     readme_plugin_version: str | None,
 ) -> None:
@@ -776,6 +825,12 @@ def live_cold_installs(
         add.returncode == 0 and "Successfully added marketplace" in out,
         f"rc={add.returncode}\n{out}",
     )
+    try:
+        expected, cards = install_expectations(published_marketplace(env))
+    except (OSError, ValueError, KeyError, TypeError, pin.PinError) as exc:
+        check("published marketplace pins can be resolved", False, str(exc))
+        return
+    declared = set(expected)
     # Run every README install line exactly as written, every token
     # included; only argv[0] is replaced with the CLI path.
     readme_installs: list[tuple[str, int, str]] = []
@@ -793,15 +848,14 @@ def live_cold_installs(
         ),
         "\n".join(f"{c}: rc={rc}\n{o}" for c, rc, o in readme_installs),
     )
-    # The Verified forms record claims all three plugins; install any
-    # declared plugin the README shell fence did not already name.
+    # Install every reachable plugin the README shell fence did not name.
     named = {command[3] for command in shell_install_commands}
     installs = list(readme_installs)
     for name in sorted(declared - named):
         proc = run_cli(claude, ["plugin", "install", name], env, str(base))
         installs.append((name, proc.returncode, proc.stdout + proc.stderr))
     check(
-        "cold install of all three plugins succeeds",
+        "cold install of every reachable plugin succeeds",
         all(
             rc == 0 and "Successfully installed plugin" in plugin_out
             for _, rc, plugin_out in installs
@@ -811,14 +865,11 @@ def live_cold_installs(
     listed = run_cli(claude, ["plugin", "list", "--json"], env, str(base))
     installed = parse_plugin_list(listed.stdout)
     check(
-        "installed plugins report one nonempty version from the cold install",
+        "cold install reports the published marketplace's pinned plugins and versions",
         listed.returncode == 0
-        and set(installed) == declared
-        and len({plugin.get("version") for plugin in installed.values()}) == 1
-        and all(plugin.get("version") for plugin in installed.values()),
-        listed.stdout[:2000],
+        and {name: plugin.get("version") for name, plugin in installed.items()} == expected,
+        f"installed={listed.stdout[:2000]}, expected={expected}",
     )
-    cards = card_plugins() & declared
     card_counts = installed_card_counts(installed)
     check(
         "cold install carries cards in every requested plugin",
@@ -889,8 +940,14 @@ def live_cold_installs(
         local_add.returncode == 0 and "Successfully added marketplace" in local_out,
         f"rc={local_add.returncode}\n{local_out}",
     )
+    try:
+        local_expected, local_cards = install_expectations(ROOT)
+    except (OSError, ValueError, KeyError, TypeError, pin.PinError) as exc:
+        check("checked-out marketplace pins can be resolved", False, str(exc))
+        return
+    local_declared = set(local_expected)
     local_installs: list[tuple[str, int, str]] = []
-    for name in sorted(declared):
+    for name in sorted(local_declared):
         proc = run_cli(
             claude, ["plugin", "install", name], local_env, str(local_base)
         )
@@ -907,23 +964,20 @@ def live_cold_installs(
         claude, ["plugin", "list", "--json"], local_env, str(local_base)
     )
     local_installed = parse_plugin_list(local_listed.stdout)
-    branch_versions = branch_plugin_versions()
     local_versions = {
         name: plugin.get("version") for name, plugin in local_installed.items()
     }
     check(
-        "checked-out tree cold install reports the branch plugin versions",
-        local_listed.returncode == 0
-        and set(local_installed) == declared
-        and local_versions
-        == {name: v for name, v in branch_versions.items() if name in declared},
-        f"installed={local_versions}, branch={branch_versions}",
+        "checked-out tree cold install reports its pinned plugins and versions",
+        local_listed.returncode == 0 and local_versions == local_expected,
+        f"installed={local_versions}, expected={local_expected}",
     )
     local_card_counts = installed_card_counts(local_installed)
     check(
         "checked-out tree cold install carries cards in every plugin",
-        set(local_card_counts) == declared
-        and all(local_card_counts[name] > 0 for name in cards),
+        set(local_card_counts) == local_declared
+        and bool(local_cards)
+        and all(local_card_counts[name] > 0 for name in local_cards),
         f"card_counts={local_card_counts}",
     )
 

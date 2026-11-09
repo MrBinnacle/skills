@@ -31,16 +31,9 @@ If Claude Code refuses the row, the HUD shows "Not sent." and the reason, and th
 
 ## Install the mod
 
-The collection's current release, v4.0.0, does not contain this mod, so `/plugin install binnacle-hud` finds no mod yet. Until the next release, load it from a clone of the repository:
+Marketplace installs require a pin to **v4.1.0 or later**; v4.0.0 does not contain this mod. A version bump alone does not make the mod installable: the marketplace must also be pinned to that release.
 
-```text
-git clone https://github.com/MrBinnacle/skills.git
-claude --plugin-dir skills/mods/binnacle-hud
-```
-
-`--plugin-dir` loads the mod for that session only. Pass it each time you start Claude Code.
-
-After the next release, install it from the marketplace. Run each command on its own at the prompt of a Claude Code terminal session. If you paste both at once, Claude Code reads them as one malformed URL.
+Run each command on its own at the prompt of a Claude Code terminal session. If you paste both at once, Claude Code reads them as one malformed URL.
 
 ```text
 /plugin marketplace add https://github.com/MrBinnacle/skills.git
@@ -50,7 +43,16 @@ After the next release, install it from the marketplace. Run each command on its
 /plugin install binnacle-hud
 ```
 
-To load the mod, run `/reload-plugins` or start a new session.
+If the marketplace is already added, update it first by running `claude plugin marketplace update mrbinnacle-skills` in a shell. To load the mod, run `/reload-plugins` or start a new session.
+
+For development, load it from a clone instead:
+
+```text
+git clone https://github.com/MrBinnacle/skills.git
+claude --plugin-dir skills/mods/binnacle-hud
+```
+
+`--plugin-dir` loads the mod for that session only. Pass it each time you start Claude Code.
 
 ## Commands
 

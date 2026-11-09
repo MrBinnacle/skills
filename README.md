@@ -74,12 +74,12 @@ The 2026-10-02 cold-install transcript is in the pull request that changed this 
 ### Pi
 
 ```bash
-pi install git:github.com/MrBinnacle/skills@v4.0.0
+pi install git:github.com/MrBinnacle/skills@v4.1.0
 ```
 
 This installs the same cards and the four Pi extensions in [mechanisms/](mechanisms/README.md): a guard that sends a run which edited files back to run a check before it finishes, a line-ending guard, a reviewer, and a session handoff. Pi reads the `pi` key of `package.json` to find them. Confirm the install with `pi list`.
 
-Checked with Pi 1.5.0 on Windows on 2026-11-08, from an empty Pi configuration directory with skills in `~/.agents/skills` excluded. Pi's own resource loader found every card and all four extensions, with no errors. That shows what Pi loads. It does not show how a model uses them, and it has not been run on Linux or macOS. To install the cards without the extensions, list the package in Pi's `settings.json` as `{"source": "git:github.com/MrBinnacle/skills@v4.0.0", "extensions": []}`.
+Checked with Pi 1.5.0 on Windows on 2026-11-08, from an empty Pi configuration directory with skills in `~/.agents/skills` excluded. Pi's own resource loader found every card and all four extensions, with no errors. That shows what Pi loads. It does not show how a model uses them, and it has not been run on Linux or macOS. To install the cards without the extensions, list the package in Pi's `settings.json` as `{"source": "git:github.com/MrBinnacle/skills@v4.1.0", "extensions": []}`.
 
 ## License
 
