@@ -31,7 +31,7 @@
     {
       "name": "binnacle-hud",
       "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "mods/binnacle-hud", "ref": "v4.0.0", "sha": "52ea225e93fc3f2dc377ac6dde2d1954ccd6deb1"},
-      "description": "A Claude Code mod, not a skill: a side panel with a private Log of thoughts you keep from the terminal or the phone, none of it sent to Claude."
+      "description": "A Claude Code mod, not a skill. It draws a side panel with a private Log of thoughts kept from the terminal or the phone and never sent to Claude."
     }
   ]
 }

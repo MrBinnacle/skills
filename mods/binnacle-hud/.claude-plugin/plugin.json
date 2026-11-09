@@ -1,7 +1,7 @@
 {
   "name": "binnacle-hud",
   "version": "4.0.0",
-  "description": "The Binnacle continuity HUD: a private Log of thoughts you keep from the terminal or the phone, none of it sent to Claude, beside a design preview of Memory and Watch",
+  "description": "A side panel with a private Log of thoughts kept from the terminal or the phone and never sent to Claude, beside a design preview of Memory and Watch",
   "types": "./types/index.d.ts",
   "userConfig": {
     "narrow": {
