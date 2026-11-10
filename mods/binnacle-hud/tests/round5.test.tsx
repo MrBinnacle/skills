@@ -108,7 +108,7 @@ test('round5: a landed Send whose view write fails does not show an older refusa
   expect(d).not.toContain('earlier refusal')
 })
 
-test('N3: a refusal is drawn only beside the lines that Send carried', async ($, on) => {
+test('a refusal is drawn only beside the lines that Send carried', async ($, on) => {
   const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }] })
   s.refuseAppend('policy says no')
   await s.press('s')
@@ -119,12 +119,12 @@ test('N3: a refusal is drawn only beside the lines that Send carried', async ($,
   expect(d).not.toContain('policy says no')
 })
 
-test('N3: a refusal stored before the lines were recorded with it is not drawn', async ($, on) => {
+test('a refusal stored before the lines were recorded with it is not drawn', async ($, on) => {
   const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }], view: { ring: 2, expand: 0, failed: 'old reason' } })
   expect(await s.drawn()).not.toContain('old reason')
 })
 
-test('N2: a landed Send whose snapshot write fails still says Claude has the lines', async ($, on) => {
+test('a landed Send whose snapshot write fails still says Claude has the lines', async ($, on) => {
   const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }] })
   s.denied.add('approved')
   // Caught so that a thrown press fails the assertion below, not the harness.
@@ -133,7 +133,7 @@ test('N2: a landed Send whose snapshot write fails still says Claude has the lin
   expect(await s.drawn()).toContain('The HUD could not record that Send.')
 })
 
-test('N3: a refusal follows the text a Send carries, so the same text under a new id keeps it', async ($, on) => {
+test('a refusal follows the text a Send carries, so the same text under a new id keeps it', async ($, on) => {
   const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }] })
   s.refuseAppend('policy says no')
   await s.press('s')
