@@ -38,7 +38,11 @@ MUTANTS = {
                                "`Not sent. ${refused}`")],
     "dock refusal wording": [("st.unrecorded ? `The later Send was refused: ${refused}` : `Not sent. ${refused}`",
                               "`Not sent. ${refused}`")],
-    "refusal hidden once lines match the snapshot": [("const refused = snap && same(lines, snap.lines) ? '' : st.failed", "const refused = st.failed")],
+    "refusal hidden once lines match the snapshot": [("snap && same(lines, snap.lines) || !same", "false || !same")],
+    # A refusal is drawn only beside the lines it refused (N3)
+    "refusal bound to its lines": [(" || !same(lines, st.refusedLines ?? [])", "")],
+    "a refusal without lines is not drawn": [("st.refusedLines ?? []", "st.refusedLines ?? lines")],
+    "Send records the refused lines": [("refusedLines: out.deny ? lines : undefined", "refusedLines: undefined")],
     "a adds the drawn text": [("run: () => addLine($, now) }", "run: () => read($, typed).then(t => addLine($, t)) }")],
 }
 

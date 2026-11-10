@@ -132,7 +132,7 @@ async function send($: EngineInterface): Promise<void> {
   // A refused Send changes nothing Claude has, so it keeps the earlier notice.
   let unrecorded = 0
   if (!out.deny) await update($, approved, () => ({ lines, at })).catch(() => { unrecorded = at })
-  await update($, view, v => ({ ...v, failed: out.deny ?? '', unrecorded: out.deny ? v.unrecorded : unrecorded }))
+  await update($, view, v => ({ ...v, failed: out.deny ?? '', refusedLines: out.deny ? lines : undefined, unrecorded: out.deny ? v.unrecorded : unrecorded }))
 }
 
 export const register: Register = (on, options) => {
@@ -205,8 +205,8 @@ export const register: Register = (on, options) => {
     const status = st.unrecorded
       ? `Claude has the lines sent at ${hhmm(st.unrecorded)}. The HUD could not record that Send.`
       : statusOf(lines, snap)
-    // A refusal is news only while the lines differ from what Claude has.
-    const refused = snap && same(lines, snap.lines) ? '' : st.failed
+    // A refusal is news only beside the lines it refused, and while they differ from what Claude has.
+    const refused = snap && same(lines, snap.lines) || !same(lines, st.refusedLines ?? []) ? '' : st.failed
 
     const focused = e.props.isFocused
     const inline = e.props.placement === 'inline'
