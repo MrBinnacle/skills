@@ -85,7 +85,7 @@ test('an edit after Send leaves the approved snapshot and says Claude has the ol
   store.typed = 'model slice 2 first'
   ui = await redraw($, ui)
   await ui.press({ key: 'k-a' })
-  expect(store.memory).toEqual(['probe step 2 decides', 'model slice 2 first'])
+  expect(store.memory.map((e: any) => e.text)).toEqual(['probe step 2 decides', 'model slice 2 first'])
   expect(store.approved).toEqual({ lines: ['ship slice 1', 'probe step 2 decides'], at: NOW })
   expect(await shown(await redraw($, ui))).toContain(`Changed since Send. Claude has the ${hhmm(NOW)} version.`)
 })
@@ -174,7 +174,7 @@ test('a is offered only with text in the field, and adds it as a line', async ($
   store.typed = 'ship slice 1'
   const again = await $.ui.mount(pane())
   await again.press({ key: 'k-a' })
-  expect(store.memory).toEqual(['ship slice 1'])
+  expect(store.memory.map((e: any) => e.text)).toEqual(['ship slice 1'])
   expect(store.typed).toBe('')
 })
 
@@ -188,7 +188,7 @@ test('p copies the newest Log thought into Memory and keeps it in the Log', asyn
   await start($, on, store)
   const ui = await $.ui.mount(pane())
   await ui.press({ key: 'k-p' })
-  expect(store.memory).toEqual(['ship slice 1'])
+  expect(store.memory.map((e: any) => e.text)).toEqual(['ship slice 1'])
   expect(store.log.map((t: any) => t.text)).toEqual(['older', 'ship slice 1'])
   expect(session.appended()).toHaveLength(0)
 })
@@ -208,5 +208,5 @@ test('0 removes the last line, so a tenth line is never stuck', async ($, on) =>
   await start($, on, store)
   const ui = await $.ui.mount(pane())
   await ui.press({ key: 'k-0' })
-  expect(store.memory).toEqual(ten.slice(0, 9))
+  expect(store.memory.map((e: any) => e.text)).toEqual(ten.slice(0, 9))
 })

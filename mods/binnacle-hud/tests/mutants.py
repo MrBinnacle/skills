@@ -2,6 +2,7 @@
 
 Run: python mods/binnacle-hud/tests/mutants.py [name ...]
 Exit 0 only when every named mutant applies exactly once and turns the suite red.
+Exit 3, before any mutant, when the unmutated suite is already red.
 A mutant whose text no longer matches the source fails too: fix its row when the code moves.
 The source file is restored after every run, also on error or Ctrl+C.
 """
@@ -26,21 +27,32 @@ MUTANTS = {
     "copy reports refusal": [("out?.isCopied ? 'Copied.", "true ? 'Copied.")],
     "clear-only recording": [("kind === 'clear' && ", "")],
     "slash lines skipped": [("!before.startsWith('/') && ", "")],
-    "stash back drops loss": [("(mine ? sameLoss(now, mine) : now.text === text) ? null : now", "mine ? null : now")],
+    "stash back drops loss": [("now => sameLoss(now, restored) ? null : now", "now => now")],
     # Send record and failed keeps (#665)
     "snapshot write failure caught": [(".catch(() => { unrecorded = at })", "")],
     "refused Send keeps earlier notice": [("unrecorded: out.deny ? v.unrecorded : unrecorded", "unrecorded")],
     "dock shows notice beside refusal": [("!(st.failed && !snap && !st.unrecorded)", "!(st.failed && !snap)")],
-    "dismiss only the drafts on screen": [("same(items.slice(0, seen.length), seen) ? items.slice(seen.length) : items",
-                                           "items.slice(seen.length)")],
-    "dismiss stops when a keep failed since": [("failures === at && same(", "same(")],
-    "count taken at draw, not press": [("dismissFailed($, unsaved, drawnFailures)", "dismissFailed($, unsaved, failures)")],
+    "dismiss drops only the drawn ids": [("without(unsaved.map(f => f.id))", "() => []")],
     "d shown only when something failed": [("...(unsaved.length ? [{ k: 'd'", "...(true ? [{ k: 'd'")],
+    "entry id is minted, not its text": [("({ id: crypto.randomUUID(), text })", "({ id: text, text })")],
+    "legacy id carries its text": [("`v1-${i}-${s}`", "`v1-${i}`")],
+    "legacy line keeps its text": [("{ id: `v1-${i}-${s}`, text: s }", "{ id: `v1-${i}-${s}`, text: '' }")],
+    "remove acts on the drawn entry": [("without([r.id])", "without([rows[0]!.id])")],
+    "remove last acts on the drawn last": [("without([rows.at(-1)!.id])", "without([rows[0]!.id])")],
+    "remove matches by id, not text": [("entries(saved).filter(e => !ids.includes(e.id))",
+                                        "entries(saved).filter(e => !entries(saved).some(x => ids.includes(x.id) && x.text === e.text))")],
+    "p copies the thought on screen": [("promote($, newest)", "read($, kept).then(k => promote($, k.at(-1)!.text))")],
     # Record identity, paste and wording (#666)
     "submit checks the load": [("now.load === LOAD && now.moves === at", "now.moves === at")],
     "record names its load": [("moves: seen, load: LOAD }", "moves: seen, load: '' }")],
-    "paste of copied draft drops row": [("kind === 'edit' ? text === copiedLoss?.text :", "kind === 'edit' ? false :")],
-    "paste drops only the copied record": [("(mine ? sameLoss(now, mine) : now.text === text)", "now.text === text")],
+    "paste of copied draft drops row": [("kind === 'edit' ? copiedLoss :", "kind === 'edit' ? null :")],
+    "restore or paste drops only its record": [("now => sameLoss(now, restored) ? null : now", "now => now?.text === text ? null : now")],
+    "restore needs the read text to match": [("if (restored?.text !== text) return\n", "if (!restored) return\n")],
+    "identity checks the load": [("a.load === b.load && a.moves", "a.moves")],
+    "identity checks the number": [("a.load === b.load && a.moves === b.moves", "a.load === b.load")],
+    "forget checks identity": [("cur => sameLoss(cur, rec) ? null : cur", "() => null")],
+    "copy marked only when copied": [("  if (out?.isCopied) copiedLoss = rec\n", "  copiedLoss = rec\n")],
+    "only a composer submit drops a loss": [("if (e.origin.kind === 'composer') await submitted($)", "await submitted($)")],
     "copy remembers its record": [("  if (out?.isCopied) copiedLoss = rec\n", "")],
     "strip refusal wording": [("(st.unrecorded ? `${status} The later Send was refused: ${st.failed}` : `Not sent. ${st.failed}`)",
                                "`Not sent. ${st.failed}`")],
@@ -62,6 +74,10 @@ def main(names: list[str]) -> int:
         print("unknown mutant(s):", ", ".join(unknown))
         return 2
     original = SOURCE.read_text(encoding="utf-8")
+    code, fails = run_tests()
+    if code:
+        print("baseline is red, no mutant run:", "; ".join(fails[:3]))
+        return 3
     bad = 0
     try:
         for name in names or list(MUTANTS):

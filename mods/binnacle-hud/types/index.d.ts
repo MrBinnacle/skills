@@ -1,6 +1,12 @@
 /** A thought kept in the Log. `at` is an ISO time; `from` is where it was typed. */
 export type Thought = { text: string; at: string; from: 'phone' | 'terminal' }
 
+/** A Memory line or a failed keep. `id` is minted when it is saved and never changes. */
+export type Entry = { id: string; text: string }
+
+/** What a saved list holds: an entry, or a bare string saved by 4.1.0. */
+export type Saved = Entry | string
+
 /** The Memory lines a confirmed Send gave Claude, and when the append landed (epoch ms). */
 export type Approved = { lines: string[]; at: number }
 
@@ -12,6 +18,6 @@ export type Lost = { text: string; at: number; moves: number; load: string }
 
 declare module 'claude-code' {
   interface PluginState {
-    'binnacle-hud': { view: View; typed: string; log: Thought[]; failed: string[]; memory: string[]; approved: Approved | null; lost: Lost | null }
+    'binnacle-hud': { view: View; typed: string; log: Thought[]; failed: Saved[]; memory: Saved[]; approved: Approved | null; lost: Lost | null }
   }
 }

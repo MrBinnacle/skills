@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import type { Approved, Lost, Thought, View } from '../types'
+import type { Approved, Entry, Lost, Saved, Thought, View } from '../types'
 
 // Binnacle HUD. The mod does not send the Log to Claude; absence from later
 // model requests is unverified. Memory holds a draft and the snapshot a confirmed Send
@@ -22,12 +22,10 @@ const NOT_NOW = 'Not now'
 const CANCEL = 'Cancel'
 const typed = atom({ plugin: 'binnacle-hud', key: 'typed' } as const, '')
 const kept = atom({ plugin: 'binnacle-hud', key: 'log' } as const, [] as Thought[])
-const failed = atom({ plugin: 'binnacle-hud', key: 'failed' } as const, [] as string[])
+const failed = atom({ plugin: 'binnacle-hud', key: 'failed' } as const, [] as Saved[])
 // Counts edits for both capture actions: equality cannot identify a retyped draft.
 let edits = 0
-// Counts failed keeps, so a dismissal can tell a new failure from an old one with the same text.
-let failures = 0
-const draft = atom({ plugin: 'binnacle-hud', key: 'memory' } as const, [] as string[])
+const draft = atom({ plugin: 'binnacle-hud', key: 'memory' } as const, [] as Saved[])
 const approved = atom({ plugin: 'binnacle-hud', key: 'approved' } as const, null as Approved | null)
 const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, expand: 0, failed: '' } as View)
 
@@ -82,6 +80,9 @@ export const whyNoDock = (isFullscreen: boolean | undefined, columns: number | u
 const hhmm = (at: number | string) => new Date(at).toTimeString().slice(0, 5)
 const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((l, i) => l === b[i])
 
+const entry = (text: string): Entry => ({ id: crypto.randomUUID(), text })
+const entries = (saved: readonly Saved[]): Entry[] => saved.map((s, i) => typeof s === 'string' ? { id: `v1-${i}-${s}`, text: s } : s)
+
 export const statusOf = (lines: readonly string[], snap: Approved | null): string =>
   !snap ? 'Not sent.'
   : same(lines, snap.lines) ? `In Claude's context since ${hhmm(snap.at)}.`
@@ -94,8 +95,8 @@ async function keep($: EngineInterface, text: string, from: Thought['from']): Pr
     await update($, kept, items => [...items, { text, at: new Date().toISOString(), from }])
     return true
   } catch {
-    failures += 1
-    await update($, failed, items => [...items, text]).catch(() => undefined)
+    const miss = entry(text)
+    await update($, failed, items => [...entries(items), miss]).catch(() => undefined)
     return null
   }
 }
@@ -116,27 +117,25 @@ async function addLine($: EngineInterface): Promise<void> {
   const at = edits
   const text = await read($, typed)
   if (!text.trim()) return
-  await update($, draft, lines => [...lines, text.trim()])
+  const line = entry(text.trim())
+  await update($, draft, lines => [...entries(lines), line])
   await clearDraft($, text, at)
 }
 
-// Enter keeps a thought in the Log, so a line meant for Memory can land
-// there by habit. This copies the newest Log thought into Memory; the Log keeps it.
-async function promote($: EngineInterface): Promise<void> {
-  const last = (await read($, kept)).at(-1)?.text
-  if (last) await update($, draft, lines => lines.at(-1) === last ? lines : [...lines, last])
+async function promote($: EngineInterface, shown: string): Promise<void> {
+  const line = entry(shown)
+  await update($, draft, saved => { const lines = entries(saved); return lines.at(-1)?.text === shown ? lines : [...lines, line] })
 }
 
-async function removeLine($: EngineInterface, at: number): Promise<void> {
-  await update($, draft, lines => lines.filter((_, i) => i !== at))
-}
+// Each caller names its atom at the update call, which the hooks scan requires.
+const without = (ids: readonly string[]) => (saved: readonly Saved[]) => entries(saved).filter(e => !ids.includes(e.id))
 
 // The lines are frozen when Send is pressed: the question, the row and the
 // snapshot all carry that one value, whatever the draft becomes meanwhile.
 // The snapshot is written only after the append lands, so it always means
 // Claude has those lines.
 async function send($: EngineInterface): Promise<void> {
-  const lines = [...await read($, draft)]
+  const lines = entries(await read($, draft)).map(l => l.text)
   if (!lines.length) return
   const question = `Memory for Claude:\n${lines.map(l => `- ${l}`).join('\n')}\n\nGive Claude these ${lines.length} lines now?`
   const answer = await $.ui.ask(question, [SEND, NOT_NOW]).catch(() => NOT_NOW)
@@ -151,14 +150,6 @@ async function send($: EngineInterface): Promise<void> {
   let unrecorded = 0
   if (!out.deny) await update($, approved, () => ({ lines, at })).catch(() => { unrecorded = at })
   await update($, view, v => ({ ...v, failed: out.deny ?? '', unrecorded: out.deny ? v.unrecorded : unrecorded }))
-}
-
-// Drops exactly the failed keeps on screen. It changes nothing when the list
-// no longer starts with them (a second press) or when any keep failed since
-// the list was drawn (equal text is not the same failure), so none is dropped
-// unseen. `at` is the count when the list on screen was read.
-async function dismissFailed($: EngineInterface, seen: readonly string[], at: number): Promise<void> {
-  await update($, failed, items => failures === at && same(items.slice(0, seen.length), seen) ? items.slice(seen.length) : items).catch(() => undefined)
 }
 
 // A submit sets `sentAt` to the newest event number. That is this clear's
@@ -179,10 +170,11 @@ async function boxChanged($: EngineInterface, text: string, kind: string, seen: 
     // waits for this write and then drops it (live order on 2.1.321).
     lossWrite = keepLoss($, before, seen)
     await lossWrite
-  } else if (kind === 'edit' ? text === copiedLoss?.text : text && (await read($, lost).catch(() => null))?.text === text) {
-    const mine = kind === 'edit' ? copiedLoss : null
+  } else {
+    const restored = kind === 'edit' ? copiedLoss : text ? await read($, lost).catch(() => null) : null
+    if (restored?.text !== text) return
     copiedLoss = null
-    await update($, lost, now => now && (mine ? sameLoss(now, mine) : now.text === text) ? null : now).catch(() => undefined)
+    await update($, lost, now => sameLoss(now, restored) ? null : now).catch(() => undefined)
   }
 }
 
@@ -212,7 +204,7 @@ async function copyLost($: EngineInterface, rec: Lost): Promise<void> {
 }
 
 async function forgetLost($: EngineInterface, rec: Lost): Promise<void> {
-  await update($, lost, cur => cur && cur.at === rec.at && cur.moves === rec.moves ? null : cur).catch(() => undefined)
+  await update($, lost, cur => sameLoss(cur, rec) ? null : cur).catch(() => undefined)
   await update($, view, v => ({ ...v, copied: '' })).catch(() => undefined)
 }
 
@@ -295,12 +287,11 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button, Input } = $.ui.resolve(e)
     const st = await read($, view)
     const now = await read($, typed)
-    // Read before the list, so a failure in between makes a dismissal do nothing.
-    const drawnFailures = failures
-    const unsaved = await read($, failed)
+    const unsaved = entries(await read($, failed))
     const gone = await read($, lost)
     const thoughts = await read($, kept)
-    const lines = await read($, draft)
+    const rows = entries(await read($, draft))
+    const lines = rows.map(r => r.text)
     const snap = await read($, approved)
     const status = st.unrecorded
       ? `Claude has the lines sent at ${hhmm(st.unrecorded)}. The HUD could not record that Send.`
@@ -343,8 +334,8 @@ export const register: Register = (on, options) => {
           : <Text wrap="wrap" color={!snap ? undefined : same(lines, snap.lines) ? TONE.remember : LIGHT} dimColor={!snap}>{status}</Text>
         )}
         {st.failed && <Text wrap="wrap" color={TONE.warning}>{st.unrecorded ? `The later Send was refused: ${st.failed}` : `Not sent. ${st.failed}`}</Text>}
-        {lines.map((l, i) => (
-          <Text key={`mem-${i}`} wrap={inline ? 'truncate-end' : 'wrap'}><Text dimColor>{i + 1} </Text>{l}</Text>
+        {rows.map((r, i) => (
+          <Text key={`mem-${r.id}`} wrap={inline ? 'truncate-end' : 'wrap'}><Text dimColor>{i + 1} </Text>{r.text}</Text>
         ))}
         {lines.length === 0 && quiet('No lines yet. Write one in the field, then press a to add it.')}
       </Box>
@@ -380,7 +371,7 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column">
         {gone && <Text color={LIGHT} wrap="truncate-end">Last cleared draft {hhmm(gone.at)} · {gone.text.length} chars: {gone.text}</Text>}
         {gone && st.copied && <Text dimColor wrap="wrap">{st.copied}</Text>}
-        {unsaved.map((text, i) => <Text key={`failed-${i}`} color="warning" wrap="wrap">Not kept, the save failed: {text}</Text>)}
+        {unsaved.map(f => <Text key={`failed-${f.id}`} color="warning" wrap="wrap">Not kept, the save failed: {f.text}</Text>)}
         {now.length > shown && <Text dimColor wrap="wrap">{now}</Text>}
         <Box borderStyle="round" borderColor={focused ? LIGHT : DRAB} paddingX={1}>
           <Input key="thought" label="›" placeholder="a thought for later" submitLabel="keep"
@@ -416,14 +407,14 @@ export const register: Register = (on, options) => {
     }
     const acts: Act[] = [
       ...(gone ? [{ k: 'c', label: 'copy draft', run: () => void copyLost($, gone) }, { k: 'x', label: 'forget draft', run: () => void forgetLost($, gone) }] : []),
-      ...(unsaved.length ? [{ k: 'd', label: 'dismiss failed', run: () => void dismissFailed($, unsaved, drawnFailures) }] : []),
+      ...(unsaved.length ? [{ k: 'd', label: 'dismiss failed', run: () => void update($, failed, without(unsaved.map(f => f.id))).catch(() => undefined) }] : []),
       ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
       ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($) }] : []),
-      ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($) }] : []),
+      ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
       ...(showsMemory && lines.length && !(snap && same(lines, snap.lines)) ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
       // shortcut: lines past the ninth have only 0, which removes the last one; add paging if Memory grows that long.
-      ...(showsMemory && !writing ? lines.slice(0, 9).map((_, i) => ({ k: String(i + 1), label: 'remove', run: () => void removeLine($, i) })) : []),
-      ...(showsMemory && !writing && lines.length > 9 ? [{ k: '0', label: 'remove last', run: () => void removeLine($, lines.length - 1) }] : []),
+      ...(showsMemory && !writing ? rows.slice(0, 9).map((r, i) => ({ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([r.id])).catch(() => undefined) })) : []),
+      ...(showsMemory && !writing && rows.length > 9 ? [{ k: '0', label: 'remove last', run: () => void update($, draft, without([rows.at(-1)!.id])).catch(() => undefined) }] : []),
     ]
     const rail = focused && (
       <Box flexDirection="row" flexWrap="wrap" gap={1}>

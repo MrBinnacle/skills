@@ -92,7 +92,7 @@ test('a failed keep leaves the field and records what was not kept', async ($, o
   const state = await slowKeep($, on, null, true)
   expect(state.log!.value).toEqual([])
   expect(state.typed!.value).toBe('first capture')
-  expect(state.failed!.value).toEqual(['first capture'])
+  expect(state.failed!.value.map((e: any) => e.text)).toEqual(['first capture'])
   await state.ui.unmount()
   const again = await $.ui.mount(pane('dock', 46))
   expect(JSON.stringify(await again.drawn())).toContain('Not kept, the save failed')
@@ -101,5 +101,5 @@ test('a failed keep leaves the field and records what was not kept', async ($, o
 test('a failed keep after newer typing keeps both the new draft and the failed text', async ($, on) => {
   const state = await slowKeep($, on, 'next draft', true)
   expect(state.typed!.value).toBe('next draft')
-  expect(state.failed!.value).toEqual(['first capture'])
+  expect(state.failed!.value.map((e: any) => e.text)).toEqual(['first capture'])
 })

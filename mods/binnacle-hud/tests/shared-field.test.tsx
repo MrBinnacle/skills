@@ -52,19 +52,19 @@ test('REVIEW shared Input change -> focus actions -> a; Enter -> p; empty and te
   await focus($, 'k-a') // SDK focus event for Tab; not native keyboard simulation.
   ui = await redraw($, ui)
   await ui.press({ key: 'k-a' })
-  expect(store.memory).toEqual(['private decision'])
+  expect(store.memory.map((e: any) => e.text)).toEqual(['private decision'])
   expect(store.typed).toBe('')
   expect(store.log).toBeUndefined()
   await focus($, 'thought')
   ui = await redraw($, ui)
   await ui.input({ key: 'thought', text: 'log decision', kind: 'change' })
   await ui.input({ key: 'thought', text: 'log decision' })
-  expect(store.memory).toEqual(['private decision'])
+  expect(store.memory.map((e: any) => e.text)).toEqual(['private decision'])
   expect(store.log.map((t: any) => t.text)).toEqual(['log decision'])
   await focus($, 'k-p')
   ui = await redraw($, ui)
   await ui.press({ key: 'k-p' })
-  expect(store.memory).toEqual(['private decision', 'log decision'])
+  expect(store.memory.map((e: any) => e.text)).toEqual(['private decision', 'log decision'])
   expect(store.log.map((t: any) => t.text)).toEqual(['log decision'])
   for (let n = 3; n <= 10; n++) {
     await ui.input({ key: 'thought', text: `decision ${n}`, kind: 'change' })
@@ -75,7 +75,7 @@ test('REVIEW shared Input change -> focus actions -> a; Enter -> p; empty and te
   ui = await redraw($, ui)
   await ui.press({ key: 'k-0' })
   expect(store.memory).toHaveLength(9)
-  expect(store.memory.at(-1)).toBe('decision 9')
+  expect(store.memory.at(-1).text).toBe('decision 9')
   await ui.input({ key: 'thought', text: '   ', kind: 'change' })
   ui = await redraw($, ui)
   expect(await ui.find({ key: 'k-a' })).toBeUndefined()
@@ -113,7 +113,7 @@ test('REVIEW pending Send freezes candidate through actual remove action; approv
   expect(session.appended()).toHaveLength(1)
   expect(text(session.appended()[0]).split('\n').slice(1)).toEqual(['candidate A', 'candidate B'])
   expect(store.approved.lines).toEqual(['candidate A', 'candidate B'])
-  expect(store.memory).toEqual(['candidate A'])
+  expect(store.memory.map((e: any) => e.text)).toEqual(['candidate A'])
   expect(JSON.stringify(await (await redraw($, ui)).drawn())).toContain('Changed since Send.')
 })
 
@@ -162,7 +162,7 @@ for (const action of ['keep', 'add']) {
     await saving
     expect(store.typed).toBe(raw)
     if (action === 'keep') expect(store.log.map((t: any) => t.text)).toEqual([raw])
-    else expect(store.memory).toEqual(['first line'])
+    else expect(store.memory.map((e: any) => e.text)).toEqual(['first line'])
     expect(session.appended()).toHaveLength(0)
     expect(events.prompt).toEqual([])
   })
@@ -188,7 +188,7 @@ for (const later of [['unfinished second line'], ['', '  first line  '], [], [''
     }
     gate.resolve()
     await adding
-    expect(store.memory).toEqual(['first line'])
+    expect(store.memory.map((e: any) => e.text)).toEqual(['first line'])
     expect(session.appended()).toHaveLength(0)
     expect(events.prompt).toEqual([])
     expect(store.typed).toBe(later.at(-1) ?? '')

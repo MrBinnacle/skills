@@ -39,7 +39,7 @@ test('a failed phone keep records the thought and reports failure without echoin
   const out = JSON.stringify(await run($, 'bridge'))
   expect(out).toContain('Not kept, the save failed')
   expect(out).not.toContain('venue')
-  expect(sets.failed).toEqual([['call the venue']])
+  expect((sets.failed as any[][]).map(f => f.map((e: any) => e.text))).toEqual([['call the venue']])
   expect(sets.log).toBeUndefined()
   expect(sets.typed).toBeUndefined()
 })

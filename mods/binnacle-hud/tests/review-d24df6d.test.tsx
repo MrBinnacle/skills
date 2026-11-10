@@ -26,7 +26,7 @@ async function setup($: any, on: any, initial: Record<string, any>, holdDismiss 
     cells[e.key] = {value: e.value, version: old.version + 1}
     if (e.key === 'failed') {
       otherDismissed.resolve()
-      if (e.value.includes('new unseen failure')) freshCaptured.resolve()
+      if (e.value.some((f: any) => f.text === 'new unseen failure')) freshCaptured.resolve()
     }
     return {value: {isSet: true, version: old.version + 1}}
   })
@@ -73,10 +73,10 @@ test(`review: overlapping dismissals preserve fresh failure, old text=${visible}
   // Use the real Input/keep path to append a failed capture after dismissal.
   await $.ui.input({plugin: 'binnacle-hud', key: 'thought', text: 'new unseen failure'})
   await s.freshCaptured.promise
-  expect(s.cell('failed').value).toEqual(['new unseen failure'])
+  expect(s.cell('failed').value.map((e: any) => e.text)).toEqual(['new unseen failure'])
   s.release.resolve(); await s.clock.settle()
   await ui.unmount()
-  expect(s.cell('failed').value).toEqual(['new unseen failure'])
+  expect(s.cell('failed').value.map((e: any) => e.text)).toEqual(['new unseen failure'])
 })
 }
 
@@ -87,10 +87,10 @@ test('review: stale drawn dismissal cannot consume a fresh equal-text failure be
   expect(s.cell('failed').value).toEqual([])
   await $.ui.input({plugin: 'binnacle-hud', key: 'thought', text: 'new unseen failure'})
   await s.freshCaptured.promise
-  expect(s.cell('failed').value).toEqual(['new unseen failure'])
+  expect(s.cell('failed').value.map((e: any) => e.text)).toEqual(['new unseen failure'])
   // The old drawn button is still actionable until the next redraw.
   await ui.press({key: 'k-d'}); await s.clock.settle()
   await ui.unmount()
-  expect(s.cell('failed').value).toEqual(['new unseen failure'])
+  expect(s.cell('failed').value.map((e: any) => e.text)).toEqual(['new unseen failure'])
 })
 
