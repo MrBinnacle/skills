@@ -30,6 +30,8 @@ MUTANTS = {
     "remove matches by id, not text": [("saved.filter(s => typeof s === 'string' || !ids.includes(s.id))",
                                         "saved.filter(s => typeof s === 'string' || !saved.some(x => typeof x !== 'string' && ids.includes(x.id) && x.text === s.text))")],
     "p copies the thought on screen": [("promote($, newest)", "read($, kept).then(k => promote($, k.at(-1)!.text))")],
+    "remove last acts on the drawn last": [("without([last])", "without([rows[0]!.id!])")],
+    "0 targets the line shown last": [("rows.at(-1)?.id", "rows.findLast(r => r.id)?.id")],
     # Refusal wording and the stale-refusal draw (#666)
     "dock shows notice beside refusal": [("!(refused && !snap && !st.unrecorded)", "!(refused && !snap)")],
     "strip refusal wording": [("(st.unrecorded ? `${status} The later Send was refused: ${refused}` : `Not sent. ${refused}`)",

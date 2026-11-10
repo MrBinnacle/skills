@@ -200,6 +200,7 @@ export const register: Register = (on, options) => {
     const thoughts = await read($, kept)
     const rows = entries(await read($, draft))
     const lines = rows.map(r => r.text)
+    const last = rows.at(-1)?.id
     const snap = await read($, approved)
     const status = st.unrecorded
       ? `Claude has the lines sent at ${hhmm(st.unrecorded)}. The HUD could not record that Send.`
@@ -319,8 +320,9 @@ export const register: Register = (on, options) => {
       ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($, now) }] : []),
       ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
       ...(showsMemory && lines.length && !(snap && same(lines, snap.lines)) ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
-      // shortcut: only the first nine lines have a key, and removing one brings the next into reach; add paging if Memory grows that long.
+      // shortcut: lines past the ninth have only 0, which removes the last one; add paging if Memory grows that long.
       ...(showsMemory && !writing ? rows.slice(0, 9).flatMap(({ id }, i) => id ? [{ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([id])).catch(() => undefined) }] : []) : []),
+      ...(showsMemory && !writing && rows.length > 9 && last ? [{ k: '0', label: 'remove last', run: () => void update($, draft, without([last])).catch(() => undefined) }] : []),
     ]
     const rail = focused && (
       <Box flexDirection="row" flexWrap="wrap" gap={1}>
