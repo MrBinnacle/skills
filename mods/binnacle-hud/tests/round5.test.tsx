@@ -98,7 +98,7 @@ test('round5: a adds the field text the pane drew, not a newer value the store h
 })
 
 test('round5: a landed Send whose view write fails does not show an older refusal beside it', async ($, on) => {
-  const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }], view: { ring: 2, expand: 0, failed: 'earlier refusal' } })
+  const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }], view: { ring: 2, expand: 0, failed: 'earlier refusal', refusedLines: ['ship it'] } })
   s.denied.add('view')
   // The refused view write still fails the press; the pane is what must be true.
   await s.press('s').catch(() => undefined)
@@ -106,4 +106,37 @@ test('round5: a landed Send whose view write fails does not show an older refusa
   const d = await s.drawn()
   expect(d).toContain("In Claude's context since")
   expect(d).not.toContain('earlier refusal')
+})
+
+test('N3: a refusal is drawn only beside the lines that Send carried', async ($, on) => {
+  const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }] })
+  s.refuseAppend('policy says no')
+  await s.press('s')
+  expect(await s.drawn()).toContain('Not sent. policy says no')
+  s.cells.memory = { value: [{ id: 'a', text: 'ship it' }, { id: 'b', text: 'and test it' }], version: 2 }
+  const d = await s.drawn()
+  expect(d).toContain('Not sent.')
+  expect(d).not.toContain('policy says no')
+})
+
+test('N3: a refusal stored before the lines were recorded with it is not drawn', async ($, on) => {
+  const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }], view: { ring: 2, expand: 0, failed: 'old reason' } })
+  expect(await s.drawn()).not.toContain('old reason')
+})
+
+test('N2: a landed Send whose snapshot write fails still says Claude has the lines', async ($, on) => {
+  const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }] })
+  s.denied.add('approved')
+  // Caught so that a thrown press fails the assertion below, not the harness.
+  await s.press('s').catch(() => undefined)
+  expect(s.session.appended().length).toBe(1)
+  expect(await s.drawn()).toContain('The HUD could not record that Send.')
+})
+
+test('N3: a refusal follows the text a Send carries, so the same text under a new id keeps it', async ($, on) => {
+  const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }] })
+  s.refuseAppend('policy says no')
+  await s.press('s')
+  s.cells.memory = { value: [{ id: 'c', text: 'ship it' }], version: 2 }
+  expect(await s.drawn()).toContain('Not sent. policy says no')
 })

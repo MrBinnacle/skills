@@ -32,7 +32,7 @@ const STATES: Record<string, Record<string, unknown>> = {
   unsent: { memory: ['ship slice 1', 'probe step 2 decides'] },
   sent: { memory: ['ship slice 1'], approved: SENT },
   changed: { memory: ['ship slice 1', 'model slice 2'], approved: SENT },
-  refused: { memory: ['ship slice 1'], view: { ring: 2, expand: 1, failed: 'policy says no' } },
+  refused: { memory: ['ship slice 1'], view: { ring: 2, expand: 1, failed: 'policy says no', refusedLines: ['ship slice 1'] } },
   typing: { memory: ['ship slice 1'], typed: 'a line in the field' },
 }
 

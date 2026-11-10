@@ -52,7 +52,7 @@ test('a Send whose append landed but whose snapshot write failed does not say No
 
 test('the collapsed strip keeps an unrecorded Send beside a later refusal', { options: { narrow: 'strip' } }, async ($, on) => {
   const at = NOW - 60_000
-  await start($, on, { memory: ['ship slice 1'], view: { ring: 2, expand: 0, failed: 'refused', unrecorded: at } })
+  await start($, on, { memory: ['ship slice 1'], view: { ring: 2, expand: 0, failed: 'refused', refusedLines: ['ship slice 1'], unrecorded: at } })
   const ui = await $.ui.mount({ ...pane, props: { ...pane.props, placement: 'inline', bodyColumns: 200 } })
   const drawn = JSON.stringify(await ui.drawn())
   await ui.unmount()
@@ -76,7 +76,7 @@ test('no d key when nothing failed', async ($, on) => {
 
 test('the dock names a later refusal as such when an unrecorded Send stands', async ($, on) => {
   const at = NOW - 60_000
-  await start($, on, { memory: ['ship slice 1'], view: { ring: 2, expand: 0, failed: 'refused', unrecorded: at } })
+  await start($, on, { memory: ['ship slice 1'], view: { ring: 2, expand: 0, failed: 'refused', refusedLines: ['ship slice 1'], unrecorded: at } })
   const text = await shown($)
   expect(text).toContain(`Claude has the lines sent at ${hhmm(at)}.`)
   expect(text).toContain('The later Send was refused: refused')
