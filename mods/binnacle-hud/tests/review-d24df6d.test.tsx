@@ -5,7 +5,7 @@ const pane = (placement = 'dock') => ({
   viewport: { columns: 160, rows: 40, isFullscreen: true },
   props: { title: 'Binnacle', isFocused: true, bodyColumns: 46, placement, scroll: {offset: 0, bodyRows: 32}, view: {} },
 }) as const
-async function setup($: any, on: any, initial: Record<string, any>, holdDismiss = false) {
+async function setup($: any, on: any, initial: Record<string, any>, holdDismiss = false, denyKeep = false) {
   const cells: Record<string, {value: any, version: number}> = Object.fromEntries(Object.entries(initial).map(([k,value]) => [k,{value,version:0}]))
   const cell = (k: string) => cells[k] ?? {value: undefined, version: 0}
   const clock = mock.clock(on, {now: Date.UTC(2026,10,9,14,2)})
@@ -19,7 +19,7 @@ async function setup($: any, on: any, initial: Record<string, any>, holdDismiss 
   on('state.get', (_: any, e: any) => ({value: {...cell(e.key)}}))
   on('state.set', async (_: any, e: any) => {
     if (e.key === 'approved') return {deny: 'injected approval write failure'}
-    if (e.key === 'log' && holdDismiss) return {deny: 'injected keep failure'}
+    if (e.key === 'log' && (holdDismiss || denyKeep)) return {deny: 'injected keep failure'}
     if (e.key === 'failed' && holdDismiss && !held) { held = true; entered.resolve(); await release.promise }
     const old = cell(e.key)
     if (e.ifVersion !== undefined && e.ifVersion !== old.version) return {value: {isSet: false, version: old.version}}
@@ -79,3 +79,18 @@ test(`review: overlapping dismissals preserve fresh failure, old text=${visible}
   expect(s.cell('failed').value).toEqual(['new unseen failure'])
 })
 }
+
+test('review: stale drawn dismissal cannot consume a fresh equal-text failure before redraw', async ($, on) => {
+  const s = await setup($, on, {failed: ['new unseen failure']}, false, true)
+  const ui = await $.ui.mount(pane())
+  await ui.press({key: 'k-d'}); await s.otherDismissed.promise
+  expect(s.cell('failed').value).toEqual([])
+  await $.ui.input({plugin: 'binnacle-hud', key: 'thought', text: 'new unseen failure'})
+  await s.freshCaptured.promise
+  expect(s.cell('failed').value).toEqual(['new unseen failure'])
+  // The old drawn button is still actionable until the next redraw.
+  await ui.press({key: 'k-d'}); await s.clock.settle()
+  await ui.unmount()
+  expect(s.cell('failed').value).toEqual(['new unseen failure'])
+})
+

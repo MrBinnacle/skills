@@ -135,9 +135,9 @@ async function send($: EngineInterface): Promise<void> {
 
 // Drops exactly the failed keeps on screen. It changes nothing when the list
 // no longer starts with them (a second press) or when any keep failed since
-// the press (equal text is not the same failure), so none is dropped unseen.
-async function dismissFailed($: EngineInterface, seen: readonly string[]): Promise<void> {
-  const at = failures
+// the list was drawn (equal text is not the same failure), so none is dropped
+// unseen. `at` is the count when the list on screen was read.
+async function dismissFailed($: EngineInterface, seen: readonly string[], at: number): Promise<void> {
   await update($, failed, items => failures === at && same(items.slice(0, seen.length), seen) ? items.slice(seen.length) : items).catch(() => undefined)
 }
 
@@ -200,6 +200,8 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button, Input } = $.ui.resolve(e)
     const st = await read($, view)
     const now = await read($, typed)
+    // Read before the list, so a failure in between makes a dismissal do nothing.
+    const drawnFailures = failures
     const lost = await read($, failed)
     const thoughts = await read($, kept)
     const lines = await read($, draft)
@@ -315,7 +317,7 @@ export const register: Register = (on, options) => {
       return send($).finally(() => { sending = false })
     }
     const acts: Act[] = [
-      ...(lost.length ? [{ k: 'd', label: 'dismiss failed', run: () => void dismissFailed($, lost) }] : []),
+      ...(lost.length ? [{ k: 'd', label: 'dismiss failed', run: () => void dismissFailed($, lost, drawnFailures) }] : []),
       ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
       ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($) }] : []),
       ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($) }] : []),
