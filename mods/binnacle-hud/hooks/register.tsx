@@ -212,7 +212,6 @@ async function copyLost($: EngineInterface, rec: Lost): Promise<void> {
 }
 
 async function forgetLost($: EngineInterface, rec: Lost): Promise<void> {
-  if (sameLoss(copiedLoss, rec)) copiedLoss = null
   await update($, lost, cur => cur && cur.at === rec.at && cur.moves === rec.moves ? null : cur).catch(() => undefined)
   await update($, view, v => ({ ...v, copied: '' })).catch(() => undefined)
 }
