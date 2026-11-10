@@ -1,7 +1,7 @@
-"""Refresh the README install receipt from the CI run that verified it (#464).
+"""Refresh the install receipt from the CI run that verified it (#464).
 
 What it does
-    The README's "Verified forms" record names the plugin version the shell
+    The "Verified forms" record in docs/product/runtime-delivery-matrix.md names the plugin version the shell
     install forms were verified at, and the CI run that verified them. A bump
     PR leaves that record at the old version on purpose: the install it would
     cite has not run yet (test_install_form.py lets the receipt lag, never
@@ -49,7 +49,8 @@ from typing import Any
 from test_install_form import branch_plugin_versions
 
 ROOT = Path(__file__).resolve().parent.parent
-README = ROOT / "README.md"
+RECEIPTS_REL = "docs/product/runtime-delivery-matrix.md"
+RECEIPTS = ROOT / RECEIPTS_REL
 WORKFLOW = "tests.yml"
 RUN_LIMIT = 100
 INSTALL_JOB_PREFIX = "Install form"
@@ -88,7 +89,7 @@ def rewrite_receipt(text: str, version: str, run_id: int, date: str) -> str:
     """Point every shell-form receipt site at `version`, `run_id` and `date`.
 
     Raises ValueError when a site does not appear exactly once, so a reworded
-    README fails loudly instead of being half rewritten.
+    record fails loudly instead of being half rewritten.
     """
     replacements = [
         (MARKETPLACE_SITE, rf"\g<1>{date}\g<2>"),
@@ -99,7 +100,7 @@ def rewrite_receipt(text: str, version: str, run_id: int, date: str) -> str:
         text, count = pattern.subn(replacement, text)
         if count != 1:
             raise ValueError(
-                f"README receipt site {pattern.pattern!r} matched {count} times, expected 1"
+                f"receipt site {pattern.pattern!r} matched {count} times, expected 1"
             )
     return text
 
@@ -158,7 +159,7 @@ def install_jobs_passed(run_id: int) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Refresh the README install receipt from the CI run that verified it."
+        description="Refresh the install receipt from the CI run that verified it."
     )
     parser.add_argument("--write", action="store_true", help="apply the rewrite")
     args = parser.parse_args(argv)
@@ -193,8 +194,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     date = run["createdAt"][:10]
 
-    # newline="" keeps the README's line endings byte for byte.
-    with README.open(encoding="utf-8", newline="") as handle:
+    # newline="" keeps the file's line endings byte for byte.
+    with RECEIPTS.open(encoding="utf-8", newline="") as handle:
         before = handle.read()
     try:
         after = rewrite_receipt(before, target, run["databaseId"], date)
@@ -209,14 +210,14 @@ def main(argv: list[str] | None = None) -> int:
         difflib.unified_diff(
             before.splitlines(keepends=True),
             after.splitlines(keepends=True),
-            "a/README.md",
-            "b/README.md",
+            f"a/{RECEIPTS_REL}",
+            f"b/{RECEIPTS_REL}",
         )
     )
     if args.write:
-        with README.open("w", encoding="utf-8", newline="") as handle:
+        with RECEIPTS.open("w", encoding="utf-8", newline="") as handle:
             handle.write(after)
-        print(f"wrote README.md: receipt cites run {run['databaseId']} at {target}")
+        print(f"wrote {RECEIPTS_REL}: receipt cites run {run['databaseId']} at {target}")
     else:
         print("dry run; pass --write to apply")
     return 0

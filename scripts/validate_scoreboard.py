@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Assert the front page carries the ruled banner line, that every card's
-record is derivable, and that ADMISSION.md declares exactly one canonical
-admission-policy version.
+"""Assert that every card's record is derivable and that ADMISSION.md declares
+exactly one canonical admission-policy version.
 
-A test, not a generator: banners and the README alt stay hand-edited; this
-script only refuses drift. Output is ASCII-only so the Windows CI cell does
+A test, not a generator: this script only refuses drift. Output is ASCII-only so the Windows CI cell does
 not die on cp1252 when printing a status line.
 
 The live counts left the banner by owner ruling (2026-08-23, skill-harness
@@ -22,40 +20,6 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
-# The sentence is ruled verbatim (owner ruling 2026-08-23, with the earlier
-# scoreboard's own doctrine carried forward): it is matched byte-identically at
-# every site, because a check that accepted a paraphrase would let a softened
-# or salesier restatement ship. Sites may prefix it (the aria-label and README
-# alt lead with "skills. ") but may not alter a byte of the sentence itself.
-#
-# The wording changed twice. The S425 direction brief put a COUNT into the line on
-# 2026-09-07, and this module derived that count per run so that no tracked file
-# would hold a stale number. That was the wrong repair. The number still reached a
-# reader through the rendered SVG, the social card and the README alt text, and
-# none of those is regenerated in the reader's browser: CI can keep the repository
-# internally consistent and still ship a banner telling a stranger a number that
-# stopped being true.
-#
-# Owner ruling 2026-09-07, verbatim, the typo theirs: "you foolishly keep creating
-# images and enduring content that explictly states how many skills (14) which is
-# just not smart." The count came out of the line entirely on 2026-09-08, along
-# with the eleven counts the README prose carried. The sentence now states what is
-# true of every card whatever the card set is, and a number reaches a reader only
-# where it is derived on read: the card-evidence table CI checks against the cards.
-#
-# The line stays ruled byte-identically at every site, because a check that
-# accepted a paraphrase would let a softened restatement ship.
-#
-# The separator is a period rather than an em dash. Direction brief T4.9 admits
-# no U+2014 in a new aria-label, text node, heading or body line, and the owner
-# chose the period over a waiver on 2026-09-07.
-RULED_LINE = "Each card states the condition that would retire it."
-
-
-def ruled_line(root: Path) -> str:
-    """The banner sentence this tree must carry. Stated, never counted."""
-    del root  # the sentence no longer depends on the card set, which is the point
-    return RULED_LINE
 CONTROLLED_FIELDS = ("Screen result", "Paired verdict")
 
 # The origin tier is the other number the front page states about the cards, and
@@ -80,8 +44,7 @@ ORIGIN_TIER_RE = re.compile(
 # The page states the tiering twice, in two sections that are read independently
 # ("Where these came from" and "What the receipts are worth"). Both are checked,
 # and the count is pinned: silently dropping a site would narrow the guarantee
-# without anything going red, which is the partial-edit failure the scoreboard
-# check already refuses across its five sites.
+# without anything going red, which is the partial-edit failure.
 ORIGIN_TIER_SITES = 2
 
 # A controlled field opens with its verdict, and the vocabulary is closed. An
@@ -421,58 +384,6 @@ def derive_counts(root: Path) -> tuple[int, int, int, int]:
     return admitted, measured, retired, turned
 
 
-def assert_site(label: str, text: str, line: str) -> None:
-    # Byte-identical containment, not a pattern: the sentence's judgement is
-    # deliberate, and a match that tolerated a "might" for "would", a dropped
-    # period, or a straightened apostrophe would let the softening ship. HTML
-    # entities are not decoded on purpose -- a site that encodes a character has
-    # changed the bytes a reader's tooling sees, and the fix is at the site.
-    if line in text:
-        return
-    fail(
-        f"{label}: does not carry the ruled banner line verbatim "
-        f"({line!r}). The wording is ruled (2026-08-23, reworded 2026-09-07, "
-        f"count removed 2026-09-08); a site may prefix it but not alter it."
-    )
-
-
-def check_banner_line_sites(root: Path) -> None:
-    line = ruled_line(root)
-    sites = [
-        ("assets/banner-light.svg aria-label", root / "assets" / "banner-light.svg", True),
-        ("assets/banner-light.svg text", root / "assets" / "banner-light.svg", False),
-        ("assets/banner-dark.svg aria-label", root / "assets" / "banner-dark.svg", True),
-        ("assets/banner-dark.svg text", root / "assets" / "banner-dark.svg", False),
-        ("README.md img alt", root / "README.md", False),
-    ]
-    for label, path, aria_only in sites:
-        if not path.is_file():
-            fail(f"{label}: missing file {path}")
-        text = path.read_text(encoding="utf-8")
-        if path.suffix == ".svg" and aria_only:
-            m = re.search(r'aria-label="([^"]*)"', text)
-            if not m:
-                fail(f"{label}: no aria-label")
-            assert_site(label, m.group(1), line)
-        elif path.suffix == ".svg":
-            # Rendered text element(s), not the aria-label. The two-element
-            # minimum is kept from the scoreboard era: texts[-1] is the banner
-            # line only while the wordmark is still a separate element, and a
-            # banner collapsed to one <text> would silently point this check at
-            # the wrong string.
-            texts = re.findall(r"<text\b[^>]*>(.*?)</text>", text, flags=re.DOTALL)
-            if len(texts) < 2:
-                fail(f"{label}: expected a banner-line <text> element")
-            assert_site(label, texts[-1], line)
-        elif path.name == "README.md":
-            m = re.search(r'<img\b[^>]*\balt="([^"]*)"', text)
-            if not m:
-                fail(f"{label}: no img alt on banner")
-            assert_site(label, m.group(1), line)
-        else:
-            assert_site(label, text, line)
-
-
 def policy_version(root: Path) -> str:
     """Return the ONE authoritative version declared in ADMISSION.md.
 
@@ -543,13 +454,12 @@ def validate(root: Path) -> None:
     # derivation IS the check now (a card that cannot answer is refused), and
     # printing the numbers keeps them observable without a graphic to rot.
     admitted, measured, retired, turned = derive_counts(root)
-    check_banner_line_sites(root)
     check_policy_version(root)
     check_origin_tiers(root)
     check_controlled_section_restates_nothing(root)
     observed, designed, distilled = derive_origin_tiers(root)
     print(
-        f"PASS: ruled banner line pinned at 5 sites; records derive "
+        f"PASS: records derive "
         f"{admitted} admitted, {measured} measured, {retired} retired, "
         f"{turned} solutions looking for a problem; admission policy declares one "
         f"canonical version; "

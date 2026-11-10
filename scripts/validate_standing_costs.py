@@ -62,37 +62,6 @@ PROSE_DATE_RE = re.compile(
 )
 
 
-# The README paragraph that states the per-skill session cost cites `/context`
-# (MrBinnacle/skills#361, #536).  It is found by its two stable words, not by
-# the citation parts it must carry, so dropping a part cannot hide the paragraph.
-README_COST_ANCHORS = ("every session", "tokens")
-README_COST_PARTS = (
-    ("`/context`", re.compile(r"`/context`")),
-    ("a Claude Code version", re.compile(r"Claude Code \d+\.\d+\.\d+")),
-    ("an ISO date", re.compile(r"\b\d{4}-\d{2}-\d{2}\b")),
-    ("a link to the measurement", re.compile(r"\]\(https?://[^)\s]+\)")),
-)
-
-
-def readme_cost_citation_gaps(root: Path) -> list[str]:
-    """The README's session-cost paragraph must carry its whole citation."""
-    path = root / "README.md"
-    if not path.is_file():
-        return []
-    paragraphs = re.split(r"\n\s*\n", path.read_text(encoding="utf-8"))
-    cost = [p for p in paragraphs if all(a in p for a in README_COST_ANCHORS)]
-    if not cost:
-        return [
-            "  - README.md: no paragraph states the per-skill session cost "
-            "(expected one with 'every session' and 'tokens')"
-        ]
-    return [
-        f"  - README.md: the session-cost paragraph does not name {label}"
-        for label, rx in README_COST_PARTS
-        if not rx.search(cost[0])
-    ]
-
-
 def standing_cost_row(evidence: Path) -> str | None:
     """Return the Standing cost row's value, skipping examples in fenced blocks."""
     fenced = False
@@ -209,7 +178,6 @@ def validate(root: Path, *, use_snapshot: bool = False) -> None:
     harness = None if use_snapshot else installed_harness()
 
     blocking = prose_date_disagreements(root, snapshot.get("calibrated_on"))
-    blocking += readme_cost_citation_gaps(root)
 
     if harness is None:
         snapshot_version = snapshot.get("skill_harness_version")

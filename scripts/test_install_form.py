@@ -100,6 +100,8 @@ import check_marketplace_pin as pin
 
 ROOT = Path(__file__).resolve().parent.parent
 README = ROOT / "README.md"
+# The receipts left the front page; the commands stay in README.
+RECEIPTS = ROOT / "docs" / "product" / "runtime-delivery-matrix.md"
 SITE = ROOT / "site" / "index.html"
 CATALOG = ROOT / "CATALOG.md"
 AGENTS = ROOT / "AGENTS.md"
@@ -161,9 +163,13 @@ def slash_commands_in(block: str) -> list[str]:
     ]
 
 
-def install_section(text: str) -> str:
-    match = re.search(r"(?ms)^## Install\n(.*?)(?=^## |\Z)", text)
+def section_under(text: str, heading: str) -> str:
+    match = re.search(rf"(?ms)^## {re.escape(heading)}\n(.*?)(?=^## |\Z)", text)
     return match.group(1) if match else ""
+
+
+def install_section(text: str) -> str:
+    return section_under(text, "Install")
 
 
 def declared_plugins() -> set[str]:
@@ -462,13 +468,16 @@ def main() -> int:
     catalog = CATALOG.read_text(encoding="utf-8")
     agents = AGENTS.read_text(encoding="utf-8")
     link_ps1 = LINK_PS1.read_text(encoding="utf-8")
-    section = install_section(readme)
+    commands = install_section(readme)
+    receipts = section_under(RECEIPTS.read_text(encoding="utf-8"), "Install receipts")
+    section = commands + "\n" + receipts
     site_commands = re.findall(r"<kbd>([^<]+)</kbd>", site)
     verification_record = section.partition("Verified forms")[2]
     declared = declared_plugins()
 
     # --- Criterion 1: published form works without SSH ---------------------
-    check("README install section exists", section != "")
+    check("README install section exists", commands != "")
+    check("the install receipts section exists", receipts != "")
     check(
         "README install block names the HTTPS marketplace URL",
         HTTPS_MARKETPLACE in section,
@@ -677,7 +686,7 @@ def main() -> int:
     # --- Requirement 5: README prose about the incident ---------------------
     check(
         "README cold-install transcript cites pull request #340",
-        "pull request that changed this section (#340)" in readme,
+        "pull request that changed this section (#340)" in section,
         "transcript sentence must cite #340 (the pull request), not #333 (the issue)",
     )
     check(
@@ -687,8 +696,8 @@ def main() -> int:
     )
     check(
         "README records issue #333 in the past tense",
-        "Issue #333 recorded that failure" in readme
-        and "Issue #333 tracks that failure" not in readme,
+        "Issue #333 recorded that failure" in section
+        and "Issue #333 tracks that failure" not in section,
         'README must say "Issue #333 recorded that failure." — #333 closes on merge',
     )
 
