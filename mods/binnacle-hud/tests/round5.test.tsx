@@ -140,3 +140,8 @@ test('N3: a refusal follows the text a Send carries, so the same text under a ne
   s.cells.memory = { value: [{ id: 'c', text: 'ship it' }], version: 2 }
   expect(await s.drawn()).toContain('Not sent. policy says no')
 })
+
+test('a refusal stored without its lines is not drawn when Memory is empty', async ($, on) => {
+  const s = await start($, on, { memory: [], view: { ring: 2, expand: 0, failed: 'old reason' } })
+  expect(await s.drawn()).not.toContain('old reason')
+})
