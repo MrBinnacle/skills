@@ -21,32 +21,6 @@ async function start($:any,on:any, initial:any = {}) {
  const shown=async(placement='dock')=>{const ui=await $.ui.mount(pane(placement));const text=JSON.stringify(await ui.drawn());await ui.unmount();return text}
  return {cells,cell,type,clear,submit,press,shown}
 }
-test('acceptance: reload-shaped stored draft then edit submit preserves it',async($,on)=>{
- const s=await start($,on,{lost:{text:'saved before reload',at:1,moves:10}})
- await s.type('new prompt');await s.submit();expect(s.cell('lost').value?.text).toBe('saved before reload')
-})
-test('acceptance: a stored number colliding with next edit loses unrelated saved draft',async($,on)=>{
- const s=await start($,on);await s.type('calibration');await s.clear()
- // Observe the counter without changing production code, then supply a persisted record at its next number.
- const next=s.cell('lost').value.moves+1
- s.cells.lost={value:{text:'unrelated pre-reload draft',at:1,moves:next},version:s.cell('lost').version+1}
- await s.type('new prompt');await s.submit()
- expect(s.cell('lost').value?.text).toBe('unrelated pre-reload draft')
-})
-test('acceptance: copy then fresh different clear then paste old preserves fresh clear',async($,on)=>{
- const s=await start($,on);await s.type('old copied');await s.clear();await s.press('c');await s.type('fresh draft');await s.clear();await s.type('old copied');expect(s.cell('lost').value?.text).toBe('fresh draft')
-})
-test('acceptance: x invalidates copy marker for subsequently retyped equal draft',async($,on)=>{
- const s=await start($,on);await s.type('same words');await s.clear()
- // Hand typing without a preceding copy deliberately preserves the old row.
- await s.type('same words');await s.press('c');await s.press('x')
- // The existing prompt is now a fresh clear, unrelated to the forgotten copy.
- await s.clear();await s.type('same words');expect(s.cell('lost').value?.text).toBe('same words')
-})
-test('acceptance: submit invalidates copy marker before new equal-text clear',async($,on)=>{
- const s=await start($,on);await s.type('same words');await s.clear();await s.press('c');await s.type('different submitted');await s.submit();await s.clear()
- await s.type('same words');await s.clear();await s.type('same words');expect(s.cell('lost').value?.text).toBe('same words')
-})
 for(const placement of ['dock','inline']) test(`acceptance: ${placement} refusal without unrecorded Send says Not sent`,{options:{narrow:'strip'}},async($,on)=>{
  const s=await start($,on,{memory:['not sent'],view:{ring:2,expand:1,failed:'injected refusal'}})
  const text=await s.shown(placement);expect(text).toContain('Not sent.');expect(text).not.toContain('The later Send was refused');expect(text).not.toContain('Claude has the lines sent at')

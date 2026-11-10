@@ -14,7 +14,7 @@ The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has th
 
 1. Type a line in the field. Press Tab to reach the actions, then press `a` to add the line to Memory.
    If you pressed Enter by habit, the line is in the Log. Press Tab, then `p`, to copy the newest Log thought into Memory. The Log keeps it.
-2. To remove a line, press its number. With more than nine lines, `0` removes the last one.
+2. To remove a line, press its number. Only the first nine lines have a key; removing one brings the next into reach.
 3. Press `s` to send. Claude Code shows the lines and asks, for example, "Give Claude these 2 lines now?". Choose **Send**.
 
 The mod adds one row to the conversation that reads "Memory the operator approved at HH:MM:", followed by the lines. The row starts no model turn. Claude reads it on its next turn.
@@ -28,21 +28,11 @@ The line under the Memory heading says where things stand:
 | Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines. |
 | Claude has the lines sent at HH:MM. The HUD could not record that Send. | The row reached the conversation, so Claude has the lines. Claude Code refused the HUD's own record of the Send, so the line stays until the next Send that lands. A later refused Send shows "The later Send was refused:" and its reason beside it. Sending again adds the lines to the conversation again. |
 
-If Claude Code refuses the row, the HUD shows "Not sent." and the reason, and the previous Send stays in force. To change a line, remove it and add the new wording.
+If Claude Code refuses the row, the HUD shows "Not sent." and the reason until the lines match what Claude has again, and the previous Send stays in force. To change a line, remove it and add the new wording.
 
 ## Get back a prompt you wiped by accident
 
-To set a draft aside on purpose, use Claude Code's own Ctrl+S stash. This section is for the times you did not mean to empty the box: a Ctrl+C, a misclick, a key you did not intend.
-
-When anything other than a submit empties the Claude prompt box, the HUD keeps the text it held. The Log then shows "Last cleared draft HH:MM · N chars:" followed by the text.
-
-1. Open the HUD with `/hud` or a click, and press Tab to reach the actions.
-2. Press `c` to copy the text. Then paste it into the prompt with Ctrl+V. Pasting it back removes the row. The mod never writes into the prompt box and never submits, so nothing you type there can be changed by it.
-3. Press `x` to forget the copy instead.
-
-The HUD keeps one cleared draft, the newest. A submit and a cleared slash command leave nothing. Claude Code reports a Ctrl+S stash the same way as Ctrl+C, so a stash also shows here until you press Ctrl+S again to put it back, which drops the copy. The Up and Down arrows already bring a draft back, so the mod does not track them.
-
-A crash or a closed window still loses the prompt. While you type, the mod holds the text only in its own memory and gives it to no other plugin. A cleared draft goes into session state, where other plugins in the session can read it, until you forget it or the session ends. Copying it does not remove it. The mod writes no draft to disk.
+Claude Code brings a cleared draft back itself. After Ctrl+C, press Up on the empty prompt. It keeps the ten most recent cleared drafts of the session, from version 2.1.292. To set a draft aside on purpose, use its Ctrl+S stash. The HUD does not read or keep the prompt box.
 
 ## Install the mod
 
@@ -100,7 +90,7 @@ If you type text after `/log`, the mod keeps nothing and asks you to use the dia
 - The command line and the mod's reply are part of the conversation, so neither one carries the thought.
 - The Log lasts as long as the session. A new session starts with an empty Log.
 - The mod appends Memory lines to the conversation only when you press Send and choose **Send** in the dialog. Keeping a thought does not add it to Memory; `p` copies it there without sending it.
-- The mod writes no file. Memory, like the Log and a cleared draft, lasts as long as the session.
+- The mod writes no file. Memory, like the Log, lasts as long as the session.
 
 ### Where a kept thought goes
 
@@ -119,12 +109,8 @@ On Claude Code 2.1.319, on 2026-11-08 and 2026-11-09, in a terminal session and 
 
 The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, approval only after append, refusal and dismissal, and capture without appending or touching the Claude prompt. Run them with `claude plugin test mods/binnacle-hud`.
 
-The draft tests cover Ctrl+C, a submit with its clear before or after it, a submit that lands while the loss is still being saved, Up and Down, a cleared slash command, a stash put back, `c` copying without touching the prompt box, a refused copy, `x`, an edit that finishes late, a retried write against a newer cleared draft, and typing that writes no state. The events they replay follow what a logging probe recorded in a real Windows terminal on 2.1.319.
-
 These are not verified:
 
-- Copying a cleared draft in a live session. Its tests replay the measured events against the test kit. The SDK says the terminal copies the way `/copy` does.
-- A pasted image, or a large paste shown as a placeholder. The mod keeps only the text the prompt box reports.
 - Memory in a live session. Its tests run against the test kit, not a terminal or the phone.
 - That the thought is absent from what Claude reads on a later turn. The export suggests so, but no turn was sent to check it.
 - Pasting, dictation, and long text in the phone's dialog.

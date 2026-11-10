@@ -202,12 +202,3 @@ test('p is not offered when the newest Log thought is already a Memory line', as
   expect(await shown(ui)).not.toContain('"k-p"')
 })
 
-test('0 removes the last line, so a tenth line is never stuck', async ($, on) => {
-  const ten = Array.from({ length: 10 }, (_, i) => `line ${i + 1}`)
-  const store: Store = { memory: ten, typed: '' }
-  mock.session(on)
-  await start($, on, store)
-  const ui = await $.ui.mount(pane())
-  await ui.press({ key: 'k-0' })
-  expect(store.memory.map((e: any) => e.text)).toEqual(ten.slice(0, 9))
-})

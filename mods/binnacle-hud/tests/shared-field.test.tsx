@@ -40,7 +40,7 @@ async function start($: any, on: any, store: any, options: any = {}) {
   return events
 }
 
-test('REVIEW shared Input change -> focus actions -> a; Enter -> p; empty and tenth-line removal never send or touch prompt', async ($, on) => {
+test('REVIEW shared Input change -> focus actions -> a; Enter -> p; empty and ninth-line removal never send or touch prompt', async ($, on) => {
   const store: any = {}
   const session = mock.session(on)
   const events = await start($, on, store)
@@ -73,9 +73,9 @@ test('REVIEW shared Input change -> focus actions -> a; Enter -> p; empty and te
   }
   expect(store.memory).toHaveLength(10)
   ui = await redraw($, ui)
-  await ui.press({ key: 'k-0' })
+  await ui.press({ key: 'k-9' })
   expect(store.memory).toHaveLength(9)
-  expect(store.memory.at(-1).text).toBe('decision 9')
+  expect(store.memory.map((e: any) => e.text).slice(-2)).toEqual(['decision 8', 'decision 10'])
   await ui.input({ key: 'thought', text: '   ', kind: 'change' })
   ui = await redraw($, ui)
   expect(await ui.find({ key: 'k-a' })).toBeUndefined()

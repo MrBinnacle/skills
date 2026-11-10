@@ -30,24 +30,6 @@ async function start($:any,on:any,initial:any={}) {
  submit:()=>$.prompt.submit({text:box,wait:false,origin:{kind:'composer'}}),
  press:async(key:string)=>{const ui=await $.ui.mount(pane);await ui.press({key:`k-${key}`});await clock.settle();await ui.unmount()}}
 }
-for(const kind of ['history','plugin','undo'])test(`round2: delayed ${kind} restore must not delete a newer equal-text clear`,async($,on)=>{
- const s=await start($,on);await s.type('same draft');await s.change('clear');const old=s.cell('lost').value
- const g=s.hold((e:any)=>e.key==='lost'&&e.value===null)
- const restoring=s.change(kind,'same draft');await g.entered.promise
- await s.change('clear');const fresh=s.cell('lost').value
- expect(fresh.moves).not.toBe(old.moves)
- g.release.resolve();await restoring
- expect(s.writes.some(w=>w.key==='lost'&&!w.ok)).toBe(true)
- expect(s.cell('lost').value).toEqual(fresh)
-})
-test('round2: stale x must distinguish equal timestamp and counter across load identities (modeled boundary)',async($,on)=>{
- const s=await start($,on,{lost:{text:'old',at:5,moves:2,load:'old-load'}})
- const ui=await $.ui.mount(pane)
- const fresh={text:'new load draft',at:5,moves:2,load:'new-load'}
- s.cells.lost={value:fresh,version:s.cell('lost').version+1}
- await ui.press({key:'k-x'});await s.clock.settle();await ui.unmount()
- expect(s.cell('lost').value).toEqual(fresh)
-})
 test('round2: dismissal drawn while failure append pending must preserve unseen equal-text failure',async($,on)=>{
  const s=await start($,on,{failed:['same thought']});s.deny()
  const first=await $.ui.mount(pane)
@@ -72,20 +54,6 @@ test('round2: stale Memory remove button must not remove shifted unseen line',as
  await ui.press({key:'k-2'});await s.clock.settle();await ui.unmount()
  expect(s.cell('memory').value.map((e: any) => e.text)).toEqual(['third line'])
 })
-test('round2: modeled old-load pending clear arriving after new-load edit survives submit',async($,on)=>{
- const s=await start($,on)
- await s.type('new load prompt')
- // Model a host accepting an old module write late. No module reload is performed here.
- const pending={text:'old pending clear',at:0,moves:1,load:'old-load'}
- s.cells.lost={value:pending,version:1}
- await s.submit();expect(s.cell('lost').value).toEqual(pending)
-})
-test('round2: stale copy after actual clear-submit cannot consume a fresh equal record',async($,on)=>{
- const s=await start($,on);await s.type('same');await s.change('clear');await s.press('c');await s.submit()
- expect(s.cell('lost').value).toBe(null)
- await s.type('same');await s.change('clear');const fresh=s.cell('lost').value
- await s.type('same');expect(s.cell('lost').value).toEqual(fresh)
-})
 const texts=(v:any[])=>v.map(e=>e.text)
 const seed=(t:string[],saved:boolean)=>saved?t.map((text,i)=>({id:`r${i}`,text})):t
 for(const saved of [false,true]){
@@ -98,12 +66,6 @@ test(`round3: [A,B,A], k-1 twice on one draw removes only the first A (saved=${s
  const s=await start($,on,{memory:seed(['A','B','A'],saved)});const ui=await $.ui.mount(pane)
  await ui.press({key:'k-1'});await s.clock.settle();await ui.press({key:'k-1'});await s.clock.settle();await ui.unmount()
  expect(texts(s.cell('memory').value)).toEqual(['B','A'])
-})
-test(`round3: k-0 twice on one draw removes only the drawn last line (saved=${saved})`,async($,on)=>{
- const ten=Array.from({length:10},(_,i)=>`line ${i+1}`)
- const s=await start($,on,{memory:seed(ten,saved)});const ui=await $.ui.mount(pane)
- await ui.press({key:'k-0'});await s.clock.settle();await ui.press({key:'k-0'});await s.clock.settle();await ui.unmount()
- expect(texts(s.cell('memory').value)).toEqual(ten.slice(0,9))
 })
 }
 test('round3: a line added twice with the same text is two entries',async($,on)=>{
@@ -149,76 +111,10 @@ test('round4: d is not offered when the only failed keeps are 4.1.0 strings writ
  const ui=await $.ui.mount(pane);const drawn=JSON.stringify(await ui.drawn());await ui.unmount()
  expect(drawn).toContain('late failure');expect(drawn).not.toContain('k-d')
 })
-test('round4: a restore leaves a cleared draft from an earlier load alone (known limit: x forgets it)',async($,on)=>{
- const old={text:'same',at:0,moves:1,load:'old-load'}
- const s=await start($,on,{lost:old})
- await s.type('x');await s.type('y');await s.change('history','same')
- expect(s.cell('lost').value).toEqual(old)
-})
-test('round4: a restore that arrives while its clear is still being written drops that clear',async($,on)=>{
- const s=await start($,on);await s.type('same')
- const g=s.hold((e:any)=>e.key==='lost'&&e.value)
- const clearing=s.change('clear');await g.entered.promise
- const restoring=s.change('history','same')
- g.release.resolve();await clearing;await restoring
- expect(s.cell('lost').value??null).toBe(null)
-})
-test('round4: a restore with nothing to drop writes nothing',async($,on)=>{
- const s=await start($,on);await s.type('a');await s.change('history','b')
- expect(s.writes.filter((w:any)=>w.key==='lost')).toEqual([])
-})
-test('round4: after a copy, an edit to different text keeps the cleared draft',async($,on)=>{
- const s=await start($,on);await s.type('same');await s.change('clear');const rec=s.cell('lost').value
- await s.press('c');await s.type('other')
- expect(s.cell('lost').value).toEqual(rec)
-})
 test('round3: a stale p copies the thought on screen, not one kept after the draw',async($,on)=>{
  const s=await start($,on,{log:[{text:'seen thought',at:'2026-11-09T00:00:00.000Z',from:'terminal'}]})
  const ui=await $.ui.mount(pane)
  s.cells.log={value:[...s.cell('log').value,{text:'unseen thought',at:'2026-11-09T00:01:00.000Z',from:'terminal'}],version:s.cell('log').version+1}
  await ui.press({key:'k-p'});await s.clock.settle();await ui.unmount()
  expect(texts(s.cell('memory').value)).toEqual(['seen thought'])
-})
-test('round3: a refused copy leaves no marker, so typing the same text keeps the row',async($,on)=>{
- const s=await start($,on);s.refuseCopy();await s.type('same');await s.change('clear');const rec=s.cell('lost').value
- await s.press('c');await s.type('same')
- expect(s.cell('lost').value).toEqual(rec)
-})
-test('round3: a submit from outside the composer does not drop a cleared draft',async($,on)=>{
- const s=await start($,on);await s.type('draft');await s.change('clear');const rec=s.cell('lost').value
- await $.prompt.submit({text:'from a plugin',wait:false,origin:{kind:'plugin'}})
- expect(s.cell('lost').value).toEqual(rec)
-})
-test('round4: a clear that finishes after a newer change still keeps its draft',async($,on)=>{
- const s=await start($,on);await s.type('important draft')
- const g=s.holdChange((e:any)=>e.origin.kind==='clear')
- const clearing=s.change('clear');await g.entered.promise
- await s.change('history','ls')
- g.release.resolve();await clearing;await s.clock.settle()
- expect(s.cell('lost').value?.text).toBe('important draft')
-})
-test('round4: a late clear whose text a newer restore brought back keeps no row',async($,on)=>{
- const s=await start($,on);await s.type('same')
- const g=s.holdChange((e:any)=>e.origin.kind==='clear')
- const clearing=s.change('clear');await g.entered.promise
- await s.change('history','same')
- g.release.resolve();await clearing;await s.clock.settle()
- expect(s.cell('lost').value??null).toBe(null)
-})
-test('round4: a late clear does not replace a newer clear',async($,on)=>{
- const s=await start($,on);await s.type('first')
- const g=s.holdChange((e:any)=>e.origin.kind==='clear')
- const clearing=s.change('clear');await g.entered.promise
- await s.type('second');await s.change('clear');const fresh=s.cell('lost').value
- expect(fresh.text).toBe('second')
- g.release.resolve();await clearing;await s.clock.settle()
- expect(s.cell('lost').value).toEqual(fresh)
-})
-test('round4: a restore that finishes after a newer clear does not drop the only copy of its draft',async($,on)=>{
- const s=await start($,on);await s.type('same');await s.change('clear');const rec=s.cell('lost').value
- const g=s.holdChange((e:any)=>e.origin.kind==='history')
- const restoring=s.change('history','same');await g.entered.promise
- await s.change('clear')
- g.release.resolve();await restoring;await s.clock.settle()
- expect(s.cell('lost').value).toEqual(rec)
 })

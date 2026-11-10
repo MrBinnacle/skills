@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import type { Approved, Entry, Lost, Row, Saved, Thought, View } from '../types'
+import type { Approved, Entry, Row, Saved, Thought, View } from '../types'
 
 // Binnacle HUD. The mod does not send the Log to Claude; absence from later
 // model requests is unverified. Memory holds a draft and the snapshot a confirmed Send
@@ -28,26 +28,6 @@ let edits = 0
 const draft = atom({ plugin: 'binnacle-hud', key: 'memory' } as const, [] as Saved[])
 const approved = atom({ plugin: 'binnacle-hud', key: 'approved' } as const, null as Approved | null)
 const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, expand: 0, failed: '' } as View)
-
-// The draft shadow. `box` is the prompt box as the newest edit or change left
-// it, held in module memory, so no other plugin can read a draft that was
-// never cleared. Only a cleared draft goes to session state. A process kill
-// loses both. Each box event takes the next number in `moves` when it
-// arrives, so an event that finishes late cannot overwrite a newer one, and a
-// submit can tell the clear it caused from a clear after more typing.
-let box = ''
-// A cleared draft outlives a reload but `moves` restarts, so each record also
-// names the load that wrote it. Only a record of this load matches a number.
-const LOAD = Math.random().toString(36).slice(2)
-let moves = 0
-let applied = 0
-let lossAt = 0
-let sentAt = -1
-let lossWrite: Promise<void> = Promise.resolve()
-// The cleared draft last copied, so pasting it back drops that record's row.
-let copiedLoss: Lost | null = null
-const sameLoss = (a: Lost | null, b: Lost | null) => !!a && !!b && a.load === b.load && a.moves === b.moves
-const lost = atom({ plugin: 'binnacle-hud', key: 'lost' } as const, null as Lost | null)
 
 type Finding = { text: string; why: string; source: string; age: string }
 const FINDING: Finding = {
@@ -116,9 +96,9 @@ async function submit($: EngineInterface, text: string): Promise<void> {
   if (await keep($, text, 'terminal')) await clearDraft($, text, at)
 }
 
-async function addLine($: EngineInterface): Promise<void> {
+// Adds the field text the pane drew.
+async function addLine($: EngineInterface, text: string): Promise<void> {
   const at = edits
-  const text = await read($, typed)
   if (!text.trim()) return
   const line = entry(text.trim())
   await update($, draft, lines => [...lines, line])
@@ -153,76 +133,6 @@ async function send($: EngineInterface): Promise<void> {
   let unrecorded = 0
   if (!out.deny) await update($, approved, () => ({ lines, at })).catch(() => { unrecorded = at })
   await update($, view, v => ({ ...v, failed: out.deny ?? '', unrecorded: out.deny ? v.unrecorded : unrecorded }))
-}
-
-// A submit sets `sentAt` to the newest event number. That is this clear's
-// own number when the submit came while this clear was still on its way in,
-// and the number before it when the submit came first.
-// Applies one change to the box. A clear that empties a draft nobody
-// submitted keeps the draft as lost. A stash or recall that brings the lost
-// text back drops it, and so does a paste of the copied draft. Other
-// keystrokes touch no state.
-// An event that finishes after a newer one never moves the box back. A late
-// clear still keeps the draft it took, from the box as it arrived, unless a
-// newer clear already kept one or the text is back in the box.
-async function boxChanged($: EngineInterface, text: string, kind: string, seen: number, prior: string): Promise<void> {
-  const late = seen < applied
-  const before = late ? prior : box
-  if (!late) {
-    applied = seen
-    box = text
-  }
-  if (kind === 'clear' && sentAt !== seen - 1 && sentAt !== seen && before.trim() && !before.startsWith('/') && text !== before
-    && !(late && (box === before || seen < lossAt))) {
-    lossAt = seen
-    // Assigned before any await, so a submit arriving right after this clear
-    // waits for this write and then drops it (live order on 2.1.321).
-    lossWrite = keepLoss($, before, seen)
-    await lossWrite
-  } else if (late) {
-    return
-  } else if (kind === 'edit') {
-    const restored = copiedLoss
-    if (restored?.text !== text) return
-    copiedLoss = null
-    await update($, lost, now => sameLoss(now, restored) ? null : now).catch(() => undefined)
-  } else if (text) {
-    // A clear still being written lands first, as for a submit, so this restore can drop it.
-    await lossWrite
-    // The read only gates the write. The write decides, so a clear newer than this event survives.
-    if ((await read($, lost).catch(() => null))?.text !== text) return
-    await update($, lost, now => now && now.load === LOAD && now.text === text && now.moves < seen ? null : now).catch(() => undefined)
-  }
-}
-
-async function keepLoss($: EngineInterface, before: string, seen: number): Promise<void> {
-  const rec = { text: before, at: await $.clock.now(), moves: seen, load: LOAD }
-  // On a retry, a newer clear's draft wins.
-  await update($, lost, now => lossAt === seen ? rec : now).catch(() => undefined)
-}
-
-// The person submitted. When the clear came first, that clear was the submit,
-// so its loss, written or still being written, is dropped.
-async function submitted($: EngineInterface): Promise<void> {
-  const at = sentAt = moves
-  await lossWrite
-  await update($, lost, now => now && now.load === LOAD && now.moves === at ? null : now).catch(() => undefined)
-}
-
-// Copies the cleared draft for the person to paste. It never writes the
-// prompt box: prompt.fill has no "only if still empty" form, so a fill in
-// flight could mix into text typed meanwhile (live repro, review of d372767).
-async function copyLost($: EngineInterface, rec: Lost): Promise<void> {
-  const out = await $.ui.copy({ text: rec.text }).catch(() => null)
-  if (out?.isCopied) copiedLoss = rec
-  const copied = out?.isCopied ? 'Copied. Paste it into the prompt with Ctrl+V.'
-    : `Not copied${out && !out.isCopied ? `: ${out.reason}` : ''}.`
-  await update($, view, v => ({ ...v, copied })).catch(() => undefined)
-}
-
-async function forgetLost($: EngineInterface, rec: Lost): Promise<void> {
-  await update($, lost, cur => sameLoss(cur, rec) ? null : cur).catch(() => undefined)
-  await update($, view, v => ({ ...v, copied: '' })).catch(() => undefined)
 }
 
 export const register: Register = (on, options) => {
@@ -273,28 +183,6 @@ export const register: Register = (on, options) => {
     return { text: saved === null ? 'Not kept, the save failed. The thought is shown in the HUD.' : saved ? 'Kept in the Log.' : 'Nothing kept.' }
   })
 
-  // Each event takes its number on arrival, before the chain below can delay it.
-  on('prompt.edit', async ($, e, next) => {
-    const seen = ++moves
-    const out = await next(e)
-    if (typeof out?.text === 'string') await boxChanged($, out.text, 'edit', seen, box)
-    return out
-  })
-
-  // A change's text is final when it arrives (d.ts PromptChangeInput), so the box it replaced is read then.
-  on('prompt.change', async ($, e, next) => {
-    const seen = ++moves
-    const prior = box
-    const out = await next(e)
-    await boxChanged($, e.text, e.origin.kind, seen, prior)
-    return out
-  })
-
-  on('prompt.submit', async ($, e, next) => {
-    if (e.origin.kind === 'composer') await submitted($)
-    return next(e)
-  })
-
   // Where the ring stands decides the key line.
   on('ui.focus', async ($, e, next) => {
     if (e.component === 'Pane' && e.requestId === PANE) {
@@ -309,15 +197,15 @@ export const register: Register = (on, options) => {
     const st = await read($, view)
     const now = await read($, typed)
     const unsaved = entries(await read($, failed))
-    const gone = await read($, lost)
     const thoughts = await read($, kept)
     const rows = entries(await read($, draft))
     const lines = rows.map(r => r.text)
-    const last = rows.findLast(r => r.id)?.id
     const snap = await read($, approved)
     const status = st.unrecorded
       ? `Claude has the lines sent at ${hhmm(st.unrecorded)}. The HUD could not record that Send.`
       : statusOf(lines, snap)
+    // A refusal is news only while the lines differ from what Claude has.
+    const refused = snap && same(lines, snap.lines) ? '' : st.failed
 
     const focused = e.props.isFocused
     const inline = e.props.placement === 'inline'
@@ -351,11 +239,11 @@ export const register: Register = (on, options) => {
     const memory = (
       <Box flexDirection="column">
         {header('Memory', lines.length ? `${lines.length} lines` : 'empty')}
-        {!(st.failed && !snap && !st.unrecorded) && (st.unrecorded
+        {!(refused && !snap && !st.unrecorded) && (st.unrecorded
           ? <Text wrap="wrap" color={TONE.warning}>{status}</Text>
           : <Text wrap="wrap" color={!snap ? undefined : same(lines, snap.lines) ? TONE.remember : LIGHT} dimColor={!snap}>{status}</Text>
         )}
-        {st.failed && <Text wrap="wrap" color={TONE.warning}>{st.unrecorded ? `The later Send was refused: ${st.failed}` : `Not sent. ${st.failed}`}</Text>}
+        {refused && <Text wrap="wrap" color={TONE.warning}>{st.unrecorded ? `The later Send was refused: ${refused}` : `Not sent. ${refused}`}</Text>}
         {rows.map((r, i) => (
           <Text key={`mem-${r.id}`} wrap={inline ? 'truncate-end' : 'wrap'}><Text dimColor>{i + 1} </Text>{r.text}</Text>
         ))}
@@ -391,8 +279,6 @@ export const register: Register = (on, options) => {
     const shown = w - 12 // the field's width less its frame, label and Enter hint
     const field = (
       <Box flexDirection="column">
-        {gone && <Text color={LIGHT} wrap="truncate-end">Last cleared draft {hhmm(gone.at)} · {gone.text.length} chars: {gone.text}</Text>}
-        {gone && st.copied && <Text dimColor wrap="wrap">{st.copied}</Text>}
         {unsaved.map(f => <Text key={`failed-${f.id}`} color="warning" wrap="wrap">Not kept, the save failed: {f.text}</Text>)}
         {now.length > shown && <Text dimColor wrap="wrap">{now}</Text>}
         <Box borderStyle="round" borderColor={focused ? LIGHT : DRAB} paddingX={1}>
@@ -428,15 +314,13 @@ export const register: Register = (on, options) => {
       return send($).finally(() => { sending = false })
     }
     const acts: Act[] = [
-      ...(gone ? [{ k: 'c', label: 'copy draft', run: () => void copyLost($, gone) }, { k: 'x', label: 'forget draft', run: () => void forgetLost($, gone) }] : []),
       ...(unsaved.some(f => f.id) ? [{ k: 'd', label: 'dismiss failed', run: () => void update($, failed, without(unsaved.flatMap(f => f.id ?? []))).catch(() => undefined) }] : []),
       ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
-      ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($) }] : []),
+      ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($, now) }] : []),
       ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
       ...(showsMemory && lines.length && !(snap && same(lines, snap.lines)) ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
-      // shortcut: lines past the ninth have only 0, which removes the last one; add paging if Memory grows that long.
+      // shortcut: only the first nine lines have a key, and removing one brings the next into reach; add paging if Memory grows that long.
       ...(showsMemory && !writing ? rows.slice(0, 9).flatMap(({ id }, i) => id ? [{ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([id])).catch(() => undefined) }] : []) : []),
-      ...(showsMemory && !writing && rows.length > 9 && last ? [{ k: '0', label: 'remove last', run: () => void update($, draft, without([last])).catch(() => undefined) }] : []),
     ]
     const rail = focused && (
       <Box flexDirection="row" flexWrap="wrap" gap={1}>
@@ -459,7 +343,7 @@ export const register: Register = (on, options) => {
 
     // --- inline: summary, actions, the field -------------------------------
     if (inline) {
-      const parts = [`memory ${st.failed ? (st.unrecorded ? `${status} The later Send was refused: ${st.failed}` : `Not sent. ${st.failed}`) : status}`, 'watch preview', `log ${thoughts.length}`]
+      const parts = [`memory ${refused ? (st.unrecorded ? `${status} The later Send was refused: ${refused}` : `Not sent. ${refused}`) : status}`, 'watch preview', `log ${thoughts.length}`]
       const section = st.expand === 1 ? memory : st.expand === 2 ? watch : st.expand === 3 ? log : null
       const hasField = !section || st.expand === 3
       return (
