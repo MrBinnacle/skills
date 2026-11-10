@@ -4,6 +4,20 @@ All notable changes to the collection. A release is a delivery event: changed ca
 installed users when a version is released, not on every merge to `main`. See
 [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
+## v4.1.1 - 2026-11-10
+
+### Patch Changes
+
+- [#666](https://github.com/MrBinnacle/skills/pull/666) [`d820224`](https://github.com/MrBinnacle/skills/commit/d820224e1836968530bcc4ef7e4ebda3632b5413) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The Binnacle HUD no longer keeps a cleared prompt draft, so it never reads the prompt box or puts prompt text in session state. Claude Code brings a cleared draft back itself: after Ctrl+C, press Up on the empty prompt.
+  
+  Each Memory line and each failed keep gets an id when it is saved, so a remove key or `d` acts only on the entry it was drawn for, never on another with the same text. Lists saved by 4.1.0 as plain text still load: session start gives each line an id. `0` removes the line shown last, and is not drawn when that line has no id. `a` adds the text the pane showed, and `p` the Log thought on screen.
+  
+  A refused Send is shown only while the lines differ from what Claude has. When an unrecorded Send stands, a later refused Send reads "The later Send was refused:" rather than "Not sent."
+
+- [#665](https://github.com/MrBinnacle/skills/pull/665) [`a94366d`](https://github.com/MrBinnacle/skills/commit/a94366d99f521d7fa5933b8c12fdb26ffb611dcc) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The Binnacle HUD no longer says "Not sent." when a Send reached the conversation but its own record of the Send failed; it says Claude has the lines and that the HUD could not record the Send. Failed keeps can be dismissed with `d` once recovered. A code comment no longer names `ctrl+x tab`, which does nothing.
+
+- [#669](https://github.com/MrBinnacle/skills/pull/669) [`c73225f`](https://github.com/MrBinnacle/skills/commit/c73225fe3f61dbb2ffb8e029e56ddee9777411c6) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The Binnacle HUD shows why a Send was refused only beside the lines that Send carried, matched by their text, so the reason comes back if the lines return to that text. Before this, the reason stayed hidden while the lines matched what Claude had, then came back with the old reason when a new line was added. A refusal stored by 4.1.0 has no lines with it, so the HUD no longer draws it; the status line still says "Not sent." or "Changed since Send".
+
 ## v4.1.0 - 2026-11-09
 
 ### Minor Changes
