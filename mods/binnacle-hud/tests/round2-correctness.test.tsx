@@ -67,12 +67,14 @@ test('round2: stale Memory remove button must not remove shifted unseen line',as
  const ui=await $.ui.mount(pane)
  await ui.press({key:'k-1'});await s.clock.settle()
  expect(s.cell('memory').value.map((e: any) => e.text)).toEqual(['second line','third line'])
+ // This drawn key still names the original second line, not the current index 1.
  await ui.press({key:'k-2'});await s.clock.settle();await ui.unmount()
  expect(s.cell('memory').value.map((e: any) => e.text)).toEqual(['third line'])
 })
 test('round2: modeled old-load pending clear arriving after new-load edit survives submit',async($,on)=>{
  const s=await start($,on)
  await s.type('new load prompt')
+ // Model a host accepting an old module write late. No module reload is performed here.
  const pending={text:'old pending clear',at:0,moves:1,load:'old-load'}
  s.cells.lost={value:pending,version:1}
  await s.submit();expect(s.cell('lost').value).toEqual(pending)
