@@ -1,6 +1,6 @@
 {
   "name": "mrbinnacle-engineering",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "Workflow disciplines for shipping software: mistakes that report success, guards and gates that stop your work, and the rituals at phase and session boundaries.",
   "author": {
     "name": "MrBinnacle",
