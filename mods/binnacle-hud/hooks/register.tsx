@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import type { Approved, Lost, Thought, View } from '../types'
+import type { Approved, Entry, Row, Saved, Thought, View } from '../types'
 
 // Binnacle HUD. The mod does not send the Log to Claude; absence from later
 // model requests is unverified. Memory holds a draft and the snapshot a confirmed Send
@@ -22,28 +22,12 @@ const NOT_NOW = 'Not now'
 const CANCEL = 'Cancel'
 const typed = atom({ plugin: 'binnacle-hud', key: 'typed' } as const, '')
 const kept = atom({ plugin: 'binnacle-hud', key: 'log' } as const, [] as Thought[])
-const failed = atom({ plugin: 'binnacle-hud', key: 'failed' } as const, [] as string[])
+const failed = atom({ plugin: 'binnacle-hud', key: 'failed' } as const, [] as Saved[])
 // Counts edits for both capture actions: equality cannot identify a retyped draft.
 let edits = 0
-// Counts failed keeps, so a dismissal can tell a new failure from an old one with the same text.
-let failures = 0
-const draft = atom({ plugin: 'binnacle-hud', key: 'memory' } as const, [] as string[])
+const draft = atom({ plugin: 'binnacle-hud', key: 'memory' } as const, [] as Saved[])
 const approved = atom({ plugin: 'binnacle-hud', key: 'approved' } as const, null as Approved | null)
 const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, expand: 0, failed: '' } as View)
-
-// The draft shadow. `box` is the prompt box as the newest edit or change left
-// it, held in module memory, so no other plugin can read a draft that was
-// never cleared. Only a cleared draft goes to session state. A process kill
-// loses both. Each box event takes the next number in `moves` when it
-// arrives, so an event that finishes late cannot overwrite a newer one, and a
-// submit can tell the clear it caused from a clear after more typing.
-let box = ''
-let moves = 0
-let applied = 0
-let lossAt = 0
-let sentAt = -1
-let lossWrite: Promise<void> = Promise.resolve()
-const lost = atom({ plugin: 'binnacle-hud', key: 'lost' } as const, null as Lost | null)
 
 type Finding = { text: string; why: string; source: string; age: string }
 const FINDING: Finding = {
@@ -76,6 +60,12 @@ export const whyNoDock = (isFullscreen: boolean | undefined, columns: number | u
 const hhmm = (at: number | string) => new Date(at).toTimeString().slice(0, 5)
 const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((l, i) => l === b[i])
 
+const entry = (text: string): Entry => ({ id: crypto.randomUUID(), text })
+// An id is only ever minted, never derived from a value, so it cannot recur.
+// A bare string (4.1.0) has none until session.start mints one, and no key acts on it.
+const entries = (saved: readonly Saved[]): Row[] => saved.map(s => typeof s === 'string' ? { id: null, text: s } : s)
+const minted = (saved: readonly Saved[]): Saved[] => saved.map(s => typeof s === 'string' ? entry(s) : s)
+
 export const statusOf = (lines: readonly string[], snap: Approved | null): string =>
   !snap ? 'Not sent.'
   : same(lines, snap.lines) ? `In Claude's context since ${hhmm(snap.at)}.`
@@ -88,8 +78,8 @@ async function keep($: EngineInterface, text: string, from: Thought['from']): Pr
     await update($, kept, items => [...items, { text, at: new Date().toISOString(), from }])
     return true
   } catch {
-    failures += 1
-    await update($, failed, items => [...items, text]).catch(() => undefined)
+    const miss = entry(text)
+    await update($, failed, items => [...items, miss]).catch(() => undefined)
     return null
   }
 }
@@ -106,31 +96,29 @@ async function submit($: EngineInterface, text: string): Promise<void> {
   if (await keep($, text, 'terminal')) await clearDraft($, text, at)
 }
 
-async function addLine($: EngineInterface): Promise<void> {
+// Adds the field text the pane drew.
+async function addLine($: EngineInterface, text: string): Promise<void> {
   const at = edits
-  const text = await read($, typed)
   if (!text.trim()) return
-  await update($, draft, lines => [...lines, text.trim()])
+  const line = entry(text.trim())
+  await update($, draft, lines => [...lines, line])
   await clearDraft($, text, at)
 }
 
-// Enter keeps a thought in the Log, so a line meant for Memory can land
-// there by habit. This copies the newest Log thought into Memory; the Log keeps it.
-async function promote($: EngineInterface): Promise<void> {
-  const last = (await read($, kept)).at(-1)?.text
-  if (last) await update($, draft, lines => lines.at(-1) === last ? lines : [...lines, last])
+async function promote($: EngineInterface, shown: string): Promise<void> {
+  const line = entry(shown)
+  await update($, draft, saved => entries(saved).at(-1)?.text === shown ? saved : [...saved, line])
 }
 
-async function removeLine($: EngineInterface, at: number): Promise<void> {
-  await update($, draft, lines => lines.filter((_, i) => i !== at))
-}
+// Each caller names its atom at the update call, which the hooks scan requires.
+const without = (ids: readonly string[]) => (saved: readonly Saved[]) => saved.filter(s => typeof s === 'string' || !ids.includes(s.id))
 
 // The lines are frozen when Send is pressed: the question, the row and the
 // snapshot all carry that one value, whatever the draft becomes meanwhile.
 // The snapshot is written only after the append lands, so it always means
 // Claude has those lines.
 async function send($: EngineInterface): Promise<void> {
-  const lines = [...await read($, draft)]
+  const lines = entries(await read($, draft)).map(l => l.text)
   if (!lines.length) return
   const question = `Memory for Claude:\n${lines.map(l => `- ${l}`).join('\n')}\n\nGive Claude these ${lines.length} lines now?`
   const answer = await $.ui.ask(question, [SEND, NOT_NOW]).catch(() => NOT_NOW)
@@ -147,65 +135,6 @@ async function send($: EngineInterface): Promise<void> {
   await update($, view, v => ({ ...v, failed: out.deny ?? '', unrecorded: out.deny ? v.unrecorded : unrecorded }))
 }
 
-// Drops exactly the failed keeps on screen. It changes nothing when the list
-// no longer starts with them (a second press) or when any keep failed since
-// the list was drawn (equal text is not the same failure), so none is dropped
-// unseen. `at` is the count when the list on screen was read.
-async function dismissFailed($: EngineInterface, seen: readonly string[], at: number): Promise<void> {
-  await update($, failed, items => failures === at && same(items.slice(0, seen.length), seen) ? items.slice(seen.length) : items).catch(() => undefined)
-}
-
-// A submit sets `sentAt` to the newest event number. That is this clear's
-// own number when the submit came while this clear was still on its way in,
-// and the number before it when the submit came first.
-// Applies one change to the box. A clear that empties a draft nobody
-// submitted keeps the draft as lost. A stash or recall that brings the lost
-// text back drops it. A keystroke touches no state.
-async function boxChanged($: EngineInterface, text: string, kind: string, seen: number): Promise<void> {
-  if (seen < applied) return
-  applied = seen
-  const before = box
-  box = text
-  if (kind === 'clear' && sentAt !== seen - 1 && sentAt !== seen && before.trim() && !before.startsWith('/') && text !== before) {
-    lossAt = seen
-    // Assigned before any await, so a submit arriving right after this clear
-    // waits for this write and then drops it (live order on 2.1.321).
-    lossWrite = keepLoss($, before, seen)
-    await lossWrite
-  } else if (kind !== 'edit' && text && (await read($, lost).catch(() => null))?.text === text) {
-    await update($, lost, now => now && now.text === text ? null : now).catch(() => undefined)
-  }
-}
-
-async function keepLoss($: EngineInterface, before: string, seen: number): Promise<void> {
-  const rec = { text: before, at: await $.clock.now(), moves: seen }
-  // On a retry, a newer clear's draft wins.
-  await update($, lost, now => lossAt === seen ? rec : now).catch(() => undefined)
-}
-
-// The person submitted. When the clear came first, that clear was the submit,
-// so its loss, written or still being written, is dropped.
-async function submitted($: EngineInterface): Promise<void> {
-  const at = sentAt = moves
-  await lossWrite
-  await update($, lost, now => now && now.moves === at ? null : now).catch(() => undefined)
-}
-
-// Copies the cleared draft for the person to paste. It never writes the
-// prompt box: prompt.fill has no "only if still empty" form, so a fill in
-// flight could mix into text typed meanwhile (live repro, review of d372767).
-async function copyLost($: EngineInterface, rec: Lost): Promise<void> {
-  const out = await $.ui.copy({ text: rec.text }).catch(() => null)
-  const restoring = out?.isCopied ? 'Copied. Paste it into the prompt with Ctrl+V.'
-    : `Not copied${out && !out.isCopied ? `: ${out.reason}` : ''}.`
-  await update($, view, v => ({ ...v, restoring })).catch(() => undefined)
-}
-
-async function forgetLost($: EngineInterface, rec: Lost): Promise<void> {
-  await update($, lost, cur => cur && cur.at === rec.at && cur.moves === rec.moves ? null : cur).catch(() => undefined)
-  await update($, view, v => ({ ...v, restoring: '' })).catch(() => undefined)
-}
-
 export const register: Register = (on, options) => {
   const noDock = narrowOf(options.narrow)
   // rows is the inline height alone; a docked pane ignores it.
@@ -219,6 +148,8 @@ export const register: Register = (on, options) => {
     await $.command.register({ name: 'log', description: 'Keep a thought in the Binnacle Log, from any surface, the phone included' })
     // Unasked, the pane waits undrawn below 144 columns (d.ts 2532-2533).
     void $.ui.open(pane)
+    if ((await read($, draft)).some(s => typeof s === 'string')) await update($, draft, minted).catch(() => undefined)
+    if ((await read($, failed)).some(s => typeof s === 'string')) await update($, failed, minted).catch(() => undefined)
     return next(e)
   })
 
@@ -252,26 +183,6 @@ export const register: Register = (on, options) => {
     return { text: saved === null ? 'Not kept, the save failed. The thought is shown in the HUD.' : saved ? 'Kept in the Log.' : 'Nothing kept.' }
   })
 
-  // Each event takes its number on arrival, before the chain below can delay it.
-  on('prompt.edit', async ($, e, next) => {
-    const seen = ++moves
-    const out = await next(e)
-    if (typeof out?.text === 'string') await boxChanged($, out.text, 'edit', seen)
-    return out
-  })
-
-  on('prompt.change', async ($, e, next) => {
-    const seen = ++moves
-    const out = await next(e)
-    await boxChanged($, e.text, e.origin.kind, seen)
-    return out
-  })
-
-  on('prompt.submit', async ($, e, next) => {
-    if (e.origin.kind === 'composer') await submitted($)
-    return next(e)
-  })
-
   // Where the ring stands decides the key line.
   on('ui.focus', async ($, e, next) => {
     if (e.component === 'Pane' && e.requestId === PANE) {
@@ -285,16 +196,17 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button, Input } = $.ui.resolve(e)
     const st = await read($, view)
     const now = await read($, typed)
-    // Read before the list, so a failure in between makes a dismissal do nothing.
-    const drawnFailures = failures
-    const unsaved = await read($, failed)
-    const gone = await read($, lost)
+    const unsaved = entries(await read($, failed))
     const thoughts = await read($, kept)
-    const lines = await read($, draft)
+    const rows = entries(await read($, draft))
+    const lines = rows.map(r => r.text)
+    const last = rows.at(-1)?.id
     const snap = await read($, approved)
     const status = st.unrecorded
       ? `Claude has the lines sent at ${hhmm(st.unrecorded)}. The HUD could not record that Send.`
       : statusOf(lines, snap)
+    // A refusal is news only while the lines differ from what Claude has.
+    const refused = snap && same(lines, snap.lines) ? '' : st.failed
 
     const focused = e.props.isFocused
     const inline = e.props.placement === 'inline'
@@ -328,13 +240,13 @@ export const register: Register = (on, options) => {
     const memory = (
       <Box flexDirection="column">
         {header('Memory', lines.length ? `${lines.length} lines` : 'empty')}
-        {!(st.failed && !snap && !st.unrecorded) && (st.unrecorded
+        {!(refused && !snap && !st.unrecorded) && (st.unrecorded
           ? <Text wrap="wrap" color={TONE.warning}>{status}</Text>
           : <Text wrap="wrap" color={!snap ? undefined : same(lines, snap.lines) ? TONE.remember : LIGHT} dimColor={!snap}>{status}</Text>
         )}
-        {st.failed && <Text wrap="wrap" color={TONE.warning}>{`Not sent. ${st.failed}`}</Text>}
-        {lines.map((l, i) => (
-          <Text key={`mem-${i}`} wrap={inline ? 'truncate-end' : 'wrap'}><Text dimColor>{i + 1} </Text>{l}</Text>
+        {refused && <Text wrap="wrap" color={TONE.warning}>{st.unrecorded ? `The later Send was refused: ${refused}` : `Not sent. ${refused}`}</Text>}
+        {rows.map((r, i) => (
+          <Text key={`mem-${r.id}`} wrap={inline ? 'truncate-end' : 'wrap'}><Text dimColor>{i + 1} </Text>{r.text}</Text>
         ))}
         {lines.length === 0 && quiet('No lines yet. Write one in the field, then press a to add it.')}
       </Box>
@@ -368,9 +280,7 @@ export const register: Register = (on, options) => {
     const shown = w - 12 // the field's width less its frame, label and Enter hint
     const field = (
       <Box flexDirection="column">
-        {gone && <Text color={LIGHT} wrap="truncate-end">Last cleared draft {hhmm(gone.at)} · {gone.text.length} chars: {gone.text}</Text>}
-        {gone && st.restoring && <Text dimColor wrap="wrap">{st.restoring}</Text>}
-        {unsaved.map((text, i) => <Text key={`failed-${i}`} color="warning" wrap="wrap">Not kept, the save failed: {text}</Text>)}
+        {unsaved.map(f => <Text key={`failed-${f.id}`} color="warning" wrap="wrap">Not kept, the save failed: {f.text}</Text>)}
         {now.length > shown && <Text dimColor wrap="wrap">{now}</Text>}
         <Box borderStyle="round" borderColor={focused ? LIGHT : DRAB} paddingX={1}>
           <Input key="thought" label="›" placeholder="a thought for later" submitLabel="keep"
@@ -405,15 +315,14 @@ export const register: Register = (on, options) => {
       return send($).finally(() => { sending = false })
     }
     const acts: Act[] = [
-      ...(gone ? [{ k: 'c', label: 'copy draft', run: () => void copyLost($, gone) }, { k: 'x', label: 'forget draft', run: () => void forgetLost($, gone) }] : []),
-      ...(unsaved.length ? [{ k: 'd', label: 'dismiss failed', run: () => void dismissFailed($, unsaved, drawnFailures) }] : []),
+      ...(unsaved.some(f => f.id) ? [{ k: 'd', label: 'dismiss failed', run: () => void update($, failed, without(unsaved.flatMap(f => f.id ?? []))).catch(() => undefined) }] : []),
       ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
-      ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($) }] : []),
-      ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($) }] : []),
+      ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($, now) }] : []),
+      ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
       ...(showsMemory && lines.length && !(snap && same(lines, snap.lines)) ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
       // shortcut: lines past the ninth have only 0, which removes the last one; add paging if Memory grows that long.
-      ...(showsMemory && !writing ? lines.slice(0, 9).map((_, i) => ({ k: String(i + 1), label: 'remove', run: () => void removeLine($, i) })) : []),
-      ...(showsMemory && !writing && lines.length > 9 ? [{ k: '0', label: 'remove last', run: () => void removeLine($, lines.length - 1) }] : []),
+      ...(showsMemory && !writing ? rows.slice(0, 9).flatMap(({ id }, i) => id ? [{ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([id])).catch(() => undefined) }] : []) : []),
+      ...(showsMemory && !writing && rows.length > 9 && last ? [{ k: '0', label: 'remove last', run: () => void update($, draft, without([last])).catch(() => undefined) }] : []),
     ]
     const rail = focused && (
       <Box flexDirection="row" flexWrap="wrap" gap={1}>
@@ -436,7 +345,7 @@ export const register: Register = (on, options) => {
 
     // --- inline: summary, actions, the field -------------------------------
     if (inline) {
-      const parts = [`memory ${st.failed ? `Not sent. ${st.failed}${st.unrecorded ? ` ${status}` : ''}` : status}`, 'watch preview', `log ${thoughts.length}`]
+      const parts = [`memory ${refused ? (st.unrecorded ? `${status} The later Send was refused: ${refused}` : `Not sent. ${refused}`) : status}`, 'watch preview', `log ${thoughts.length}`]
       const section = st.expand === 1 ? memory : st.expand === 2 ? watch : st.expand === 3 ? log : null
       const hasField = !section || st.expand === 3
       return (

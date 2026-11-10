@@ -10,7 +10,7 @@ async function setup($: any, on: any, initial: Record<string, any>, holdDismiss 
   const cell = (k: string) => cells[k] ?? {value: undefined, version: 0}
   const clock = mock.clock(on, {now: Date.UTC(2026,10,9,14,2)})
   const entered = deferred(), release = deferred(), otherDismissed = deferred(), freshCaptured = deferred()
-  let held = false, denyAppend = false
+  let held = false, denyAppend = false, armed = false
   const session = mock.session(on)
   on('command.register', () => ({value: undefined}))
   on('ui.open', () => ({value: {isPlaced: true}}))
@@ -20,19 +20,20 @@ async function setup($: any, on: any, initial: Record<string, any>, holdDismiss 
   on('state.set', async (_: any, e: any) => {
     if (e.key === 'approved') return {deny: 'injected approval write failure'}
     if (e.key === 'log' && (holdDismiss || denyKeep)) return {deny: 'injected keep failure'}
-    if (e.key === 'failed' && holdDismiss && !held) { held = true; entered.resolve(); await release.promise }
+    if (e.key === 'failed' && holdDismiss && armed && !held) { held = true; entered.resolve(); await release.promise }
     const old = cell(e.key)
     if (e.ifVersion !== undefined && e.ifVersion !== old.version) return {value: {isSet: false, version: old.version}}
     cells[e.key] = {value: e.value, version: old.version + 1}
     if (e.key === 'failed') {
       otherDismissed.resolve()
-      if (e.value.includes('new unseen failure')) freshCaptured.resolve()
+      if (e.value.some((f: any) => f.text === 'new unseen failure')) freshCaptured.resolve()
     }
     return {value: {isSet: true, version: old.version + 1}}
   })
   on('tool.call', (_: any, e: any) => ({result: {answers: {[e.questions[0].question]: 'Send'}}}))
   on('session.append', {door: 'note'}, (_: any, e: any, next: any) => denyAppend ? {deny: 'injected append refusal'} : next(e))
   await $.session.start({cwd: '/', surface: 'terminal', isInteractive: true})
+  armed = true
   return {clock, cells, cell, entered, release, otherDismissed, freshCaptured, appends: () => session.appended().length, refuseAppend: () => {denyAppend = true}}
 }
 for (const placement of ['dock', 'inline']) {
@@ -73,10 +74,10 @@ test(`review: overlapping dismissals preserve fresh failure, old text=${visible}
   // Use the real Input/keep path to append a failed capture after dismissal.
   await $.ui.input({plugin: 'binnacle-hud', key: 'thought', text: 'new unseen failure'})
   await s.freshCaptured.promise
-  expect(s.cell('failed').value).toEqual(['new unseen failure'])
+  expect(s.cell('failed').value.map((e: any) => e.text)).toEqual(['new unseen failure'])
   s.release.resolve(); await s.clock.settle()
   await ui.unmount()
-  expect(s.cell('failed').value).toEqual(['new unseen failure'])
+  expect(s.cell('failed').value.map((e: any) => e.text)).toEqual(['new unseen failure'])
 })
 }
 
@@ -87,10 +88,10 @@ test('review: stale drawn dismissal cannot consume a fresh equal-text failure be
   expect(s.cell('failed').value).toEqual([])
   await $.ui.input({plugin: 'binnacle-hud', key: 'thought', text: 'new unseen failure'})
   await s.freshCaptured.promise
-  expect(s.cell('failed').value).toEqual(['new unseen failure'])
+  expect(s.cell('failed').value.map((e: any) => e.text)).toEqual(['new unseen failure'])
   // The old drawn button is still actionable until the next redraw.
   await ui.press({key: 'k-d'}); await s.clock.settle()
   await ui.unmount()
-  expect(s.cell('failed').value).toEqual(['new unseen failure'])
+  expect(s.cell('failed').value.map((e: any) => e.text)).toEqual(['new unseen failure'])
 })
 

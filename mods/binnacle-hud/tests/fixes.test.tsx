@@ -56,7 +56,7 @@ test('the collapsed strip keeps an unrecorded Send beside a later refusal', { op
   const ui = await $.ui.mount({ ...pane, props: { ...pane.props, placement: 'inline', bodyColumns: 200 } })
   const drawn = JSON.stringify(await ui.drawn())
   await ui.unmount()
-  expect(drawn).toContain(`memory Not sent. refused Claude has the lines sent at ${hhmm(at)}.`)
+  expect(drawn).toContain(`memory Claude has the lines sent at ${hhmm(at)}. The HUD could not record that Send. The later Send was refused: refused`)
 })
 
 test('d dismisses the failed keeps on screen and keeps one that failed since', async ($, on) => {
@@ -66,10 +66,19 @@ test('d dismisses the failed keeps on screen and keeps one that failed since', a
   store.failed = [...store.failed, 'failed after the draw']
   await ui.press({ key: 'k-d' })
   await ui.unmount()
-  expect(store.failed).toEqual(['failed after the draw'])
+  expect(store.failed.map((e: any) => e.text ?? e)).toEqual(['failed after the draw'])
 })
 
 test('no d key when nothing failed', async ($, on) => {
   await start($, on, { failed: [] })
   expect(await shown($)).not.toContain('dismiss failed')
+})
+
+test('the dock names a later refusal as such when an unrecorded Send stands', async ($, on) => {
+  const at = NOW - 60_000
+  await start($, on, { memory: ['ship slice 1'], view: { ring: 2, expand: 0, failed: 'refused', unrecorded: at } })
+  const text = await shown($)
+  expect(text).toContain(`Claude has the lines sent at ${hhmm(at)}.`)
+  expect(text).toContain('The later Send was refused: refused')
+  expect(text).not.toContain('Not sent.')
 })

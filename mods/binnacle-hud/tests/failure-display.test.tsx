@@ -68,7 +68,7 @@ for (const newer of [false, true]) {
     await p.settle()
     expect(p.state.log!.value).toEqual([])
     expect(p.state.typed!.value).toBe(newer ? 'newer draft' : 'first capture')
-    expect(p.state.failed!.value).toEqual(['first capture'])
+    expect(p.state.failed!.value.map((e: any) => e.text)).toEqual(['first capture'])
     containsFailure(await p.failureText(), 'first capture')
   })
 }
@@ -85,7 +85,7 @@ for (const expand of [0, 3]) {
       await p.settle()
       expect(p.state.log!.value).toEqual([])
       expect(p.state.typed!.value).toBe('newer draft')
-      expect(p.state.failed!.value).toEqual(['first capture'])
+      expect(p.state.failed!.value.map((e: any) => e.text)).toEqual(['first capture'])
       containsFailure(await p.failureText(), 'first capture')
     })
 }
