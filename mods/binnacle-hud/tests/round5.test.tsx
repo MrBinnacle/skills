@@ -56,7 +56,7 @@ test('round5: a cleared prompt draft is not copied into session state or shown i
   expect(d).not.toContain('Last cleared draft')
 })
 
-test('round5: no 0 key is drawn, whatever the line shown last', async ($, on) => {
+test('round5: 0 is not drawn when the line shown last has no id', async ($, on) => {
   const ten = Array.from({ length: 10 }, (_, i) => ({ id: `r${i + 1}`, text: `line ${i + 1}` }))
   const s = await start($, on, { memory: ten })
   // A 4.1.0 module still writing after this one started.
@@ -66,12 +66,11 @@ test('round5: no 0 key is drawn, whatever the line shown last', async ($, on) =>
   expect(ids(s.cell('memory').value)).toEqual([...ten.map(l => l.id), 'bare:bare eleventh'])
 })
 
-test('round5: removing line 1 of ten brings the tenth into reach of 9', async ($, on) => {
+test('round5: 0 removes the line shown last, by its id', async ($, on) => {
   const ten = Array.from({ length: 10 }, (_, i) => ({ id: `r${i + 1}`, text: 'same text' }))
   const s = await start($, on, { memory: ten })
-  await s.press('1')
-  await s.press('9')
-  expect(ids(s.cell('memory').value)).toEqual(ten.slice(1, 9).map(l => l.id))
+  await s.press('0')
+  expect(ids(s.cell('memory').value)).toEqual(ten.slice(0, 9).map(l => l.id))
 })
 
 test('round5: a refused Send is not shown once the lines equal what Claude has again', async ($, on) => {
