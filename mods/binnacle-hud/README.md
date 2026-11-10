@@ -26,6 +26,7 @@ The line under the Memory heading says where things stand:
 | Not sent. | Claude has no Memory lines from this session. |
 | In Claude's context since HH:MM. | Claude has exactly the lines shown. |
 | Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines. |
+| Claude has the lines sent at HH:MM. The HUD could not record that Send. | The row reached the conversation, so Claude has the lines. Claude Code refused the HUD's own record of the Send, so the line stays until the next Send that lands. A refused Send shows its reason beside it. |
 
 If Claude Code refuses the row, the HUD shows "Not sent." and the reason, and the previous Send stays in force. To change a line, remove it and add the new wording.
 
@@ -89,7 +90,7 @@ The Claude app does not draw the panel, but it does draw the question dialog. To
 
 The reply is "Kept in the Log." The reply never repeats the thought. In the HUD, the thought shows the word `phone`.
 
-If a keep fails, the HUD shows the submitted text beside the capture field, including in the collapsed strip. Failed attempts stay visible in session state even after later keeps, so you can recover them without replacing a newer draft. A failed `/log` also replies that the save failed, without repeating the thought.
+If a keep fails, the HUD shows the submitted text beside the capture field, including in the collapsed strip. Failed attempts stay visible in session state even after later keeps, so you can recover them without replacing a newer draft. Once you have them, press Tab, then `d`, to dismiss the ones on screen. A failed `/log` also replies that the save failed, without repeating the thought.
 
 If you type text after `/log`, the mod keeps nothing and asks you to use the dialog. Text after a command is part of the conversation.
 

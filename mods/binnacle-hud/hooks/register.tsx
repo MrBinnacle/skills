@@ -6,8 +6,7 @@ import type { Approved, Lost, Thought, View } from '../types'
 // model requests is unverified. Memory holds a draft and the snapshot a confirmed Send
 // gave Claude. Watch is still a preview with one sample finding.
 //
-// Keys inside the pane (after /hud, ctrl+x tab or a click, then Tab off the
-// field): the action row under the field is the whole list, built from what
+// Keys inside the pane (after /hud or a click, then Tab off the field): the action row under the field is the whole list, built from what
 // is on screen, so no key is shown that has no button.
 //
 // State lives under keys types/index.d.ts declares: `view`, the pane's own UI
@@ -26,6 +25,8 @@ const kept = atom({ plugin: 'binnacle-hud', key: 'log' } as const, [] as Thought
 const failed = atom({ plugin: 'binnacle-hud', key: 'failed' } as const, [] as string[])
 // Counts edits for both capture actions: equality cannot identify a retyped draft.
 let edits = 0
+// Counts failed keeps, so a dismissal can tell a new failure from an old one with the same text.
+let failures = 0
 const draft = atom({ plugin: 'binnacle-hud', key: 'memory' } as const, [] as string[])
 const approved = atom({ plugin: 'binnacle-hud', key: 'approved' } as const, null as Approved | null)
 const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, expand: 0, failed: '' } as View)
@@ -87,6 +88,7 @@ async function keep($: EngineInterface, text: string, from: Thought['from']): Pr
     await update($, kept, items => [...items, { text, at: new Date().toISOString(), from }])
     return true
   } catch {
+    failures += 1
     await update($, failed, items => [...items, text]).catch(() => undefined)
     return null
   }
@@ -137,8 +139,20 @@ async function send($: EngineInterface): Promise<void> {
   const text = [`Memory the operator approved at ${hhmm(at)}:`, ...lines].join('\n')
   const out = await $.session.append({ message: { type: 'user', content: [{ type: 'text', text }] } })
     .catch((err: unknown) => ({ deny: err instanceof Error ? err.message : String(err) }))
-  if (!out.deny) await update($, approved, () => ({ lines, at }))
-  await update($, view, v => ({ ...v, failed: out.deny ?? '' }))
+  // The append landed but the snapshot write can still fail. Then Claude has
+  // the lines and the HUD must not say "Not sent."
+  // A refused Send changes nothing Claude has, so it keeps the earlier notice.
+  let unrecorded = 0
+  if (!out.deny) await update($, approved, () => ({ lines, at })).catch(() => { unrecorded = at })
+  await update($, view, v => ({ ...v, failed: out.deny ?? '', unrecorded: out.deny ? v.unrecorded : unrecorded }))
+}
+
+// Drops exactly the failed keeps on screen. It changes nothing when the list
+// no longer starts with them (a second press) or when any keep failed since
+// the list was drawn (equal text is not the same failure), so none is dropped
+// unseen. `at` is the count when the list on screen was read.
+async function dismissFailed($: EngineInterface, seen: readonly string[], at: number): Promise<void> {
+  await update($, failed, items => failures === at && same(items.slice(0, seen.length), seen) ? items.slice(seen.length) : items).catch(() => undefined)
 }
 
 // A submit sets `sentAt` to the newest event number. That is this clear's
@@ -271,12 +285,16 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button, Input } = $.ui.resolve(e)
     const st = await read($, view)
     const now = await read($, typed)
+    // Read before the list, so a failure in between makes a dismissal do nothing.
+    const drawnFailures = failures
     const unsaved = await read($, failed)
     const gone = await read($, lost)
     const thoughts = await read($, kept)
     const lines = await read($, draft)
     const snap = await read($, approved)
-    const status = statusOf(lines, snap)
+    const status = st.unrecorded
+      ? `Claude has the lines sent at ${hhmm(st.unrecorded)}. The HUD could not record that Send.`
+      : statusOf(lines, snap)
 
     const focused = e.props.isFocused
     const inline = e.props.placement === 'inline'
@@ -310,8 +328,9 @@ export const register: Register = (on, options) => {
     const memory = (
       <Box flexDirection="column">
         {header('Memory', lines.length ? `${lines.length} lines` : 'empty')}
-        {!(st.failed && !snap) && (
-          <Text wrap="wrap" color={!snap ? undefined : same(lines, snap.lines) ? TONE.remember : LIGHT} dimColor={!snap}>{status}</Text>
+        {!(st.failed && !snap && !st.unrecorded) && (st.unrecorded
+          ? <Text wrap="wrap" color={TONE.warning}>{status}</Text>
+          : <Text wrap="wrap" color={!snap ? undefined : same(lines, snap.lines) ? TONE.remember : LIGHT} dimColor={!snap}>{status}</Text>
         )}
         {st.failed && <Text wrap="wrap" color={TONE.warning}>{`Not sent. ${st.failed}`}</Text>}
         {lines.map((l, i) => (
@@ -387,6 +406,7 @@ export const register: Register = (on, options) => {
     }
     const acts: Act[] = [
       ...(gone ? [{ k: 'c', label: 'copy draft', run: () => void copyLost($, gone) }, { k: 'x', label: 'forget draft', run: () => void forgetLost($, gone) }] : []),
+      ...(unsaved.length ? [{ k: 'd', label: 'dismiss failed', run: () => void dismissFailed($, unsaved, drawnFailures) }] : []),
       ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
       ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($) }] : []),
       ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($) }] : []),
@@ -416,7 +436,7 @@ export const register: Register = (on, options) => {
 
     // --- inline: summary, actions, the field -------------------------------
     if (inline) {
-      const parts = [`memory ${st.failed ? `Not sent. ${st.failed}` : status}`, 'watch preview', `log ${thoughts.length}`]
+      const parts = [`memory ${st.failed ? `Not sent. ${st.failed}${st.unrecorded ? ` ${status}` : ''}` : status}`, 'watch preview', `log ${thoughts.length}`]
       const section = st.expand === 1 ? memory : st.expand === 2 ? watch : st.expand === 3 ? log : null
       const hasField = !section || st.expand === 3
       return (
