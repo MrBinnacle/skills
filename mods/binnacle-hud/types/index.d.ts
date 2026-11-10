@@ -7,6 +7,9 @@ export type Entry = { id: string; text: string }
 /** What a saved list holds: an entry, or a bare string saved by 4.1.0. */
 export type Saved = Entry | string
 
+/** A saved item as the pane draws it: a bare string has no id, so no key acts on it. */
+export type Row = { id: string | null; text: string }
+
 /** The Memory lines a confirmed Send gave Claude, and when the append landed (epoch ms). */
 export type Approved = { lines: string[]; at: number }
 

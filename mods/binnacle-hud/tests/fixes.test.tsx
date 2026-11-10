@@ -66,7 +66,7 @@ test('d dismisses the failed keeps on screen and keeps one that failed since', a
   store.failed = [...store.failed, 'failed after the draw']
   await ui.press({ key: 'k-d' })
   await ui.unmount()
-  expect(store.failed.map((e: any) => e.text)).toEqual(['failed after the draw'])
+  expect(store.failed.map((e: any) => e.text ?? e)).toEqual(['failed after the draw'])
 })
 
 test('no d key when nothing failed', async ($, on) => {

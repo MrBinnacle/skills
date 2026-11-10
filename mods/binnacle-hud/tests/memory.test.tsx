@@ -152,10 +152,11 @@ test('a Log keep never touches Memory and never appends', async ($, on) => {
   const store: Store = { memory: ['ship slice 1'], approved }
   const session = mock.session(on)
   await start($, on, store)
+  const memory = store.memory
   await $.ui.mount(pane())
   await $.ui.input({ plugin: 'binnacle-hud', key: 'thought', text: 'call the venue' })
   expect(store.log.map((t: { text: string }) => t.text)).toEqual(['call the venue'])
-  expect(store.memory).toEqual(['ship slice 1'])
+  expect(store.memory).toEqual(memory)
   expect(store.approved).toEqual(approved)
   expect(session.appended()).toHaveLength(0)
 })

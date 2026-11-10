@@ -123,17 +123,53 @@ test('round3: a stale dismissal cannot drop a later failure with the same text (
  await ui.press({key:'k-d'});await s.clock.settle();await ui.unmount()
  expect(texts(s.cell('failed').value)).toEqual(['same thought'])
 })
-test('round3: a 4.1.0 session loads with every line and failed keep drawn, and the first write saves the new shape',async($,on)=>{
+test('round3: a 4.1.0 session loads with every line and failed keep drawn, and session start mints their ids',async($,on)=>{
  const s=await start($,on,{memory:['a line','b line'],failed:['a failed keep'],view:{ring:2,expand:1,failed:''}})
+ for(const key of ['memory','failed'])expect(s.cell(key).value.every((e:any)=>typeof e==='object'&&typeof e.id==='string')).toBe(true)
  const ui=await $.ui.mount(pane);const drawn=JSON.stringify(await ui.drawn())
  expect(drawn).toContain('a line');expect(drawn).toContain('b line');expect(drawn).toContain('a failed keep');expect(drawn).not.toContain('undefined')
  await ui.press({key:'k-1'});await s.clock.settle();await ui.unmount()
- expect(s.cell('memory').value).toEqual([{id:'v1-1-b line',text:'b line'}])
+ expect(texts(s.cell('memory').value)).toEqual(['b line'])
 })
 test('round3: a 4.1.0 string appended after a saved entry cannot share its id',async($,on)=>{
  const s=await start($,on,{memory:[{id:'v1-1-B',text:'B'},{id:'v1-2-C',text:'C'},'X'],view:{ring:2,expand:1,failed:''}})
  const ui=await $.ui.mount(pane);await ui.press({key:'k-2'});await s.clock.settle();await ui.unmount()
  expect(texts(s.cell('memory').value)).toEqual(['B','X'])
+})
+const bare=(k:string)=>(s:any,t:string)=>{const old=s.cell(k);s.cells[k]={value:[...old.value,t],version:old.version+1}}
+test('round4: a 4.1.0 string written after start is drawn, and no key acts on it',async($,on)=>{
+ const s=await start($,on,{memory:['A'],view:{ring:2,expand:1,failed:''}});bare('memory')(s,'late')
+ const ui=await $.ui.mount(pane);const drawn=JSON.stringify(await ui.drawn())
+ expect(drawn).toContain('late');expect(drawn).toContain('k-1');expect(drawn).not.toContain('k-2')
+ await ui.unmount()
+})
+test('round4: d is not offered when the only failed keeps are 4.1.0 strings written after start',async($,on)=>{
+ const s=await start($,on,{failed:[]});bare('failed')(s,'late failure')
+ const ui=await $.ui.mount(pane);const drawn=JSON.stringify(await ui.drawn());await ui.unmount()
+ expect(drawn).toContain('late failure');expect(drawn).not.toContain('k-d')
+})
+test('round4: a restore leaves a cleared draft from an earlier load alone (known limit: x forgets it)',async($,on)=>{
+ const old={text:'same',at:0,moves:1,load:'old-load'}
+ const s=await start($,on,{lost:old})
+ await s.type('x');await s.type('y');await s.change('history','same')
+ expect(s.cell('lost').value).toEqual(old)
+})
+test('round4: a restore that arrives while its clear is still being written drops that clear',async($,on)=>{
+ const s=await start($,on);await s.type('same')
+ const g=s.hold((e:any)=>e.key==='lost'&&e.value)
+ const clearing=s.change('clear');await g.entered.promise
+ const restoring=s.change('history','same')
+ g.release.resolve();await clearing;await restoring
+ expect(s.cell('lost').value??null).toBe(null)
+})
+test('round4: a restore with nothing to drop writes nothing',async($,on)=>{
+ const s=await start($,on);await s.type('a');await s.change('history','b')
+ expect(s.writes.filter((w:any)=>w.key==='lost')).toEqual([])
+})
+test('round4: after a copy, an edit to different text keeps the cleared draft',async($,on)=>{
+ const s=await start($,on);await s.type('same');await s.change('clear');const rec=s.cell('lost').value
+ await s.press('c');await s.type('other')
+ expect(s.cell('lost').value).toEqual(rec)
 })
 test('round3: a stale p copies the thought on screen, not one kept after the draw',async($,on)=>{
  const s=await start($,on,{log:[{text:'seen thought',at:'2026-11-09T00:00:00.000Z',from:'terminal'}]})

@@ -10,7 +10,7 @@ async function setup($: any, on: any, initial: Record<string, any>, holdDismiss 
   const cell = (k: string) => cells[k] ?? {value: undefined, version: 0}
   const clock = mock.clock(on, {now: Date.UTC(2026,10,9,14,2)})
   const entered = deferred(), release = deferred(), otherDismissed = deferred(), freshCaptured = deferred()
-  let held = false, denyAppend = false
+  let held = false, denyAppend = false, armed = false
   const session = mock.session(on)
   on('command.register', () => ({value: undefined}))
   on('ui.open', () => ({value: {isPlaced: true}}))
@@ -20,7 +20,7 @@ async function setup($: any, on: any, initial: Record<string, any>, holdDismiss 
   on('state.set', async (_: any, e: any) => {
     if (e.key === 'approved') return {deny: 'injected approval write failure'}
     if (e.key === 'log' && (holdDismiss || denyKeep)) return {deny: 'injected keep failure'}
-    if (e.key === 'failed' && holdDismiss && !held) { held = true; entered.resolve(); await release.promise }
+    if (e.key === 'failed' && holdDismiss && armed && !held) { held = true; entered.resolve(); await release.promise }
     const old = cell(e.key)
     if (e.ifVersion !== undefined && e.ifVersion !== old.version) return {value: {isSet: false, version: old.version}}
     cells[e.key] = {value: e.value, version: old.version + 1}
@@ -33,6 +33,7 @@ async function setup($: any, on: any, initial: Record<string, any>, holdDismiss 
   on('tool.call', (_: any, e: any) => ({result: {answers: {[e.questions[0].question]: 'Send'}}}))
   on('session.append', {door: 'note'}, (_: any, e: any, next: any) => denyAppend ? {deny: 'injected append refusal'} : next(e))
   await $.session.start({cwd: '/', surface: 'terminal', isInteractive: true})
+  armed = true
   return {clock, cells, cell, entered, release, otherDismissed, freshCaptured, appends: () => session.appended().length, refuseAppend: () => {denyAppend = true}}
 }
 for (const placement of ['dock', 'inline']) {

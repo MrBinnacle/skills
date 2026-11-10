@@ -253,6 +253,24 @@ test('a submit that arrives while the clear reads the clock records nothing', as
   expect(s.lost()).toBe(null)
 })
 
+for (const kind of ['history', 'plugin', 'undo']) {
+  test(`a ${kind} restore that arrives while the clear reads the clock leaves no row for the restored text`, async ($, on) => {
+    const hold = deferred()
+    const entered = deferred()
+    const s = await start($, on, { holdClock: hold, entered: entered.resolve })
+    await s.type('same')
+    const clearing = s.change('clear')
+    await entered.promise
+    const restoring = s.change(kind, 'same')
+    await s.settle()
+    hold.resolve()
+    await clearing
+    await restoring
+    await s.settle()
+    expect(s.lost()).toBe(null)
+  })
+}
+
 test('pasting the copied draft back drops its row', async ($, on) => {
   const s = await start($, on)
   await s.type('bring me back')

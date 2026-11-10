@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import type { Approved, Entry, Lost, Saved, Thought, View } from '../types'
+import type { Approved, Entry, Lost, Row, Saved, Thought, View } from '../types'
 
 // Binnacle HUD. The mod does not send the Log to Claude; absence from later
 // model requests is unverified. Memory holds a draft and the snapshot a confirmed Send
@@ -81,7 +81,10 @@ const hhmm = (at: number | string) => new Date(at).toTimeString().slice(0, 5)
 const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((l, i) => l === b[i])
 
 const entry = (text: string): Entry => ({ id: crypto.randomUUID(), text })
-const entries = (saved: readonly Saved[]): Entry[] => saved.map((s, i) => typeof s === 'string' ? { id: `v1-${i}-${s}`, text: s } : s)
+// An id is only ever minted, never derived from a value, so it cannot recur.
+// A bare string (4.1.0) has none until session.start mints one, and no key acts on it.
+const entries = (saved: readonly Saved[]): Row[] => saved.map(s => typeof s === 'string' ? { id: null, text: s } : s)
+const minted = (saved: readonly Saved[]): Saved[] => saved.map(s => typeof s === 'string' ? entry(s) : s)
 
 export const statusOf = (lines: readonly string[], snap: Approved | null): string =>
   !snap ? 'Not sent.'
@@ -96,7 +99,7 @@ async function keep($: EngineInterface, text: string, from: Thought['from']): Pr
     return true
   } catch {
     const miss = entry(text)
-    await update($, failed, items => [...entries(items), miss]).catch(() => undefined)
+    await update($, failed, items => [...items, miss]).catch(() => undefined)
     return null
   }
 }
@@ -118,17 +121,17 @@ async function addLine($: EngineInterface): Promise<void> {
   const text = await read($, typed)
   if (!text.trim()) return
   const line = entry(text.trim())
-  await update($, draft, lines => [...entries(lines), line])
+  await update($, draft, lines => [...lines, line])
   await clearDraft($, text, at)
 }
 
 async function promote($: EngineInterface, shown: string): Promise<void> {
   const line = entry(shown)
-  await update($, draft, saved => { const lines = entries(saved); return lines.at(-1)?.text === shown ? lines : [...lines, line] })
+  await update($, draft, saved => entries(saved).at(-1)?.text === shown ? saved : [...saved, line])
 }
 
 // Each caller names its atom at the update call, which the hooks scan requires.
-const without = (ids: readonly string[]) => (saved: readonly Saved[]) => entries(saved).filter(e => !ids.includes(e.id))
+const without = (ids: readonly string[]) => (saved: readonly Saved[]) => saved.filter(s => typeof s === 'string' || !ids.includes(s.id))
 
 // The lines are frozen when Send is pressed: the question, the row and the
 // snapshot all carry that one value, whatever the draft becomes meanwhile.
@@ -170,11 +173,17 @@ async function boxChanged($: EngineInterface, text: string, kind: string, seen: 
     // waits for this write and then drops it (live order on 2.1.321).
     lossWrite = keepLoss($, before, seen)
     await lossWrite
-  } else {
-    const restored = kind === 'edit' ? copiedLoss : text ? await read($, lost).catch(() => null) : null
+  } else if (kind === 'edit') {
+    const restored = copiedLoss
     if (restored?.text !== text) return
     copiedLoss = null
     await update($, lost, now => sameLoss(now, restored) ? null : now).catch(() => undefined)
+  } else if (text) {
+    // A clear still being written lands first, as for a submit, so this restore can drop it.
+    await lossWrite
+    // The read only gates the write. The write decides, so a clear newer than this event survives.
+    if ((await read($, lost).catch(() => null))?.text !== text) return
+    await update($, lost, now => now && now.load === LOAD && now.text === text && now.moves < seen ? null : now).catch(() => undefined)
   }
 }
 
@@ -221,6 +230,8 @@ export const register: Register = (on, options) => {
     await $.command.register({ name: 'log', description: 'Keep a thought in the Binnacle Log, from any surface, the phone included' })
     // Unasked, the pane waits undrawn below 144 columns (d.ts 2532-2533).
     void $.ui.open(pane)
+    if ((await read($, draft)).some(s => typeof s === 'string')) await update($, draft, minted).catch(() => undefined)
+    if ((await read($, failed)).some(s => typeof s === 'string')) await update($, failed, minted).catch(() => undefined)
     return next(e)
   })
 
@@ -292,6 +303,7 @@ export const register: Register = (on, options) => {
     const thoughts = await read($, kept)
     const rows = entries(await read($, draft))
     const lines = rows.map(r => r.text)
+    const last = rows.findLast(r => r.id)?.id
     const snap = await read($, approved)
     const status = st.unrecorded
       ? `Claude has the lines sent at ${hhmm(st.unrecorded)}. The HUD could not record that Send.`
@@ -407,14 +419,14 @@ export const register: Register = (on, options) => {
     }
     const acts: Act[] = [
       ...(gone ? [{ k: 'c', label: 'copy draft', run: () => void copyLost($, gone) }, { k: 'x', label: 'forget draft', run: () => void forgetLost($, gone) }] : []),
-      ...(unsaved.length ? [{ k: 'd', label: 'dismiss failed', run: () => void update($, failed, without(unsaved.map(f => f.id))).catch(() => undefined) }] : []),
+      ...(unsaved.some(f => f.id) ? [{ k: 'd', label: 'dismiss failed', run: () => void update($, failed, without(unsaved.flatMap(f => f.id ?? []))).catch(() => undefined) }] : []),
       ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
       ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($) }] : []),
       ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
       ...(showsMemory && lines.length && !(snap && same(lines, snap.lines)) ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
       // shortcut: lines past the ninth have only 0, which removes the last one; add paging if Memory grows that long.
-      ...(showsMemory && !writing ? rows.slice(0, 9).map((r, i) => ({ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([r.id])).catch(() => undefined) })) : []),
-      ...(showsMemory && !writing && rows.length > 9 ? [{ k: '0', label: 'remove last', run: () => void update($, draft, without([rows.at(-1)!.id])).catch(() => undefined) }] : []),
+      ...(showsMemory && !writing ? rows.slice(0, 9).flatMap(({ id }, i) => id ? [{ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([id])).catch(() => undefined) }] : []) : []),
+      ...(showsMemory && !writing && rows.length > 9 && last ? [{ k: '0', label: 'remove last', run: () => void update($, draft, without([last])).catch(() => undefined) }] : []),
     ]
     const rail = focused && (
       <Box flexDirection="row" flexWrap="wrap" gap={1}>
