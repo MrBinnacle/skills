@@ -162,17 +162,25 @@ async function send($: EngineInterface): Promise<void> {
 // submitted keeps the draft as lost. A stash or recall that brings the lost
 // text back drops it, and so does a paste of the copied draft. Other
 // keystrokes touch no state.
-async function boxChanged($: EngineInterface, text: string, kind: string, seen: number): Promise<void> {
-  if (seen < applied) return
-  applied = seen
-  const before = box
-  box = text
-  if (kind === 'clear' && sentAt !== seen - 1 && sentAt !== seen && before.trim() && !before.startsWith('/') && text !== before) {
+// An event that finishes after a newer one never moves the box back. A late
+// clear still keeps the draft it took, from the box as it arrived, unless a
+// newer clear already kept one or the text is back in the box.
+async function boxChanged($: EngineInterface, text: string, kind: string, seen: number, prior: string): Promise<void> {
+  const late = seen < applied
+  const before = late ? prior : box
+  if (!late) {
+    applied = seen
+    box = text
+  }
+  if (kind === 'clear' && sentAt !== seen - 1 && sentAt !== seen && before.trim() && !before.startsWith('/') && text !== before
+    && !(late && (box === before || seen < lossAt))) {
     lossAt = seen
     // Assigned before any await, so a submit arriving right after this clear
     // waits for this write and then drops it (live order on 2.1.321).
     lossWrite = keepLoss($, before, seen)
     await lossWrite
+  } else if (late) {
+    return
   } else if (kind === 'edit') {
     const restored = copiedLoss
     if (restored?.text !== text) return
@@ -269,14 +277,16 @@ export const register: Register = (on, options) => {
   on('prompt.edit', async ($, e, next) => {
     const seen = ++moves
     const out = await next(e)
-    if (typeof out?.text === 'string') await boxChanged($, out.text, 'edit', seen)
+    if (typeof out?.text === 'string') await boxChanged($, out.text, 'edit', seen, box)
     return out
   })
 
+  // A change's text is final when it arrives (d.ts PromptChangeInput), so the box it replaced is read then.
   on('prompt.change', async ($, e, next) => {
     const seen = ++moves
+    const prior = box
     const out = await next(e)
-    await boxChanged($, e.text, e.origin.kind, seen)
+    await boxChanged($, e.text, e.origin.kind, seen, prior)
     return out
   })
 

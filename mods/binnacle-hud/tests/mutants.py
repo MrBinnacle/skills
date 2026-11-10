@@ -16,7 +16,11 @@ SOURCE = ROOT / "hooks" / "register.tsx"
 # name -> list of (find, replace); each find must occur exactly once.
 MUTANTS = {
     # Draft shadow (#664)
-    "late event ignored": [("  if (seen < applied) return\n", "")],
+    "late event never moves the box": [("  if (!late) {\n    applied = seen\n    box = text\n  }\n", "  applied = seen\n  box = text\n")],
+    "late clear keeps the box it took": [("const before = late ? prior : box", "const before = box")],
+    "late clear skips text that is back": [("(box === before || seen < lossAt)", "(seen < lossAt)")],
+    "late clear yields to a newer clear": [("(box === before || seen < lossAt)", "(box === before)")],
+    "late non-clear does nothing": [("  } else if (late) {\n    return\n", "  } else if (false) {\n    return\n")],
     "newer clear wins a retry": [("now => lossAt === seen ? rec : now", "() => rec")],
     "submit waits for the pending write": [("  await lossWrite\n  await update", "  await update")],
     "skip a clear the submit took": [("sentAt !== seen - 1 && sentAt !== seen && ", "sentAt !== seen - 1 && ")],

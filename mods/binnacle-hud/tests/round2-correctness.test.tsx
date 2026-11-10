@@ -5,7 +5,7 @@ async function start($:any,on:any,initial:any={}) {
  const clock=mock.clock(on)
  const cells:any=Object.fromEntries(Object.entries(initial).map(([k,value])=>[k,{value,version:1}]))
  const cell=(k:string)=>cells[k]??{value:undefined,version:0}
- let gate:any=null, box=''; let denied=false; let copy:any={isCopied:true}
+ let gate:any=null, changeGate:any=null, box=''; let denied=false; let copy:any={isCopied:true}
  const writes:any[]=[]
  on('command.register',()=>({value:undefined}));on('ui.open',()=>({value:{isPlaced:true}}));on('ui.focus',()=>({value:{}}))
  on('session.start',(_:any,e:any)=>({cwd:e.cwd}))
@@ -20,10 +20,11 @@ async function start($:any,on:any,initial:any={}) {
   cells[e.key]={value:e.value,version:old.version+1};return {value:{isSet:true,version:old.version+1}}
  })
  on('prompt.edit',(_:any,e:any)=>{box=e.text.slice(0,e.start)+e.inputText+e.text.slice(e.end);return {text:box,cursor:box.length}})
- on('prompt.change',(_:any,e:any)=>({text:e.text}));on('prompt.submit',(_:any,e:any)=>({text:e.text}));on('ui.copy',()=>({value:copy}))
+ on('prompt.change',async(_:any,e:any)=>{if(changeGate&&changeGate.match(e)){const g=changeGate;changeGate=null;g.entered.resolve();await g.release.promise}return {text:e.text}});on('prompt.submit',(_:any,e:any)=>({text:e.text}));on('ui.copy',()=>({value:copy}))
  await $.session.start({cwd:'/',surface:'terminal',isInteractive:true})
  return {clock,cells,cell,writes,deny:()=>denied=true,refuseCopy:()=>copy={isCopied:false,reason:'no clipboard'},
  hold:(match:any)=>{const g={match,entered:deferred(),release:deferred()};gate=g;return g},
+ holdChange:(match:any)=>{const g={match,entered:deferred(),release:deferred()};changeGate=g;return g},
  type:(text:string)=>$.prompt.edit({origin:{kind:'composer'},text:box,cursor:box.length,start:0,end:box.length,inputText:text}),
  change:(kind:string,text='')=>{box=text;return $.prompt.change({text,cursor:text.length,origin:{kind}})},
  submit:()=>$.prompt.submit({text:box,wait:false,origin:{kind:'composer'}}),
@@ -186,5 +187,38 @@ test('round3: a refused copy leaves no marker, so typing the same text keeps the
 test('round3: a submit from outside the composer does not drop a cleared draft',async($,on)=>{
  const s=await start($,on);await s.type('draft');await s.change('clear');const rec=s.cell('lost').value
  await $.prompt.submit({text:'from a plugin',wait:false,origin:{kind:'plugin'}})
+ expect(s.cell('lost').value).toEqual(rec)
+})
+test('round4: a clear that finishes after a newer change still keeps its draft',async($,on)=>{
+ const s=await start($,on);await s.type('important draft')
+ const g=s.holdChange((e:any)=>e.origin.kind==='clear')
+ const clearing=s.change('clear');await g.entered.promise
+ await s.change('history','ls')
+ g.release.resolve();await clearing;await s.clock.settle()
+ expect(s.cell('lost').value?.text).toBe('important draft')
+})
+test('round4: a late clear whose text a newer restore brought back keeps no row',async($,on)=>{
+ const s=await start($,on);await s.type('same')
+ const g=s.holdChange((e:any)=>e.origin.kind==='clear')
+ const clearing=s.change('clear');await g.entered.promise
+ await s.change('history','same')
+ g.release.resolve();await clearing;await s.clock.settle()
+ expect(s.cell('lost').value??null).toBe(null)
+})
+test('round4: a late clear does not replace a newer clear',async($,on)=>{
+ const s=await start($,on);await s.type('first')
+ const g=s.holdChange((e:any)=>e.origin.kind==='clear')
+ const clearing=s.change('clear');await g.entered.promise
+ await s.type('second');await s.change('clear');const fresh=s.cell('lost').value
+ expect(fresh.text).toBe('second')
+ g.release.resolve();await clearing;await s.clock.settle()
+ expect(s.cell('lost').value).toEqual(fresh)
+})
+test('round4: a restore that finishes after a newer clear does not drop the only copy of its draft',async($,on)=>{
+ const s=await start($,on);await s.type('same');await s.change('clear');const rec=s.cell('lost').value
+ const g=s.holdChange((e:any)=>e.origin.kind==='history')
+ const restoring=s.change('history','same');await g.entered.promise
+ await s.change('clear')
+ g.release.resolve();await restoring;await s.clock.settle()
  expect(s.cell('lost').value).toEqual(rec)
 })
