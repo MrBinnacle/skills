@@ -38,11 +38,15 @@ const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, e
 // arrives, so an event that finishes late cannot overwrite a newer one, and a
 // submit can tell the clear it caused from a clear after more typing.
 let box = ''
-let moves = 0
+// Starts at the load time in ms, so numbers from this load are above any a
+// cleared draft stored before a reload carries, and a submit cannot match one.
+let moves = Date.now()
 let applied = 0
 let lossAt = 0
 let sentAt = -1
 let lossWrite: Promise<void> = Promise.resolve()
+// The cleared draft last copied, so pasting it back drops its row.
+let copiedText = ''
 const lost = atom({ plugin: 'binnacle-hud', key: 'lost' } as const, null as Lost | null)
 
 type Finding = { text: string; why: string; source: string; age: string }
@@ -160,7 +164,8 @@ async function dismissFailed($: EngineInterface, seen: readonly string[], at: nu
 // and the number before it when the submit came first.
 // Applies one change to the box. A clear that empties a draft nobody
 // submitted keeps the draft as lost. A stash or recall that brings the lost
-// text back drops it. A keystroke touches no state.
+// text back drops it, and so does a paste of the copied draft. Other
+// keystrokes touch no state.
 async function boxChanged($: EngineInterface, text: string, kind: string, seen: number): Promise<void> {
   if (seen < applied) return
   applied = seen
@@ -172,7 +177,8 @@ async function boxChanged($: EngineInterface, text: string, kind: string, seen: 
     // waits for this write and then drops it (live order on 2.1.321).
     lossWrite = keepLoss($, before, seen)
     await lossWrite
-  } else if (kind !== 'edit' && text && (await read($, lost).catch(() => null))?.text === text) {
+  } else if (text && (kind === 'edit' ? text === copiedText : (await read($, lost).catch(() => null))?.text === text)) {
+    copiedText = ''
     await update($, lost, now => now && now.text === text ? null : now).catch(() => undefined)
   }
 }
@@ -196,14 +202,15 @@ async function submitted($: EngineInterface): Promise<void> {
 // flight could mix into text typed meanwhile (live repro, review of d372767).
 async function copyLost($: EngineInterface, rec: Lost): Promise<void> {
   const out = await $.ui.copy({ text: rec.text }).catch(() => null)
-  const restoring = out?.isCopied ? 'Copied. Paste it into the prompt with Ctrl+V.'
+  if (out?.isCopied) copiedText = rec.text
+  const copied = out?.isCopied ? 'Copied. Paste it into the prompt with Ctrl+V.'
     : `Not copied${out && !out.isCopied ? `: ${out.reason}` : ''}.`
-  await update($, view, v => ({ ...v, restoring })).catch(() => undefined)
+  await update($, view, v => ({ ...v, copied })).catch(() => undefined)
 }
 
 async function forgetLost($: EngineInterface, rec: Lost): Promise<void> {
   await update($, lost, cur => cur && cur.at === rec.at && cur.moves === rec.moves ? null : cur).catch(() => undefined)
-  await update($, view, v => ({ ...v, restoring: '' })).catch(() => undefined)
+  await update($, view, v => ({ ...v, copied: '' })).catch(() => undefined)
 }
 
 export const register: Register = (on, options) => {
@@ -332,7 +339,7 @@ export const register: Register = (on, options) => {
           ? <Text wrap="wrap" color={TONE.warning}>{status}</Text>
           : <Text wrap="wrap" color={!snap ? undefined : same(lines, snap.lines) ? TONE.remember : LIGHT} dimColor={!snap}>{status}</Text>
         )}
-        {st.failed && <Text wrap="wrap" color={TONE.warning}>{`Not sent. ${st.failed}`}</Text>}
+        {st.failed && <Text wrap="wrap" color={TONE.warning}>{st.unrecorded ? `The later Send was refused: ${st.failed}` : `Not sent. ${st.failed}`}</Text>}
         {lines.map((l, i) => (
           <Text key={`mem-${i}`} wrap={inline ? 'truncate-end' : 'wrap'}><Text dimColor>{i + 1} </Text>{l}</Text>
         ))}
@@ -369,7 +376,7 @@ export const register: Register = (on, options) => {
     const field = (
       <Box flexDirection="column">
         {gone && <Text color={LIGHT} wrap="truncate-end">Last cleared draft {hhmm(gone.at)} · {gone.text.length} chars: {gone.text}</Text>}
-        {gone && st.restoring && <Text dimColor wrap="wrap">{st.restoring}</Text>}
+        {gone && st.copied && <Text dimColor wrap="wrap">{st.copied}</Text>}
         {unsaved.map((text, i) => <Text key={`failed-${i}`} color="warning" wrap="wrap">Not kept, the save failed: {text}</Text>)}
         {now.length > shown && <Text dimColor wrap="wrap">{now}</Text>}
         <Box borderStyle="round" borderColor={focused ? LIGHT : DRAB} paddingX={1}>
@@ -436,7 +443,7 @@ export const register: Register = (on, options) => {
 
     // --- inline: summary, actions, the field -------------------------------
     if (inline) {
-      const parts = [`memory ${st.failed ? `Not sent. ${st.failed}${st.unrecorded ? ` ${status}` : ''}` : status}`, 'watch preview', `log ${thoughts.length}`]
+      const parts = [`memory ${st.failed ? (st.unrecorded ? `${status} The later Send was refused: ${st.failed}` : `Not sent. ${st.failed}`) : status}`, 'watch preview', `log ${thoughts.length}`]
       const section = st.expand === 1 ? memory : st.expand === 2 ? watch : st.expand === 3 ? log : null
       const hasField = !section || st.expand === 3
       return (

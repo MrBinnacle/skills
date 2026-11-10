@@ -26,7 +26,7 @@ The line under the Memory heading says where things stand:
 | Not sent. | Claude has no Memory lines from this session. |
 | In Claude's context since HH:MM. | Claude has exactly the lines shown. |
 | Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines. |
-| Claude has the lines sent at HH:MM. The HUD could not record that Send. | The row reached the conversation, so Claude has the lines. Claude Code refused the HUD's own record of the Send, so the line stays until the next Send that lands. A refused Send shows its reason beside it. |
+| Claude has the lines sent at HH:MM. The HUD could not record that Send. | The row reached the conversation, so Claude has the lines. Claude Code refused the HUD's own record of the Send, so the line stays until the next Send that lands. A later refused Send shows "The later Send was refused:" and its reason beside it. Sending again adds the lines to the conversation again. |
 
 If Claude Code refuses the row, the HUD shows "Not sent." and the reason, and the previous Send stays in force. To change a line, remove it and add the new wording.
 
@@ -37,7 +37,7 @@ To set a draft aside on purpose, use Claude Code's own Ctrl+S stash. This sectio
 When anything other than a submit empties the Claude prompt box, the HUD keeps the text it held. The Log then shows "Last cleared draft HH:MM · N chars:" followed by the text.
 
 1. Open the HUD with `/hud` or a click, and press Tab to reach the actions.
-2. Press `c` to copy the text. Then paste it into the prompt with Ctrl+V. The mod never writes into the prompt box and never submits, so nothing you type there can be changed by it.
+2. Press `c` to copy the text. Then paste it into the prompt with Ctrl+V. Pasting it back removes the row. The mod never writes into the prompt box and never submits, so nothing you type there can be changed by it.
 3. Press `x` to forget the copy instead.
 
 The HUD keeps one cleared draft, the newest. A submit and a cleared slash command leave nothing. Claude Code reports a Ctrl+S stash the same way as Ctrl+C, so a stash also shows here until you press Ctrl+S again to put it back, which drops the copy. The Up and Down arrows already bring a draft back, so the mod does not track them.

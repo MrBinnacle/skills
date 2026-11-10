@@ -252,3 +252,21 @@ test('a submit that arrives while the clear reads the clock records nothing', as
   await s.settle()
   expect(s.lost()).toBe(null)
 })
+
+test('pasting the copied draft back drops its row', async ($, on) => {
+  const s = await start($, on)
+  await s.type('bring me back')
+  await s.change('clear')
+  await s.press('c')
+  await s.type('bring me back')
+  expect(s.lost()).toBe(null)
+  expect(await s.shown()).not.toContain('Last cleared draft')
+})
+
+test('typing the same text without a copy keeps the row', async ($, on) => {
+  const s = await start($, on)
+  await s.type('same words')
+  await s.change('clear')
+  await s.type('same words')
+  expect(s.lost()?.text).toBe('same words')
+})
