@@ -22,6 +22,6 @@ async function start($:any,on:any, initial:any = {}) {
  return {cells,cell,type,clear,submit,press,shown}
 }
 for(const placement of ['dock','inline']) test(`acceptance: ${placement} refusal without unrecorded Send says Not sent`,{options:{narrow:'strip'}},async($,on)=>{
- const s=await start($,on,{memory:['not sent'],view:{ring:2,expand:1,failed:'injected refusal'}})
+ const s=await start($,on,{memory:['not sent'],view:{ring:2,expand:1,failed:'injected refusal',refusedLines:['not sent']}})
  const text=await s.shown(placement);expect(text).toContain('Not sent.');expect(text).not.toContain('The later Send was refused');expect(text).not.toContain('Claude has the lines sent at')
 })

@@ -28,7 +28,7 @@ The line under the Memory heading says where things stand:
 | Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines. |
 | Claude has the lines sent at HH:MM. The HUD could not record that Send. | The row reached the conversation, so Claude has the lines. Claude Code refused the HUD's own record of the Send, so the line stays until the next Send that lands. A later refused Send shows "The later Send was refused:" and its reason beside it. Sending again adds the lines to the conversation again. |
 
-If Claude Code refuses the row, the HUD shows "Not sent." and the reason until the lines match what Claude has again, and the previous Send stays in force. To change a line, remove it and add the new wording.
+If Claude Code refuses the row, the HUD shows "Not sent." and the reason while the lines are the ones that Send carried. The reason goes away when you change the lines or when they match what Claude has. The previous Send stays in force. To change a line, remove it and add the new wording.
 
 ## Get back a prompt you wiped by accident
 
