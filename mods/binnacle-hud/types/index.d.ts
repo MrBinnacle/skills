@@ -8,7 +8,7 @@ export type Approved = { lines: string[]; at: number }
 export type View = { ring: 0 | 1 | 2; expand: number; failed: string; unrecorded?: number; copied?: string }
 
 /** A prompt-box draft that a clear emptied with no submit: its text, when (epoch ms), and the box's change count then. */
-export type Lost = { text: string; at: number; moves: number }
+export type Lost = { text: string; at: number; moves: number; load: string }
 
 declare module 'claude-code' {
   interface PluginState {

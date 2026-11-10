@@ -38,15 +38,17 @@ const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, e
 // arrives, so an event that finishes late cannot overwrite a newer one, and a
 // submit can tell the clear it caused from a clear after more typing.
 let box = ''
-// Starts at the load time in ms, so numbers from this load are above any a
-// cleared draft stored before a reload carries, and a submit cannot match one.
-let moves = Date.now()
+// A cleared draft outlives a reload but `moves` restarts, so each record also
+// names the load that wrote it. Only a record of this load matches a number.
+const LOAD = Math.random().toString(36).slice(2)
+let moves = 0
 let applied = 0
 let lossAt = 0
 let sentAt = -1
 let lossWrite: Promise<void> = Promise.resolve()
-// The cleared draft last copied, so pasting it back drops its row.
-let copiedText = ''
+// The cleared draft last copied, so pasting it back drops that record's row.
+let copiedLoss: Lost | null = null
+const sameLoss = (a: Lost | null, b: Lost | null) => !!a && !!b && a.load === b.load && a.moves === b.moves
 const lost = atom({ plugin: 'binnacle-hud', key: 'lost' } as const, null as Lost | null)
 
 type Finding = { text: string; why: string; source: string; age: string }
@@ -177,14 +179,15 @@ async function boxChanged($: EngineInterface, text: string, kind: string, seen: 
     // waits for this write and then drops it (live order on 2.1.321).
     lossWrite = keepLoss($, before, seen)
     await lossWrite
-  } else if (text && (kind === 'edit' ? text === copiedText : (await read($, lost).catch(() => null))?.text === text)) {
-    copiedText = ''
-    await update($, lost, now => now && now.text === text ? null : now).catch(() => undefined)
+  } else if (kind === 'edit' ? text === copiedLoss?.text : text && (await read($, lost).catch(() => null))?.text === text) {
+    const mine = kind === 'edit' ? copiedLoss : null
+    copiedLoss = null
+    await update($, lost, now => now && (mine ? sameLoss(now, mine) : now.text === text) ? null : now).catch(() => undefined)
   }
 }
 
 async function keepLoss($: EngineInterface, before: string, seen: number): Promise<void> {
-  const rec = { text: before, at: await $.clock.now(), moves: seen }
+  const rec = { text: before, at: await $.clock.now(), moves: seen, load: LOAD }
   // On a retry, a newer clear's draft wins.
   await update($, lost, now => lossAt === seen ? rec : now).catch(() => undefined)
 }
@@ -194,7 +197,7 @@ async function keepLoss($: EngineInterface, before: string, seen: number): Promi
 async function submitted($: EngineInterface): Promise<void> {
   const at = sentAt = moves
   await lossWrite
-  await update($, lost, now => now && now.moves === at ? null : now).catch(() => undefined)
+  await update($, lost, now => now && now.load === LOAD && now.moves === at ? null : now).catch(() => undefined)
 }
 
 // Copies the cleared draft for the person to paste. It never writes the
@@ -202,13 +205,14 @@ async function submitted($: EngineInterface): Promise<void> {
 // flight could mix into text typed meanwhile (live repro, review of d372767).
 async function copyLost($: EngineInterface, rec: Lost): Promise<void> {
   const out = await $.ui.copy({ text: rec.text }).catch(() => null)
-  if (out?.isCopied) copiedText = rec.text
+  if (out?.isCopied) copiedLoss = rec
   const copied = out?.isCopied ? 'Copied. Paste it into the prompt with Ctrl+V.'
     : `Not copied${out && !out.isCopied ? `: ${out.reason}` : ''}.`
   await update($, view, v => ({ ...v, copied })).catch(() => undefined)
 }
 
 async function forgetLost($: EngineInterface, rec: Lost): Promise<void> {
+  if (sameLoss(copiedLoss, rec)) copiedLoss = null
   await update($, lost, cur => cur && cur.at === rec.at && cur.moves === rec.moves ? null : cur).catch(() => undefined)
   await update($, view, v => ({ ...v, copied: '' })).catch(() => undefined)
 }
