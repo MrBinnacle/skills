@@ -12,8 +12,10 @@
 """
 from __future__ import annotations
 
+import io
 import sys
 import tempfile
+from contextlib import redirect_stdout
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -69,7 +71,10 @@ def main() -> int:
             check("a clean hook file passes, and the .md beside it is not read", cou.main([]) == 0)
             (hooks / "lib").mkdir()
             (hooks / "lib" / "state.ts").write_text("\ufeffupdate($, tip, () => x)\n", encoding="utf-8")
-            check("a nested .ts hook file with a byte-order mark is read", cou.main([]) == 1)
+            with redirect_stdout(io.StringIO()) as shown:
+                code = cou.main([])
+            check("a nested .ts hook file is read, and its byte-order mark is not shown",
+                  code == 1 and "﻿" not in shown.getvalue() and "state.ts:1:" in shown.getvalue(), shown.getvalue())
             check("a named file is read in place of the tree", cou.main([str(hooks / "register.tsx")]) == 0)
         finally:
             cou.ROOT = real_root

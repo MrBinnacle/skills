@@ -72,3 +72,40 @@ test('two scans of one heads-up deliver and ask about it once', { options: { del
   await flush()
   expect({ toasts: p.toasts.filter(t => t.includes(TIP.line)).length, asks: p.asks() }).toEqual({ toasts: 1, asks: 1 })
 })
+
+test('a heads-up skipped while a scan is between its two steps does not come back', { options: { deliver: 'computer' } }, async ($, on) => {
+  const store: Record<string, unknown> = {}
+  const versions: Record<string, number> = {}
+  let pause: ReturnType<typeof deferred> | null = null
+  let paused = false
+  on('state.get', async (_: unknown, e: { key: string }) => {
+    const read = { value: { value: store[e.key], version: versions[e.key] ?? 0 } }
+    if (e.key === 'outcomes' && pause && !paused) { paused = true; await pause.promise }
+    return read
+  })
+  on('state.set', (_: unknown, e: { key: string; value: unknown }) => {
+    const version = (versions[e.key] ?? 0) + 1
+    store[e.key] = e.value
+    versions[e.key] = version
+    return { value: { isSet: true as const, version } }
+  })
+  const p = await engine($, on, true)
+  p.offerNow(TIP)
+  await p.turnEnds('t1')
+  await flush()
+  p.reads.splice(0).forEach(r => r.resolve())
+  await flush()
+  expect((await tips($)).text).toBe(cardText(TIP))
+  await p.turnEnds('t2')
+  await flush()
+  expect(p.reads.length).toBe(1)
+  pause = deferred()
+  p.reads[0]!.resolve()
+  await flush()
+  expect(paused).toBe(true)
+  expect((await tips($, 'skip')).text).toContain('Dismissed')
+  pause.resolve()
+  await flush()
+  expect({ toasts: p.toasts.filter(t => t.includes(TIP.line)).length, waiting: (await tips($)).text === cardText(TIP) })
+    .toEqual({ toasts: 1, waiting: false })
+})

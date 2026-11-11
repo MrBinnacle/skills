@@ -164,9 +164,17 @@ async function offer($: EngineInterface, delivery: Delivery, found: Tip | null):
     isNew = now?.line !== found.line && !(found.line === DEMO.line && now)
     return isNew ? found : now
   })
-  if (isNew) {
-    deliver($, delivery, found)
+  if (!isNew) {
+    return
   }
+
+  // settle() records the outcome before it clears the heads-up, so a heads-up
+  // settled since the first read is either seen here or cleared by settle().
+  if (Object.hasOwn(await read($, outcomes), found.line)) {
+    await update($, tip, now => (now?.line === found.line ? null : now))
+    return
+  }
+  deliver($, delivery, found)
 }
 
 function deliver($: EngineInterface, delivery: Delivery, current: Tip): void {
