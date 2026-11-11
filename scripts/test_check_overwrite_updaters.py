@@ -5,7 +5,9 @@
       - the line #645 shipped at c02288f (`update($, tip, () => current)`) is refused;
       - a zero-argument updater split over two lines is refused at the arrow's line;
       - an updater that takes the stored value passes;
-      - an overwrite with a reason passes, and an empty reason does not;
+      - the `_`, typed, generic and commented forms and a `$.state.set` without `ifVersion` are refused;
+      - an overwrite with a reason on its own line passes; an empty, block-comment or other-line reason does not;
+      - a nested hook file is read, and a named file is read in place of the tree;
       - the mods in this tree pass.
 """
 from __future__ import annotations
@@ -40,6 +42,18 @@ def main() -> int:
     check("an overwrite with a reason passes",
           not cou.findings("update($, tip, () => found) // overwrite: a new offer replaces the waiting note"))
     check("an empty reason is refused", len(cou.findings("update($, tip, () => found) // overwrite:")) == 1)
+    for form in ("update($, tip, _ => x)", "update($, tip, (_) => x)", "update($, tip, (_: Tip | null) => x)",
+                 "update($, tip, (): Tip => x)", "update<Tip>($, tip, () => x)", "update($, tip, /* blind */ () => x)",
+                 "$.state.set(tip, x)"):
+        check(f"the blind form {form!r} is refused", len(cou.findings(form)) == 1, cou.findings(form))
+    check("a set that names the version it read passes", not cou.findings("$.state.set(tip, x, { ifVersion: v })"))
+    two = "update($, a, () => x)\nupdate($, b, () => y) // overwrite: b is rebuilt on each start\n"
+    check("a reason excuses only its own line", cou.findings(two) == [(1, "update($, a, () => x)")], cou.findings(two))
+    check("a reason in a block comment is no reason",
+          len(cou.findings("update($, tip, () => found) /* overwrite: newest wins */")) == 1)
+    sep = "const s = 'a\u2028b'\nupdate($, tip, () => x)\n"
+    check("a Unicode line separator does not shift the line shown", cou.findings(sep) == [(2, "update($, tip, () => x)")],
+          cou.findings(sep))
     check("the mods in this tree pass", cou.main([]) == 0)
     real_root = cou.ROOT
     with tempfile.TemporaryDirectory() as tmp:
@@ -53,6 +67,10 @@ def main() -> int:
             check("a hook file with the #645 line is rejected", cou.main([]) == 1)
             (hooks / "register.tsx").write_text("update($, tip, now => now)\n", encoding="utf-8")
             check("a clean hook file passes, and the .md beside it is not read", cou.main([]) == 0)
+            (hooks / "lib").mkdir()
+            (hooks / "lib" / "state.ts").write_text("\ufeffupdate($, tip, () => x)\n", encoding="utf-8")
+            check("a nested .ts hook file with a byte-order mark is read", cou.main([]) == 1)
+            check("a named file is read in place of the tree", cou.main([str(hooks / "register.tsx")]) == 0)
         finally:
             cou.ROOT = real_root
     if FAILURES:

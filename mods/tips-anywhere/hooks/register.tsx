@@ -157,12 +157,16 @@ async function offer($: EngineInterface, delivery: Delivery, found: Tip | null):
     return
   }
 
-  if ((await read($, tip))?.line === found.line) {
-    return
+  // One step decides and writes, so two scans of one heads-up deliver it once,
+  // and the sample never replaces a real heads-up that arrived during its delay.
+  let isNew = false
+  await update($, tip, now => {
+    isNew = now?.line !== found.line && !(found.line === DEMO.line && now)
+    return isNew ? found : now
+  })
+  if (isNew) {
+    deliver($, delivery, found)
   }
-
-  await update($, tip, () => found) // overwrite: the newest heads-up replaces the one waiting
-  deliver($, delivery, found)
 }
 
 function deliver($: EngineInterface, delivery: Delivery, current: Tip): void {
