@@ -161,7 +161,7 @@ async function offer($: EngineInterface, delivery: Delivery, found: Tip | null):
     return
   }
 
-  await update($, tip, () => found)
+  await update($, tip, () => found) // overwrite: the newest heads-up replaces the one waiting
   deliver($, delivery, found)
 }
 
@@ -194,9 +194,7 @@ async function settle($: EngineInterface, line: string, outcome: Outcome): Promi
   await update($, outcomes, all =>
     Object.fromEntries([...Object.entries(all).filter(([key]) => key !== line), [line, outcome]].slice(-100)),
   )
-  if ((await read($, tip))?.line === line) {
-    await update($, tip, () => null)
-  }
+  await update($, tip, now => (now?.line === line ? null : now))
 }
 
 // Once per heads-up: a second tap or a late /tips do sends nothing. Only the
@@ -318,7 +316,7 @@ async function demo($: EngineInterface, delivery: Delivery): Promise<string> {
   }
 
   await update($, outcomes, ({ [DEMO.line]: _, ...rest }) => rest)
-  await update($, tip, () => null)
+  await update($, tip, now => (now?.line === DEMO.line ? null : now))
   void $.clock.sleep(DEMO_DELAY_MS).then(() => offer($, delivery, DEMO))
 
   return `A sample heads-up arrives in about ${DEMO_DELAY_MS / 1000} seconds as ${HOW[delivery]}.`
