@@ -73,15 +73,22 @@ const memoryText = (snap: Approved) => [`Memory the operator approved at ${hhmm(
 // Only a compaction that replayed this snapshot speaks for it.
 const replayOf = (snap: Approved, att: Attached | null) => att?.approvedAt === snap.at ? att : null
 
-export const statusOf = (lines: readonly string[], snap: Approved | null, att: Attached | null = null): string => {
-  if (!snap) return 'Not sent.'
-  const replay = replayOf(snap, att)
+// The words, their colour and the Send key come from one answer, so the
+// colour never says "Claude has them" beside words that do not.
+type Status = { text: string; tone: keyof typeof TONE | null; send: boolean }
+export const statusOf = (lines: readonly string[], snap: Approved | null, att: Attached | null = null, unrecorded = 0): Status => {
+  const replay = snap && replayOf(snap, att)
   const at = replay && hhmm(replay.at)
-  return replay?.state === 'missing' ? `Not in Claude's context after the compaction at ${at}. Send again to restore it.`
-    : replay && replay.state !== 'found' ? `Approved ${hhmm(snap.at)}. Not checked after the compaction at ${at}.`
-    : !same(lines, snap.lines) ? `Changed since Send. Claude has the ${hhmm(snap.at)} version.`
-    : replay ? `Re-attached after the compaction at ${at}.`
-    : `In Claude's context since ${hhmm(snap.at)}.`
+  const changed = !snap || !same(lines, snap.lines)
+  const send = changed || replay?.state === 'missing'
+  const said = (text: string, tone: Status['tone']): Status => ({ text, tone, send })
+  return unrecorded ? said(`Claude has the lines sent at ${hhmm(unrecorded)}. The HUD could not record that Send.`, 'warning')
+    : !snap ? said('Not sent.', null)
+    : replay?.state === 'missing' ? said(`Not in Claude's context after the compaction at ${at}. Send again to restore it.`, 'warning')
+    : replay && replay.state !== 'found' ? said(`Approved ${hhmm(snap.at)}. Not checked after the compaction at ${at}.`, 'claude')
+    : changed ? said(`Changed since Send. Claude has the ${hhmm(snap.at)} version.`, 'claude')
+    : replay ? said(`Re-attached after the compaction at ${at}.`, 'remember')
+    : said(`In Claude's context since ${hhmm(snap.at)}.`, 'remember')
 }
 
 const textOf = (row: SessionAppendInput) => row.message.content.flatMap(b => b.type === 'text' ? [b.text] : []).join('\n')
@@ -189,7 +196,7 @@ export const register: Register = (on, options) => {
     if (!snap) return out
     const text = memoryText(snap)
     const at = await $.clock.now()
-    await update($, attached, () => ({ at, approvedAt: snap.at, text, state: 'waiting' as const })).catch(() => undefined)
+    await update($, attached, () => ({ at, approvedAt: snap.at, text, state: 'waiting' as const })).catch(() => undefined) // overwrite: each compaction starts a new check
     return out.messages.some(m => m.text === text) ? out
       : { ...out, messages: [...out.messages, { role: 'user' as const, text, toolUses: [] }] }
   })
@@ -252,10 +259,8 @@ export const register: Register = (on, options) => {
     const last = rows.at(-1)?.id
     const snap = await read($, approved)
     const att = await read($, attached)
-    const lost = !!snap && replayOf(snap, att)?.state === 'missing'
-    const status = st.unrecorded
-      ? `Claude has the lines sent at ${hhmm(st.unrecorded)}. The HUD could not record that Send.`
-      : statusOf(lines, snap, att)
+    const said = statusOf(lines, snap, att, st.unrecorded)
+    const status = said.text
     // A refusal is news only beside the lines it refused, and while they differ from what Claude has.
     const besideRefused = !!st.refusedLines && same(lines, st.refusedLines)
     const claudeHasThem = !!snap && same(lines, snap.lines)
@@ -293,10 +298,7 @@ export const register: Register = (on, options) => {
     const memory = (
       <Box flexDirection="column">
         {header('Memory', lines.length ? `${lines.length} lines` : 'empty')}
-        {!(refused && !snap && !st.unrecorded) && (st.unrecorded || lost
-          ? <Text wrap="wrap" color={TONE.warning}>{status}</Text>
-          : <Text wrap="wrap" color={!snap ? undefined : same(lines, snap.lines) ? TONE.remember : LIGHT} dimColor={!snap}>{status}</Text>
-        )}
+        {!(refused && !snap && !st.unrecorded) && <Text wrap="wrap" color={said.tone ? TONE[said.tone] : undefined} dimColor={!said.tone}>{status}</Text>}
         {refused && <Text wrap="wrap" color={TONE.warning}>{st.unrecorded ? `The later Send was refused: ${refused}` : `Not sent. ${refused}`}</Text>}
         {rows.map((r, i) => (
           <Text key={`mem-${r.id}`} wrap={inline ? 'truncate-end' : 'wrap'}><Text dimColor>{i + 1} </Text>{r.text}</Text>
@@ -372,7 +374,7 @@ export const register: Register = (on, options) => {
       ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
       ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($, now) }] : []),
       ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
-      ...(showsMemory && lines.length && (lost || !(snap && same(lines, snap.lines))) ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
+      ...(showsMemory && lines.length && said.send ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
       // shortcut: lines past the ninth have only 0, which removes the last one; add paging if Memory grows that long.
       ...(showsMemory && !writing ? rows.slice(0, 9).flatMap(({ id }, i) => id ? [{ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([id])).catch(() => undefined) }] : []) : []),
       ...(showsMemory && !writing && rows.length > 9 && last ? [{ k: '0', label: 'remove last', run: () => void update($, draft, without([last])).catch(() => undefined) }] : []),

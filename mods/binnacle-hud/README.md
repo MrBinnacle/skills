@@ -31,7 +31,7 @@ The line under the Memory heading says where things stand:
 | Not in Claude's context after the compaction at HH:MM. Send again to restore it. | The chat went on after the compaction without the row, so another mod or Claude Code dropped it. Press `s` to send the lines again. |
 | Claude has the lines sent at HH:MM. The HUD could not record that Send. | The row reached the conversation, so Claude has the lines. Claude Code refused the HUD's own record of the Send, so the line stays until the next Send that lands. A later refused Send shows "The later Send was refused:" and its reason beside it. Sending again adds the lines to the conversation again. |
 
-A compaction gives Claude the lines of the last Send that the HUD recorded, not lines you changed afterwards. It runs for the main chat only, not for a subagent, and for `/compact` and automatic compactions alike. Only "Re-attached" says Claude has the lines.
+A compaction gives Claude the lines of the last Send that the HUD recorded, not lines you changed afterwards. It runs for the main chat only, not for a subagent. The code treats `/compact` and an automatic compaction the same way. Only "Re-attached" says Claude has the lines, and only it is drawn in the success colour.
 
 If Claude Code refuses the row, the HUD shows "Not sent." and the reason while the lines are the ones that Send carried. The reason goes away when you change the lines or when they match what Claude has. The previous Send stays in force. To change a line, remove it and add the new wording.
 
@@ -117,6 +117,7 @@ The mod's tests cover the field, `/log`, the refusal of text after `/log`, the p
 These are not verified:
 
 - Memory in a live session. Its tests run against the test kit, not a terminal or the phone.
+- Memory after a real compaction, from `/compact` or an automatic one. The compaction tests run against the test kit.
 - That the thought is absent from what Claude reads on a later turn. The export suggests so, but no turn was sent to check it.
 - Pasting, dictation, and long text in the phone's dialog.
 - What the dialog's **Chat about this** option does. Use **Other** instead.

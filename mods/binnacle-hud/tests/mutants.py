@@ -60,7 +60,9 @@ MUTANTS = {
     "check concludes missing on a prompt or response": [("row.door === 'prompt' || row.door === 'response'", "false")],
     "replay speaks only for its Send": [("att?.approvedAt === snap.at ? att : null", "att")],
     "unchecked replay claims nothing": [("replay && replay.state !== 'found' ?", "false ?")],
-    "Send offered when the replay was lost": [("(lost || !(snap && same(lines, snap.lines)))", "(!(snap && same(lines, snap.lines)))")],
+    "Send offered when the replay was lost": [("const send = changed || replay?.state === 'missing'", "const send = changed")],
+    "unchecked replay is not drawn as settled": [("Not checked after the compaction at ${at}.`, 'claude')", "Not checked after the compaction at ${at}.`, 'remember')")],
+    "status colour comes from the status": [("color={said.tone ? TONE[said.tone] : undefined}", "color={snap ? TONE.remember : undefined}")],
 }
 
 

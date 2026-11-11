@@ -55,7 +55,18 @@ const replies = ($: any) =>
   stored($, { type: 'assistant', role: 'assistant', content: [{ type: 'text', text: 'Step 2 decides the probe.' }] }, 'response')
 
 const memoryRows = (out: any) => out.messages.filter((m: any) => m.text === ROW)
-const shown = async ($: any) => JSON.stringify(await (await $.ui.mount(pane())).drawn())
+const mounted = new WeakMap<object, any>()
+const drawn = async ($: any) => {
+  if (!mounted.has($)) mounted.set($, await $.ui.mount(pane()))
+  return mounted.get($).drawn()
+}
+const shown = async ($: any) => JSON.stringify(await drawn($))
+// The colour of the drawn Text whose words start with `words`.
+const colourOf = async ($: any, words: string) => {
+  const find = (n: any): any => n?.type === 'Text' && typeof n.children?.[0] === 'string' && n.children[0].startsWith(words) ? n
+    : (Array.isArray(n?.children) ? n.children : []).map(find).find(Boolean)
+  return find(await drawn($))?.props.color
+}
 
 test('a main compaction with a snapshot adds exactly one Memory row, built whole', async ($, on) => {
   const store: Store = { approved: SNAP }
@@ -74,6 +85,7 @@ test('the row stored after the boundary shows Re-attached with the compaction ti
   await userRow($, ROW, 'note')
   expect(store.attached.state).toBe('found')
   expect(await shown($)).toContain(`Re-attached after the compaction at ${hhmm(LATER)}.`)
+  expect(await colourOf($, 'Re-attached')).toBe('success')
 })
 
 for (const extra of [{ agentId: 'sub-1' }, { trigger: 'precompute' }]) {
@@ -158,6 +170,12 @@ test('with no boundary stored, the status claims nothing about delivery', async 
   await replies($)
   expect(store.attached.state).toBe('waiting')
   expect(await shown($)).toContain(`Approved ${hhmm(NOW)}. Not checked after the compaction at ${hhmm(LATER)}.`)
+  expect(await colourOf($, 'Approved')).toBe('#e2e0ae')
+})
+
+test('a Send Claude has is drawn in the success colour', async ($, on) => {
+  await start($, on, { approved: SNAP, memory: SNAP.lines })
+  expect(await colourOf($, "In Claude's context")).toBe('success')
 })
 
 test('another notice is not the boundary', async ($, on) => {
