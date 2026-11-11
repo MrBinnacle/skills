@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -40,6 +41,20 @@ def main() -> int:
           not cou.findings("update($, tip, () => found) // overwrite: a new offer replaces the waiting note"))
     check("an empty reason is refused", len(cou.findings("update($, tip, () => found) // overwrite:")) == 1)
     check("the mods in this tree pass", cou.main([]) == 0)
+    real_root = cou.ROOT
+    with tempfile.TemporaryDirectory() as tmp:
+        hooks = Path(tmp) / "mods" / "demo" / "hooks"
+        hooks.mkdir(parents=True)
+        (hooks / "notes.md").write_text(SHIPPED, encoding="utf-8")
+        cou.ROOT = Path(tmp)
+        try:
+            check("a tree with no .ts or .tsx hook file is an error, not a pass", cou.main([]) == 2)
+            (hooks / "register.tsx").write_text(SHIPPED, encoding="utf-8")
+            check("a hook file with the #645 line is rejected", cou.main([]) == 1)
+            (hooks / "register.tsx").write_text("update($, tip, now => now)\n", encoding="utf-8")
+            check("a clean hook file passes, and the .md beside it is not read", cou.main([]) == 0)
+        finally:
+            cou.ROOT = real_root
     if FAILURES:
         print(f"FAIL: {len(FAILURES)} case(s): {', '.join(FAILURES)}")
         return 1
