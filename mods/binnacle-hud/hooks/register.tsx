@@ -185,8 +185,7 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  // Send approved replay (O7): after a main-conversation compaction, Claude
-  // gets the snapshot again. `approved` is read after the summary, so a Send
+  // `approved` is read after the summary, so a Send
   // that lands meanwhile is the one replayed. A precompute installs nothing.
   // shortcut: a Send whose record failed (view.unrecorded) is not replayed and its notice stays; store its lines if that failure is ever seen.
   on('session.compact', async ($, e, next) => {

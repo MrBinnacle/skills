@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-// M2: after a main-conversation compaction Claude gets the approved snapshot
+// After a main-conversation compaction Claude gets the approved snapshot
 // again, and the HUD claims only what the stored rows showed.
 
 const NOW = Date.UTC(2026, 10, 11, 14, 2)
@@ -61,7 +61,6 @@ const drawn = async ($: any) => {
   return mounted.get($).drawn()
 }
 const shown = async ($: any) => JSON.stringify(await drawn($))
-// The colour of the drawn Text whose words start with `words`.
 const colourOf = async ($: any, words: string) => {
   const find = (n: any): any => n?.type === 'Text' && typeof n.children?.[0] === 'string' && n.children[0].startsWith(words) ? n
     : (Array.isArray(n?.children) ? n.children : []).map(find).find(Boolean)

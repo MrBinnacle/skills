@@ -44,7 +44,7 @@ MUTANTS = {
     "a refusal without lines is not drawn": [("!!st.refusedLines && same(lines, st.refusedLines)", "same(lines, st.refusedLines ?? [])")],
     "Send records the refused lines": [("refusedLines: lines,", "refusedLines: undefined,")],
     "a adds the drawn text": [("run: () => addLine($, now) }", "run: () => read($, typed).then(t => addLine($, t)) }")],
-    # Memory across a compaction (M2)
+    # Memory across a compaction
     "replay skips a subagent's compaction": [("if (e.agentId || e.trigger", "if (e.trigger")],
     "replay skips a precompute": [("e.agentId || e.trigger === 'precompute' || ", "e.agentId || ")],
     "replay skips a skipped compaction": [(" || !out.messages) return out", ") return out")],
