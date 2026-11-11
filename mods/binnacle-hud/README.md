@@ -26,12 +26,12 @@ The line under the Memory heading says where things stand:
 | Not sent. | Claude has no Memory lines from this session. |
 | In Claude's context since HH:MM. | Claude has exactly the lines shown. |
 | Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines. |
-| Re-attached after the compaction at HH:MM. | Claude Code compacted the chat at that time, and the HUD saw the row with your sent lines stored after the summary. |
-| Approved HH:MM. Not checked after the compaction at HH:MM. | The HUD handed the row up with the summary but has not seen it stored. Claude Code may have stored it without the HUD seeing, so this claims neither. |
-| Not in Claude's context after the compaction at HH:MM. Send again to restore it. | The chat went on after the compaction without the row, so another mod or Claude Code dropped it. Press `s` to send the lines again. |
-| Claude has the lines sent at HH:MM. The HUD could not record that Send. | The row reached the conversation, so Claude has the lines. Claude Code refused the HUD's own record of the Send, so the line stays until the next Send that lands. A later refused Send shows "The later Send was refused:" and its reason beside it. Sending again adds the lines to the conversation again. |
+| Re-attached after the compaction at HH:MM. | Claude Code compacted the chat at that time, and the HUD saw the row with your sent lines stored after it. |
+| Approved HH:MM. Not checked after the compaction at HH:MM. | Claude Code compacted the chat, and the HUD has not yet seen your lines or a later prompt or reply stored. This claims neither, so it is drawn quietly. |
+| Not in Claude's context after the compaction at HH:MM. Send again to give Claude these lines. | The chat went on after the compaction without your lines. Another mod or Claude Code dropped the row, or the HUD could not add it. Press `s` to send the lines shown. |
+| Claude has the lines sent at HH:MM. The HUD could not record that Send. | The row reached the conversation, so Claude has the lines. Claude Code refused the HUD's own record of the Send, so the line stays until the next Send that lands or the next compaction. A later refused Send shows "The later Send was refused:" and its reason beside it. Sending again adds the lines to the conversation again. |
 
-A compaction gives Claude the lines of the last Send that the HUD recorded, not lines you changed afterwards. It runs for the main chat only, not for a subagent. The code treats `/compact` and an automatic compaction the same way. Only "Re-attached" says Claude has the lines, and only it is drawn in the success colour.
+A compaction gives Claude the lines of the last Send that the HUD recorded, not lines you changed afterwards. It runs for the main chat only, not for a subagent. The code treats `/compact` and an automatic compaction the same way. If the summary already kept your lines, Claude sees them twice. A Send the HUD could not record is not given again, because the HUD does not hold its lines. Of the three compaction lines, only "Re-attached" says Claude has the lines, and only it is drawn in the success colour.
 
 If Claude Code refuses the row, the HUD shows "Not sent." and the reason while the lines are the ones that Send carried. The reason goes away when you change the lines or when they match what Claude has. The previous Send stays in force. To change a line, remove it and add the new wording.
 

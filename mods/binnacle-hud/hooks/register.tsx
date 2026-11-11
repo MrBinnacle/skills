@@ -84,23 +84,24 @@ export const statusOf = (lines: readonly string[], snap: Approved | null, att: A
   const said = (text: string, tone: Status['tone']): Status => ({ text, tone, send })
   return unrecorded ? said(`Claude has the lines sent at ${hhmm(unrecorded)}. The HUD could not record that Send.`, 'warning')
     : !snap ? said('Not sent.', null)
-    : replay?.state === 'missing' ? said(`Not in Claude's context after the compaction at ${at}. Send again to restore it.`, 'warning')
-    : replay && replay.state !== 'found' ? said(`Approved ${hhmm(snap.at)}. Not checked after the compaction at ${at}.`, 'claude')
+    : replay?.state === 'missing' ? said(`Not in Claude's context after the compaction at ${at}. Send again to give Claude these lines.`, 'warning')
+    : replay?.state === 'checking' ? said(`Approved ${hhmm(snap.at)}. Not checked after the compaction at ${at}.`, null)
     : changed ? said(`Changed since Send. Claude has the ${hhmm(snap.at)} version.`, 'claude')
     : replay ? said(`Re-attached after the compaction at ${at}.`, 'remember')
     : said(`In Claude's context since ${hhmm(snap.at)}.`, 'remember')
 }
 
-const textOf = (row: SessionAppendInput) => row.message.content.flatMap(b => b.type === 'text' ? [b.text] : []).join('\n')
+type Stored = SessionAppendInput['message']
+const textOf = (row: Stored) => row.content.flatMap(b => b.type === 'text' ? [b.text] : []).join('\n')
+const isBoundary = (row: Stored) => row.type === 'system' && row.name === 'compact_boundary'
 
-// Rows a compaction installs are stored after every compact hook ran: the
-// boundary first, then the summary and the rows hooks added (probe P6). A
-// prompt or a response stored before the row means the row never arrived.
-export const step = (att: Attached, row: SessionAppendInput): Attached =>
-  att.state === 'waiting' && row.message.type === 'system' && row.message.name === 'compact_boundary' ? { ...att, state: 'checking' }
-  : att.state !== 'checking' ? att
+// After the boundary the session stores the summary and the rows compact
+// hooks added (live probe P6). A prompt or a response stored before
+// the Memory row means the row never arrived.
+export const step = (att: Attached, door: SessionAppendInput['door'], row: Stored): Attached =>
+  att.state !== 'checking' ? att
   : textOf(row) === att.text ? { ...att, state: 'found' }
-  : row.door === 'prompt' || row.door === 'response' ? { ...att, state: 'missing' }
+  : door === 'prompt' || door === 'response' ? { ...att, state: 'missing' }
   : att
 
 // Appends in one update, so two quick keeps cannot overwrite each other.
@@ -185,26 +186,32 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  // `approved` is read after the summary, so a Send
-  // that lands meanwhile is the one replayed. A precompute installs nothing.
-  // shortcut: a Send whose record failed (view.unrecorded) is not replayed and its notice stays; store its lines if that failure is ever seen.
+  // A precompute installs nothing. The row is added even when the summary
+  // kept one, so the watcher sees it stored after the boundary.
+  // shortcut: a Send whose record failed (view.unrecorded) is newer than `approved`, so nothing is replayed and the check reports it missing; store its lines if that failure is ever seen.
   on('session.compact', async ($, e, next) => {
     const out = await next(e)
     if (e.agentId || e.trigger === 'precompute' || !out.messages) return out
     const snap = await read($, approved)
-    if (!snap) return out
-    const text = memoryText(snap)
-    const at = await $.clock.now()
-    await update($, attached, () => ({ at, approvedAt: snap.at, text, state: 'waiting' as const })).catch(() => undefined) // overwrite: each compaction starts a new check
-    return out.messages.some(m => m.text === text) ? out
-      : { ...out, messages: [...out.messages, { role: 'user' as const, text, toolUses: [] }] }
+    if (!snap || (await read($, view)).unrecorded) return out
+    return { ...out, messages: [...out.messages, { role: 'user' as const, text: memoryText(snap), toolUses: [] }] }
   })
 
-  // Watches what the session stores, after every hook, to check the replay.
+  // The watcher owns the check, so a compact hook that failed or a row a hook
+  // above dropped still ends in "missing". It reads the row as stored.
   on('session.append', async ($, e, next) => {
     const out = await next(e)
-    const att = e.agentId ? null : await read($, attached)
-    if (att && step(att, e) !== att) await update($, attached, now => now && step(now, e)).catch(() => undefined)
+    const row = out.message
+    if (e.agentId || !row) return out
+    if (isBoundary(row)) {
+      const snap = await read($, approved)
+      const at = await $.clock.now()
+      await update($, attached, () => snap && { at, approvedAt: snap.at, text: memoryText(snap), state: 'checking' as const }).catch(() => undefined) // overwrite: each compaction starts a new check
+      await update($, view, v => ({ ...v, unrecorded: 0 })).catch(() => undefined)
+      return out
+    }
+    const att = await read($, attached)
+    if (att && step(att, e.door, row) !== att) await update($, attached, now => now && step(now, e.door, row)).catch(() => undefined)
     return out
   })
 
@@ -262,7 +269,7 @@ export const register: Register = (on, options) => {
     const status = said.text
     // A refusal is news only beside the lines it refused, and while they differ from what Claude has.
     const besideRefused = !!st.refusedLines && same(lines, st.refusedLines)
-    const claudeHasThem = !!snap && same(lines, snap.lines)
+    const claudeHasThem = !said.send
     const refused = besideRefused && !claudeHasThem ? st.failed : ''
 
     const focused = e.props.isFocused

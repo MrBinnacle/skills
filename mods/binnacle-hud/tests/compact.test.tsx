@@ -9,6 +9,8 @@ const hhmm = (ms: number) => new Date(ms).toTimeString().slice(0, 5)
 const SNAP = { lines: ['ship slice 1', 'probe step 2 decides'], at: NOW }
 const ROW = `Memory the operator approved at ${hhmm(NOW)}:\nship slice 1\nprobe step 2 decides`
 const SUMMARY = { role: 'user' as const, text: 'Summary of the conversation so far.', toolUses: [] }
+const LIGHT = '#e2e0ae'
+const WARNING = '#d0493a'
 
 const pane = () => ({
   plugin: 'binnacle-hud', component: 'Pane', requestId: 'binnacle-hud', surface: 'terminal',
@@ -20,14 +22,18 @@ const pane = () => ({
 }) as const
 
 type Store = Record<string, any>
-type Core = (e: any) => any
+type Opts = { core?: (e: any) => any; beneath?: (on: any) => void; failRead?: (key: string) => boolean }
 
-const start = async ($: any, on: any, store: Store, core: Core = () => ({ messages: [SUMMARY] })) => {
+const start = async ($: any, on: any, store: Store, opts: Opts = {}) => {
+  const core = opts.core ?? (() => ({ messages: [SUMMARY] }))
   const versions: Record<string, number> = {}
   on('command.register', () => ({ value: undefined }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
-  on('state.get', (_: unknown, e: { key: string }) => ({ value: { value: store[e.key], version: versions[e.key] ?? 0 } }))
+  on('state.get', (_: unknown, e: { key: string }) => {
+    if (opts.failRead?.(e.key)) throw new Error('state.get failed')
+    return { value: { value: store[e.key], version: versions[e.key] ?? 0 } }
+  })
   on('state.set', (_: unknown, e: { key: string; value: unknown }) => {
     store[e.key] = e.value
     versions[e.key] = (versions[e.key] ?? 0) + 1
@@ -37,6 +43,7 @@ const start = async ($: any, on: any, store: Store, core: Core = () => ({ messag
   on('session.compact', (_: unknown, e: any) => core(e))
   on('tool.call', async (_: unknown, e: any) => ({ result: { answers: { [e.questions[0].question]: 'Send' } } }))
   mock.clock(on, { now: LATER })
+  opts.beneath?.(on)
   mock.session(on)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 }
@@ -53,6 +60,10 @@ const userRow = ($: any, text: string, door: string, agentId?: string) =>
   stored($, { type: 'user', role: 'user', content: [{ type: 'text', text }] }, door, agentId)
 const replies = ($: any) =>
   stored($, { type: 'assistant', role: 'assistant', content: [{ type: 'text', text: 'Step 2 decides the probe.' }] }, 'response')
+const installed = async ($: any) => {
+  await boundary($)
+  await userRow($, SUMMARY.text, 'compaction')
+}
 
 const memoryRows = (out: any) => out.messages.filter((m: any) => m.text === ROW)
 const mounted = new WeakMap<object, any>()
@@ -61,120 +72,128 @@ const drawn = async ($: any) => {
   return mounted.get($).drawn()
 }
 const shown = async ($: any) => JSON.stringify(await drawn($))
-const colourOf = async ($: any, words: string) => {
+const statusNode = async ($: any, words: string) => {
   const find = (n: any): any => n?.type === 'Text' && typeof n.children?.[0] === 'string' && n.children[0].startsWith(words) ? n
     : (Array.isArray(n?.children) ? n.children : []).map(find).find(Boolean)
-  return find(await drawn($))?.props.color
+  return find(await drawn($))?.props
 }
 
 test('a main compaction with a snapshot adds exactly one Memory row, built whole', async ($, on) => {
-  const store: Store = { approved: SNAP }
-  await start($, on, store)
+  await start($, on, { approved: SNAP })
   const out = await compact($)
   expect(memoryRows(out)).toHaveLength(1)
   expect(out.messages.at(-1)).toEqual({ role: 'user', text: ROW, toolUses: [] })
 })
 
-test('the row stored after the boundary shows Re-attached with the compaction time', async ($, on) => {
+test('the row stored after the boundary shows Re-attached in the success colour, with no Send', async ($, on) => {
   const store: Store = { approved: SNAP, memory: SNAP.lines }
   await start($, on, store)
   await compact($)
-  await boundary($)
-  await userRow($, SUMMARY.text, 'compaction')
+  await installed($)
   await userRow($, ROW, 'note')
+  await replies($)
   expect(store.attached.state).toBe('found')
-  expect(await shown($)).toContain(`Re-attached after the compaction at ${hhmm(LATER)}.`)
-  expect(await colourOf($, 'Re-attached')).toBe('success')
+  const text = await shown($)
+  expect(text).toContain(`Re-attached after the compaction at ${hhmm(LATER)}.`)
+  expect(text).not.toContain('k-s')
+  expect((await statusNode($, 'Re-attached')).color).toBe('success')
 })
 
 for (const extra of [{ agentId: 'sub-1' }, { trigger: 'precompute' }]) {
-  test(`a compaction with ${JSON.stringify(extra)} adds nothing and records nothing`, async ($, on) => {
-    const store: Store = { approved: SNAP }
-    await start($, on, store)
-    const out = await compact($, extra)
-    expect(memoryRows(out)).toHaveLength(0)
-    expect(store.attached ?? null).toBeNull()
+  test(`a compaction with ${JSON.stringify(extra)} adds nothing`, async ($, on) => {
+    await start($, on, { approved: SNAP })
+    expect(memoryRows(await compact($, extra))).toHaveLength(0)
   })
 }
 
 test('no snapshot adds nothing', async ($, on) => {
-  const store: Store = { memory: ['never sent'] }
-  await start($, on, store)
-  const out = await compact($)
-  expect(out.messages).toEqual([SUMMARY])
-  expect(store.attached ?? null).toBeNull()
+  await start($, on, { memory: ['never sent'] })
+  expect((await compact($)).messages).toEqual([SUMMARY])
 })
 
 test('a skipped compaction adds nothing', async ($, on) => {
-  const store: Store = { approved: SNAP }
-  await start($, on, store, () => ({ skip: 'a hook said no' }))
-  const out = await compact($)
-  expect(out).toEqual({ skip: 'a hook said no' })
-  expect(store.attached ?? null).toBeNull()
+  await start($, on, { approved: SNAP }, { core: () => ({ skip: 'a hook said no' }) })
+  expect(await compact($)).toEqual({ skip: 'a hook said no' })
 })
 
 test('a Send that lands while the summary runs is the snapshot replayed', async ($, on) => {
   const store: Store = { approved: SNAP }
   const newer = { lines: ['model slice 2 first'], at: NOW + 5 * 60_000 }
-  await start($, on, store, () => { store.approved = newer; return { messages: [SUMMARY] } })
+  await start($, on, store, { core: () => { store.approved = newer; return { messages: [SUMMARY] } } })
   const out = await compact($)
   expect(out.messages.at(-1).text).toBe(`Memory the operator approved at ${hhmm(newer.at)}:\nmodel slice 2 first`)
-  expect(memoryRows(out)).toHaveLength(0)
 })
 
 test('a draft edited after Send replays the snapshot, not the draft', async ($, on) => {
-  const store: Store = { approved: SNAP, memory: ['edited, never sent'] }
-  await start($, on, store)
+  await start($, on, { approved: SNAP, memory: ['edited, never sent'] })
   const out = await compact($)
   expect(out.messages.at(-1).text).toBe(ROW)
   expect(out.messages.some((m: any) => m.text.includes('edited, never sent'))).toBe(false)
 })
 
-test('a row the compaction already kept is not added twice', async ($, on) => {
-  const store: Store = { approved: SNAP }
+test('the row is added even when the summary kept one, so the check can see it stored', async ($, on) => {
   const kept = { role: 'user' as const, text: ROW, toolUses: [] }
-  await start($, on, store, () => ({ messages: [SUMMARY, kept] }))
+  await start($, on, { approved: SNAP }, { core: () => ({ messages: [SUMMARY, kept] }) })
   const out = await compact($)
-  expect(memoryRows(out)).toHaveLength(1)
+  expect(memoryRows(out)).toHaveLength(2)
+  expect(out.messages.at(-1).text).toBe(ROW)
 })
 
-test('two compactions in a row each hand up one Memory row', async ($, on) => {
+test('two compactions in a row are each checked', async ($, on) => {
   const store: Store = { approved: SNAP }
   await start($, on, store)
   for (let i = 0; i < 2; i++) {
     expect(memoryRows(await compact($))).toHaveLength(1)
     await boundary($)
+    expect(store.attached.state).toBe('checking')
     await userRow($, ROW, 'note')
     expect(store.attached.state).toBe('found')
   }
 })
 
-test('a row dropped above shows Not in Claude\'s context and offers Send again', async ($, on) => {
+test('a row dropped above shows Not in Claude\'s context in the warning colour and offers Send', async ($, on) => {
+  const store: Store = { approved: SNAP, memory: SNAP.lines }
+  await start($, on, store)
+  await compact($)
+  await installed($)
+  await replies($)
+  expect(store.attached.state).toBe('missing')
+  const text = await shown($)
+  expect(text).toContain(`Not in Claude's context after the compaction at ${hhmm(LATER)}. Send again to give Claude these lines.`)
+  expect(text).toContain('k-s')
+  expect((await statusNode($, "Not in Claude's context")).color).toBe(WARNING)
+})
+
+test('a prompt stored before the row also means the row never arrived', async ($, on) => {
+  const store: Store = { approved: SNAP }
+  await start($, on, store)
+  await compact($)
+  await installed($)
+  await userRow($, 'what does step 2 decide?', 'prompt')
+  expect(store.attached.state).toBe('missing')
+})
+
+test('an older Memory row kept by the summary does not count as the replay', async ($, on) => {
+  const store: Store = { approved: SNAP }
+  await start($, on, store)
+  await compact($)
+  await boundary($)
+  await userRow($, `Memory the operator approved at ${hhmm(NOW - 60_000)}:\nold line`, 'compaction')
+  await replies($)
+  expect(store.attached.state).toBe('missing')
+})
+
+test('between the boundary and the row the status claims nothing, quietly, with no Send', async ($, on) => {
   const store: Store = { approved: SNAP, memory: SNAP.lines }
   await start($, on, store)
   await compact($)
   await boundary($)
-  await userRow($, SUMMARY.text, 'compaction')
-  await replies($)
-  expect(store.attached.state).toBe('missing')
-  const drawn = await shown($)
-  expect(drawn).toContain(`Not in Claude's context after the compaction at ${hhmm(LATER)}. Send again to restore it.`)
-  expect(drawn).toContain('k-s')
-})
-
-test('with no boundary stored, the status claims nothing about delivery', async ($, on) => {
-  const store: Store = { approved: SNAP, memory: SNAP.lines }
-  await start($, on, store)
-  await compact($)
-  await replies($)
-  expect(store.attached.state).toBe('waiting')
-  expect(await shown($)).toContain(`Approved ${hhmm(NOW)}. Not checked after the compaction at ${hhmm(LATER)}.`)
-  expect(await colourOf($, 'Approved')).toBe('#e2e0ae')
-})
-
-test('a Send Claude has is drawn in the success colour', async ($, on) => {
-  await start($, on, { approved: SNAP, memory: SNAP.lines })
-  expect(await colourOf($, "In Claude's context")).toBe('success')
+  const text = await shown($)
+  expect(text).toContain(`Approved ${hhmm(NOW)}. Not checked after the compaction at ${hhmm(LATER)}.`)
+  expect(text).not.toContain('k-s')
+  const props = await statusNode($, 'Approved')
+  expect(props.color).toBeUndefined()
+  expect(props.dimColor).toBe(true)
 })
 
 test('another notice is not the boundary', async ($, on) => {
@@ -183,23 +202,98 @@ test('another notice is not the boundary', async ($, on) => {
   await compact($)
   await stored($, { type: 'system', name: 'local_command', content: [{ type: 'text', text: '/context' }] }, 'notice')
   await replies($)
-  expect(store.attached.state).toBe('waiting')
+  expect(store.attached ?? null).toBeNull()
 })
 
-test('a subagent\'s boundary and rows do not move the check', async ($, on) => {
+test('a subagent\'s boundary and rows do not start a check', async ($, on) => {
   const store: Store = { approved: SNAP }
   await start($, on, store)
   await compact($)
   await boundary($, 'sub-1')
   await userRow($, ROW, 'note', 'sub-1')
-  expect(store.attached.state).toBe('waiting')
+  expect(store.attached ?? null).toBeNull()
 })
 
 test('a replay record for an older Send does not speak for a newer one', async ($, on) => {
   const newer = { lines: ['model slice 2 first'], at: NOW + 5 * 60_000 }
-  const store: Store = { approved: newer, memory: newer.lines, attached: { at: LATER, approvedAt: NOW, text: ROW, state: 'found' } }
+  await start($, on, { approved: newer, memory: newer.lines, attached: { at: LATER, approvedAt: NOW, text: ROW, state: 'found' } })
+  const text = await shown($)
+  expect(text).not.toContain('Re-attached')
+  expect(text).toContain(`In Claude's context since ${hhmm(newer.at)}.`)
+})
+
+test('a row rewritten by a hook beneath is checked as stored, not as it arrived', async ($, on) => {
+  const store: Store = { approved: SNAP, memory: SNAP.lines }
+  await start($, on, store, {
+    beneath: (under: any) => under('session.append', { door: 'note' }, (_: unknown, e: any, next: any) =>
+      next({ ...e, message: { ...e.message, content: [{ type: 'text', text: '[scrubbed]' }] } })),
+  })
+  await compact($)
+  await installed($)
+  await userRow($, ROW, 'note')
+  expect(store.attached.state).toBe('checking')
+  await replies($)
+  expect(store.attached.state).toBe('missing')
+})
+
+test('a compact hook that failed still ends in Not in Claude\'s context', async ($, on) => {
+  const store: Store = { approved: SNAP, memory: SNAP.lines }
+  let compacting = false
+  await start($, on, store, {
+    core: () => { compacting = true; return { messages: [SUMMARY] } },
+    failRead: key => compacting && key === 'approved',
+  })
+  const out = await compact($)
+  compacting = false
+  expect(memoryRows(out)).toHaveLength(0)
+  await installed($)
+  await replies($)
+  expect(await shown($)).toContain("Not in Claude's context after the compaction")
+})
+
+test('lines edited after a found replay say Changed since Send, and offer Send', async ($, on) => {
+  const store: Store = { approved: SNAP, memory: SNAP.lines }
   await start($, on, store)
-  const drawn = await shown($)
-  expect(drawn).not.toContain('Re-attached')
-  expect(drawn).toContain(`In Claude's context since ${hhmm(newer.at)}.`)
+  await compact($)
+  await installed($)
+  await userRow($, ROW, 'note')
+  store.memory = [...SNAP.lines, 'a third line']
+  const text = await shown($)
+  expect(text).toContain(`Changed since Send. Claude has the ${hhmm(NOW)} version.`)
+  expect(text).toContain('k-s')
+  expect((await statusNode($, 'Changed since Send')).color).toBe(LIGHT)
+})
+
+test('a refused Send after a lost replay draws the refusal', async ($, on) => {
+  await start($, on, {
+    approved: SNAP, memory: SNAP.lines,
+    attached: { at: LATER, approvedAt: NOW, text: ROW, state: 'missing' },
+    view: { ring: 0, expand: 0, failed: 'policy says no', refusedLines: SNAP.lines },
+  })
+  expect(await shown($)).toContain('Not sent. policy says no')
+})
+
+test('a Send the HUD could not record is not replaced by an older replay', async ($, on) => {
+  const store: Store = { approved: SNAP, memory: ['newer line'], view: { ring: 0, expand: 0, failed: '', unrecorded: NOW + 10 * 60_000 } }
+  await start($, on, store)
+  const out = await compact($)
+  expect(memoryRows(out)).toHaveLength(0)
+  await installed($)
+  await replies($)
+  expect(store.view.unrecorded).toBe(0)
+  const text = await shown($)
+  expect(text).not.toContain('Claude has the lines sent at')
+  expect(text).toContain("Not in Claude's context after the compaction")
+})
+
+test('Not sent is drawn quietly', async ($, on) => {
+  await start($, on, { memory: ['never sent'] })
+  const props = await statusNode($, 'Not sent.')
+  expect(props.color).toBeUndefined()
+  expect(props.dimColor).toBe(true)
+})
+
+test('a Send Claude has is drawn in the success colour', async ($, on) => {
+  await start($, on, { approved: SNAP, memory: SNAP.lines })
+  expect((await statusNode($, "In Claude's context")).color).toBe('success')
 })
