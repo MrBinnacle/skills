@@ -188,7 +188,7 @@ export const register: Register = (on, options) => {
 
   // A precompute installs nothing. The row is added even when the summary
   // kept one, so the watcher sees it stored after the boundary.
-  // shortcut: a Send whose record failed (view.unrecorded) is newer than `approved`, so nothing is replayed and the check reports it missing; store its lines if that failure is ever seen.
+  // shortcut: a Send whose record failed (view.unrecorded) is newer than `approved`, so nothing is replayed and the check reports it missing, or "Not sent." when it was the only Send; store its lines if that failure is ever seen.
   on('session.compact', async ($, e, next) => {
     const out = await next(e)
     if (e.agentId || e.trigger === 'precompute' || !out.messages) return out

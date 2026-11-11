@@ -23,7 +23,7 @@ The line under the Memory heading says where things stand:
 
 | Status | Meaning |
 | --- | --- |
-| Not sent. | Claude has no Memory lines from this session. |
+| Not sent. | Claude has no Memory lines from this session. It also shows after a compaction when your only Send was one the HUD could not record, because the HUD does not hold those lines. |
 | In Claude's context since HH:MM. | Claude has exactly the lines shown. |
 | Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines. |
 | Re-attached after the compaction at HH:MM. | Claude Code compacted the chat at that time, and the HUD saw the row with your sent lines stored after it. |

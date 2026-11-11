@@ -67,6 +67,8 @@ MUTANTS = {
     "Send offered when the replay was lost": [("const send = changed || replay?.state === 'missing'", "const send = changed")],
     "a lost replay is a warning": [("Send again to give Claude these lines.`, 'warning')", "Send again to give Claude these lines.`, 'claude')")],
     "changed lines beat a found replay": [("    : changed ? said(", "    : false ? said(")],
+    "an open check outranks changed lines": [
+        ("    : replay?.state === 'checking' ? said(", "    : changed ? said(`Changed since Send. Claude has the ${hhmm(snap.at)} version.`, 'claude')\n    : replay?.state === 'checking' ? said(")],
     "status colour comes from the status": [("color={said.tone ? TONE[said.tone] : undefined}", "color={snap ? TONE.remember : undefined}")],
     "a quiet status is dimmed": [("dimColor={!said.tone}", "dimColor={false}")],
     "a refusal after a lost replay is drawn": [("const claudeHasThem = !said.send", "const claudeHasThem = !!snap && same(lines, snap.lines)")],

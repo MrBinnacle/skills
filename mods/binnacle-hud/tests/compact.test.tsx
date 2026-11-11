@@ -196,6 +196,18 @@ test('between the boundary and the row the status claims nothing, quietly, with 
   expect(props.dimColor).toBe(true)
 })
 
+test('lines edited before the check ends still claim nothing about Claude, and offer Send', async ($, on) => {
+  const store: Store = { approved: SNAP, memory: SNAP.lines }
+  await start($, on, store)
+  await compact($)
+  await boundary($)
+  store.memory = [...SNAP.lines, 'a third line']
+  const text = await shown($)
+  expect(text).toContain(`Approved ${hhmm(NOW)}. Not checked after the compaction at ${hhmm(LATER)}.`)
+  expect(text).not.toContain('Claude has the')
+  expect(text).toContain('k-s')
+})
+
 test('another notice is not the boundary', async ($, on) => {
   const store: Store = { approved: SNAP }
   await start($, on, store)
