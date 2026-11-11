@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
-import type { Approved, Entry, Row, Saved, Thought, View } from '../types'
+import type { EngineInterface, Register, SessionAppendInput } from 'claude-code'
+import type { Approved, Attached, Entry, Row, Saved, Thought, View } from '../types'
 
 // Binnacle HUD. The mod does not send the Log to Claude; absence from later
 // model requests is unverified. Memory holds a draft and the snapshot a confirmed Send
@@ -28,6 +28,7 @@ let edits = 0
 const draft = atom({ plugin: 'binnacle-hud', key: 'memory' } as const, [] as Saved[])
 const approved = atom({ plugin: 'binnacle-hud', key: 'approved' } as const, null as Approved | null)
 const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, expand: 0, failed: '' } as View)
+const attached = atom({ plugin: 'binnacle-hud', key: 'attached' } as const, null as Attached | null)
 
 type Finding = { text: string; why: string; source: string; age: string }
 const FINDING: Finding = {
@@ -66,10 +67,34 @@ const entry = (text: string): Entry => ({ id: crypto.randomUUID(), text })
 const entries = (saved: readonly Saved[]): Row[] => saved.map(s => typeof s === 'string' ? { id: null, text: s } : s)
 const minted = (saved: readonly Saved[]): Saved[] => saved.map(s => typeof s === 'string' ? entry(s) : s)
 
-export const statusOf = (lines: readonly string[], snap: Approved | null): string =>
-  !snap ? 'Not sent.'
-  : same(lines, snap.lines) ? `In Claude's context since ${hhmm(snap.at)}.`
-  : `Changed since Send. Claude has the ${hhmm(snap.at)} version.`
+// The compaction replay and the watcher match this exact text.
+const memoryText = (snap: Approved) => [`Memory the operator approved at ${hhmm(snap.at)}:`, ...snap.lines].join('\n')
+
+// Only a compaction that replayed this snapshot speaks for it.
+const replayOf = (snap: Approved, att: Attached | null) => att?.approvedAt === snap.at ? att : null
+
+export const statusOf = (lines: readonly string[], snap: Approved | null, att: Attached | null = null): string => {
+  if (!snap) return 'Not sent.'
+  const replay = replayOf(snap, att)
+  const at = replay && hhmm(replay.at)
+  return replay?.state === 'missing' ? `Not in Claude's context after the compaction at ${at}. Send again to restore it.`
+    : replay && replay.state !== 'found' ? `Approved ${hhmm(snap.at)}. Not checked after the compaction at ${at}.`
+    : !same(lines, snap.lines) ? `Changed since Send. Claude has the ${hhmm(snap.at)} version.`
+    : replay ? `Re-attached after the compaction at ${at}.`
+    : `In Claude's context since ${hhmm(snap.at)}.`
+}
+
+const textOf = (row: SessionAppendInput) => row.message.content.flatMap(b => b.type === 'text' ? [b.text] : []).join('\n')
+
+// Rows a compaction installs are stored after every compact hook ran: the
+// boundary first, then the summary and the rows hooks added (probe P6). A
+// prompt or a response stored before the row means the row never arrived.
+export const step = (att: Attached, row: SessionAppendInput): Attached =>
+  att.state === 'waiting' && row.message.type === 'system' && row.message.name === 'compact_boundary' ? { ...att, state: 'checking' }
+  : att.state !== 'checking' ? att
+  : textOf(row) === att.text ? { ...att, state: 'found' }
+  : row.door === 'prompt' || row.door === 'response' ? { ...att, state: 'missing' }
+  : att
 
 // Appends in one update, so two quick keeps cannot overwrite each other.
 async function keep($: EngineInterface, text: string, from: Thought['from']): Promise<boolean | null> {
@@ -124,7 +149,7 @@ async function send($: EngineInterface): Promise<void> {
   const answer = await $.ui.ask(question, [SEND, NOT_NOW]).catch(() => NOT_NOW)
   if (answer !== SEND) return
   const at = await $.clock.now()
-  const text = [`Memory the operator approved at ${hhmm(at)}:`, ...lines].join('\n')
+  const text = memoryText({ lines, at })
   const out = await $.session.append({ message: { type: 'user', content: [{ type: 'text', text }] } })
     .catch((err: unknown) => ({ deny: err instanceof Error ? err.message : String(err) }))
   // The append landed but the snapshot write can still fail. Then Claude has
@@ -151,6 +176,30 @@ export const register: Register = (on, options) => {
     if ((await read($, draft)).some(s => typeof s === 'string')) await update($, draft, minted).catch(() => undefined)
     if ((await read($, failed)).some(s => typeof s === 'string')) await update($, failed, minted).catch(() => undefined)
     return next(e)
+  })
+
+  // Send approved replay (O7): after a main-conversation compaction, Claude
+  // gets the snapshot again. `approved` is read after the summary, so a Send
+  // that lands meanwhile is the one replayed. A precompute installs nothing.
+  // shortcut: a Send whose record failed (view.unrecorded) is not replayed and its notice stays; store its lines if that failure is ever seen.
+  on('session.compact', async ($, e, next) => {
+    const out = await next(e)
+    if (e.agentId || e.trigger === 'precompute' || !out.messages) return out
+    const snap = await read($, approved)
+    if (!snap) return out
+    const text = memoryText(snap)
+    const at = await $.clock.now()
+    await update($, attached, () => ({ at, approvedAt: snap.at, text, state: 'waiting' as const })).catch(() => undefined)
+    return out.messages.some(m => m.text === text) ? out
+      : { ...out, messages: [...out.messages, { role: 'user' as const, text, toolUses: [] }] }
+  })
+
+  // Watches what the session stores, after every hook, to check the replay.
+  on('session.append', async ($, e, next) => {
+    const out = await next(e)
+    const att = e.agentId ? null : await read($, attached)
+    if (att && step(att, e) !== att) await update($, attached, now => now && step(now, e)).catch(() => undefined)
+    return out
   })
 
   on('command.run', { command: 'hud' }, async ($, e) => {
@@ -202,9 +251,11 @@ export const register: Register = (on, options) => {
     const lines = rows.map(r => r.text)
     const last = rows.at(-1)?.id
     const snap = await read($, approved)
+    const att = await read($, attached)
+    const lost = !!snap && replayOf(snap, att)?.state === 'missing'
     const status = st.unrecorded
       ? `Claude has the lines sent at ${hhmm(st.unrecorded)}. The HUD could not record that Send.`
-      : statusOf(lines, snap)
+      : statusOf(lines, snap, att)
     // A refusal is news only beside the lines it refused, and while they differ from what Claude has.
     const besideRefused = !!st.refusedLines && same(lines, st.refusedLines)
     const claudeHasThem = !!snap && same(lines, snap.lines)
@@ -242,7 +293,7 @@ export const register: Register = (on, options) => {
     const memory = (
       <Box flexDirection="column">
         {header('Memory', lines.length ? `${lines.length} lines` : 'empty')}
-        {!(refused && !snap && !st.unrecorded) && (st.unrecorded
+        {!(refused && !snap && !st.unrecorded) && (st.unrecorded || lost
           ? <Text wrap="wrap" color={TONE.warning}>{status}</Text>
           : <Text wrap="wrap" color={!snap ? undefined : same(lines, snap.lines) ? TONE.remember : LIGHT} dimColor={!snap}>{status}</Text>
         )}
@@ -321,7 +372,7 @@ export const register: Register = (on, options) => {
       ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
       ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($, now) }] : []),
       ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
-      ...(showsMemory && lines.length && !(snap && same(lines, snap.lines)) ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
+      ...(showsMemory && lines.length && (lost || !(snap && same(lines, snap.lines))) ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
       // shortcut: lines past the ninth have only 0, which removes the last one; add paging if Memory grows that long.
       ...(showsMemory && !writing ? rows.slice(0, 9).flatMap(({ id }, i) => id ? [{ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([id])).catch(() => undefined) }] : []) : []),
       ...(showsMemory && !writing && rows.length > 9 && last ? [{ k: '0', label: 'remove last', run: () => void update($, draft, without([last])).catch(() => undefined) }] : []),

@@ -44,6 +44,23 @@ MUTANTS = {
     "a refusal without lines is not drawn": [("!!st.refusedLines && same(lines, st.refusedLines)", "same(lines, st.refusedLines ?? [])")],
     "Send records the refused lines": [("refusedLines: lines,", "refusedLines: undefined,")],
     "a adds the drawn text": [("run: () => addLine($, now) }", "run: () => read($, typed).then(t => addLine($, t)) }")],
+    # Memory across a compaction (M2)
+    "replay skips a subagent's compaction": [("if (e.agentId || e.trigger", "if (e.trigger")],
+    "replay skips a precompute": [("e.agentId || e.trigger === 'precompute' || ", "e.agentId || ")],
+    "replay skips a skipped compaction": [(" || !out.messages) return out", ") return out")],
+    "replay reads the snapshot after the summary": [
+        ("    const out = await next(e)\n    if (e.agentId || e.trigger", "    const early = await read($, approved)\n    const out = await next(e)\n    if (e.agentId || e.trigger"),
+        ("const snap = await read($, approved)\n    if (!snap) return out", "const snap = early\n    if (!snap) return out")],
+    "replay adds no second row": [("out.messages.some(m => m.text === text)", "false")],
+    "replay row is built whole": [("text, toolUses: [] }", "text }")],
+    "watcher ignores subagent rows": [("e.agentId ? null : ", "")],
+    "check starts at the boundary": [("row.message.name === 'compact_boundary'", "true")],
+    "check moves only while checking": [("att.state !== 'checking' ? att", "false ? att")],
+    "check finds the row by its text": [("textOf(row) === att.text", "false")],
+    "check concludes missing on a prompt or response": [("row.door === 'prompt' || row.door === 'response'", "false")],
+    "replay speaks only for its Send": [("att?.approvedAt === snap.at ? att : null", "att")],
+    "unchecked replay claims nothing": [("replay && replay.state !== 'found' ?", "false ?")],
+    "Send offered when the replay was lost": [("(lost || !(snap && same(lines, snap.lines)))", "(!(snap && same(lines, snap.lines)))")],
 }
 
 

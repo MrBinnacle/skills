@@ -2,7 +2,7 @@
 
 Keep a Log of thoughts beside a Claude Code session, from the terminal or from the Claude app on your phone. The mod keeps each thought in session state. It does not send a thought to Claude or add it to the conversation. Whether a thought stays out of a later model request has not been verified.
 
-Keep the decisions you and Claude agreed in Memory. The mod sends Memory to Claude only when you press Send and confirm it.
+Keep the decisions you and Claude agreed in Memory. The mod sends Memory to Claude only when you press Send and confirm it. After Claude Code compacts the chat, the mod gives Claude the lines of that Send again.
 
 The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has three sections:
 
@@ -26,7 +26,12 @@ The line under the Memory heading says where things stand:
 | Not sent. | Claude has no Memory lines from this session. |
 | In Claude's context since HH:MM. | Claude has exactly the lines shown. |
 | Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines. |
+| Re-attached after the compaction at HH:MM. | Claude Code compacted the chat at that time, and the HUD saw the row with your sent lines stored after the summary. |
+| Approved HH:MM. Not checked after the compaction at HH:MM. | The HUD handed the row up with the summary but has not seen it stored. Claude Code may have stored it without the HUD seeing, so this claims neither. |
+| Not in Claude's context after the compaction at HH:MM. Send again to restore it. | The chat went on after the compaction without the row, so another mod or Claude Code dropped it. Press `s` to send the lines again. |
 | Claude has the lines sent at HH:MM. The HUD could not record that Send. | The row reached the conversation, so Claude has the lines. Claude Code refused the HUD's own record of the Send, so the line stays until the next Send that lands. A later refused Send shows "The later Send was refused:" and its reason beside it. Sending again adds the lines to the conversation again. |
+
+A compaction gives Claude the lines of the last Send that the HUD recorded, not lines you changed afterwards. It runs for the main chat only, not for a subagent, and for `/compact` and automatic compactions alike. Only "Re-attached" says Claude has the lines.
 
 If Claude Code refuses the row, the HUD shows "Not sent." and the reason while the lines are the ones that Send carried. The reason goes away when you change the lines or when they match what Claude has. The previous Send stays in force. To change a line, remove it and add the new wording.
 
