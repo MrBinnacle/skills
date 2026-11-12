@@ -200,8 +200,10 @@ function runDemo() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
-  const output = runDemo();
+  // The Guard line carries the run time, which the picture leaves out and every run changes.
+  const output = runDemo().replace(/^Guard: .*\n?/m, "");
+  const svg = render(output);
   writeFileSync(join(HERE, "demo-output.txt"), output);
-  writeFileSync(SVG_PATH, render(output));
+  writeFileSync(SVG_PATH, svg);
   console.log(`wrote ${SVG_PATH} and demo-output.txt`);
 }

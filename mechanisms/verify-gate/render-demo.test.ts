@@ -51,6 +51,7 @@ describe("render-demo", () => {
   test("the committed picture is what this code draws from the saved demo output", () => {
     const read = (f: string) => readFileSync(join(import.meta.dir, f), "utf-8").replace(/\r\n/g, "\n");
     expect(render(read("demo-output.txt"))).toBe(read("demo.svg"));
+    expect(read("demo-output.txt")).not.toContain("Guard: ");
   });
 
   test("escapes XML in demo text", () => {

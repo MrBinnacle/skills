@@ -24,4 +24,3 @@ Run 2: verify-gate loaded from mechanisms/verify-gate/, same script
 
 Real: Pi's agent loop, its edit and bash tools, npm test, and the verify-gate extension as shipped.
 Scripted: the model's replies. The last one reads the real test output from the transcript.
-Guard: mechanisms/verify-gate/ (gate.ts holds the rule). Took 2.3s.

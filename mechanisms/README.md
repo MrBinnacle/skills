@@ -46,7 +46,7 @@ on Windows on 2026-11-08; not run on Linux or macOS.
 
 `verify-gate/demo.svg`, the picture in the top-level README, is drawn from one run of the demo by
 `node mechanisms/verify-gate/render-demo.mjs`, which also saves that run's output as
-`verify-gate/demo-output.txt`. Every piece of visible text in the picture is taken from a line the
+`verify-gate/demo-output.txt`, less the `Guard:` line and its run time. Every piece of visible text in the picture is taken from a line the
 demo printed; the title and alt text are written by hand. Run it again after changing the demo or
 the gate's message, and commit both files if `git diff` shows a change. No gate runs the demo,
 because it needs Pi installed, but `bun test` draws the saved output again and fails when the result
