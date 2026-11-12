@@ -70,8 +70,10 @@ const minted = (saved: readonly Saved[]): Saved[] => saved.map(s => typeof s ===
 // The compaction replay and the watcher match this exact text.
 const memoryText = (snap: Approved) => [`Memory the operator approved at ${hhmm(snap.at)}:`, ...snap.lines].join('\n')
 
-// Only a compaction that replayed this snapshot speaks for it.
-const replayOf = (snap: Approved, att: Attached | null) => att?.approvedAt === snap.at ? att : null
+// Only a compaction that replayed this snapshot speaks for it. A compaction
+// after this Send that replayed an older one never showed these lines stored.
+const replayOf = (snap: Approved, att: Attached | null): Attached | null =>
+  !att ? null : att.approvedAt === snap.at ? att : att.at >= snap.at ? { ...att, state: 'missing' } : null
 
 // The words, their colour and the Send key come from one answer, so the
 // colour never says "Claude has them" beside words that do not.

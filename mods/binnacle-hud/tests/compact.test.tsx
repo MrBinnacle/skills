@@ -228,7 +228,7 @@ test('a subagent\'s boundary and rows do not start a check', async ($, on) => {
 
 test('a replay record for an older Send does not speak for a newer one', async ($, on) => {
   const newer = { lines: ['model slice 2 first'], at: NOW + 5 * 60_000 }
-  await start($, on, { approved: newer, memory: newer.lines, attached: { at: LATER, approvedAt: NOW, text: ROW, state: 'found' } })
+  await start($, on, { approved: newer, memory: newer.lines, attached: { at: NOW + 60_000, approvedAt: NOW, text: ROW, state: 'found' } })
   const text = await shown($)
   expect(text).not.toContain('Re-attached')
   expect(text).toContain(`In Claude's context since ${hhmm(newer.at)}.`)
@@ -248,7 +248,7 @@ test('a row rewritten by a hook beneath is checked as stored, not as it arrived'
   expect(store.attached.state).toBe('missing')
 })
 
-test('a compact hook that failed still ends in Not in Claude\'s context', async ($, on) => {
+test('a compact hook that cannot read the Send record still ends in Not in Claude\'s context', async ($, on) => {
   const store: Store = { approved: SNAP, memory: SNAP.lines }
   let compacting = false
   await start($, on, store, {
@@ -308,4 +308,31 @@ test('Not sent is drawn quietly', async ($, on) => {
 test('a Send Claude has is drawn in the success colour', async ($, on) => {
   await start($, on, { approved: SNAP, memory: SNAP.lines })
   expect((await statusNode($, "In Claude's context")).color).toBe('success')
+})
+
+// Found by an independent verifier: Send B's row is stored before the boundary,
+// and B's record lands after the compact hook and the boundary read Send A.
+test('a Send recorded after the compaction replayed an older Send is not claimed in context', async ($, on) => {
+  const newer = { lines: ['model slice 2 first'], at: NOW + 5 * 60_000 }
+  const store: Store = { approved: SNAP, memory: newer.lines }
+  await start($, on, store)
+  await userRow($, `Memory the operator approved at ${hhmm(newer.at)}:\nmodel slice 2 first`, 'note')
+  const out = await compact($)
+  expect(out.messages.at(-1).text).toBe(ROW)
+  await installed($)
+  await userRow($, ROW, 'note')
+  store.approved = newer
+  await replies($)
+  const text = await shown($)
+  expect(text).not.toContain("In Claude's context since")
+  expect(text).toContain("Not in Claude's context after the compaction")
+  expect(text).toContain('k-s')
+})
+
+test('a Send in the same millisecond as a compaction that replayed an older Send is not claimed', async ($, on) => {
+  const newer = { lines: ['model slice 2 first'], at: LATER }
+  await start($, on, { approved: newer, memory: newer.lines, attached: { at: LATER, approvedAt: NOW, text: ROW, state: 'found' } })
+  const text = await shown($)
+  expect(text).not.toContain("In Claude's context since")
+  expect(text).toContain("Not in Claude's context after the compaction")
 })
