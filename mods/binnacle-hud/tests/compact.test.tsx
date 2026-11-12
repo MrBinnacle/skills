@@ -350,3 +350,32 @@ test('a re-Send whose record failed after a missed replay says Claude has the li
   expect(text).toContain(`Claude has the lines sent at ${hhmm(resent)}. The HUD could not record that Send.`)
   expect(text).not.toContain("Not in Claude's context")
 })
+
+// The Send record cannot be read across the compaction and its boundary, so
+// nothing is replayed and the boundary saw no Send. The HUD saw nothing stored
+// after the compaction, so it must not claim the lines are in context.
+test('a Send record unreadable at the boundary is not claimed in context', async ($, on) => {
+  const store: Store = { approved: SNAP, memory: SNAP.lines }
+  let failing = false
+  await start($, on, store, { failRead: key => failing && key === 'approved' })
+  failing = true
+  const out = await compact($)
+  await boundary($)
+  failing = false
+  expect(memoryRows(out)).toHaveLength(0)
+  await userRow($, SUMMARY.text, 'compaction')
+  await replies($)
+  const text = await shown($)
+  expect(text).not.toContain("In Claude's context since")
+  expect(text).toContain("Not in Claude's context after the compaction")
+})
+
+test('a compaction with no Send at all still says Not sent.', async ($, on) => {
+  await start($, on, { memory: SNAP.lines })
+  await compact($)
+  await installed($)
+  await replies($)
+  const text = await shown($)
+  expect(text).toContain('Not sent.')
+  expect(text).not.toContain("Not in Claude's context")
+})

@@ -208,7 +208,8 @@ export const register: Register = (on, options) => {
     if (isBoundary(row)) {
       const snap = await read($, approved)
       const at = await $.clock.now()
-      await update($, attached, () => snap && { at, approvedAt: snap.at, text: memoryText(snap), state: 'checking' as const }).catch(() => undefined) // overwrite: each compaction starts a new check
+      // A failed read gives a null snapshot, so open a check anyway: with a Send stored it ends missing, and with none the status stays "Not sent."
+      await update($, attached, () => ({ at, approvedAt: snap?.at ?? 0, text: snap ? memoryText(snap) : '', state: 'checking' as const })).catch(() => undefined) // overwrite: each compaction starts a new check
       await update($, view, v => ({ ...v, unrecorded: 0 })).catch(() => undefined)
       return out
     }

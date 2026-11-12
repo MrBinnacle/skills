@@ -64,6 +64,9 @@ MUTANTS = {
     "statusOf: missing above unrecorded": [
         ("return unrecorded ? said(`Claude has the lines sent at ${hhmm(unrecorded)}. The HUD could not record that Send.`, 'warning')\n    : !snap ? said('Not sent.', null)\n    : replay?.state === 'missing' ?",
          "return replay?.state === 'missing' ? said(`Not in Claude's context after the compaction at ${at}. Send again to give Claude these lines.`, 'warning')\n    : unrecorded ? said(`Claude has the lines sent at ${hhmm(unrecorded)}. The HUD could not record that Send.`, 'warning')\n    : !snap ? said('Not sent.', null)\n    : replay?.state === 'missing' ?")],
+    "boundary opens a check when the Send record is unreadable": [
+        ("() => ({ at, approvedAt: snap?.at ?? 0, text: snap ? memoryText(snap) : '', state: 'checking' as const })",
+         "() => snap && { at, approvedAt: snap.at, text: memoryText(snap), state: 'checking' as const }")],
     "replay speaks only for its Send": [("att.approvedAt === snap.at ? att :", "true ? att :")],
     "unchecked replay claims nothing": [("replay?.state === 'checking' ?", "false ?")],
     "unchecked replay is drawn quietly": [("Not checked after the compaction at ${at}.`, null)", "Not checked after the compaction at ${at}.`, 'remember')")],
