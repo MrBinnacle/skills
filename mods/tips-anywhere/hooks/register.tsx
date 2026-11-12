@@ -167,13 +167,7 @@ async function offer($: EngineInterface, delivery: Delivery, found: Tip | null):
   if (!isNew) {
     return
   }
-
-  // settle() records the outcome before it clears the heads-up, so a heads-up
-  // settled since the first read is either seen here or cleared by settle().
-  if (Object.hasOwn(await read($, outcomes), found.line)) {
-    await update($, tip, now => (now?.line === found.line ? null : now))
-    return
-  }
+  // shortcut: the outcomes and the waiting heads-up are two atoms, so a heads-up settled after the first read is written back and comes back once; keep both in one atom if that is seen.
   deliver($, delivery, found)
 }
 
