@@ -72,3 +72,29 @@ test('two scans of one heads-up deliver and ask about it once', { options: { del
   await flush()
   expect({ toasts: p.toasts.filter(t => t.includes(TIP.line)).length, asks: p.asks() }).toEqual({ toasts: 1, asks: 1 })
 })
+
+// The sample's clear removes the sample, so a second /tips demo sends it again.
+test('a second /tips demo while the sample waits sends the sample again', { options: { deliver: 'computer' } }, async ($, on) => {
+  const toasts: string[] = []
+  on('env.get', (_$, e) => ({ value: e.name === 'USERPROFILE' ? 'C:/Users/me' : undefined }))
+  on('fs.list', () => ({ value: [] }))
+  on('fs.read', () => ({ value: '{}' }))
+  on('session.id', () => ({ value: SESSION }))
+  on('session.surfaces', () => ({ value: [] }))
+  on('command.register', () => ({ value: { command: 'tips' } }))
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  on('ui.toast', (_$, e) => { toasts.push(e.text); return { value: undefined } })
+  on('tool.call', () => ({ result: 'sent' }))
+  on('clock.sleep', () => ({ value: undefined }))
+  on('clock.now', () => ({ value: 1_000_000_000 }))
+  on('tool.check', () => ({ decision: 'allow' as const }))
+  await $.session.start({ cwd: '/', surface: 'mobile', isInteractive: true })
+  const tips = (args = '') =>
+    $.command.run({ command: 'tips', args, origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 40 } })
+  expect((await tips('demo')).text).toContain('sample heads-up arrives')
+  await flush()
+  expect(toasts.filter(t => t.includes('sample heads-up from /tips demo')).length).toBe(1)
+  expect((await tips('demo')).text).toContain('sample heads-up arrives')
+  await flush()
+  expect({ sampleToasts: toasts.filter(t => t.includes('sample heads-up from /tips demo')).length }).toEqual({ sampleToasts: 2 })
+})
