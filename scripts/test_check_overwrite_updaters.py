@@ -39,6 +39,9 @@ def main() -> int:
     split = "await update($, approved,\n  () => ({ lines, at }))\n"
     check("a split call is refused at the arrow", [n for n, _ in cou.findings(split)] == [2], cou.findings(split))
     check("async zero-argument updater is refused", len(cou.findings("update($, tip, async () => x)")) == 1)
+    check("async with no space before the parentheses is refused", len(cou.findings("update($, tip, async() => x)")) == 1)
+    check("a block comment over two lines before the arrow is refused", len(cou.findings("update($, tip, /* a\n b */ () => x)")) == 1)
+    check("a named parameter in parentheses passes", cou.findings("update($, tip, (now) => now)") == [])
     check("an updater of the stored value passes", not cou.findings("update($, tip, now => now?.line === l ? null : now)"))
     check("a named stored value passes", not cou.findings("update($, outcomes, all => ({ ...all, [k]: v }))"))
     check("an overwrite with a reason passes",
