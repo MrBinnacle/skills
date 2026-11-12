@@ -45,13 +45,11 @@ to the `@earendil-works/pi-coding-agent` directory to point it elsewhere. Checke
 on Windows on 2026-11-08; not run on Linux or macOS.
 
 `verify-gate/demo.svg`, the picture in the top-level README, is drawn from one run of the demo by
-`node mechanisms/verify-gate/render-demo.mjs`. Every line of text in it is a line the demo
-printed. `render-demo.mjs --check` runs the demo again and exits 1 when the picture no longer
-matches, then loads the picture in Chrome or Edge and exits 1 if the browser cannot parse it
-as SVG (it says so when it finds no browser; set `CHROME_PATH` to point at one). Run it after
-changing the demo or the gate's message. No gate runs it for you, because
-it needs Pi installed. The picture quotes Node's own assertion text, so a Node version other than
-v24 may print it differently and report the picture stale. The picture carries subsets of the
+`node mechanisms/verify-gate/render-demo.mjs`. Every piece of text in it is taken from a line the
+demo printed. Run it again after changing the demo or the gate's message, and commit the new
+picture if `git diff` shows a change. No gate runs it for you, because it needs Pi installed. The
+picture quotes Pi's version and Node's own assertion text, so a run with a Pi other than 1.5.0 or a
+Node other than v24 draws a different picture. The picture carries subsets of the
 Barlow and Overpass Mono fonts in `verify-gate/fonts/`, under the SIL Open Font License in
 `fonts/OFL.txt`, because an image cannot load web fonts.
 
