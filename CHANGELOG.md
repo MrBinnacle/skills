@@ -4,6 +4,44 @@ All notable changes to the collection. A release is a delivery event: changed ca
 installed users when a version is released, not on every merge to `main`. See
 [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
+## v4.1.1 - 2026-11-10
+
+### Patch Changes
+
+- [#666](https://github.com/MrBinnacle/skills/pull/666) [`d820224`](https://github.com/MrBinnacle/skills/commit/d820224e1836968530bcc4ef7e4ebda3632b5413) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The Binnacle HUD no longer keeps a cleared prompt draft, so it never reads the prompt box or puts prompt text in session state. Claude Code brings a cleared draft back itself: after Ctrl+C, press Up on the empty prompt.
+  
+  Each Memory line and each failed keep gets an id when it is saved, so a remove key or `d` acts only on the entry it was drawn for, never on another with the same text. Lists saved by 4.1.0 as plain text still load: session start gives each line an id. `0` removes the line shown last, and is not drawn when that line has no id. `a` adds the text the pane showed, and `p` the Log thought on screen.
+  
+  A refused Send is shown only while the lines differ from what Claude has. When an unrecorded Send stands, a later refused Send reads "The later Send was refused:" rather than "Not sent."
+
+- [#665](https://github.com/MrBinnacle/skills/pull/665) [`a94366d`](https://github.com/MrBinnacle/skills/commit/a94366d99f521d7fa5933b8c12fdb26ffb611dcc) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The Binnacle HUD no longer says "Not sent." when a Send reached the conversation but its own record of the Send failed; it says Claude has the lines and that the HUD could not record the Send. Failed keeps can be dismissed with `d` once recovered. A code comment no longer names `ctrl+x tab`, which does nothing.
+
+- [#669](https://github.com/MrBinnacle/skills/pull/669) [`c73225f`](https://github.com/MrBinnacle/skills/commit/c73225fe3f61dbb2ffb8e029e56ddee9777411c6) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The Binnacle HUD shows why a Send was refused only beside the lines that Send carried, matched by their text, so the reason comes back if the lines return to that text. Before this, the reason stayed hidden while the lines matched what Claude had, then came back with the old reason when a new line was added. A refusal stored by 4.1.0 has no lines with it, so the HUD no longer draws it; the status line still says "Not sent." or "Changed since Send".
+
+## v4.1.0 - 2026-11-09
+
+### Minor Changes
+
+- [#656](https://github.com/MrBinnacle/skills/pull/656) [`03891e5`](https://github.com/MrBinnacle/skills/commit/03891e5161e9b69ba2a883988a3cff6a2fa3d05d) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The collection ships a second Claude Code mod, `binnacle-hud`, at `mods/binnacle-hud/`. The mod draws a side panel beside the chat with a Log. It keeps each thought typed in the panel's field, or sent with `/log` from the Claude app on a phone, with its time and where it came from. The mod does not send the Log to Claude. Absence from a later model request has not been verified; other plugins can read the Log and intercept or change state writes.
+
+  `/log` asks for the thought in Claude Code's question dialog, because the phone draws that dialog but not a mod's panel. It refuses text typed after the command, because the conversation records the command line. The panel also holds Memory lines the mod sends only after confirmation, and a Watch preview with sample data.
+
+  ADR 0009 prices adding a mod as admitting a card, so this changeset is minor. The new marketplace entry installs nothing until the release that carries this changeset is pinned.
+
+- [#661](https://github.com/MrBinnacle/skills/pull/661) [`d4adc5e`](https://github.com/MrBinnacle/skills/commit/d4adc5e39406ff971669be61c0f28e2c1ff7092a) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The `binnacle-hud` mod's Memory section is real. The operator types a line in the panel's field and presses `a` to add it to Memory, and presses a line's number to remove it. Send asks for a confirmation in Claude Code's question dialog and shows the lines. On **Send**, the mod adds one row to the conversation, "Memory the operator approved at HH:MM:" followed by the lines. The row starts no model turn, and Claude reads it on its next turn.
+
+  The lines are fixed when Send is pressed, so the dialog, the row and the record of what was approved all hold the same lines. The mod records the lines as approved only after the row is stored. A refused row leaves the previous approval in force and shows "Not sent." with the reason. A status line under Memory says "Not sent.", "In Claude's context since HH:MM." or "Changed since Send. Claude has the HH:MM version."
+
+  The design preview's sample scenes and their 1 to 5 keys are gone. Watch still shows one sample finding, without buttons, and says it is not connected to an observer yet. The mod does not send the Log to Claude. Copying a thought to Memory is not Send; only a confirmed Send appends those lines. Absence from later model requests has not been verified.
+
+### Patch Changes
+
+- [#661](https://github.com/MrBinnacle/skills/pull/661) [`d4adc5e`](https://github.com/MrBinnacle/skills/commit/d4adc5e39406ff971669be61c0f28e2c1ff7092a) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The binnacle-hud README now says that v4.0.0 does not contain the mod, and gives a way to load it from a clone with `claude --plugin-dir` until the next release. It also bounds its privacy wording to what the mod's code does: kept thoughts stay in session state, the mod does not send the Log to Claude or make network calls, other plugins can read the Log and intercept writes to it, and a phone thought crosses Remote Control. Whether a thought stays out of a later model request is marked as not verified.
+
+- [#661](https://github.com/MrBinnacle/skills/pull/661) [`d4adc5e`](https://github.com/MrBinnacle/skills/commit/d4adc5e39406ff971669be61c0f28e2c1ff7092a) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - binnacle-hud preserves later edits while Log keep or Add to Memory is saving, even after emptying and retyping the same text. It trims only the added Memory line and keeps the `phone` mark at every width. Failed keeps remain visible beside the capture field, including in the collapsed strip; another failure or a later successful keep does not discard them.
+
+- [#654](https://github.com/MrBinnacle/skills/pull/654) [`157215a`](https://github.com/MrBinnacle/skills/commit/157215a62de7f2c47b63e66f5815b956c8c0b6cb) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `node mechanisms/verify-gate/demo.mjs` runs Pi's real agent loop twice with scripted model replies: without the verify-gate extension the agent ships a broken discount, and with it the agent is sent back to run `npm test` and reports the failure. The demo exits non-zero when the gate does not fire. `mechanisms/README.md` describes it under "See it fire".
+
 ## v4.0.0 - 2026-11-08
 
 ### Major Changes
