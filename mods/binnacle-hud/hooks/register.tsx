@@ -131,7 +131,7 @@ async function send($: EngineInterface): Promise<void> {
   // the lines and the HUD must not say "Not sent."
   // A refused Send changes nothing Claude has, so it keeps the earlier notice.
   let unrecorded = 0
-  if (!out.deny) await update($, approved, () => ({ lines, at })).catch(() => { unrecorded = at })
+  if (!out.deny) await update($, approved, () => ({ lines, at })).catch(() => { unrecorded = at }) // overwrite: the Send that landed last is the one Claude read last
   await update($, view, v => ({ ...v, failed: out.deny ?? '', refusedLines: lines, unrecorded: out.deny ? v.unrecorded : unrecorded }))
 }
 
