@@ -475,3 +475,12 @@ test('an ordinary prompt passes through untouched', async ($, on) => {
   expect(contexts.at(-1)).toEqual([])
   expect((await tips($)).text).toBe('Nothing from the side agent is waiting.')
 })
+
+// A band send of a different heads-up settles that one and leaves the waiting one waiting. No race.
+test('a band send of another heads-up leaves the waiting one waiting', async ($, on) => {
+  await engineBeneath($, on, TIP)
+  expect({ before: (await tips($)).text }).toEqual({ before: cardText(TIP) })
+  await typed($, BAND_SEND)
+  for (let i = 0; i < 50; i++) await Promise.resolve()
+  expect({ after: (await tips($)).text }).toEqual({ after: cardText(TIP) })
+})
