@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 // @ts-expect-error plain ESM script with no type declarations
 import { parse, render } from "./render-demo.mjs";
 
@@ -36,8 +38,19 @@ describe("render-demo", () => {
     expect(render(OUTPUT.replace("bash FAILED", "bash ok"))).not.toBe(render(OUTPUT));
   });
 
-  test("refuses output that is missing a run", () => {
-    expect(() => parse(OUTPUT.replace(/Run 2:[\s\S]*?(?=Real:)/, ""))).toThrow("expected shape");
+  test.each([
+    ["a run", /Run 2:[\s\S]*?(?=Real:)/],
+    ["the header", /^verify-gate demo:.*\n/],
+    ["the Scripted line", /^Scripted:.*\n/m],
+    ["run 1's rows", /^ {2}(user|agent) .*\n/gm],
+    ["run 1's notes", /^ {2}The (run settled after 2|demo now runs).*\n/gm],
+  ])("refuses output that is missing %s", (_what, cut) => {
+    expect(() => parse(OUTPUT.replace(cut, ""))).toThrow("expected shape");
+  });
+
+  test("the committed picture is what this code draws from the saved demo output", () => {
+    const read = (f: string) => readFileSync(join(import.meta.dir, f), "utf-8").replace(/\r\n/g, "\n");
+    expect(render(read("demo-output.txt"))).toBe(read("demo.svg"));
   });
 
   test("escapes XML in demo text", () => {

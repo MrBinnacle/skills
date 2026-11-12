@@ -27,7 +27,7 @@ Some cards load in every session and some run only when you type `/` and their n
 
 <p><img alt="Two runs of one coding task side by side. Without the verify-gate extension, the agent edits price.mjs, says it is done, and the project's tests fail afterwards. With it, the gate sends the agent back, the agent runs npm test, and it reports the failure." src="mechanisms/verify-gate/demo.svg" width="100%"></p>
 
-The picture is one run of `node mechanisms/verify-gate/demo.mjs`, drawn by `render-demo.mjs` beside it. Pi's agent loop, its edit and bash tools, npm test and the extension are real. The model's replies are scripted, so the demo needs Pi 1.5.0 and no API key. It has run on Windows only.
+The picture is one run of `node mechanisms/verify-gate/demo.mjs`, drawn by `render-demo.mjs` beside it. Pi's agent loop, its edit and bash tools, npm test and the extension are real. The model's replies are scripted, so the demo needs Pi and no API key; this picture is from Pi 1.5.0. It has run on Windows only.
 
 - [mechanisms/](mechanisms/README.md) holds Pi extensions: code that runs on a tool result, a command or the end of a run, so it does not wait for the agent to remember a card. Its table says what each one backs, including rules no admitted card states, and [one command](mechanisms/README.md#see-it-fire) runs the verification guard against a scripted agent.
 - [CATALOG.md](CATALOG.md) lists every card with its evidence.

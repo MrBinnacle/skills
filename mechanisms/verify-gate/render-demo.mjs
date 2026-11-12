@@ -1,5 +1,7 @@
-// Renders demo.svg from a real run of demo.mjs. Every piece of text in the picture is taken from a
-// line the demo printed. Usage: node mechanisms/verify-gate/render-demo.mjs
+// Renders demo.svg from a real run of demo.mjs and saves that run's output as demo-output.txt,
+// which the tests render again to prove the committed picture matches this code. Every piece of
+// visible text in the picture is taken from a line the demo printed.
+// Usage: node mechanisms/verify-gate/render-demo.mjs
 import { spawnSync } from "node:child_process";
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -198,6 +200,8 @@ function runDemo() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
-  writeFileSync(SVG_PATH, render(runDemo()));
-  console.log(`wrote ${SVG_PATH}`);
+  const output = runDemo();
+  writeFileSync(join(HERE, "demo-output.txt"), output);
+  writeFileSync(SVG_PATH, render(output));
+  console.log(`wrote ${SVG_PATH} and demo-output.txt`);
 }

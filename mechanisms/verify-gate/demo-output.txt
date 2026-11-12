@@ -1,0 +1,27 @@
+verify-gate demo: Pi 1.5.0's real agent loop, edit and bash tools, scripted model replies.
+
+Run 1: verify-gate not loaded
+  user  | Give every order a 10% discount.
+  agent | calls edit {"path":"price.mjs","edits":[{"oldText":"return subtotal;","newText":"return subtotal * 0.1;"}]}
+  tool  | edit ok
+  agent | Done. Every order now gets a 10% discount.
+  The run settled after 2 model calls and 0 checks.
+  The demo now runs the project's tests itself: FAIL. The bug would have shipped.
+
+Run 2: verify-gate loaded from mechanisms/verify-gate/, same script
+  user  | Give every order a 10% discount.
+  agent | calls edit {"path":"price.mjs","edits":[{"oldText":"return subtotal;","newText":"return subtotal * 0.1;"}]}
+  tool  | edit ok
+  agent | Done. Every order now gets a 10% discount.
+  gate  | Verification gate: these files changed after the last check command in this run: price.mjs. Run the project's test or check command now and report the result. If no check applies to this change, say so in one sentence and why.
+  agent | calls bash {"command":"npm test"}
+  tool  | bash FAILED
+  agent | I ran npm test and it failed, so the discount is not done:
+        |   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+        |   actual: 10,
+        |   expected: 90,
+  The run settled after 4 model calls. The gate sent the agent back to check.
+
+Real: Pi's agent loop, its edit and bash tools, npm test, and the verify-gate extension as shipped.
+Scripted: the model's replies. The last one reads the real test output from the transcript.
+Guard: mechanisms/verify-gate/ (gate.ts holds the rule). Took 2.3s.
