@@ -61,6 +61,9 @@ MUTANTS = {
     "check finds the row by its text": [("textOf(row) === att.text", "false")],
     "check concludes missing on a prompt": [("door === 'prompt' || door === 'response'", "door === 'response'")],
     "check concludes missing on a response": [("door === 'prompt' || door === 'response'", "door === 'prompt'")],
+    "statusOf: missing above unrecorded": [
+        ("return unrecorded ? said(`Claude has the lines sent at ${hhmm(unrecorded)}. The HUD could not record that Send.`, 'warning')\n    : !snap ? said('Not sent.', null)\n    : replay?.state === 'missing' ?",
+         "return replay?.state === 'missing' ? said(`Not in Claude's context after the compaction at ${at}. Send again to give Claude these lines.`, 'warning')\n    : unrecorded ? said(`Claude has the lines sent at ${hhmm(unrecorded)}. The HUD could not record that Send.`, 'warning')\n    : !snap ? said('Not sent.', null)\n    : replay?.state === 'missing' ?")],
     "replay speaks only for its Send": [("att.approvedAt === snap.at ? att :", "true ? att :")],
     "unchecked replay claims nothing": [("replay?.state === 'checking' ?", "false ?")],
     "unchecked replay is drawn quietly": [("Not checked after the compaction at ${at}.`, null)", "Not checked after the compaction at ${at}.`, 'remember')")],

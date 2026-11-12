@@ -336,3 +336,17 @@ test('a Send in the same millisecond as a compaction that replayed an older Send
   expect(text).not.toContain("In Claude's context since")
   expect(text).toContain("Not in Claude's context after the compaction")
 })
+
+// A re-Send after a compaction that missed the lines lands, but its record
+// fails. Claude read that Send, so its notice outranks the missing replay.
+test('a re-Send whose record failed after a missed replay says Claude has the lines', async ($, on) => {
+  const resent = LATER + 5 * 60_000
+  await start($, on, {
+    approved: SNAP, memory: SNAP.lines,
+    attached: { at: LATER, approvedAt: NOW, text: ROW, state: 'missing' },
+    view: { ring: 0, expand: 0, failed: '', unrecorded: resent },
+  })
+  const text = await shown($)
+  expect(text).toContain(`Claude has the lines sent at ${hhmm(resent)}. The HUD could not record that Send.`)
+  expect(text).not.toContain("Not in Claude's context")
+})
