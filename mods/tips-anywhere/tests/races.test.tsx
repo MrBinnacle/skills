@@ -98,3 +98,29 @@ test('a second /tips demo while the sample waits sends the sample again', { opti
   await flush()
   expect({ sampleToasts: toasts.filter(t => t.includes('sample heads-up from /tips demo')).length }).toEqual({ sampleToasts: 2 })
 })
+
+const OTHER = { line: 'A newer real note.', explanation: 'newer details' }
+
+test('a newer real heads-up replaces the one waiting', { options: { deliver: 'computer' } }, async ($, on) => {
+  const p = await engine($, on)
+  p.offerNow(TIP)
+  await p.turnEnds('t1')
+  await flush()
+  expect({ before: (await tips($)).text }).toEqual({ before: cardText(TIP) })
+  p.offerNow(OTHER)
+  await p.turnEnds('t2')
+  await flush()
+  expect({ after: (await tips($)).text, toasted: p.toasts.some(t => t.includes(OTHER.line)) }).toEqual({ after: cardText(OTHER), toasted: true })
+})
+
+test('a real heads-up replaces the waiting sample', { options: { deliver: 'computer' } }, async ($, on) => {
+  const p = await engine($, on)
+  expect((await tips($, 'demo')).text).toContain('sample heads-up arrives')
+  p.demoSleep.resolve()
+  await flush()
+  expect({ sample: (await tips($)).text?.startsWith('Heads up: This is a sample') }).toEqual({ sample: true })
+  p.offerNow(TIP)
+  await p.turnEnds('t1')
+  await flush()
+  expect({ after: (await tips($)).text, toasted: p.toasts.some(t => t.includes(TIP.line)) }).toEqual({ after: cardText(TIP), toasted: true })
+})
