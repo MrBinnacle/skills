@@ -36,4 +36,36 @@ describe("eol-guard adapter", () => {
     const result = await events.get("tool_result")!(edit("a.md"), ctxFor(root));
     expect(result?.content.at(-1)?.text).toContain("a.md was LF-only (2 lines) at HEAD and is now CRLF-only");
   }, GIT_TIMEOUT);
+
+  test.each([
+    ["the same text", "one\ntwo\nthree\n"],
+    ["one line changed", "one\nTWO\nthree\n"],
+  ])("under core.autocrlf=true an LF write of %s over a CRLF checkout is not reported, because git stores LF", async (_, text) => {
+    const { root } = await makeRepo();
+    writeFileSync(join(root, "a.md"), "one\ntwo\nthree\n");
+    await git(root, "add", "a.md");
+    await git(root, "commit", "-q", "-m", "lf");
+    await git(root, "config", "core.autocrlf", "true");
+    writeFileSync(join(root, "a.md"), "one\r\ntwo\r\nthree\r\n");
+    await git(root, "add", "a.md");
+    const events = fakePi();
+    await events.get("session_start")!({}, ctxFor(root));
+    await events.get("before_agent_start")!({}, ctxFor(root));
+    writeFileSync(join(root, "a.md"), text);
+    const write = { toolName: "write", input: { path: "a.md" }, isError: false, content: [] };
+    expect(await events.get("tool_result")!(write, ctxFor(root))).toBeUndefined();
+  }, GIT_TIMEOUT);
+
+  test("under core.autocrlf=false a conversion that also changes one line is still reported", async () => {
+    const { root } = await makeRepo();
+    writeFileSync(join(root, "a.md"), "one\ntwo\nthree\n");
+    await git(root, "add", "a.md");
+    await git(root, "commit", "-q", "-m", "lf");
+    const events = fakePi();
+    await events.get("session_start")!({}, ctxFor(root));
+    await events.get("before_agent_start")!({}, ctxFor(root));
+    writeFileSync(join(root, "a.md"), "one\r\nTWO\r\nthree\r\n");
+    const result = await events.get("tool_result")!(edit("a.md"), ctxFor(root));
+    expect(result?.content.at(-1)?.text).toContain("a.md was LF-only (3 lines) at HEAD and is now CRLF-only");
+  }, GIT_TIMEOUT);
 });
