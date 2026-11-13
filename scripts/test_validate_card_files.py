@@ -1662,6 +1662,10 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "doubled-quote-card": "'it''s for testing'",
         "long-comment-card": f"Use when testing # {long}",
         "quoted-null-card": '"null"',
+        "digit-word-card": "3d-printing",
+        "ordinal-card": "1st",
+        "escaped-quote-text-card": '"say \\"hi\\" when testing"',
+        "hex-escape-text-card": '"Use when \\x41 testing"',
     }
     for name, form in one_line.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
@@ -1677,8 +1681,36 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "timestamp-zone-card": "2026-11-01 10:00:00 -5",
         "infinity-card": ".inf",
         "tilde-comment-card": "~ # note",
+        "hex-card": "0x1F",
+        "octal-card": "0o17",
+        "binary-card": "0b101",
+        "exponent-card": "1e3",
+        "leading-dot-card": ".5",
+        "sexagesimal-card": "1:30",
+        "underscore-card": "1_000",
+        "iso-time-card": "2026-11-01T10:00:00Z",
     }
     for name, form in not_text.items():
+        write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
+    # #648: a `description:` line inside another key's value, or a second key,
+    # comes before the real 300-character key.
+    decoys = {
+        "decoy-double-quoted-card": 'license: "MIT\ndescription: short"\n',
+        "decoy-single-quoted-card": "compatibility: 'any\ndescription: short'\n",
+        "decoy-duplicate-key-card": "description: short\n",
+    }
+    for name, decoy in decoys.items():
+        skill = write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=long) / "SKILL.md"
+        skill.write_text(skill.read_text(encoding="utf-8").replace("description: ", decoy + "description: ", 1), encoding="utf-8")
+    no_readable_text = {
+        "nul-escape-card": '"\\0"',
+        "hex-escape-card": '"\\x00"',
+        "four-digit-escape-card": '"\\u0000"',
+        "eight-digit-escape-card": '"\\U00000000"',
+        "blank-quoted-card": '"  "',
+        "blank-single-quoted-card": "'  '",
+    }
+    for name, form in no_readable_text.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
     bom = write_card(root, "bom-folded-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=f">-\n  {long}")
     (bom / "SKILL.md").write_bytes(b"\xef\xbb\xbf" + (bom / "SKILL.md").read_bytes())
@@ -1699,6 +1731,18 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         check(
             f"a value YAML does not read as text is no description: {name}",
             any(name in line and "states no frontmatter description" in line for line in lines),
+            result.stderr.strip(),
+        )
+    for name in decoys:
+        check(
+            f"a second description line is refused, not measured in place of the key: {name}",
+            any(name in line and "2 lines, not one, that start with `description:`" in line for line in lines),
+            result.stderr.strip(),
+        )
+    for name in no_readable_text:
+        check(
+            f"a description of escapes and spaces holds no text: {name}",
+            any(name in line and "holds no readable text" in line for line in lines),
             result.stderr.strip(),
         )
     check(
