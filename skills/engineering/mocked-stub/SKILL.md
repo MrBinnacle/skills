@@ -27,9 +27,8 @@ with patch("mod._find_incomplete_run", return_value="run-123"):
 
 The safety guard built on `_find_incomplete_run` is dead code in production; the test
 patches the stub to a fake truthy value and validates only the downstream branch. A real
-run silently skips the guard. This is **not** a rare slip — it is the *default* failure mode
-of TDD-after-the-fact when the helper is hard to drive, and it recurs run-over-run (observed
-in two consecutive tracks in one session).
+run silently skips the guard. It was seen in two consecutive tracks of one session
+(2026-06-06), counted as one occasion; how often it happens elsewhere is unmeasured.
 
 ## When to fire
 

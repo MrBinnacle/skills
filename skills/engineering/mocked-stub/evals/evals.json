@@ -25,9 +25,9 @@
     {
       "id": 3,
       "prompt": "Coverage is at 94% and the stubbed line shows as covered, so the branch is exercised. Also I ran `ruff check src/` and it was clean.",
-      "expected_output": "Rejects both signals. Line coverage counts the patched test touching the import, so the trap survives a coverage gate; and the lint run used a narrower scope than the project gate, which is src/ and tests/.",
+      "expected_output": "Rejects both signals. With the stub patched, its body never runs: coverage.py reports the stub's body line as missed and counts only its def line, so a line that shows as covered is the def line or a misread. One missed line barely moves a 94% total, so the trap survives a coverage threshold. And the lint run used a narrower scope than the project gate, which is src/ and tests/.",
       "assertions": [
-        "States that line coverage is not behavior coverage and that this trap survives a coverage threshold.",
+        "States that the patched stub's body never runs, so a per-line read shows its body line missed, and that one missed line survives a coverage threshold.",
         "Flags the gate-scope mismatch and requires re-running the project's own gate scope rather than the reported command.",
         "Re-runs the gates independently rather than accepting the implementer's report of them."
       ]

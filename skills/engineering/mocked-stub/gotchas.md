@@ -23,3 +23,7 @@ Append-only. Seeded with `[ANTICIPATED]`; replace/supplement with `[OBSERVED]` a
 
 - `[ANTICIPATED]` Coverage tools report the stub line as "covered" because the patched test
   still imports/touches it. Line coverage ≠ behavior coverage; this trap survives a coverage gate.
+  status 2026-11-12: measured with coverage.py 7.15.4, line and branch mode. When the only test
+  patches the stub, the stub's `return None` line reports as missed; only its `def` line counts,
+  at import. The mechanism above is wrong for this tool. The trap still survives a percentage
+  threshold, because one missed line barely moves the total; a per-line read of the stub shows it.
