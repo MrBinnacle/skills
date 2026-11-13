@@ -21,6 +21,7 @@ Every recipe below MUST pass this table before use. One section per harness; the
 | Expected | Case |
 |---|---|
 | MUST BLOCK | Bare `git pull` with effective rebase config true |
+| MUST BLOCK | Bare `git pull` sent through the harness's PowerShell tool, where one is enabled, with effective rebase config true |
 | MUST PASS | `git pull --rebase` (intent recorded) |
 | MUST PASS | `git pull --no-rebase` (intent recorded) |
 | MUST PASS | `git pull --ff-only` with effective rebase config true. It cannot rebase: on diverged history git refuses and rewrites nothing. Measured on git 2.56.0, 2026-10-05, with `pull.rebase=true` and one local and one remote commit: exit 128, `fatal: Not possible to fast-forward, aborting.`, local commit SHA unchanged |
@@ -32,7 +33,7 @@ Every recipe below MUST pass this table before use. One section per harness; the
 
 ## Claude Code `PreToolUse`
 
-In `~/.claude/settings.json` (all projects) or `.claude/settings.local.json` (one project), register a synchronous command handler under `hooks.PreToolUse` with matcher `Bash`. Read `tool_input.command` from stdin and emit this only for the block case:
+In `~/.claude/settings.json` (all projects) or `.claude/settings.local.json` (one project), register a synchronous command handler under `hooks.PreToolUse` with matcher `Bash|PowerShell`. Read `tool_input.command` from stdin; both tools send the command there. Parse a PowerShell command as PowerShell: its escape character is the backtick, and a backslash is a literal character, such as a path separator. Emit this only for the block case:
 
 ```json
 {
@@ -44,9 +45,9 @@ In `~/.claude/settings.json` (all projects) or `.claude/settings.local.json` (on
 }
 ```
 
-For every pass or error, exit zero silently. Do not rely on the optional `if` filter: run for Bash and let a shell-aware parser identify actual pulls. This is loop-native because `PreToolUse` fires before each tool call and can deny it.
+For every pass or error, exit zero silently. Do not rely on the optional `if` filter: run for both tools and let a shell-aware parser identify actual pulls. This is loop-native because `PreToolUse` fires before each tool call and can deny it.
 
-Verified 2026-08-12 against the live [Claude Code hooks reference](https://code.claude.com/docs/en/hooks): `PreToolUse`, Bash input, deny output, and silent exit-zero behavior.
+Verified 2026-08-12 against the live [Claude Code hooks reference](https://code.claude.com/docs/en/hooks): `PreToolUse`, Bash input, deny output, and silent exit-zero behavior. Re-checked 2026-11-12 (Claude Code 2.1.323) against the hooks reference and the [tools reference](https://code.claude.com/docs/en/tools-reference): the PowerShell tool sends its command in `tool_input.command`, and both pages say to match `Bash|PowerShell` in hooks that inspect shell commands. On Windows, wherever the PowerShell tool is enabled, it is the primary shell, and a hook that matches only `Bash` never fires there. The backtick escape was checked in PowerShell 7.6.10 the same day: `"a\tb"` prints a backslash and a `t`, and ``"a`tb"`` prints a tab.
 
 ## Pi extension `tool_call` handler
 
