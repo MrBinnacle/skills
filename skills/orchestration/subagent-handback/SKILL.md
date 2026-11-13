@@ -32,13 +32,12 @@ catches.
 
 ### Check 0 — Pre-dispatch: name the return channel in the dispatch itself
 
-**What the platform promises.** A subagent's intermediate output stays in its own context; its
-final text is the return, inline for a foreground agent and in the completion notification for a
-background one. A named agent that launches as a teammate also delivers its final text: its idle
-notification "includes its final answer" (code.claude.com `sub-agents.md`, `agent-teams.md`, read
-2026-10-17). The `SendMessage` description's "plain text output is NOT visible to other agents"
-covers text written mid-turn, not the final answer, so a named teammate's final text reaches the
-spawner by design.
+**What the platform promises.** A subagent's intermediate output stays in its own context, and
+the harness delivers a final report to the caller. The route differs by harness and mode: in
+some modes the subagent hands the report back through a separate call, and the result the caller
+sees is only a note about it. Open [platform-notes.md](platform-notes.md) before you read a
+handback or write a check on one. It records each harness's route (checked 2026-11-12) and what
+is unverified.
 
 **What happens anyway.** Background agents have stopped with an empty handback (observed
 2026-08-04, 2026-08-24, 2026-08-25), and work that lived only in their transcript was gone. Name a
