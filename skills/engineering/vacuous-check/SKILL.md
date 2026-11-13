@@ -21,8 +21,9 @@ Any of these, in any language:
 - A shell retry loop whose success test is `[ -n "$out" ]`, `[ $? -eq 0 ]` on a
   command that exits 0 on API errors, or a grep for a substring that appears in
   both outcomes.
-- `gh api ... --jq .some_field` — `gh` prints the API's error JSON to stdout,
-  so `--jq` on a 4xx/5xx body yields a non-empty string.
+- `gh api ... --jq .some_field` — on an HTTP 4xx/5xx, `gh` exits 1 and prints
+  the unfiltered error JSON to stdout, so the capture is non-empty (gh 2.92.0,
+  2026-11-12).
 - A test helper that stringifies both sides before comparing:
   `String(got) === String(want)` passes on `check('x', 1, '1')`.
 - A verification script that counts lines, checks a file exists, or greps for a
@@ -55,8 +56,8 @@ exit-code test, or capture stderr separately when you need the body.
 `2>/dev/null` hides the diagnostic while leaving the error body on stdout —
 check where a tool actually writes errors before redirecting. The *stream* an
 error body lands on is undocumented for `gh api` (manual re-read
-2026-10-05): that claim rests on the retry loop in
-[case-study.md](case-study.md), reproduced once, not specified — so assert the success
+2026-10-05): that claim rests on two runs, the retry loop in
+[case-study.md](case-study.md) (2026-08-17) and a 404 on 2026-11-12, not a specification — so assert the success
 shape rather than rely on where the error text lands.
 
 ### 2. Compare identity, never stringification
@@ -97,10 +98,10 @@ probe that never ran. Put a known-good case in the batch and require it to come
 back positive:
 
 ```sh
-# A probe: does file $1 carry $MARKER? A missing file prints MISS too.
-probe() { grep -q "$MARKER" "$1" 2>/dev/null && echo HIT || echo MISS; }
+# A probe: does file $1 carry $MARKER? grep exits 1 on no match, 2+ on an error.
+probe() { grep -q "$MARKER" "$1"; case $? in 0) echo HIT;; 1) echo MISS;; *) echo ERROR;; esac; }
 
-# WRONG — a mistyped path prints MISS, the same line as a true negative
+# WRONG — a mistyped $MARKER prints MISS for every readable path, the same line as a true negative
 for p in "$SUSPECT_1" "$SUSPECT_2"; do echo "$(probe "$p") $p"; done
 
 # RIGHT — the known-good control comes back HIT before any MISS is believed
