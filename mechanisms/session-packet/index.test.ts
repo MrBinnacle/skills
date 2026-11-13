@@ -96,6 +96,16 @@ describe("session-packet adapter", () => {
     expect(notes.at(-1)?.message).toContain('"verdict": "REJECTED"');
   }, GIT_TIMEOUT);
 
+  test("a correction keeps the entries an earlier extension proposed at the same settle", async () => {
+    const { root } = await makeRepo();
+    const { commands, events } = fakePi();
+    const { ctx } = fakeCtx(root);
+    await commands.get("packet-close")!("Ship the port", ctx);
+    const earlier = { type: "custom_message", customType: "earlier", content: "kept", display: true };
+    const result = await events.get("agent_before_settle")!({ ...settle, entries: [earlier] }, ctx);
+    expect(result.entries.map((e: { customType: string }) => e.customType)).toEqual(["earlier", "session-packet-receipt"]);
+  }, GIT_TIMEOUT);
+
   test("/packet-close refuses on a red receiver check and writes nothing", async () => {
     const { root } = await makeRepo();
     writeConfig(root, { receiverChecks: [{ name: "red", command: "exit 1" }] });
