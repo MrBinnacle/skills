@@ -34,7 +34,8 @@ independent defects, one commit.
 - You are writing a shell guard that matches its pattern against the whole command.
 - **Non-prose branch:** a live command is blocked because an argument contains the banned word.
   `git fetch origin pull/292/head` names a pull-request ref, and a `git pull` guard reads `pull`
-  in the path. Tighten the pattern so it names the whole command (`git\s+pull\b`), not one word.
+  in the path. Tighten the pattern so the word inside a path or a ref does not count, and test
+  that options between the program and the word (`git -C repo pull`) still block.
 
 ## Solution
 

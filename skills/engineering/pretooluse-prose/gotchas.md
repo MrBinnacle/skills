@@ -255,11 +255,11 @@ A guard that polices pull-request creation read the whole command string of a di
 
 ## [STATUS 2026-11-12] the command-position remedy was applied to a guard and removed
 
-A status line on the remedy this card prescribed until 2026-11-12: anchor the pattern at command position and strip heredoc bodies. It records a limit of that remedy. It is not a block, and it adds nothing to the count.
+A status line on the remedy this card prescribed until the 2026-11-13 change: anchor the pattern at command position and strip heredoc bodies. It records a limit of that remedy. It is not a block, and it adds nothing to the count.
 
 **The remedy was applied to a guard and removed.** The pull-rebase guard is the guard the two 2026-09-08 entries above count. A change to it dated 2026-09-27 applied this card's remedy in two rounds. The rounds stripped heredoc bodies, comments, echo text and commit messages, and they listed the places where a command can start. The guard's own record says each round let real pulls through. The merged guard matches its word anywhere in the command, and its refusal tells the agent to write the text to a file. So the closing line of the 2026-09-22 to 2026-10-05 entry above, "absent rather than defeated", was out of date when it was written: the remedy had been tried on that guard and removed on 2026-09-27.
 
-**The card's own sample let commands through.** Run on 2026-11-12 in bash 5.3.15: the `command_starts` sample this card printed passed a banned command in a subshell, in a `{ }` group, in backticks, and after `!`, `then`, `do`, `else` and `elif`. Bash ran all eight. The sample also dropped the body of an unquoted heredoc, and bash runs a backtick substitution there.
+**The card's own sample let commands through.** Run on 2026-11-12, and again on 2026-11-13, in bash 5.3.15 (Git for Windows) with a stand-in for the banned program: the `command_starts` sample this card printed passed a banned command in a subshell, in a `{ }` group, in backticks, and after `!`, `then`, `do`, `else` and `elif`. Bash ran all eight. The sample also dropped the body of an unquoted heredoc, and bash runs a backtick substitution there.
 
 **What the card says now.** Match the pattern anywhere, accept the block on prose that only mentions it, and name the file route in the refusal. The card ships no reader that relaxes the match. A reader that relaxes it is security-sensitive code whose job is to let commands through, and the file route clears the block without one.
 
