@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import extension from "./index";
 
+type Handler = (...args: any[]) => any;
+
 const roots: string[] = [];
 afterAll(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
@@ -19,8 +21,8 @@ function projectCountingEvilAsCheck(): string {
 }
 
 async function settleAfterWriteThenEvil(trusted: boolean) {
-  const events = new Map<string, (...args: any[]) => any>();
-  extension({ on: (event: string, handler: any) => events.set(event, handler) } as any);
+  const events = new Map<string, Handler>();
+  extension({ on: (event: string, handler: Handler) => events.set(event, handler) } as any);
   const notes: string[] = [];
   const ctx = { cwd: projectCountingEvilAsCheck(), hasUI: true, isProjectTrusted: () => trusted, ui: { notify: (m: string) => notes.push(m) } };
   await events.get("session_start")!({}, ctx);
