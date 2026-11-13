@@ -1,0 +1,5 @@
+---
+"mrbinnacle-skills": patch
+---
+
+Three engineering cards no longer state claims that are false today. `pull-rebase`: the Claude Code guard recipe registered its hook with matcher `Bash`, so a bare pull sent through the PowerShell tool was never checked; the recipe now matches `Bash|PowerShell`, says to parse a PowerShell command as PowerShell, and its acceptance table has a row for that pull (docs checked 2026-11-12). `mocked-stub`: the card called the trap the default failure mode that recurs run-over-run, while its record counts one occasion; it now says that. Its gotchas ledger and eval case 3 said coverage marks a patched stub line as covered; coverage.py 7.15.4 marks it missed, and a dated status line and the eval case now say so. `stale-deploy`: the card called a leading `sleep 35 &&` chain "often blocked"; on 2026-11-12 it was blocked, and the refusal names a wait tool. Pattern B now names the harness's background-watch tool, and a new sibling, `background-watch.md`, gives the Claude Code call and its deadlines.
