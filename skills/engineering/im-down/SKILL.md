@@ -100,11 +100,11 @@ Use `close_session.py` unless the project's close needs that control.
 
 ## Boundary limits
 
-The operator runs `/clear`. The producer owes them a **safe-to-clear** verdict, computed from five checks and never asserted. `/clear` is the one action at a session boundary whose cost is one-way, so an `ACCEPTED` receipt is not the verdict; it is the first check.
+The operator runs `/clear`. The producer owes them a **safe-to-clear** verdict, computed from five checks and never asserted. `/clear` empties the context, and the next session works from the packet, not the old conversation (commands reference, `/clear`, checked 2026-11-12). So an `ACCEPTED` receipt is not the verdict; it is the first check.
 
 1. The packet re-validates `ACCEPTED` at the current `HEAD`, not the `HEAD` it was minted against.
 2. `HEAD` equals the packet's recorded head and the remote ref.
-3. The working tree is clean apart from the exclusions the boundary config declares.
+3. The working tree is clean apart from the packet the close wrote under `packet_dir`.
 4. Every long-running job the session launched is finished, judged on two signals: process state, and output or CPU. A flat log alone is not a verdict; a job can sit silent for an hour while its worker burns a core.
 5. Everything the next session needs is in committed state. A scratchpad path and the conversation are not committed state.
 

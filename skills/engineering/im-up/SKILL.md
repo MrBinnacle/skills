@@ -76,4 +76,4 @@ A `REJECTED` receipt carries `packet_assertions_held`. When it is `true`, every 
 
 ## Required fixtures
 
-Before adoption, run `python test_validate_packet.py` directly, not through pytest, and require its `PASS:` line. Pytest collects no tests from it and reports success. It covers clean, stale, incomplete, failed-probe, red-check, assertions-held, close-session, and open-session packets.
+Before adoption, run `python test_validate_packet.py` directly, not through pytest, and require its `PASS:` line. Pytest collects no tests from it and exits 5 (9.1.1, 2026-11-12). It covers clean, stale, incomplete, failed-probe, red-check, assertions-held, close-session, and open-session packets; a one-card copy names each case it skips.

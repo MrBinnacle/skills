@@ -5,6 +5,7 @@ import copy
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -1278,6 +1279,10 @@ def duplication_case() -> tuple[bool, str]:
             f"against {sibling_name}: {compared}")
 
 
+class PairScriptMissing(Exception):
+    """A case needs a card-private script that neither card here ships."""
+
+
 def _pair_script(name: str) -> Path:
     """Resolve a card-private script from this card or its sibling."""
     local = HERE / name
@@ -1288,7 +1293,64 @@ def _pair_script(name: str) -> Path:
         sibling = HERE.parent / sibling_name / name
         if sibling.is_file():
             return sibling
-    raise FileNotFoundError(f"{name} not found on {HERE.name} or its sibling")
+    raise PairScriptMissing(name)
+
+
+def pair_case(roster_name: str, case) -> str | None:
+    """Run a case that needs a script only one card of the pair ships.
+
+    On a one-card layout that script is absent. Like duplication_case for
+    parity, the case is reported NOT VERIFIED rather than crashing the run.
+    Returns the roster name to leave out of the PASS line, or None.
+    """
+    try:
+        case()
+    except PairScriptMissing as missing:
+        print(f"{roster_name} NOT VERIFIED: {missing} is absent from "
+              f"{HERE.name} and from its sibling, so this case did not run")
+        return roster_name
+    return None
+
+
+def single_card_case() -> tuple[bool, str]:
+    """Run this suite from a copy of this card alone, as an adopter may.
+
+    The copy lacks the sibling's scripts. Its run must exit 0, print a PASS
+    roster, and name each case it could not run, with none of those names
+    in the roster. Returns (verified, message). The nested copy has no
+    sibling, so there this case reports NOT VERIFIED instead of recursing.
+    """
+    sibling_name = {"im-down": "im-up", "im-up": "im-down"}.get(HERE.name)
+    if sibling_name is None or not (HERE.parent / sibling_name).is_dir():
+        return (False, "single-card NOT VERIFIED: this run is already a "
+                       "one-card layout")
+    with tempfile.TemporaryDirectory() as tmp:
+        alone = Path(tmp) / HERE.name
+        shutil.copytree(HERE, alone,
+                        ignore=shutil.ignore_patterns("__pycache__"))
+        result = subprocess.run(
+            ["python", "test_validate_packet.py"],
+            cwd=alone, text=True, capture_output=True,
+        )
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, "one-card run failed:\n" + output
+    lines = result.stdout.splitlines()
+    rosters = [ln for ln in lines if ln.startswith("PASS: ")]
+    assert len(rosters) == 1, "one-card run printed no PASS roster:\n" + output
+    passed = rosters[0][len("PASS: "):].split(", ")
+    not_run = [ln.split(" NOT VERIFIED: ")[0] for ln in lines
+               if " NOT VERIFIED: " in ln]
+    assert "parity" in not_run, "one-card run did not report parity:\n" + output
+    assert "no-drift" not in passed, rosters[0]
+    case_names = [name for name in not_run
+                  if name not in ("parity", "single-card")]
+    assert case_names, ("one-card run named no case it could not run, but "
+                        "the sibling's scripts are absent:\n" + output)
+    overlap = set(case_names) & set(passed)
+    assert not overlap, f"cases reported NOT VERIFIED and PASS: {overlap}"
+    return (True, f"single-card: a copy of {HERE.name} alone passed and "
+                  f"named {len(case_names)} case(s) it could not run: "
+                  + ", ".join(case_names))
 
 
 def _init_repo(repo: Path) -> None:
@@ -1490,6 +1552,7 @@ def open_session_cases():
 
 
 if __name__ == "__main__":
+    not_run: list[str | None] = []
     expect_structure("fixture-clean.md", True)
     expect_structure("fixture-missing-field.md", False)
     expect_structure("fixture-stale.md", True)
@@ -1501,37 +1564,44 @@ if __name__ == "__main__":
     close_commit_cases()
     claimed_head_cases()
     cli_cases()
-    close_session_cases()
-    open_session_cases()
-    red_check_cases()
-    assertions_held_cases()
+    not_run.append(pair_case("close-session", close_session_cases))
+    not_run.append(pair_case("open-session", open_session_cases))
+    not_run.append(pair_case("red-check", red_check_cases))
+    not_run.append(pair_case("assertions-held", assertions_held_cases))
     cache_hit_and_input_change_cases()
     cache_outside_change_cases()
     cache_directory_inputs_cases()
     cache_failing_never_cached_cases()
-    cache_weekly_disagreement_cases()
+    not_run.append(pair_case("cache-weekly", cache_weekly_disagreement_cases))
     cache_no_inputs_fields_cases()
     cache_expand_cases()
     cache_inputs_type_cases()
-    cache_close_shares_cases()
+    not_run.append(pair_case("cache-close-shared", cache_close_shares_cases))
     cache_atomic_write_cases()
     cache_path_confined_cases()
     utf8_check_output_cases()
     utf8_git_output_cases()
-    utf8_snapshot_state_cases()
-    utf8_close_git_cases()
+    not_run.append(pair_case("utf8-snapshot", utf8_snapshot_state_cases))
+    not_run.append(pair_case("utf8-close-git", utf8_close_git_cases))
     check_timeout_cases()
+    single_verified, single_message = single_card_case()
+    print(single_message)
     parity_verified, parity_message = duplication_case()
     print(parity_message)
-    roster = ("PASS: clean, stale, incomplete, failed-probe, placeholder, "
-              "unfailable-check, secret, command-probe, close-commit, close-commit-cli, "
-              "claimed-head, claimed-head-cli, receive-mode-config, "
-              "close-session, open-session, red-check, assertions-held, "
-              "cache-hit, cache-outside, cache-directory, cache-fail, "
-              "cache-weekly, cache-no-inputs, cache-expand, cache-inputs-type, "
-              "cache-close-shared, "
-              "cache-atomic, cache-path-confined, utf8-output, utf8-git-output, "
-              "utf8-snapshot, utf8-close-git, check-timeout")
+    roster = ["clean", "stale", "incomplete", "failed-probe", "placeholder",
+              "unfailable-check", "secret", "command-probe", "close-commit",
+              "close-commit-cli", "claimed-head", "claimed-head-cli",
+              "receive-mode-config", "close-session", "open-session", "red-check",
+              "assertions-held", "cache-hit", "cache-outside", "cache-directory",
+              "cache-fail", "cache-weekly", "cache-no-inputs", "cache-expand",
+              "cache-inputs-type", "cache-close-shared", "cache-atomic",
+              "cache-path-confined", "utf8-output", "utf8-git-output",
+              "utf8-snapshot", "utf8-close-git", "check-timeout"]
+    roster = [name for name in roster if name not in not_run]
+    if single_verified:
+        roster.append("single-card")
     # no-drift appears in the pass roster only when parity was actually
     # compared; a single-card install reports NOT VERIFIED above instead.
-    print(roster + ", no-drift" if parity_verified else roster)
+    if parity_verified:
+        roster.append("no-drift")
+    print("PASS: " + ", ".join(roster))
