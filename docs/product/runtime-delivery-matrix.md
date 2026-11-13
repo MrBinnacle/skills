@@ -192,3 +192,34 @@ The installed module is `dist/core/skills.js` within the Pi package.
 The [contract proposal in PR #419](https://github.com/MrBinnacle/skills/pull/419) provided
 questions for this investigation. It was unmerged when checked and is not treated here as an adopted product contract.
 This document closes the inventory requested by #420, not the implementation or evaluation work it identifies.
+
+## Install receipts
+
+The README gives the install commands. This section records which forms were run, on what, and when. The release procedure refreshes the shell-form lines.
+
+### Claude Code
+
+The shell form of the two README commands:
+
+```bash
+claude plugin marketplace add https://github.com/MrBinnacle/skills.git
+claude plugin install mrbinnacle-engineering
+```
+
+The cards appear after `/reload-plugins`. If Claude Code reports the reload as pending, run `/reload-plugins --force`. The plugin docs at https://code.claude.com/docs/en/discover-plugins.md state that behaviour (read 2026-10-06). `claude plugin list` reports the installed plugins and their versions.
+
+On Windows, keep the path of your Claude configuration directory (`CLAUDE_CONFIG_DIR`) at 108 characters or fewer. If it is longer, run `git config --global core.longpaths true` before you add the marketplace; that raises the limit to 157 characters. Above 157, the install fails even with that setting. Measured with Claude Code 2.1.302 on 2026-10-17, with Windows long-path support turned on.
+
+The HTTPS clone URL is the form the README publishes. The GitHub shorthand `MrBinnacle/skills` can fail on a machine with no working SSH key for github.com. Issue #333 recorded that failure.
+
+Verified forms, Claude Code 2.1.287, from a clean `CLAUDE_CONFIG_DIR` with no SSH key:
+
+- interactive `/plugin marketplace add https://github.com/MrBinnacle/skills.git` (2026-10-02)
+- shell `claude plugin marketplace add https://github.com/MrBinnacle/skills.git` (CI, 2026-10-17)
+- shell `claude plugin install` of all three plugins, at 3.1.0 (CI run 39075732554, 2026-10-17)
+
+The 2026-10-02 cold-install transcript is in the pull request that changed this section (#340). The 2026-10-17 shell forms ran in the `Install form` CI job on Ubuntu and Windows.
+
+### Pi
+
+Checked with Pi 1.5.0 on Windows on 2026-11-08, from an empty Pi configuration directory with skills in `~/.agents/skills` excluded. Pi's own resource loader found every card and all four extensions, with no errors. That shows what Pi loads. It does not show how a model uses them, and it has not been run on Linux or macOS. To install the cards without the extensions, list the package in Pi's `settings.json` with the README's source and `"extensions": []`. Pi reads the `pi` key of `package.json` to find the extensions.

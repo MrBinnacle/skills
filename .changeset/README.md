@@ -55,7 +55,7 @@ opens a pull request; a maintainer selects **Approve workflows to run** on it, t
    on every PR until that PR merges. Tag the release squash commit `v<version>` by hand as well,
    because no workflow pushes a tag. The pin check verifies the tag only once it resolves, so the
    tag and the pin merge can land in either order ([AGENTS.md](../AGENTS.md) step 4).
-2. `release-receipt.yml` refreshes the README install receipt and opens it as its own PR. It
+2. `release-receipt.yml` refreshes the install receipt in `docs/product/runtime-delivery-matrix.md` and opens it as its own PR. It
    runs after each passing push run of `tests.yml` on `main`, and does nothing while the
    receipt is current. It waits for the pin merge because the receipt cites the first passing
    push run at the new version, and `tests.yml` stays red on `main` until the pin lands. Until
