@@ -16,7 +16,7 @@ const start = async ($: any, on: any, store: Store, deny: string[] = []) => {
   const versions: Record<string, number> = {}
   on('command.register', () => ({ value: undefined }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
-  on('ui.focus', () => ({ value: {} }))
+  on('ui.focus', { plugin: '*' }, () => ({ value: {} }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('state.get', (_: unknown, e: { key: string }) => ({ value: { value: store[e.key], version: versions[e.key] ?? 0 } }))
   on('state.set', (_: unknown, e: { key: string; value: unknown }) => {

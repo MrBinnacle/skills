@@ -6,7 +6,7 @@ async function start($:any,on:any,initial:any={}) {
  const cells:any=Object.fromEntries(Object.entries(initial).map(([k,value])=>[k,{value,version:1}]))
  const cell=(k:string)=>cells[k]??{value:undefined,version:0}
  let readGate:any=null, box='',engine:any
- on('command.register',()=>({value:undefined}));on('ui.open',()=>({value:{isPlaced:true}}));on('ui.focus',()=>({value:{}}))
+ on('command.register',()=>({value:undefined}));on('ui.open',()=>({value:{isPlaced:true}}));on('ui.focus', { plugin: '*' }, ()=>({value:{}}))
  on('session.start',($:any,e:any)=>{engine=$;return {cwd:e.cwd}})
  on('state.get',async(_:any,e:any)=>{
   if(readGate&&e.key==='lost'){const g=readGate;readGate=null;g.entered.resolve();await g.release.promise}

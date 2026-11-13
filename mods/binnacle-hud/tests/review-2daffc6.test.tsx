@@ -6,7 +6,7 @@ async function start($:any,on:any, initial:any = {}) {
  const cells: any = Object.fromEntries(Object.entries(initial).map(([k,value])=>[k,{value,version:1}]))
  const cell=(k:string)=>cells[k]??{value:undefined,version:0}
  let box=''
- on('command.register',()=>({value:undefined})); on('ui.open',()=>({value:{isPlaced:true}})); on('ui.focus',()=>({value:{}}))
+ on('command.register',()=>({value:undefined})); on('ui.open',()=>({value:{isPlaced:true}})); on('ui.focus', { plugin: '*' }, ()=>({value:{}}))
  on('session.start',(_:any,e:any)=>({cwd:e.cwd}))
  on('state.get',(_:any,e:any)=>({value:{...cell(e.key)}}))
  on('state.set',(_:any,e:any)=>{const old=cell(e.key); if(e.ifVersion!==undefined&&e.ifVersion!==old.version)return {value:{isSet:false,version:old.version}}; cells[e.key]={value:e.value,version:old.version+1};return {value:{isSet:true,version:old.version+1}}})

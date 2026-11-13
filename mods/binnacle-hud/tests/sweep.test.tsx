@@ -31,7 +31,7 @@ async function begin($: any, on: any, seed: Record<string, unknown> = {}) {
   }
   on('command.register', () => ({ value: undefined }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
-  on('ui.focus', () => ({ value: {} }))
+  on('ui.focus', { plugin: '*' }, () => ({ value: {} }))
   on('session.start', (_: any, e: any) => ({ cwd: e.cwd }))
   // An event takes one hook, so the kit's clock.now hook is wrapped to make it holdable.
   const clock = mock.clock(((event: string, ...rest: any[]) => {

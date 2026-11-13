@@ -27,7 +27,7 @@ const start = async ($: any, on: any, store: Store = {}) => {
     versions[e.key] = (versions[e.key] ?? 0) + 1
     return { value: { isSet: true, version: versions[e.key] } }
   })
-  on('ui.focus', () => ({ value: {} }))
+  on('ui.focus', { plugin: '*' }, () => ({ value: {} }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 }
 

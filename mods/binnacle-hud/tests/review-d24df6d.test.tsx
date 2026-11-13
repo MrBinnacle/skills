@@ -14,7 +14,7 @@ async function setup($: any, on: any, initial: Record<string, any>, holdDismiss 
   const session = mock.session(on)
   on('command.register', () => ({value: undefined}))
   on('ui.open', () => ({value: {isPlaced: true}}))
-  on('ui.focus', () => ({value: {}}))
+  on('ui.focus', { plugin: '*' }, () => ({value: {}}))
   on('session.start', (_: any, e: any) => ({cwd: e.cwd}))
   on('state.get', (_: any, e: any) => ({value: {...cell(e.key)}}))
   on('state.set', async (_: any, e: any) => {

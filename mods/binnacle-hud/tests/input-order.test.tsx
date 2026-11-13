@@ -19,7 +19,7 @@ async function start($: any, on: any, store: any, hold?: { gate: Promise<void>; 
   on('command.register', () => ({ value: undefined }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: any, e: any) => ({ cwd: e.cwd }))
-  on('ui.focus', () => ({ value: {} }))
+  on('ui.focus', { plugin: '*' }, () => ({ value: {} }))
   on('state.get', (_: any, e: any) => ({ value: { value: store[e.key], version: versions[e.key] ?? 0 } }))
   on('state.set', async (_: any, e: any) => {
     if (hold && e.key === 'typed' && !held) { held = true; hold.entered(); await hold.gate }

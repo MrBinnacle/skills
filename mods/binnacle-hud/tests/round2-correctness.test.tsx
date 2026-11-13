@@ -7,7 +7,7 @@ async function start($:any,on:any,initial:any={}) {
  const cell=(k:string)=>cells[k]??{value:undefined,version:0}
  let gate:any=null, changeGate:any=null, box=''; let denied=false; let copy:any={isCopied:true}
  const writes:any[]=[]
- on('command.register',()=>({value:undefined}));on('ui.open',()=>({value:{isPlaced:true}}));on('ui.focus',()=>({value:{}}))
+ on('command.register',()=>({value:undefined}));on('ui.open',()=>({value:{isPlaced:true}}));on('ui.focus', { plugin: '*' }, ()=>({value:{}}))
  on('session.start',(_:any,e:any)=>({cwd:e.cwd}))
  on('state.get',(_:any,e:any)=>({value:{...cell(e.key)}}))
  on('state.set',async(_:any,e:any)=>{

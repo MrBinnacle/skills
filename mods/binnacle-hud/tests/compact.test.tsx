@@ -39,7 +39,7 @@ const start = async ($: any, on: any, store: Store, opts: Opts = {}) => {
     versions[e.key] = (versions[e.key] ?? 0) + 1
     return { value: { isSet: true, version: versions[e.key] } }
   })
-  on('ui.focus', () => ({ value: {} }))
+  on('ui.focus', { plugin: '*' }, () => ({ value: {} }))
   on('session.compact', (_: unknown, e: any) => core(e))
   on('tool.call', async (_: unknown, e: any) => ({ result: { answers: { [e.questions[0].question]: 'Send' } } }))
   mock.clock(on, { now: LATER })
