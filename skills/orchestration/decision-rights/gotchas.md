@@ -33,6 +33,10 @@ stress-test signal.)*
   `promoted: hook` — 2026-10-01, `guard-downstream-framing.py` (PreToolUse on Write/Edit).
   Prevention fires on the tool call, not on a reader opening this file.
 
+  `promoted: hook` — 2026-11-12, partial. The guard reads files written with the write and
+  edit tools and `gh` issue and pull-request bodies. It does not read a prompt sent to a
+  subagent or to another agent, so this entry's failure in a dispatch prompt has no guard.
+
 - **2026-08-23 / corpus harvest, 1358 files across 28 project directories:** a rotation pass
   searched every reachable session record, handoff, audit and research document for this
   card's origin failure. Each card's search signature was required to locate that card's own

@@ -1,7 +1,5 @@
 ---
 cases:
-  decision-rights-issue-bodies: fires
-  decision-rights-near-miss: does-not-fire
   subagent-handback-brief: fires
   subagent-handback-celery-worker: does-not-fire
   subagent-handback-dispatch: fires
@@ -17,7 +15,7 @@ The eval cases for the `mrbinnacle-orchestration` plugin. `claude plugin eval` r
 
 `cases:` names every case with the direction it can fail in. `controls:` names the case that can fail in the should-not-fire direction for this plugin. The pre-flight in the research repo refuses a run when the declared set and the discovered set disagree.
 
-Two cards have cases here. `decision-rights` has a should-fire case (`decision-rights-issue-bodies`) and its should-not-fire partner (`decision-rights-near-miss`). `subagent-handback` has four should-fire cases and one should-not-fire partner (`subagent-handback-celery-worker`). In `subagent-handback-dispatch`, the user dispatches and the agent writes the prompt. `subagent-handback-instructions` and `subagent-handback-brief` make the same request in other words, "Draft the instructions I should give it" and "Write me a brief for it", so the word "prompt" does not appear. In `subagent-handback-self-dispatch`, the agent under test dispatches. The sweep is the same in all four; the three variants were added for [#609](https://github.com/MrBinnacle/skills/issues/609).
+One card has cases here. `subagent-handback` has four should-fire cases and one should-not-fire partner (`subagent-handback-celery-worker`). In `subagent-handback-dispatch`, the user dispatches and the agent writes the prompt. `subagent-handback-instructions` and `subagent-handback-brief` make the same request in other words, "Draft the instructions I should give it" and "Write me a brief for it", so the word "prompt" does not appear. In `subagent-handback-self-dispatch`, the agent under test dispatches. The sweep is the same in all four; the three variants were added for [#609](https://github.com/MrBinnacle/skills/issues/609).
 
 ## Runs
 
@@ -61,4 +59,8 @@ The second description matched the user's own word in `-dispatch` ("Write me the
 
 The third description shipped: "Use when prompting, briefing or dispatching a research subagent, or when one goes idle with no report. Name a return channel, check its tool grant, verify every claim, negatives first."
 
-All runs recorded here are observations at five runs per arm, not measurements, and no disposition verdict follows from them. `decision-rights-issue-bodies` and `decision-rights-near-miss` have not been run.
+All runs recorded here are observations at five runs per arm, not measurements, and no disposition verdict follows from them.
+
+## Removed cases
+
+`decision-rights-issue-bodies` (fires) and `decision-rights-near-miss` (does-not-fire) were removed on 2026-11-12, unrun. The `decision-rights` card ships `disable-model-invocation: true`, so the model cannot invoke it and its description is not in context ([skills docs](https://code.claude.com/docs/en/skills.md#control-who-invokes-a-skill), checked 2026-11-12, Claude Code 2.1.323). Under that flag the should-fire case can only fail and its partner's does-not-fire grade can only pass, so a run would measure the frontmatter, not the description. Commit `c2a6767` is the last that holds both. Restore them from it, with their two `cases:` lines, if the card returns to model-invocable.
