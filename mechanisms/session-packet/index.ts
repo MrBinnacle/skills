@@ -41,7 +41,7 @@ function loadPacketConfig(cwd: string, trusted: boolean): Loaded {
 }
 
 /**
- * Git for Windows puts only `Git\cmd` on PATH, so a Pi started from PowerShell or cmd finds no
+ * Git for Windows puts only `Git\cmd` on PATH by default, so a Pi started from PowerShell or cmd finds no
  * `sh`. Use the Git Bash that Pi 1.5.0's own bash tool tries first (`getShellConfig`).
  * shortcut: ignores Pi's `shellPath` setting and a Git installed elsewhere; extensions cannot read
  * that setting in Pi 1.5.0, so read it here once Pi exposes it.

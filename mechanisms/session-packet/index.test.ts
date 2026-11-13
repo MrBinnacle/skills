@@ -128,7 +128,6 @@ describe("session-packet adapter", () => {
     expect(notes).toEqual([]);
   }, GIT_TIMEOUT);
 
-  // A Pi started from PowerShell or cmd has Git's `cmd` directory on PATH and no `sh`.
   (process.platform === "win32" ? test : test.skip)("/packet-close runs a receiverCheck when no sh is on PATH", async () => {
     const { root } = await makeRepo();
     writeConfig(root, { receiverChecks: [{ name: "planted", command: "echo ran > planted-marker" }] });

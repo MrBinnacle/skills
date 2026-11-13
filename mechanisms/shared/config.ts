@@ -5,8 +5,7 @@ export const CONFIG_PATH = join(".pi", "engineering-env.json");
 
 /**
  * Regexes (as strings) for shell commands that count as running the project's checks. The gate
- * tests each against every command segment; these defaults are anchored so the tool must be the
- * segment's command word, not a word anywhere in it.
+ * tests each against every command segment.
  */
 export const DEFAULT_CHECK_COMMANDS: readonly string[] = [
   "^(npm|pnpm|yarn|bun)( run)? (test|check|lint|typecheck)\\b",

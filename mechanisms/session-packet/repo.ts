@@ -75,7 +75,7 @@ export async function git(exec: Exec, cwd: string, ...args: string[]): Promise<s
   return result.stdout.trim();
 }
 
-/** Run a trusted command line through `exec.shell`, or `sh`. A bare `bash` may resolve to WSL on Windows. */
+/** Run a trusted command line. A bare `bash` may resolve to WSL on Windows. */
 export function shell(exec: Exec, cwd: string, command: string): Promise<ExecResult> {
   return execTimed(exec, exec.shell ?? "sh", ["-c", command], cwd, CHECK_TIMEOUT_MS);
 }

@@ -42,12 +42,7 @@ const OPERATOR = /(&&|\|\||\|&?|(?<![<>])&(?!>)|;|\n)/;
 const QUOTED = /'[^']*'|"(?:[^"\\]|\\.)*"/g;
 const ASSIGNMENTS = /^(?:\w+=\S*\s+)*/;
 
-/**
- * True when `command` ran a check whose exit status is the command's own: a segment between
- * control operators matches a pattern, no `||` comes before it, and only `&&` comes after it.
- * Bash runs without pipefail, so a pipe, `;`, `||` or `&` after the check hides a failure.
- * Quoted text is blanked first, so a quoted tool name or separator counts for nothing.
- */
+/** Bash runs without pipefail, so a pipe, `;`, `||` or `&` after the check hides a failure. */
 function ranCheck(command: string, patterns: readonly RegExp[]): boolean {
   const parts = command.trim().replace(QUOTED, "''").split(OPERATOR);
   const segments = parts.filter((_, i) => i % 2 === 0).map((s) => s.trim().replace(ASSIGNMENTS, ""));
@@ -81,8 +76,6 @@ export function createGate(checkCommands: readonly string[], projectRoot?: strin
         const path = String(input.path);
         if (projectRoot === undefined || underRoot(projectRoot, path)) unchecked.add(path);
       }
-      // Nested Bash was observed before the parent mutation result. Replay only
-      // a successful follow-up after recording that mutation; failures stay pending.
       // Nested Bash was observed before the parent mutation result. Replay only
       // a successful follow-up after recording that mutation; failures stay pending.
       if (receipt?.followUp.status === "succeeded" && ranCheck(receipt.followUp.command, patterns)) unchecked.clear();
