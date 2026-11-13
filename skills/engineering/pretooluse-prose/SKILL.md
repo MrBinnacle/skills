@@ -48,7 +48,7 @@ writes nothing, so a same-named file from earlier work can be what gets posted.
 wording of the refusal and the wiring are yours to replace.
 
 1. **Price the two errors.** A false block costs one re-issue. A false pass costs what the
-   guard protects. Each rule below fails toward the block.
+   guard protects. Rules 2 and 3 fail toward the block.
 2. **Match the pattern anywhere in the command.** A list of places where a command can start
    is never complete. A subshell, a `{ }` group, backticks, `!` and `then` each start one, and
    every place the list lacks is a silent pass. A maintainer's guard tried such a list twice
