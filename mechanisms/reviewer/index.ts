@@ -154,8 +154,8 @@ export default function (pi: ExtensionAPI) {
     name: "review_diff",
     label: "Review diff",
     description:
-      "Have a different model review the working-tree change against a git base in a fresh, read-only context. Returns typed findings with collision-free ids.",
-    promptSnippet: "review_diff: independent read-only review of the current git change by another model",
+      `Have ${REVIEWER_MODEL.provider}/${REVIEWER_MODEL.id} review the working-tree change against a git base in a fresh, read-only context. It may be the model you are running on. Returns typed findings with collision-free ids.`,
+    promptSnippet: "review_diff: read-only review of the current git change in a fresh context",
     parameters: Type.Object({
       task: Type.String({ description: "The task statement the change is meant to satisfy, verbatim" }),
       base: Type.Optional(Type.String({ description: "Git ref to diff against (default HEAD)" })),
