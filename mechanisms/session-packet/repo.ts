@@ -20,7 +20,10 @@ export interface ExecResult {
   /** Set by Pi's exec when it killed the child (a timeout); the code is then 0 and means nothing. */
   killed?: boolean;
 }
-export type Exec = (command: string, args: string[], options: { cwd: string; timeout?: number }) => Promise<ExecResult>;
+export type Exec = ((command: string, args: string[], options: { cwd: string; timeout?: number }) => Promise<ExecResult>) & {
+  /** The shell `shell()` runs a command line through, as a path or a name on PATH; `sh` when unset. */
+  shell?: string;
+};
 
 /** How long a call that reaches the network (git fetch, ls-remote, push; gh) may run. */
 export const NETWORK_TIMEOUT_MS = 30_000;
@@ -72,9 +75,9 @@ export async function git(exec: Exec, cwd: string, ...args: string[]): Promise<s
   return result.stdout.trim();
 }
 
-/** Run a trusted command line. `sh` resolves to Git's sh on Windows; `bash` may resolve to WSL. */
+/** Run a trusted command line through `exec.shell`, or `sh`. A bare `bash` may resolve to WSL on Windows. */
 export function shell(exec: Exec, cwd: string, command: string): Promise<ExecResult> {
-  return execTimed(exec, "sh", ["-c", command], cwd, CHECK_TIMEOUT_MS);
+  return execTimed(exec, exec.shell ?? "sh", ["-c", command], cwd, CHECK_TIMEOUT_MS);
 }
 
 /** True when `rel`, a slash-form `relative()` result, names a path strictly inside its base. */

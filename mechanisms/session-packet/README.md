@@ -25,9 +25,11 @@ packet opened here) was not tested end to end; the Python fixtures pass the stru
 4. **The fill cannot change the measured facts.** In produce mode, validation of the filled packet
    also refuses a change to `packet_id`, `created_at`, `repository` or `tests`. These are the values
    that `/packet-close` measured. With `chain` on, `previous_packet_id` is a measured fact too.
-5. **Receiver checks and trusted command probes run through `sh -c`.** On Windows, `sh` resolves to
-   Git's `sh.exe`. `bash` can resolve to WSL's `System32\bash.exe`. Python's `shell=True` uses
-   `cmd.exe`.
+5. **Receiver checks and trusted command probes run through `sh -c`.** On Windows they run through
+   Git Bash, `Git\bin\bash.exe` under Program Files, where Pi's own bash tool looks first. A Pi
+   started from PowerShell or cmd has only `Git\cmd` on PATH, so a bare `sh` does not resolve, and
+   a bare `bash` can resolve to WSL's `System32\bash.exe`. With no Git Bash there, they fall back to
+   `sh` on PATH. Pi's `shellPath` setting is not read. Python's `shell=True` uses `cmd.exe`.
 6. **Receive mode needs a `sessionPacket` section** in `.pi/engineering-env.json`. This replaces
    Python's `--config`. The section may be empty (`{}`). The file is read only when Pi trusts the
    project and `.pi/settings.json` exists; [DESIGN.md](../DESIGN.md), "Project config", says why. The unclaimed-HEAD check is on unless

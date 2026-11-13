@@ -36,7 +36,7 @@ One file per project, read directly by the extensions (`shared/config.ts`). It i
 `.pi/settings.json` because Pi's `Settings` type has no slot for extension keys.
 
 The file is part of the repository, so in a cloned project its author writes it, not the
-operator. `/packet-close` and `/packet-open` run `sessionPacket.receiverChecks` through `sh -c`, and
+operator. `/packet-close` and `/packet-open` run `sessionPacket.receiverChecks` through a shell (`sh -c`, or Git Bash on Windows), and
 `/packet-open` runs a `trustedProbeCommands` entry when a packet's probe names it. `sessionPacket.store.worktree` is passed to
 `git worktree add`, at any path. `checkCommands` decides what the gate counts as a check. So the
 extensions honour the file only when Pi trusts the project (`ctx.isProjectTrusted()`) **and**
