@@ -55,10 +55,10 @@ Pick one unique to the diff and likely to survive the site's build transformatio
 
 ### Avoid blocked timing chains
 
-In Claude Code's Bash tool, do not write:
+Do not write:
 
 ```bash
-sleep 35 && curl ...    # often blocked
+sleep 35 && curl ...    # blocked (re-run 2026-11-12)
 ```
 
 Use a bounded function. Replace `deploy_status` with the platform's build-status command; it must
@@ -96,8 +96,10 @@ poll_deploy "https://your.site/" "<new-content-marker>" 24 &&
 
 **Pattern B — background until-loop (preferred for slow CDNs):**
 
-Invoke `poll_deploy "https://your.site/" "<new-content-marker>" 60` with
-`run_in_background: true`. You get a completion notification; do not poll it yourself.
+Run `poll_deploy "https://your.site/" "<new-content-marker>" 60` under the harness's
+background-watch tool, with a deadline above attempts times 5 seconds. You get a notice when
+it ends; do not poll it yourself. Open [background-watch.md](background-watch.md) for the
+call in your harness and its deadlines.
 
 ### Pick the branch first
 
