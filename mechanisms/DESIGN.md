@@ -30,20 +30,22 @@ One file per project, read directly by the extensions (`shared/config.ts`). It i
 `.pi/settings.json` because Pi's `Settings` type has no slot for extension keys.
 
 The file is part of the repository, so in a cloned project its author writes it, not the
-operator. `/packet-close` and `/packet-open` run `sessionPacket.receiverChecks` and
-`trustedProbeCommands` through `sh -c`. `sessionPacket.store.worktree` is passed to
+operator. `/packet-close` and `/packet-open` run `sessionPacket.receiverChecks` through `sh -c`, and
+`/packet-open` runs a `trustedProbeCommands` entry when a packet's probe names it. `sessionPacket.store.worktree` is passed to
 `git worktree add`, at any path. `checkCommands` decides what the gate counts as a check. So the
 extensions honour the file only when Pi trusts the project (`ctx.isProjectTrusted()`) **and**
-`.pi/settings.json` exists. Pi asks about trust only when `.pi` holds a file Pi gates
-(`settings.json`, `mcp.json`, `extensions`, `skills`, `prompts`, `themes`, `SYSTEM.md`,
-`APPEND_SYSTEM.md`). For a `.pi` that holds only this file, `isProjectTrusted()` is `true` and
+`.pi/settings.json` exists. Pi asks about trust only when the project holds something Pi gates: one of
+`.pi/settings.json`, `mcp.json`, `extensions`, `skills`, `prompts`, `themes`, `SYSTEM.md`,
+`APPEND_SYSTEM.md`, or an `.agents/skills` directory in the project or a parent. For a `.pi` that
+holds only this file, `isProjectTrusted()` is `true` and
 nobody was asked (Pi 1.5.0, checked 2026-11-13 with `pi -p` and a probe extension).
 
 An ignored file gives the defaults and one notice naming the remedy: add `.pi/settings.json`
 (`{}` is enough), then trust the project with `/trust`, or run `pi -a` for one command. The gate
 then uses its default patterns. `/packet-close` and `/packet-open` refuse, because a packet
 recorded without its declared checks would mislead the next session. Print mode cannot ask, so
-a project with no saved trust decision is untrusted there unless the run passes `-a`.
+a project with `.pi/settings.json` and no saved trust decision is untrusted there under the
+default `defaultProjectTrust: "ask"`, unless the run passes `-a`.
 
 ```json
 {

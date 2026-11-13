@@ -29,7 +29,8 @@ packet opened here) was not tested end to end; the Python fixtures pass the stru
    Git's `sh.exe`. `bash` can resolve to WSL's `System32\bash.exe`. Python's `shell=True` uses
    `cmd.exe`.
 6. **Receive mode needs a `sessionPacket` section** in `.pi/engineering-env.json`. This replaces
-   Python's `--config`. The section may be empty (`{}`). The unclaimed-HEAD check is on unless
+   Python's `--config`. The section may be empty (`{}`). The file is read only when Pi trusts the
+   project and `.pi/settings.json` exists; [DESIGN.md](../DESIGN.md), "Project config", says why. The unclaimed-HEAD check is on unless
    `chain` is on, because the packet store always has a value (default: the directory
    `.pi/session-packets`).
 7. **An unreadable packet** (no markers, bad JSON, git failure) returns `{verdict, errors}` only.

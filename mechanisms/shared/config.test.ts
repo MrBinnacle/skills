@@ -38,7 +38,7 @@ describe("loadConfig", () => {
     if (result.ok) expect(result.ignored).toContain("-a");
   });
 
-  test("a file in a project with no .pi/settings.json is ignored even when Pi reports trust: Pi never asked", () => {
+  test("a file in a project with no .pi/settings.json is ignored even when Pi reports the project trusted", () => {
     const result = loadConfig(project(hostile, false), true);
     expect(result).toEqual({ ...defaults, ignored: expect.stringContaining("no .pi/settings.json") });
   });
