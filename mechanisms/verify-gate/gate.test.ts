@@ -3,9 +3,66 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { DEFAULT_CHECK_COMMANDS } from "../shared/config";
 import { createGate, underRoot } from "./gate";
 
 const CHECKS = ["\\bbun test\\b", "\\bpytest\\b"];
+
+function satisfiedBy(command: string, checks: readonly string[] = DEFAULT_CHECK_COMMANDS): boolean {
+  const gate = createGate(checks);
+  gate.runStarted();
+  gate.toolFinished("edit", { path: "a.ts" }, false);
+  gate.toolFinished("bash", { command }, false);
+  return gate.beforeSettle("completed") === undefined;
+}
+
+describe("a shell command that exits 0 clears the gate only when a check ran and its exit status reached the result", () => {
+  test.each([
+    "npm test 2>&1 | tail -3",
+    "npm test || true",
+    "npm test; echo done",
+    "npm test\necho done",
+    "npm test &",
+    "true || npm test",
+  ])("%j hides the check's exit status, so the gate still asks", (command) => {
+    expect(satisfiedBy(command)).toBe(false);
+  });
+
+  test.each([
+    "pip install pytest",
+    "cat jest.config.js",
+    "npm install --save-dev vitest",
+    'git commit -m "fix tsc errors"',
+    'git commit -m "wip; npm test"',
+    "rg eslint src",
+    "echo npm test",
+    "ls node_modules/.bin/tsc",
+  ])("%j only names a check tool, so the gate still asks", (command) => {
+    expect(satisfiedBy(command)).toBe(false);
+  });
+
+  test.each([
+    "npm test",
+    "npm test 2>&1",
+    "npm run lint",
+    "cd pkg && bun test src",
+    "npm test && echo ok",
+    "CI=1 npm test",
+    "npx vitest run",
+    "python3 -m pytest",
+    "uv run pytest -q",
+    'pytest -k "a or b"',
+    "cargo test",
+    "git status; npm test",
+  ])("%j runs a check whose exit status is the command's, so the gate is satisfied", (command) => {
+    expect(satisfiedBy(command)).toBe(true);
+  });
+
+  test("a configured pattern is matched against each command segment", () => {
+    expect(satisfiedBy("cd pkg && ./run-checks.sh", ["run-checks\\.sh"])).toBe(true);
+    expect(satisfiedBy("./run-checks.sh | tee log", ["run-checks\\.sh"])).toBe(false);
+  });
+});
 
 describe("verification gate", () => {
   test("an edit with no check after it gets one nudge naming the file", () => {
