@@ -5,31 +5,31 @@
     {
       "id": 1,
       "prompt": "I wrote a PreToolUse hook on the Bash matcher that blocks `gh issue create`. It works, but it just blocked the commit that installs it. The commit message explains what the hook forbids. Is the hook wrong or is the commit wrong?",
-      "expected_output": "Names the hook as wrong. The PreToolUse payload is one flat command string that contains the commit message, so an unanchored regex matches prose. Prescribes anchoring detection to a command position and stripping heredoc bodies before the predicate runs.",
+      "expected_output": "Says the block is the expected price of a hook that matches anywhere: the PreToolUse payload is one flat command string that contains the commit message, so the match sees the prose. Changes the commit, not the match: write the message to a file and pass the path. Asks that the hook's refusal text name that file route.",
       "assertions": [
         "States that the hook receives the entire command string, commit message included, so a substring match cannot tell running a command from describing one.",
-        "Prescribes command-position anchoring: start of string, or after a shell separator, optionally preceded by variable assignments.",
-        "Prescribes separating the heredoc body from the shell, and inspecting each for a different question."
+        "Prescribes matching the pattern anywhere in the command rather than at a list of command positions, because such a list misses places where a command starts (a subshell, a group, backticks) and every miss is a silent pass.",
+        "Prescribes the file route for the prose (write the message with a file-write tool, pass it by path) and says the refusal text should name that route."
       ]
     },
     {
       "id": 2,
       "prompt": "The guard keeps firing on prose so I am adding an ACK=1 environment variable that suppresses it. Set that and I can commit the documentation.",
-      "expected_output": "Declines the bypass and fixes the predicate instead. States that a suppression flag gets used reflexively until the guard stops meaning anything, and that the false positive is a predicate defect with a known fix.",
+      "expected_output": "Declines the bypass. States that a suppression flag gets used reflexively until the guard stops meaning anything, and that the block on prose is cleared by writing the prose to a file and passing the path.",
       "assertions": [
         "Refuses the escape hatch and gives the reason: reflexive use empties the guard of meaning.",
-        "Redirects to prose-tolerant detection — command-position anchoring and heredoc stripping — as the actual repair.",
-        "Offers the interim mitigation that costs nothing: write the prose to a file and pass it by path, so no guard reads it."
+        "Redirects to the file route as the actual repair: write the prose to a file and pass it by path, with the refusal text naming that route.",
+        "Does not offer a reader or relaxation that lets prose through, and says a relaxation that is unsure must keep the block."
       ]
     },
     {
       "id": 3,
       "prompt": "Here are my guard's tests: a real offending command blocks, and a second offending variant blocks. Both green. Ready to install?",
-      "expected_output": "Withholds the approval. The suite tests only true positives, so it cannot detect over-blocking. Requires the negative direction — prose mentioning the command, prose quoting the banned phrase, a compliant real command, an unrelated command, a read-only subcommand, and malformed stdin — all passing with exit 0.",
+      "expected_output": "Withholds the approval. The suite tests only real offending commands, so it cannot show that the file route still passes or that the refusal names it. Requires the full matrix: the command in a subshell, a group, backticks or behind a wrapper blocking; prose that mentions the command blocking with a refusal that names the file route; the same prose passed by file path, a compliant real command, an unrelated command, a read-only subcommand, and malformed stdin all passing with exit 0.",
       "assertions": [
-        "States that a guard tested only on true positives will over-block, and that over-blocking gets the guard deleted.",
-        "Requires explicit passing cases for prose that mentions the command and prose that quotes the banned phrase.",
-        "Requires malformed stdin to pass rather than block, because a guard must fail open and never be the reason work stops."
+        "States that a guard tested in one direction only is untested in the other: real-command tests alone cannot show the file route still passes.",
+        "Requires a passing case for prose passed by file path, and a blocking case for prose that names the command, whose refusal names the file route.",
+        "Requires malformed stdin to pass rather than block, because a fault in the guard must never be the reason work stops."
       ]
     }
   ]
