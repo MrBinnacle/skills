@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import extension from "./index";
 import { fillScaffold, git, GIT_TIMEOUT, makeRemote, makeRepo, nodeExec, test } from "./testkit";
@@ -104,6 +104,29 @@ describe("session-packet adapter", () => {
     await commands.get("packet-close")!("Ship", ctx);
     expect(sent).toEqual([]);
     expect(notes[0]?.message).toContain("a receiver check is red");
+  }, GIT_TIMEOUT);
+
+  test("a trusted project with .pi/settings.json runs its declared receiverChecks on /packet-close", async () => {
+    const { root } = await makeRepo();
+    writeConfig(root, { receiverChecks: [{ name: "planted", command: "echo ran > planted-marker" }] });
+    const { commands, sent } = fakePi();
+    const { ctx, notes } = fakeCtx(root);
+    await commands.get("packet-close")!("Ship", ctx);
+    expect(existsSync(join(root, "planted-marker"))).toBe(true);
+    expect(sent).toHaveLength(1);
+    expect(notes).toEqual([]);
+  }, GIT_TIMEOUT);
+
+  test("a project with no .pi/settings.json runs no receiverCheck on /packet-close even when Pi reports it trusted", async () => {
+    const { root } = await makeRepo();
+    writeConfig(root, { receiverChecks: [{ name: "planted", command: "echo ran > planted-marker" }] });
+    rmSync(join(root, ".pi", "settings.json"));
+    const { commands, sent } = fakePi();
+    const { ctx, notes } = fakeCtx(root);
+    await commands.get("packet-close")!("Ship", ctx);
+    expect(existsSync(join(root, "planted-marker"))).toBe(false);
+    expect(sent).toEqual([]);
+    expect(notes).toEqual([{ level: "error", message: expect.stringContaining("no .pi/settings.json") }]);
   }, GIT_TIMEOUT);
 
   test("in an untrusted project /packet-close runs no receiverCheck and refuses with the ignored-config notice", async () => {
