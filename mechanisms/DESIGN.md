@@ -22,6 +22,12 @@ physical copy of either next to this code** (a duplicate `typebox` can break sch
 Adapters use `import type` from Pi where they can. There is no `package.json` and no
 `node_modules` here.
 
+An `agent_before_settle` handler returns `entries: [...event.entries, mine]`, never `[mine]`.
+Pi 1.5.0 passes each handler the entries proposed so far and keeps the last `entries` returned
+(`emitBoundary` in `dist/core/extensions/runner.js`), so a bare `[mine]` drops the message of
+every extension Pi called earlier. The gate and `session-packet` both answer the settle that
+follows a `/packet-close` fill.
+
 Run all tests: `bun test mechanisms` from the worktree root.
 
 ## Project config: `.pi/engineering-env.json`

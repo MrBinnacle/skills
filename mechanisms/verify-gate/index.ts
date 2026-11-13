@@ -35,7 +35,7 @@ export default function (pi: ExtensionAPI) {
     const nudge = gate?.beforeSettle(event.outcome);
     if (!nudge) return undefined;
     return {
-      entries: [{ type: "custom_message", customType: "verify-gate", content: nudge, display: true }],
+      entries: [...event.entries, { type: "custom_message", customType: "verify-gate", content: nudge, display: true }],
       continue: true,
     };
   });

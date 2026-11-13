@@ -140,7 +140,7 @@ export default function (pi: ExtensionAPI) {
         current.corrections++;
         return {
           continue: true,
-          entries: [{
+          entries: [...event.entries, {
             type: "custom_message" as const,
             customType: "session-packet-receipt",
             display: true,
