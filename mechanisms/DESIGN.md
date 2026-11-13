@@ -50,7 +50,7 @@ default `defaultProjectTrust: "ask"`, unless the run passes `-a`.
 
 ```json
 {
-  "checkCommands": ["\\bbun test\\b", "\\bpytest\\b"],
+  "checkCommands": ["^bun test\\b", "^pytest\\b"],
   "sessionPacket": {
     "dir": ".pi/session-packets",
     "receiverChecks": [{ "name": "clean-tree", "command": "git diff --quiet && git diff --cached --quiet" }],
@@ -60,6 +60,14 @@ default `defaultProjectTrust: "ask"`, unless the run passes `-a`.
   }
 }
 ```
+
+The gate cuts a shell command into segments at its control operators (`&&`, `||`, `|`, `;`,
+`&`, newline) after blanking quoted text, and tests each `checkCommands` pattern against each
+segment. A matching segment counts as a passing check only when no `||` comes before it and only
+`&&` comes after it: Pi runs `bash -c` without `pipefail`, so `npm test | tail`, `npm test; echo`
+or `npm test || true` exits 0 when the tests fail. The default patterns start with `^`, so the
+tool must be the segment's command word and `echo npm test` is not a check. A pattern in the
+file without `^` matches anywhere in a segment; anchoring it is the file author's job.
 
 ## Observed Pi 1.1.0 behavior these extensions rely on
 
