@@ -31,9 +31,11 @@ function report(ctx: ExtensionContext, message: string, level: Level): void {
 
 type Loaded = { ok: true; config: PacketConfig; declared: boolean } | { ok: false; error: string };
 
-function loadPacketConfig(cwd: string): Loaded {
-  const file = loadConfig(cwd);
+function loadPacketConfig(cwd: string, trusted: boolean): Loaded {
+  const file = loadConfig(cwd, trusted);
   if (!file.ok) return file;
+  // Running without the declared receiverChecks would record a packet checked by nothing.
+  if (file.ignored) return { ok: false, error: file.ignored };
   const parsed = parseSessionPacketConfig(file.config.sessionPacket);
   if (!parsed.ok) return { ok: false, error: `.pi/engineering-env.json: ${parsed.error}` };
   return { ok: true, config: parsed.config, declared: file.config.sessionPacket !== undefined };
@@ -51,7 +53,7 @@ export default function (pi: ExtensionAPI) {
   let pending: Pending | undefined;
 
   async function receive(ctx: ExtensionContext, explicitPath: string | undefined): Promise<void> {
-    const loaded = loadPacketConfig(ctx.cwd);
+    const loaded = loadPacketConfig(ctx.cwd, ctx.isProjectTrusted());
     if (!loaded.ok) return report(ctx, `session-packet: ${loaded.error}`, "error");
     const repoRoot = await git(exec, ctx.cwd, "rev-parse", "--show-toplevel");
     let packetPath: string;
@@ -88,7 +90,7 @@ export default function (pi: ExtensionAPI) {
     description: "Close the session: snapshot repo state into a packet scaffold for the agent to fill",
     handler: async (args, ctx) => {
       try {
-        const loaded = loadPacketConfig(ctx.cwd);
+        const loaded = loadPacketConfig(ctx.cwd, ctx.isProjectTrusted());
         if (!loaded.ok) return report(ctx, `session-packet: ${loaded.error}`, "error");
         const repoRoot = await git(exec, ctx.cwd, "rev-parse", "--show-toplevel");
         const result = await snapshotPacket({ repoRoot, config: loaded.config, objective: args, exec });

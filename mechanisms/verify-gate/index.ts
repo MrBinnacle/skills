@@ -2,8 +2,8 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { loadConfig } from "../shared/config";
 import { createGate, type Gate } from "./gate";
 
-function report(ctx: ExtensionContext, message: string): void {
-  if (ctx.hasUI) ctx.ui.notify(message, "error");
+function report(ctx: ExtensionContext, message: string, level: "warning" | "error" = "error"): void {
+  if (ctx.hasUI) ctx.ui.notify(message, level);
   else console.error(message);
 }
 
@@ -11,9 +11,10 @@ export default function (pi: ExtensionAPI) {
   let gate: Gate | undefined;
 
   pi.on("session_start", async (_event, ctx) => {
-    const result = loadConfig(ctx.cwd);
+    const result = loadConfig(ctx.cwd, ctx.isProjectTrusted());
     if (result.ok) {
       gate = createGate(result.config.checkCommands, ctx.cwd);
+      if (result.ignored) report(ctx, `verify-gate: ${result.ignored}`, "warning");
     } else {
       gate = undefined;
       report(ctx, `verify-gate disabled: ${result.error}`);
