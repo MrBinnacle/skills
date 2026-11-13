@@ -58,7 +58,7 @@ Pick one unique to the diff and likely to survive the site's build transformatio
 Do not write:
 
 ```bash
-sleep 35 && curl ...    # blocked (re-run 2026-11-12)
+sleep 35 && curl ...    # refused where the shell tool blocks a leading sleep
 ```
 
 Use a bounded function. Replace `deploy_status` with the platform's build-status command; it must
