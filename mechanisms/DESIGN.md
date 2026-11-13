@@ -100,4 +100,6 @@ file without `^` matches anywhere in a segment; anchoring it is the file author'
   `nominal`, active tools `read, grep, find, ls, submit_review`, cost $0.03.
 
 Missing file: every extension uses its defaults. Malformed file: the extension reports the
-error (notification, or the gate's continuation text) and does not guess.
+error through a notification, or on stderr when there is no UI, and does not guess. The gate
+stays off for the rest of the session, so the agent is not told; `/packet-close` and
+`/packet-open` refuse with the error each time they run.
