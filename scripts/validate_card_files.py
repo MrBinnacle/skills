@@ -333,12 +333,17 @@ DESCRIPTION_LINE_RE: Final[re.Pattern[str]] = re.compile(
 QUOTED_VALUE_RE: Final[re.Pattern[str]] = re.compile(
     r"""("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')(?:\s+#.*)?"""
 )
-# What YAML reads as a null, boolean, number or date when it is written unquoted.
+# What YAML 1.1 or 1.2 reads as a null, boolean, number or date when it is
+# written unquoted. `3d-printing` and `1st` are strings to both (#648).
 NOT_TEXT_RE: Final[re.Pattern[str]] = re.compile(
-    r"~|null|true|false|yes|no|on|off|[-+]?\.(?:inf|nan)|[-+.]?\d[\w.:+-]*"
-    r"|\d{4}-\d\d?-\d\d?\s+[\d:.]+(?:\s*(?:z|[-+][\d:]+))?",
+    r"~|null|true|false|yes|no|on|off|[-+]?\.(?:inf|nan)"
+    r"|[-+]?(?:0b[01_]+|0o[0-7_]+|0x[\da-f_]+|\d[\d_]*(?::[0-5]?\d)+(?:\.[\d_]*)?"
+    r"|(?:\d[\d_]*(?:\.[\d_]*)?|\.\d[\d_]*)(?:e[-+]?\d+)?)"
+    r"|\d{4}-\d\d?-\d\d?(?:(?:t|\s+)[\d:.]+(?:\s*(?:z|[-+][\d:]+))?)?",
     re.IGNORECASE,
 )
+# An escape such as `\0` stands for one character this bar cannot read as text.
+ESCAPE_RE: Final[re.Pattern[str]] = re.compile(r"\\(?:x[\da-fA-F]{2}|u[\da-fA-F]{4}|U[\da-fA-F]{8}|.)")
 
 
 def description_spans_lines(card: Path) -> bool:
@@ -393,6 +398,17 @@ def description_breaches(card: Path) -> list[str]:
         # Already reported as a missing required file. Saying it twice in
         # different words would inflate the breach count over one defect.
         return []
+    block = FRONTMATTER_RE.match((card / "SKILL.md").read_text(encoding="utf-8-sig", errors="replace"))
+    # shortcut: a lone `description:` line inside another key's open quote still reads
+    # as the key, which skills-ref refuses as a missing description; track open quotes
+    # here if the spec gate stops running on every published card.
+    keys = sum(line.startswith("description:") for line in block.group(1).splitlines()) if block else 0
+    if keys > 1:
+        return [
+            f"SKILL.md frontmatter has {keys} lines, not one, that start with `description:`. "
+            "Any but the key is a duplicate key or a line inside another key's value, "
+            "so this bar cannot tell which one to measure. Keep only the key"
+        ]
     if description_spans_lines(card):
         return [
             "SKILL.md description is not a one-line value (it is empty on its key's "
@@ -405,6 +421,11 @@ def description_breaches(card: Path) -> list[str]:
         return [
             "SKILL.md states no frontmatter description. It is the only thing "
             "that decides whether a model-invocable card is ever reached"
+        ]
+    if not ESCAPE_RE.sub("", description).strip():
+        return [
+            "SKILL.md description holds no readable text: once its escapes and spaces "
+            "are set aside, nothing is left. Write the words a model reads to decide"
         ]
     if len(description) > DESCRIPTION_LIMIT:
         return [
