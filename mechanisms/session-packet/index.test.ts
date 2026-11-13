@@ -1,4 +1,5 @@
 import { describe, expect } from "bun:test";
+import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import extension from "./index";
@@ -125,6 +126,37 @@ describe("session-packet adapter", () => {
     expect(existsSync(join(root, "planted-marker"))).toBe(true);
     expect(sent).toHaveLength(1);
     expect(notes).toEqual([]);
+  }, GIT_TIMEOUT);
+
+  // A Pi started from PowerShell or cmd has Git's `cmd` directory on PATH and no `sh`.
+  (process.platform === "win32" ? test : test.skip)("/packet-close runs a receiverCheck when no sh is on PATH", async () => {
+    const { root } = await makeRepo();
+    writeConfig(root, { receiverChecks: [{ name: "planted", command: "echo ran > planted-marker" }] });
+    const env: Record<string, string | undefined> = { ...process.env };
+    const path = Object.keys(env).filter((k) => k.toUpperCase() === "PATH").map((k) => env[k]).join(";");
+    for (const k of Object.keys(env)) if (k.toUpperCase() === "PATH") delete env[k];
+    env.PATH = path.split(";").filter((dir) => dir && !existsSync(join(dir, "sh.exe"))).join(";");
+    const commands = new Map<string, Handler>();
+    const pi = {
+      registerCommand: (name: string, options: { handler: Handler }) => commands.set(name, options.handler),
+      on: () => {},
+      sendUserMessage: () => {},
+      exec: (command: string, args: string[], options: { cwd: string }) =>
+        new Promise((resolve) => {
+          const child = spawn(command, args, { cwd: options.cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+          let stdout = "";
+          let stderr = "";
+          child.stdout.on("data", (d) => (stdout += d.toString()));
+          child.stderr.on("data", (d) => (stderr += d.toString()));
+          child.on("error", (e) => resolve({ code: 127, stdout, stderr: String(e) }));
+          child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
+        }),
+    };
+    extension(pi as any);
+    const { ctx, notes } = fakeCtx(root);
+    await commands.get("packet-close")!("Ship", ctx);
+    expect(notes).toEqual([]);
+    expect(existsSync(join(root, "planted-marker"))).toBe(true);
   }, GIT_TIMEOUT);
 
   test("a project with no .pi/settings.json runs no receiverCheck on /packet-close even when Pi reports it trusted", async () => {
