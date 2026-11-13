@@ -29,6 +29,10 @@ node mechanisms/verify-gate/demo.mjs
 
 An agent is asked for a 10% discount and writes a bug. In the first run it says "Done." and the bug ships. In the second run the guard sends it back to run the tests, and it reports the failure. The agent's replies are scripted, so you see what the guard does and not what a model makes of it.
 
+<p><img alt="Two runs of one coding task side by side. Without the verify-gate extension, the agent edits price.mjs, says it is done, and the project's tests fail afterwards. With it, the gate sends the agent back, the agent runs npm test, and it reports the failure." src="mechanisms/verify-gate/demo.svg" width="100%"></p>
+
+The picture is one run of that command, drawn by [`render-demo.mjs`](mechanisms/verify-gate/render-demo.mjs). Pi's agent loop, its edit and bash tools, npm test and the extension are real. The model's replies are scripted, so the demo needs Pi and no API key; this picture is from Pi 1.5.0. It has run on Windows only.
+
 ## Install
 
 ### Claude Code

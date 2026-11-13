@@ -44,6 +44,18 @@ managed install under `~/.pi/agent/install/`, then `npm root -g`; set `PI_CODING
 to the `@earendil-works/pi-coding-agent` directory to point it elsewhere. Checked with Pi 1.5.0
 on Windows on 2026-11-08; not run on Linux or macOS.
 
+`verify-gate/demo.svg`, the picture in the top-level README, is drawn from one run of the demo by
+`node mechanisms/verify-gate/render-demo.mjs`, which also saves that run's output as
+`verify-gate/demo-output.txt`, less the `Guard:` line and its run time. Every piece of visible text in the picture is taken from a line the
+demo printed; the title and alt text are written by hand. Run it again after changing the demo or
+the gate's message, and commit both files if `git diff` shows a change. No gate runs the demo,
+because it needs Pi installed, but `bun test` draws the saved output again and fails when the result
+differs from the committed picture. The
+picture quotes Pi's version and Node's own assertion text, so a run with a Pi other than 1.5.0 or a
+Node other than v24 draws a different picture. The picture carries subsets of the
+Barlow and Overpass Mono fonts in `verify-gate/fonts/`, under the SIL Open Font License in
+`fonts/OFL.txt`, because an image cannot load web fonts.
+
 `shared/` holds the project-config reader every mechanism uses. It has no `index.ts`, so Pi
 does not load it as an extension.
 

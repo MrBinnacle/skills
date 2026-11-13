@@ -44,6 +44,42 @@ MUTANTS = {
     "a refusal without lines is not drawn": [("!!st.refusedLines && same(lines, st.refusedLines)", "same(lines, st.refusedLines ?? [])")],
     "Send records the refused lines": [("refusedLines: lines,", "refusedLines: undefined,")],
     "a adds the drawn text": [("run: () => addLine($, now) }", "run: () => read($, typed).then(t => addLine($, t)) }")],
+    # Memory across a compaction
+    "replay skips a subagent's compaction": [("if (e.agentId || e.trigger", "if (e.trigger")],
+    "replay skips a precompute": [("e.agentId || e.trigger === 'precompute' || ", "e.agentId || ")],
+    "replay reads the snapshot after the summary": [
+        ("    const out = await next(e)\n    if (e.agentId || e.trigger", "    const early = await read($, approved)\n    const out = await next(e)\n    if (e.agentId || e.trigger"),
+        ("const snap = await read($, approved)\n    if (!snap ||", "const snap = early\n    if (!snap ||")],
+    "replay row is built whole": [("text: memoryText(snap), toolUses: [] }", "text: memoryText(snap) }")],
+    "replay skips a Send the HUD could not record": [("if (!snap || (await read($, view)).unrecorded) return out", "if (!snap) return out")],
+    "watcher ignores subagent rows": [("if (e.agentId || !row) return out", "if (!row) return out")],
+    "the boundary starts the check": [("state: 'checking' as const", "state: 'found' as const")],
+    "only the boundary starts the check": [("row.name === 'compact_boundary'", "row.type === 'system'")],
+    "the boundary clears the unrecorded notice": [("      await update($, view, v => ({ ...v, unrecorded: 0 })).catch(() => undefined)\n", "")],
+    "the watcher reads the row as stored": [("const row = out.message\n", "const row = out.deny ? undefined : e.message\n")],
+    "check moves only while checking": [("att.state !== 'checking' ? att", "false ? att")],
+    "check finds the row by its text": [("textOf(row) === att.text", "false")],
+    "check concludes missing on a prompt": [("door === 'prompt' || door === 'response'", "door === 'response'")],
+    "check concludes missing on a response": [("door === 'prompt' || door === 'response'", "door === 'prompt'")],
+    "statusOf: missing above unrecorded": [
+        ("return unrecorded ? said(`Claude has the lines sent at ${hhmm(unrecorded)}. The HUD could not record that Send.`, 'warning')\n    : !snap ? said('Not sent.', null)\n    : replay?.state === 'missing' ?",
+         "return replay?.state === 'missing' ? said(`Not in Claude's context after the compaction at ${at}. Send again to give Claude these lines.`, 'warning')\n    : unrecorded ? said(`Claude has the lines sent at ${hhmm(unrecorded)}. The HUD could not record that Send.`, 'warning')\n    : !snap ? said('Not sent.', null)\n    : replay?.state === 'missing' ?")],
+    "boundary opens a check when the Send record is unreadable": [
+        ("() => ({ at, approvedAt: snap?.at ?? 0, text: snap ? memoryText(snap) : '', state: 'checking' as const })",
+         "() => snap && { at, approvedAt: snap.at, text: memoryText(snap), state: 'checking' as const }")],
+    "replay speaks only for its Send": [("att.approvedAt === snap.at ? att :", "true ? att :")],
+    "unchecked replay claims nothing": [("replay?.state === 'checking' ?", "false ?")],
+    "unchecked replay is drawn quietly": [("Not checked after the compaction at ${at}.`, null)", "Not checked after the compaction at ${at}.`, 'remember')")],
+    "Send offered when the replay was lost": [("const send = changed || replay?.state === 'missing'", "const send = changed")],
+    "a lost replay is a warning": [("Send again to give Claude these lines.`, 'warning')", "Send again to give Claude these lines.`, 'claude')")],
+    "changed lines beat a found replay": [("    : changed ? said(", "    : false ? said(")],
+    "a later check that replayed an older Send speaks for this one": [("att.at >= snap.at ? { ...att, state: 'missing' } : null", "null")],
+    "a same-millisecond check is not a check before the Send": [("att.at >= snap.at ?", "att.at > snap.at ?")],
+    "an open check outranks changed lines": [
+        ("    : replay?.state === 'checking' ? said(", "    : changed ? said(`Changed since Send. Claude has the ${hhmm(snap.at)} version.`, 'claude')\n    : replay?.state === 'checking' ? said(")],
+    "status colour comes from the status": [("color={said.tone ? TONE[said.tone] : undefined}", "color={snap ? TONE.remember : undefined}")],
+    "a quiet status is dimmed": [("dimColor={!said.tone}", "dimColor={false}")],
+    "a refusal after a lost replay is drawn": [("const claudeHasThem = !said.send", "const claudeHasThem = !!snap && same(lines, snap.lines)")],
 }
 
 
