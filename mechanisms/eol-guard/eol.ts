@@ -50,6 +50,11 @@ export interface EolGuardDeps {
   changedFiles(): Promise<string[]>;
   /** Repository-relative POSIX path for a tool-call path, or undefined when outside the repo. */
   toRepoPath(path: string): string | undefined;
+  /**
+   * False when git's own diff of the file against HEAD would not show the ending change, as under
+   * core.autocrlf=true, where git stores LF whatever endings the working file has.
+   */
+  gitShowsEndingChange(relPath: string): Promise<boolean>;
 }
 
 export interface EolGuard {
@@ -84,7 +89,7 @@ export function createEolGuard(deps: EolGuardDeps): EolGuard {
     if (head === undefined || working === undefined) return undefined;
     const before = countEol(head);
     const after = countEol(working);
-    if (!isUniformConversion(before, after)) return undefined;
+    if (!isUniformConversion(before, after) || !(await deps.gitShowsEndingChange(relPath))) return undefined;
     reported.add(relPath);
     return describe(relPath, before, after);
   }

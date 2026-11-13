@@ -30,6 +30,7 @@ function fakeDeps(head: Record<string, string>, working: Record<string, string>,
     readHead: async (p) => (p in head ? enc(head[p]) : undefined),
     changedFiles: async () => changed,
     toRepoPath: (p) => (p.startsWith("/outside/") ? undefined : p.replace(/^\.\//, "")),
+    gitShowsEndingChange: async () => true,
   };
 }
 
