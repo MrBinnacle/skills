@@ -34,7 +34,6 @@ type Loaded = { ok: true; config: PacketConfig; declared: boolean } | { ok: fals
 function loadPacketConfig(cwd: string, trusted: boolean): Loaded {
   const file = loadConfig(cwd, trusted);
   if (!file.ok) return file;
-  // Running without the declared receiverChecks would record a packet checked by nothing.
   if (file.ignored) return { ok: false, error: file.ignored };
   const parsed = parseSessionPacketConfig(file.config.sessionPacket);
   if (!parsed.ok) return { ok: false, error: `.pi/engineering-env.json: ${parsed.error}` };

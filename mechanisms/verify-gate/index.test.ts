@@ -9,8 +9,7 @@ afterAll(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
 });
 
-/** A project whose config counts `evil` as a check command, so a write followed by `evil` settles quietly. */
-function projectWithCustomCheck(): string {
+function projectCountingEvilAsCheck(): string {
   const root = mkdtempSync(join(tmpdir(), "verify-gate-adapter-"));
   roots.push(root);
   mkdirSync(join(root, ".pi"));
@@ -23,7 +22,7 @@ async function settleAfterWriteThenEvil(trusted: boolean) {
   const events = new Map<string, (...args: any[]) => any>();
   extension({ on: (event: string, handler: any) => events.set(event, handler) } as any);
   const notes: string[] = [];
-  const ctx = { cwd: projectWithCustomCheck(), hasUI: true, isProjectTrusted: () => trusted, ui: { notify: (m: string) => notes.push(m) } };
+  const ctx = { cwd: projectCountingEvilAsCheck(), hasUI: true, isProjectTrusted: () => trusted, ui: { notify: (m: string) => notes.push(m) } };
   await events.get("session_start")!({}, ctx);
   await events.get("before_agent_start")!();
   await events.get("tool_result")!({ toolName: "write", input: { path: "a.ts" }, isError: false });

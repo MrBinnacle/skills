@@ -21,22 +21,20 @@ export interface Config {
   sessionPacket?: Record<string, unknown>;
 }
 
-/** `ignored` says why a present file was not honoured; the config is then the defaults. */
 export type ConfigResult = { ok: true; config: Config; ignored?: string } | { ok: false; error: string };
 
 /**
- * `trusted` is Pi's `ctx.isProjectTrusted()`. Pi reports true, without asking, for a project that
- * holds nothing Pi gates (Pi 1.5.0). Requiring `.pi/settings.json`, which Pi gates, means the
- * trust covers a decision someone made.
+ * Pi reports a project trusted, without asking, when it holds nothing Pi gates (Pi 1.5.0).
+ * Requiring `.pi/settings.json`, which Pi gates, means the trust covers a decision someone made.
  */
-export function loadConfig(projectRoot: string, trusted: boolean): ConfigResult {
+export function loadConfig(projectRoot: string, piTrusted: boolean): ConfigResult {
   const path = join(projectRoot, CONFIG_PATH);
   const defaults = { checkCommands: DEFAULT_CHECK_COMMANDS };
   if (!existsSync(path)) return { ok: true, config: defaults };
   if (!existsSync(join(projectRoot, ".pi", "settings.json"))) {
     return { ok: true, config: defaults, ignored: `${CONFIG_PATH} ignored: the project has no .pi/settings.json. These mechanisms need it, because without a file Pi gates, Pi reports the project trusted without asking. Add .pi/settings.json ({} is enough), then trust the project with /trust or run pi with -a.` };
   }
-  if (!trusted) {
+  if (!piTrusted) {
     return { ok: true, config: defaults, ignored: `${CONFIG_PATH} ignored: Pi does not trust this project. Trust it with /trust, or run pi with -a to trust it for one command.` };
   }
   const fail = (why: string): ConfigResult => ({ ok: false, error: `${CONFIG_PATH}: ${why}` });
