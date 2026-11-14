@@ -21,7 +21,7 @@ for (const [placement, columns] of [['inline', 90], ['dock', 24], ['inline', 30]
   test(`the phone mark shows in ${placement} at ${columns} columns`, { options: { narrow: 'strip' } }, async ($, on) => {
     setup(on)
     on('state.get', (_: unknown, e: { key: string }) => ({ value: {
-      value: e.key === 'view' ? { ring: 1, expand: 3, failed: '' } : e.key === 'typed' ? ''
+      value: e.key === 'view' ? { ring: 1, expand: 2, failed: '' } : e.key === 'typed' ? ''
         : e.key === 'log' ? [{ text: 'saved from the phone', at: '2026-11-09T09:00:00.000Z', from: 'phone' },
            { text: 'saved here', at: '2026-11-09T09:01:00.000Z', from: 'terminal' }] : undefined, version: 1,
     } }))

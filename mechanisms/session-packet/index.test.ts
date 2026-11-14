@@ -1,5 +1,6 @@
 import { describe, expect } from "bun:test";
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import extension from "./index";
 import { fillScaffold, git, GIT_TIMEOUT, makeRemote, makeRepo, nodeExec, test } from "./testkit";
@@ -23,10 +24,10 @@ function fakePi() {
   return { commands, events, sent, messages };
 }
 
-function fakeCtx(cwd: string, hasUI = true) {
+function fakeCtx(cwd: string, hasUI = true, trusted = true) {
   const notes: { message: string; level?: string }[] = [];
   return {
-    ctx: { cwd, hasUI, mode: hasUI ? "tui" : "print", isIdle: () => true, ui: { notify: (message: string, level?: string) => notes.push({ message, level }) } },
+    ctx: { cwd, hasUI, mode: hasUI ? "tui" : "print", isIdle: () => true, isProjectTrusted: () => trusted, ui: { notify: (message: string, level?: string) => notes.push({ message, level }) } },
     notes,
   };
 }
@@ -34,6 +35,7 @@ function fakeCtx(cwd: string, hasUI = true) {
 function writeConfig(root: string, sessionPacket: unknown) {
   mkdirSync(join(root, ".pi"), { recursive: true });
   writeFileSync(join(root, ".pi", "engineering-env.json"), JSON.stringify({ sessionPacket }));
+  writeFileSync(join(root, ".pi", "settings.json"), "{}");
 }
 
 function fillLatest(root: string) {
@@ -95,6 +97,16 @@ describe("session-packet adapter", () => {
     expect(notes.at(-1)?.message).toContain('"verdict": "REJECTED"');
   }, GIT_TIMEOUT);
 
+  test("a correction keeps the entries an earlier extension proposed at the same settle", async () => {
+    const { root } = await makeRepo();
+    const { commands, events } = fakePi();
+    const { ctx } = fakeCtx(root);
+    await commands.get("packet-close")!("Ship the port", ctx);
+    const earlier = { type: "custom_message", customType: "earlier", content: "kept", display: true };
+    const result = await events.get("agent_before_settle")!({ ...settle, entries: [earlier] }, ctx);
+    expect(result.entries.map((e: { customType: string }) => e.customType)).toEqual(["earlier", "session-packet-receipt"]);
+  }, GIT_TIMEOUT);
+
   test("/packet-close refuses on a red receiver check and writes nothing", async () => {
     const { root } = await makeRepo();
     writeConfig(root, { receiverChecks: [{ name: "red", command: "exit 1" }] });
@@ -103,6 +115,85 @@ describe("session-packet adapter", () => {
     await commands.get("packet-close")!("Ship", ctx);
     expect(sent).toEqual([]);
     expect(notes[0]?.message).toContain("a receiver check is red");
+  }, GIT_TIMEOUT);
+
+  test("a trusted project with .pi/settings.json runs its declared receiverChecks on /packet-close", async () => {
+    const { root } = await makeRepo();
+    writeConfig(root, { receiverChecks: [{ name: "planted", command: "echo ran > planted-marker" }] });
+    const { commands, sent } = fakePi();
+    const { ctx, notes } = fakeCtx(root);
+    await commands.get("packet-close")!("Ship", ctx);
+    expect(existsSync(join(root, "planted-marker"))).toBe(true);
+    expect(sent).toHaveLength(1);
+    expect(notes).toEqual([]);
+  }, GIT_TIMEOUT);
+
+  (process.platform === "win32" ? test : test.skip)("/packet-close runs a receiverCheck when no sh is on PATH", async () => {
+    const { root } = await makeRepo();
+    writeConfig(root, { receiverChecks: [{ name: "planted", command: "echo ran > planted-marker" }] });
+    const env: Record<string, string | undefined> = { ...process.env };
+    const path = Object.keys(env).filter((k) => k.toUpperCase() === "PATH").map((k) => env[k]).join(";");
+    for (const k of Object.keys(env)) if (k.toUpperCase() === "PATH") delete env[k];
+    env.PATH = path.split(";").filter((dir) => dir && !existsSync(join(dir, "sh.exe"))).join(";");
+    const commands = new Map<string, Handler>();
+    const pi = {
+      registerCommand: (name: string, options: { handler: Handler }) => commands.set(name, options.handler),
+      on: () => {},
+      sendUserMessage: () => {},
+      exec: (command: string, args: string[], options: { cwd: string }) =>
+        new Promise((resolve) => {
+          const child = spawn(command, args, { cwd: options.cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+          let stdout = "";
+          let stderr = "";
+          child.stdout.on("data", (d) => (stdout += d.toString()));
+          child.stderr.on("data", (d) => (stderr += d.toString()));
+          child.on("error", (e) => resolve({ code: 127, stdout, stderr: String(e) }));
+          child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
+        }),
+    };
+    extension(pi as any);
+    const { ctx, notes } = fakeCtx(root);
+    await commands.get("packet-close")!("Ship", ctx);
+    expect(notes).toEqual([]);
+    expect(existsSync(join(root, "planted-marker"))).toBe(true);
+  }, GIT_TIMEOUT);
+
+  test("a project with no .pi/settings.json runs no receiverCheck on /packet-close even when Pi reports it trusted", async () => {
+    const { root } = await makeRepo();
+    writeConfig(root, { receiverChecks: [{ name: "planted", command: "echo ran > planted-marker" }] });
+    rmSync(join(root, ".pi", "settings.json"));
+    const { commands, sent } = fakePi();
+    const { ctx, notes } = fakeCtx(root);
+    await commands.get("packet-close")!("Ship", ctx);
+    expect(existsSync(join(root, "planted-marker"))).toBe(false);
+    expect(sent).toEqual([]);
+    expect(notes).toEqual([{ level: "error", message: expect.stringContaining("no .pi/settings.json") }]);
+  }, GIT_TIMEOUT);
+
+  test("in an untrusted project /packet-close runs no receiverCheck and refuses with the ignored-config notice", async () => {
+    const { root } = await makeRepo();
+    writeConfig(root, { receiverChecks: [{ name: "planted", command: "echo ran > planted-marker" }] });
+    const { commands, sent } = fakePi();
+    const { ctx, notes } = fakeCtx(root, true, false);
+    await commands.get("packet-close")!("Ship", ctx);
+    expect(existsSync(join(root, "planted-marker"))).toBe(false);
+    expect(sent).toEqual([]);
+    expect(notes).toEqual([{ level: "error", message: expect.stringContaining("Pi does not trust this project") }]);
+  }, GIT_TIMEOUT);
+
+  test("in an untrusted project /packet-open runs no receiverCheck on an existing packet and refuses with the notice", async () => {
+    const { root } = await makeRepo();
+    writeConfig(root, { dir: ".pi/session-packets" });
+    const { commands, events } = fakePi();
+    const trusted = fakeCtx(root);
+    await commands.get("packet-close")!("Ship", trusted.ctx);
+    fillLatest(root);
+    await events.get("agent_before_settle")!(settle, trusted.ctx);
+    writeConfig(root, { dir: ".pi/session-packets", receiverChecks: [{ name: "planted", command: "echo ran > planted-marker" }] });
+    const { ctx, notes } = fakeCtx(root, true, false);
+    await commands.get("packet-open")!("", ctx);
+    expect(existsSync(join(root, "planted-marker"))).toBe(false);
+    expect(notes).toEqual([{ level: "error", message: expect.stringContaining("Pi does not trust this project") }]);
   }, GIT_TIMEOUT);
 
   test("/packet-open validates the latest packet in receive mode and reports the receipt", async () => {

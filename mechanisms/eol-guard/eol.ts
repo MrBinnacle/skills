@@ -50,6 +50,11 @@ export interface EolGuardDeps {
   changedFiles(): Promise<string[]>;
   /** Repository-relative POSIX path for a tool-call path, or undefined when outside the repo. */
   toRepoPath(path: string): string | undefined;
+  /**
+   * False when git's own diff of the file against HEAD would not show the ending change, as under
+   * core.autocrlf=true, where git stores LF whatever endings the working file has.
+   */
+  gitShowsEndingChange(relPath: string): Promise<boolean>;
 }
 
 export interface EolGuard {
@@ -77,6 +82,7 @@ export function describe(relPath: string, before: EolCount, after: EolCount): st
 
 export function createEolGuard(deps: EolGuardDeps): EolGuard {
   const reported = new Set<string>();
+  let toldOverLimit = false;
 
   async function check(relPath: string): Promise<string | undefined> {
     if (reported.has(relPath)) return undefined;
@@ -84,7 +90,7 @@ export function createEolGuard(deps: EolGuardDeps): EolGuard {
     if (head === undefined || working === undefined) return undefined;
     const before = countEol(head);
     const after = countEol(working);
-    if (!isUniformConversion(before, after)) return undefined;
+    if (!isUniformConversion(before, after) || !(await deps.gitShowsEndingChange(relPath))) return undefined;
     reported.add(relPath);
     return describe(relPath, before, after);
   }
@@ -92,6 +98,7 @@ export function createEolGuard(deps: EolGuardDeps): EolGuard {
   return {
     runStarted() {
       reported.clear();
+      toldOverLimit = false;
     },
     async toolFinished(toolName, input, isError) {
       if (isError) return undefined;
@@ -101,7 +108,11 @@ export function createEolGuard(deps: EolGuardDeps): EolGuard {
       }
       if (SHELL_TOOLS.has(toolName)) {
         const files = await deps.changedFiles();
-        if (files.length === 0 || files.length > MAX_FILES_PER_SHELL_CALL) return undefined;
+        if (files.length > MAX_FILES_PER_SHELL_CALL) {
+          if (toldOverLimit) return undefined;
+          toldOverLimit = true;
+          return `EOL guard: ${files.length} tracked files differ from HEAD, more than the ${MAX_FILES_PER_SHELL_CALL} it reads after a shell command, so line endings after shell commands are not checked while that many differ. This note shows once per run. Run \`git diff --stat\` to see whether a command converted them.`;
+        }
         const notes: string[] = [];
         for (const f of files) {
           const note = await check(f);

@@ -29,7 +29,7 @@ test('hide, narrow window: one line naming the width to reach', async ($, on) =>
   await start($, on)
   const ui = await $.ui.mount(pane('inline', { columns: 96, rows: 40, isFullscreen: true }))
   expect(await shown(ui)).toMatch(/needs 110 columns, now 96/)
-  expect(await shown(ui)).not.toMatch(/"Watch"/)
+  expect(await shown(ui)).not.toMatch(/"Memory"/)
 })
 
 test('hide, main screen: one line naming /tui fullscreen', async ($, on) => {
@@ -41,7 +41,7 @@ test('hide, main screen: one line naming /tui fullscreen', async ($, on) => {
 test('hide, docked: the full HUD', async ($, on) => {
   await start($, on)
   const ui = await $.ui.mount(pane('dock', { columns: 160, rows: 40, isFullscreen: true }))
-  expect(await shown(ui)).toMatch(/"Watch"/)
+  expect(await shown(ui)).toMatch(/"Memory"/)
   expect(await shown(ui)).not.toMatch(/side panel/)
 })
 
@@ -49,7 +49,7 @@ test('strip, narrow window: the full strip above the prompt', { options: { narro
   await start($, on)
   const ui = await $.ui.mount(pane('inline', { columns: 96, rows: 40, isFullscreen: true }))
   expect(await shown(ui)).not.toMatch(/side panel/)
-  expect(await shown(ui)).toMatch(/ . watch /)
+  expect(await shown(ui)).toMatch(/ . log 0/)
 })
 
 test('/hud narrow strip stores the setting', async ($, on) => {

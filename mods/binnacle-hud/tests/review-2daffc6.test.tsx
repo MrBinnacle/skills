@@ -21,7 +21,7 @@ async function start($:any,on:any, initial:any = {}) {
  const shown=async(placement='dock')=>{const ui=await $.ui.mount(pane(placement));const text=JSON.stringify(await ui.drawn());await ui.unmount();return text}
  return {cells,cell,type,clear,submit,press,shown}
 }
-for(const placement of ['dock','inline']) test(`acceptance: ${placement} refusal without unrecorded Send says Not sent`,{options:{narrow:'strip'}},async($,on)=>{
+for(const placement of ['dock','inline']) test(`acceptance: ${placement} refusal says Not sent`,{options:{narrow:'strip'}},async($,on)=>{
  const s=await start($,on,{memory:['not sent'],view:{ring:2,expand:1,failed:'injected refusal',refusedLines:['not sent']}})
- const text=await s.shown(placement);expect(text).toContain('Not sent.');expect(text).not.toContain('The later Send was refused');expect(text).not.toContain('Claude has the lines sent at')
+ const text=await s.shown(placement);expect(text).toContain('Not sent. injected refusal');expect(text.split('Not sent.').length-1).toBe(placement==='dock'?1:2)
 })

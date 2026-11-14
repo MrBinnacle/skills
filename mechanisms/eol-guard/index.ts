@@ -48,6 +48,11 @@ export default function (pi: ExtensionAPI) {
       toRepoPath(path) {
         return repoRelativePath(root, ctx.cwd, path);
       },
+      async gitShowsEndingChange(rel) {
+        const numstat = (...flags: string[]) => pi.exec("git", ["diff", "--numstat", ...flags, "HEAD", "--", rel], { cwd: root });
+        const [plain, ignoringCr] = await Promise.all([numstat(), numstat("--ignore-cr-at-eol")]);
+        return plain.code !== 0 || ignoringCr.code !== 0 || plain.stdout !== ignoringCr.stdout;
+      },
     });
   });
 

@@ -51,9 +51,10 @@ export function clean(text: string, max: number): string {
   return Array.from(visible).slice(0, max).join('').trim()
 }
 
-// The note may not close or reopen the tag that marks it as data.
-function unwrapped(text: string): string {
-  return text.replace(/<\s*\/?\s*heads-up[^>]*>/gi, '')
+function withoutHeadsUpTags(text: string): string {
+  const stripped = text.replace(/<\s*\/?\s*heads-up/gi, '')
+
+  return stripped === text ? text : withoutHeadsUpTags(stripped)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -102,7 +103,7 @@ export function offerForSession(store: unknown, sessionId: string): Tip | null {
 }
 
 export function actPrompt({ line, explanation }: Tip): string {
-  const body = [line, explanation].filter(one => one !== '').map(unwrapped)
+  const body = withoutHeadsUpTags([line, explanation].filter(one => one !== '').join('\n'))
 
   return [
     'I asked you to look at a heads-up from the You should know side agent.',
@@ -112,7 +113,7 @@ export function actPrompt({ line, explanation }: Tip): string {
     'deletes, publishes, sends, installs or changes settings.',
     '',
     '<heads-up>',
-    ...body,
+    body,
     '</heads-up>',
   ].join('\n')
 }

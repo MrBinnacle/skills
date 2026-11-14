@@ -10,7 +10,13 @@ Claude Code runs a side agent that sometimes spots something worth knowing and s
 
 ## Install
 
-Run these two commands one at a time at the prompt of a Claude Code terminal session. Claude Code reads a paste of both in one block as a single malformed URL.
+On Claude Code 2.1.275 or later, one command adds the marketplace and installs the mod. Run it at the prompt of a Claude Code terminal session:
+
+```text
+/plugin install tips-anywhere --marketplace MrBinnacle/skills
+```
+
+On an older Claude Code, run these two commands one at a time. Claude Code reads a paste of both in one block as a single malformed URL.
 
 ```text
 /plugin marketplace add https://github.com/MrBinnacle/skills.git

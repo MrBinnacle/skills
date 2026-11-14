@@ -37,6 +37,22 @@ export function underRoot(root: string, path: string): boolean {
   return textuallyUnder(base, target) || textuallyUnder(realSpelling(base), realSpelling(target));
 }
 
+// `&` inside a redirection such as `2>&1` or `&>` is not an operator.
+const OPERATOR = /(&&|\|\||\|&?|(?<![<>])&(?!>)|;|\n)/;
+const QUOTED = /'[^']*'|"(?:[^"\\]|\\.)*"/g;
+const ASSIGNMENTS = /^(?:\w+=\S*\s+)*/;
+
+/** Bash runs without pipefail, so a pipe, `;`, `||` or `&` after the check hides a failure. */
+function ranCheck(command: string, patterns: readonly RegExp[]): boolean {
+  const parts = command.trim().replace(QUOTED, "''").split(OPERATOR);
+  const segments = parts.filter((_, i) => i % 2 === 0).map((s) => s.trim().replace(ASSIGNMENTS, ""));
+  const operators = parts.filter((_, i) => i % 2 === 1);
+  return segments.some((segment, k) =>
+    patterns.some((p) => p.test(segment)) &&
+    !operators.slice(0, k).includes("||") &&
+    operators.slice(k).every((op) => op === "&&"));
+}
+
 /**
  * Tracks files the `edit` and `write` tools changed since the last check command in the
  * current run. Only those two tools are observed: a file changed by a shell command is not
@@ -62,9 +78,8 @@ export function createGate(checkCommands: readonly string[], projectRoot?: strin
       }
       // Nested Bash was observed before the parent mutation result. Replay only
       // a successful follow-up after recording that mutation; failures stay pending.
-      if (receipt?.followUp.status === "succeeded" &&
-          patterns.some((p) => p.test(receipt.followUp.command))) unchecked.clear();
-      if ((toolName === "bash" || toolName === "powershell") && !isError && patterns.some((p) => p.test(String(input.command)))) {
+      if (receipt?.followUp.status === "succeeded" && ranCheck(receipt.followUp.command, patterns)) unchecked.clear();
+      if ((toolName === "bash" || toolName === "powershell") && !isError && ranCheck(String(input.command), patterns)) {
         unchecked.clear();
       }
     },
