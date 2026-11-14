@@ -251,7 +251,7 @@ export const register: Register = (on, options) => {
   // Where the ring stands decides the key line.
   on('ui.focus', async ($, e, next) => {
     if (e.component === 'Pane' && e.requestId === PANE) {
-      const ring = e.element === undefined ? 0 : e.element === 'thought' ? 1 : 2
+      const ring: View['ring'] = e.element === undefined ? 0 : e.element === 'thought' ? 1 : 2
       void update($, view, v => ({ ...v, ring })).catch(() => undefined)
     }
     return next(e)

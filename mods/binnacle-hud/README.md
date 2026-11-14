@@ -43,7 +43,13 @@ Claude Code brings a cleared draft back itself. After Ctrl+C, press Up on the em
 
 Marketplace installs require a pin to **v4.1.0 or later**; v4.0.0 does not contain this mod. A version bump alone does not make the mod installable: the marketplace must also be pinned to that release.
 
-Run each command on its own at the prompt of a Claude Code terminal session. If you paste both at once, Claude Code reads them as one malformed URL.
+On Claude Code 2.1.275 or later, one command adds the marketplace and installs the mod. Run it at the prompt of a Claude Code terminal session:
+
+```text
+/plugin install binnacle-hud --marketplace MrBinnacle/skills
+```
+
+On an older Claude Code, run these two commands, each on its own. If you paste both at once, Claude Code reads them as one malformed URL.
 
 ```text
 /plugin marketplace add https://github.com/MrBinnacle/skills.git
