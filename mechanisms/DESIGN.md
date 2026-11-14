@@ -41,7 +41,8 @@ holds only this file, `isProjectTrusted()` is `true` and
 nobody was asked (Pi 1.5.0, checked 2026-11-13 with `pi -p` and a probe extension).
 
 An ignored file gives the defaults and one notice naming the remedy: add `.pi/settings.json`
-(`{}` is enough), then trust the project with `/trust`, or run `pi -a` for one command. The gate
+(`{}` is enough), then trust the project with `/trust` and restart Pi, because Pi applies a saved
+trust decision to later processes, or run `pi -a` for one command. The gate
 then uses its default patterns. `/packet-close` and `/packet-open` refuse, because a packet
 recorded without its declared checks would mislead the next session. Print mode cannot ask, so
 a project with `.pi/settings.json` and no saved trust decision is untrusted there under the

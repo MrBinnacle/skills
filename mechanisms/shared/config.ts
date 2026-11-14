@@ -32,10 +32,10 @@ export function loadConfig(projectRoot: string, piTrusted: boolean): ConfigResul
   const defaults = { checkCommands: DEFAULT_CHECK_COMMANDS };
   if (!existsSync(path)) return { ok: true, config: defaults };
   if (!existsSync(join(projectRoot, ".pi", "settings.json"))) {
-    return { ok: true, config: defaults, ignored: `${CONFIG_PATH} ignored: the project has no .pi/settings.json. These mechanisms need it, because without a file Pi gates, Pi reports the project trusted without asking. Add .pi/settings.json ({} is enough), then trust the project with /trust or run pi with -a.` };
+    return { ok: true, config: defaults, ignored: `${CONFIG_PATH} ignored: the project has no .pi/settings.json. These mechanisms need it, because without a file Pi gates, Pi reports the project trusted without asking. Add .pi/settings.json ({} is enough), then trust the project with /trust and restart Pi, or run pi with -a.` };
   }
   if (!piTrusted) {
-    return { ok: true, config: defaults, ignored: `${CONFIG_PATH} ignored: Pi does not trust this project. Trust it with /trust, or run pi with -a to trust it for one command.` };
+    return { ok: true, config: defaults, ignored: `${CONFIG_PATH} ignored: Pi does not trust this project. Trust it with /trust and restart Pi, or run pi with -a to trust it for one command.` };
   }
   const fail = (why: string): ConfigResult => ({ ok: false, error: `${CONFIG_PATH}: ${why}` });
 
