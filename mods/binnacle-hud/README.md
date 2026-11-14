@@ -16,7 +16,7 @@ The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has tw
 2. To remove a line, press its number. With more than nine lines, `0` removes the last one.
 3. Press `s` to send. Claude Code shows the lines and asks, for example, "Give Claude these 2 lines now?". Choose **Send**.
 
-The mod adds the lines to Claude Code's own memory section of the system prompt, under the heading "Memory the operator approved at HH:MM:". Claude reads them from its next turn and on every request after that. The system prompt is not part of the chat that Claude Code compacts, so the lines stay through a compaction. Send adds no row to the conversation and starts no model turn.
+The mod adds the lines to Claude Code's own memory section of the system prompt, under the heading "Memory the operator approved at HH:MM:". They go out with every request from Claude's next turn onward. The system prompt is not part of the chat that Claude Code compacts, so the lines stay through a compaction. Send adds no row to the conversation and starts no model turn.
 
 A Send changes the system prompt, so Claude Code rewrites its prompt cache once. The next request writes the whole conversation to the cache again, which costs more and takes longer than a cached request. Claude also loses its earlier thinking blocks, and Claude Code shows a dim line naming the mod. Requests after that use the cache again.
 
@@ -32,7 +32,7 @@ The line under the Memory heading says where things stand:
 
 The mod says the lines are in Claude's instructions only after its hook has added them to the memory section. A Send alone does not make that claim.
 
-Memory goes to the main conversation. A subagent that is already running keeps the instructions it started with.
+Memory goes to the main conversation. A subagent that is already running keeps the instructions it started with. Whether a subagent started after a Send also receives the lines is not verified.
 
 If Claude Code refuses to save the Send, the HUD shows "Not sent." and the reason while the lines are the ones that Send carried. The reason goes away when you change the lines or when they match the last Send. The previous Send stays in force. To change a line, remove it and add the new wording.
 
