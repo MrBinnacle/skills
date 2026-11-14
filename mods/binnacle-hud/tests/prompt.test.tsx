@@ -130,6 +130,13 @@ test('state an earlier version stored draws, and its Send still reaches Claude',
   expect(JSON.stringify(await shown($))).toContain(`In Claude's instructions since ${hhmm(NOW)}.`)
 })
 
+test('an old expand of 3, the Log under Watch, draws the strip collapsed', { options: { narrow: 'strip' } }, async ($, on) => {
+  await start($, on, { memory: LINES, view: { ring: 0, expand: 3, failed: '' } })
+  const strip = JSON.stringify(await shown($, 'inline'))
+  expect(strip).not.toContain('"Log"')
+  expect(strip).not.toContain('"Memory"')
+})
+
 // The status says Claude has a Send only once the memory section carried it.
 const PENDING = `Sent at ${hhmm(NOW)}. Not yet in Claude's instructions.`
 const EARLIER = NOW - 3_600_000

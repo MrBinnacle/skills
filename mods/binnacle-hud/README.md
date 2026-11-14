@@ -32,7 +32,7 @@ The line under the Memory heading says where things stand:
 
 The mod says the lines are in Claude's instructions only after its hook has added them to the memory section. A Send alone does not make that claim.
 
-Memory goes to the main conversation. A subagent that is already running keeps the instructions it started with.
+Memory goes to the main conversation. A subagent that is already running keeps the instructions it started with. Whether a subagent started after a Send also receives the lines is not verified.
 
 If Claude Code refuses to save the Send, the HUD shows "Not sent." and the reason while the lines are the ones that Send carried. The reason goes away when you change the lines or when they match the last Send. The previous Send stays in force. To change a line, remove it and add the new wording.
 
