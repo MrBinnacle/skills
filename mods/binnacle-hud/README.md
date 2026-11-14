@@ -25,12 +25,16 @@ The line under the Memory heading says where things stand:
 | Status | Meaning |
 | --- | --- |
 | Not sent. | Claude has no Memory lines from this session. |
-| In Claude's instructions since HH:MM. | Claude has exactly the lines shown, on every request. |
+| Sent at HH:MM. Not yet in Claude's instructions. | You sent the lines shown, and Claude Code has not yet built a system prompt that carries them. It does so at Claude's next turn. If this stays after a turn, the lines are not reaching Claude. |
+| In Claude's instructions since HH:MM. | Claude Code put exactly the lines shown into the system prompt at HH:MM, and keeps them on every request. |
+| Changed since Send. The HH:MM version is not yet in Claude's instructions. | You changed the lines after the last Send, and that Send has not reached the system prompt yet either. |
 | Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines until you send again. |
+
+The mod says the lines are in Claude's instructions only after its hook has added them to the memory section. A Send alone does not make that claim.
 
 Memory goes to the main conversation. A subagent that is already running keeps the instructions it started with.
 
-If Claude Code refuses to save the Send, the HUD shows "Not sent." and the reason while the lines are the ones that Send carried. The reason goes away when you change the lines or when they match what Claude has. The previous Send stays in force. To change a line, remove it and add the new wording.
+If Claude Code refuses to save the Send, the HUD shows "Not sent." and the reason while the lines are the ones that Send carried. The reason goes away when you change the lines or when they match the last Send. The previous Send stays in force. To change a line, remove it and add the new wording.
 
 ## Get back a prompt you wiped by accident
 
@@ -121,13 +125,16 @@ On Claude Code 2.1.325, on 2026-11-13, in headless sessions with a test mod that
 - Without the flag, or without telling Claude Code that the answer changed, the model kept reading the old text.
 - A section added through the system-prompt composition hook did not change mid-conversation, which is why the mod uses Claude Code's memory section instead.
 
-The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, the memory section before and after Send, the engine's own memory text kept ahead of the lines, a refused save, and state written by earlier versions. Run them with `claude plugin test mods/binnacle-hud`.
+The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, the memory section before and after Send, the engine's own memory text kept ahead of the lines, the status before and after the memory section carries a Send, a memory section that is never asked for, a refused save, and state written by earlier versions. Run them with `claude plugin test mods/binnacle-hud`.
 
 These are not verified:
 
 - Memory in a live interactive session. Its tests run against the test kit, and the probe ran headless.
 - Memory after a real compaction, from `/compact` or an automatic one. That the lines survive follows from the system prompt not being compacted; it was not observed.
 - Memory after resuming the session in a new Claude Code process.
+- That the model read the lines. The status rests on the mod's hook adding them to the memory section, which is not proof that the model read them.
+- That no other plugin changes the memory section after this mod's hook. A plugin whose hook runs outside this one can replace the section, and the status would still say the lines are in Claude's instructions.
+- Which conversation the hook ran for. Claude Code does not say whether a section was built for the main conversation or a subagent, so a subagent started after a Send could turn the status before the main conversation picks the lines up.
 - That the thought is absent from what Claude reads on a later turn. The export suggests so, but no turn was sent to check it.
 - Pasting, dictation, and long text in the phone's dialog.
 - What the dialog's **Chat about this** option does. Use **Other** instead.

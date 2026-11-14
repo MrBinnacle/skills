@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import type { Approved, Entry, Row, Saved, Thought, View } from '../types'
+import type { Approved, Delivered, Entry, Row, Saved, Thought, View } from '../types'
 
 // Binnacle HUD. The mod does not send the Log to Claude; absence from later
 // model requests is unverified. Memory holds a draft and the snapshot a confirmed
@@ -12,9 +12,10 @@ import type { Approved, Entry, Row, Saved, Thought, View } from '../types'
 // State lives under keys types/index.d.ts declares: `view`, the pane's own UI
 // state; `typed`, the field's text, echoed wrapped above it because the host's
 // Input cuts a long line off at the edge (native, 2026-11-08); `log`, the kept
-// thoughts, newest last; `memory`, the draft lines; and `approved`, the lines
-// Send gave Claude. Draft and snapshot are two atoms so no edit can rewrite
-// what was approved.
+// thoughts, newest last; `memory`, the draft lines; `approved`, the lines
+// Send gave Claude; and `delivered`, which Send the memory section last carried.
+// Draft and snapshot are two atoms so no edit can rewrite what was approved,
+// and only the section hook writes `delivered`, so a Send cannot claim it arrived.
 const PANE = 'binnacle-hud'
 const SEND = 'Send'
 // $.ui.ask needs two labels; neither keeps anything.
@@ -27,6 +28,7 @@ const failed = atom({ plugin: 'binnacle-hud', key: 'failed' } as const, [] as Sa
 let edits = 0
 const draft = atom({ plugin: 'binnacle-hud', key: 'memory' } as const, [] as Saved[])
 const approved = atom({ plugin: 'binnacle-hud', key: 'approved' } as const, null as Approved | null)
+const delivered = atom({ plugin: 'binnacle-hud', key: 'delivered' } as const, null as Delivered | null)
 const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, expand: 0, failed: '' } as View)
 
 // Binnacle Board palette, dark (artifact AQriRu2Xwo2ACiR981H89b, via the skills session 2026-11-08).
@@ -61,12 +63,19 @@ const minted = (saved: readonly Saved[]): Saved[] => saved.map(s => typeof s ===
 const memoryText = (snap: Approved) => [`Memory the operator approved at ${hhmm(snap.at)}:`, ...snap.lines].join('\n')
 
 // The words, their colour and the Send key come from one answer, so the
-// colour never says "Claude has them" beside words that do not.
+// colour never says "Claude has them" beside words that do not. Only the
+// section hook's record says Claude has a Send; a Send alone is pending.
 type Status = { text: string; tone: keyof typeof TONE | null; send: boolean }
-export const statusOf = (lines: readonly string[], snap: Approved | null): Status =>
-  !snap ? { text: 'Not sent.', tone: null, send: true }
-  : !same(lines, snap.lines) ? { text: `Changed since Send. Claude has the ${hhmm(snap.at)} version.`, tone: 'claude', send: true }
-  : { text: `In Claude's instructions since ${hhmm(snap.at)}.`, tone: 'remember', send: false }
+export const statusOf = (lines: readonly string[], snap: Approved | null, seen: Delivered | null): Status => {
+  if (!snap) return { text: 'Not sent.', tone: null, send: true }
+  const arrived = seen?.at === snap.at
+  if (!same(lines, snap.lines)) return arrived
+    ? { text: `Changed since Send. Claude has the ${hhmm(snap.at)} version.`, tone: 'claude', send: true }
+    : { text: `Changed since Send. The ${hhmm(snap.at)} version is not yet in Claude's instructions.`, tone: 'claude', send: true }
+  return arrived
+    ? { text: `In Claude's instructions since ${hhmm(seen.since)}.`, tone: 'remember', send: false }
+    : { text: `Sent at ${hhmm(snap.at)}. Not yet in Claude's instructions.`, tone: null, send: false }
+}
 
 // Appends in one update, so two quick keeps cannot overwrite each other.
 async function keep($: EngineInterface, text: string, from: Thought['from']): Promise<boolean | null> {
@@ -152,7 +161,11 @@ export const register: Register = (on, options) => {
   on('prompt.section', { name: 'memory' }, async ($, e, next) => {
     const out = await next(e)
     const snap = await read($, approved)
-    return snap ? { text: [out.text, memoryText(snap)].filter(Boolean).join('\n\n'), breakPromptCache: true } : out
+    if (!snap) return out
+    const since = await $.clock.now()
+    // A failed write must not fail the hook: a failed hook passes through and drops the lines.
+    await update($, delivered, now => now && now.at >= snap.at ? now : { at: snap.at, since }).catch(() => undefined)
+    return { text: [out.text, memoryText(snap)].filter(Boolean).join('\n\n'), breakPromptCache: true }
   })
 
   on('command.run', { command: 'hud' }, async ($, e) => {
@@ -204,12 +217,12 @@ export const register: Register = (on, options) => {
     const lines = rows.map(r => r.text)
     const last = rows.at(-1)?.id
     const snap = await read($, approved)
-    const said = statusOf(lines, snap)
+    const said = statusOf(lines, snap, await read($, delivered))
     const status = said.text
-    // A refusal is news only beside the lines it refused, and while they differ from what Claude has.
+    // A refusal is news only beside the lines it refused, and while they differ from the last Send.
     const besideRefused = !!st.refusedLines && same(lines, st.refusedLines)
-    const claudeHasThem = !said.send
-    const refused = besideRefused && !claudeHasThem ? st.failed : ''
+    const sentThem = !said.send
+    const refused = besideRefused && !sentThem ? st.failed : ''
 
     const focused = e.props.isFocused
     const inline = e.props.placement === 'inline'

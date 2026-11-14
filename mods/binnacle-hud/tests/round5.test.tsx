@@ -72,7 +72,7 @@ test('round5: 0 removes the line shown last, by its id', async ($, on) => {
   expect(ids(s.cell('memory').value)).toEqual(ten.slice(0, 9).map(l => l.id))
 })
 
-test('round5: a refused Send is not shown once the lines equal what Claude has again', async ($, on) => {
+test('round5: a refused Send is not shown once the lines equal the last Send again', async ($, on) => {
   const s = await start($, on, { memory: [{ id: 'a', text: 'keep tests green' }], view: { ring: 2, expand: 1, failed: '' } })
   await s.press('s')
   s.cells.typed = { value: 'second line', version: 2 }
@@ -82,7 +82,7 @@ test('round5: a refused Send is not shown once the lines equal what Claude has a
   expect(await s.drawn()).toContain('the session is read-only')
   await s.press('2')
   const d = await s.drawn()
-  expect(d).toContain("In Claude's instructions since")
+  expect(d).toContain("Not yet in Claude's instructions.")
   expect(d).not.toContain('Not sent.')
 })
 
@@ -103,7 +103,7 @@ test('round5: a landed Send whose view write fails does not show an older refusa
   await s.press('s').catch(() => undefined)
   expect(s.cell('approved').value.lines).toEqual(['ship it'])
   const d = await s.drawn()
-  expect(d).toContain("In Claude's instructions since")
+  expect(d).toContain("Not yet in Claude's instructions.")
   expect(d).not.toContain('earlier refusal')
 })
 

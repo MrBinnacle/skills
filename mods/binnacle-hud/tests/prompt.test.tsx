@@ -38,9 +38,9 @@ const start = async ($: any, on: any, store: Store, opts: Opts = {}) => {
   on('ui.invalidate', (_: unknown, e: { event: string }) => { invalidated.push(e.event); return { value: undefined } })
   on('prompt.section', (_: unknown, e: { text: string | null }) => ({ text: e.text }))
   on('tool.call', (_: unknown, e: any) => ({ result: { answers: { [e.questions[0].question]: opts.answer ?? 'Send' } } }))
-  mock.clock(on, { now: NOW })
+  const clock = mock.clock(on, { now: NOW })
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-  return { invalidated }
+  return { invalidated, clock }
 }
 
 const section = ($: any, text: string | null = CORE) => $.prompt.section({ name: 'memory', text })
@@ -122,11 +122,81 @@ test('state an earlier version stored draws, and its Send still reaches Claude',
     attached: { at: NOW, approvedAt: NOW, text: MEMORY, state: 'checking' },
     view: { ring: 2, expand: 2, failed: '', unrecorded: NOW },
   })
-  expect(JSON.stringify(await shown($))).toContain(`In Claude's instructions since ${hhmm(NOW)}.`)
+  expect(JSON.stringify(await shown($))).toContain(PENDING)
   const strip = JSON.stringify(await shown($, 'inline'))
   expect(strip).toContain('"Log"')
   expect(strip).not.toContain('could not record')
   expect((await section($)).text).toBe(`${CORE}\n\n${MEMORY}`)
+  expect(JSON.stringify(await shown($))).toContain(`In Claude's instructions since ${hhmm(NOW)}.`)
+})
+
+// The status says Claude has a Send only once the memory section carried it.
+const PENDING = `Sent at ${hhmm(NOW)}. Not yet in Claude's instructions.`
+const EARLIER = NOW - 3_600_000
+
+test('after a Send and before the memory section is asked for, the status is pending and quiet', async ($, on) => {
+  await start($, on, { memory: LINES })
+  await send($)
+  const text = JSON.stringify(await shown($))
+  expect(text).toContain(PENDING)
+  expect(text).not.toContain("In Claude's instructions since")
+  const props = await statusProps($, 'Sent at')
+  expect(props.color).toBeUndefined()
+  expect(props.dimColor).toBe(true)
+})
+
+test('the status says In Claude\'s instructions from the time the section first carried the Send', async ($, on) => {
+  const store: Store = { memory: LINES, approved: { lines: LINES, at: EARLIER } }
+  const s = await start($, on, store)
+  await section($)
+  expect(store.delivered).toEqual({ at: EARLIER, since: NOW })
+  await s.clock.advance(60_000)
+  await section($)
+  expect(store.delivered).toEqual({ at: EARLIER, since: NOW })
+  const text = JSON.stringify(await shown($))
+  expect(text).toContain(`In Claude's instructions since ${hhmm(NOW)}.`)
+  expect(text).not.toContain('Not yet')
+})
+
+test('a section that is never asked for, as when it is renamed or dropped, leaves the status pending', async ($, on) => {
+  await start($, on, { memory: LINES })
+  await send($)
+  await $.prompt.section({ name: 'env_info_simple', text: 'Platform: win32' })
+  await $.prompt.section({ name: 'memories', text: CORE })
+  expect(JSON.stringify(await shown($))).toContain(PENDING)
+})
+
+test('a new Send is pending although an earlier Send reached Claude', async ($, on) => {
+  const store: Store = { memory: [...LINES, 'added later'], approved: { lines: LINES, at: EARLIER }, delivered: { at: EARLIER, since: EARLIER } }
+  await start($, on, store)
+  expect(JSON.stringify(await shown($))).toContain(`Changed since Send. Claude has the ${hhmm(EARLIER)} version.`)
+  await send($)
+  expect(JSON.stringify(await shown($))).toContain(`Sent at ${hhmm(NOW)}. Not yet in Claude's instructions.`)
+})
+
+test('lines changed after a Send that has not reached Claude say so', async ($, on) => {
+  await start($, on, { memory: [...LINES, 'added later'], approved: { lines: LINES, at: EARLIER } })
+  expect(JSON.stringify(await shown($))).toContain(`Changed since Send. The ${hhmm(EARLIER)} version is not yet in Claude's instructions.`)
+})
+
+test('a refused delivery record still gives Claude the lines and leaves the status pending', async ($, on) => {
+  await start($, on, { memory: LINES }, { deny: 'delivered' })
+  await send($)
+  expect(await section($)).toEqual({ text: `${CORE}\n\n${MEMORY}`, breakPromptCache: true })
+  expect(JSON.stringify(await shown($))).toContain(PENDING)
+})
+
+test('a late section ask for an older Send does not replace the record of a newer one', async ($, on) => {
+  const newer = { at: NOW + 60_000, since: NOW + 60_000 }
+  const store: Store = { memory: LINES, approved: { lines: LINES, at: NOW }, delivered: newer }
+  await start($, on, store)
+  await section($)
+  expect(store.delivered).toEqual(newer)
+})
+
+test('lines changed after a Send Claude has are drawn in the board\'s light', async ($, on) => {
+  await start($, on, { approved: { lines: LINES, at: NOW }, delivered: { at: NOW, since: NOW }, memory: [...LINES, 'added later'] })
+  expect((await statusProps($, 'Changed since Send.')).color).toBe('#e2e0ae')
 })
 
 test('Not sent is drawn quietly', async ($, on) => {
@@ -137,8 +207,11 @@ test('Not sent is drawn quietly', async ($, on) => {
 })
 
 test('a Send Claude has is drawn in the success colour', async ($, on) => {
-  await start($, on, { approved: { lines: LINES, at: NOW }, memory: LINES })
+  await start($, on, { approved: { lines: LINES, at: NOW }, delivered: { at: NOW, since: NOW }, memory: LINES, view: { ring: 2, expand: 0, failed: '' } })
   expect((await statusProps($, "In Claude's instructions")).color).toBe('success')
+  const text = JSON.stringify(await shown($))
+  expect(text).toContain('"k-1"')
+  expect(text).not.toContain('"k-s"')
 })
 
 test('lines changed since Send are drawn in the board\'s light, not the success colour', async ($, on) => {

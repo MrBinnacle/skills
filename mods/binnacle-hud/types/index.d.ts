@@ -13,11 +13,14 @@ export type Row = { id: string | null; text: string }
 /** The Memory lines a confirmed Send gave Claude's system prompt, and when Send was confirmed (epoch ms). */
 export type Approved = { lines: string[]; at: number }
 
+/** The Send the memory section hook last carried (its `at`), and when the hook first carried it (epoch ms). */
+export type Delivered = { at: number; since: number }
+
 /** The pane's own state: where the focus ring is (0 nothing, 1 the field, 2 a button), the open strip section (0 none, 1 memory, 2 log), and why the last Send was not saved ('' when it was) with the lines it carried. */
 export type View = { ring: 0 | 1 | 2; expand: number; failed: string; refusedLines?: string[] }
 
 declare module 'claude-code' {
   interface PluginState {
-    'binnacle-hud': { view: View; typed: string; log: Thought[]; failed: Saved[]; memory: Saved[]; approved: Approved | null }
+    'binnacle-hud': { view: View; typed: string; log: Thought[]; failed: Saved[]; memory: Saved[]; approved: Approved | null; delivered: Delivered | null }
   }
 }

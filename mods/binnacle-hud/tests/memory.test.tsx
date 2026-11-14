@@ -68,10 +68,10 @@ test('Send and yes approves exactly the draft lines, and adds no conversation ro
   expect(asked[0]).toContain('ship slice 1')
   expect(session.appended()).toHaveLength(0)
   expect(store.approved).toEqual({ lines: ['ship slice 1', 'probe step 2 decides'], at: NOW })
-  expect(await shown(await redraw($, ui))).toContain(`In Claude's instructions since ${hhmm(NOW)}.`)
+  expect(await shown(await redraw($, ui))).toContain(`Sent at ${hhmm(NOW)}. Not yet in Claude's instructions.`)
 })
 
-test('an edit after Send leaves the approved snapshot and says Claude has the old version', async ($, on) => {
+test('an edit after Send leaves the approved snapshot and says the lines changed', async ($, on) => {
   const store: Store = { memory: ['ship slice 1', 'probe step 2 decides'] }
   await start($, on, store)
   let ui = await $.ui.mount(pane())
@@ -83,7 +83,7 @@ test('an edit after Send leaves the approved snapshot and says Claude has the ol
   await ui.press({ key: 'k-a' })
   expect(store.memory.map((e: any) => e.text)).toEqual(['probe step 2 decides', 'model slice 2 first'])
   expect(store.approved).toEqual({ lines: ['ship slice 1', 'probe step 2 decides'], at: NOW })
-  expect(await shown(await redraw($, ui))).toContain(`Changed since Send. Claude has the ${hhmm(NOW)} version.`)
+  expect(await shown(await redraw($, ui))).toContain(`Changed since Send. The ${hhmm(NOW)} version is not yet in Claude's instructions.`)
 })
 
 test('an edit during the confirmation does not change what is sent', async ($, on) => {
@@ -127,7 +127,7 @@ test('a refused Send keeps the earlier snapshot and says why in words', async ($
   expect(store.approved).toEqual(earlier)
   const text = await shown(await redraw($, ui))
   expect(text).toContain('policy says no')
-  expect(text).toContain(`Changed since Send. Claude has the ${hhmm(earlier.at)} version.`)
+  expect(text).toContain(`Changed since Send. The ${hhmm(earlier.at)} version is not yet in Claude's instructions.`)
 })
 
 test('a refused Send with nothing approved before approves nothing', async ($, on) => {
