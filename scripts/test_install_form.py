@@ -470,9 +470,10 @@ def main() -> int:
     link_ps1 = LINK_PS1.read_text(encoding="utf-8")
     commands = install_section(readme)
     receipts = section_under(RECEIPTS.read_text(encoding="utf-8"), "Install receipts")
+    # Only the two negative fence checks read both; every other check names its surface.
     section = commands + "\n" + receipts
     site_commands = re.findall(r"<kbd>([^<]+)</kbd>", site)
-    verification_record = section.partition("Verified forms")[2]
+    verification_record = receipts.partition("Verified forms")[2]
     declared = declared_plugins()
 
     # --- Criterion 1: published form works without SSH ---------------------
@@ -480,7 +481,7 @@ def main() -> int:
     check("the install receipts section exists", receipts != "")
     check(
         "README install block names the HTTPS marketplace URL",
-        HTTPS_MARKETPLACE in section,
+        HTTPS_MARKETPLACE in commands,
         f"expected {HTTPS_MARKETPLACE!r} in ## Install",
     )
     check(
@@ -497,12 +498,12 @@ def main() -> int:
     # The interactive form and the shell form must both carry the HTTPS URL.
     check(
         "README shows the interactive form with the HTTPS URL",
-        f"/plugin marketplace add {HTTPS_MARKETPLACE}" in section,
+        f"/plugin marketplace add {HTTPS_MARKETPLACE}" in commands,
         "interactive slash form missing or still shorthand",
     )
     check(
-        "README shows the shell form with the HTTPS URL",
-        f"claude plugin marketplace add {HTTPS_MARKETPLACE}" in section,
+        "install receipts show the shell form with the HTTPS URL",
+        f"claude plugin marketplace add {HTTPS_MARKETPLACE}" in receipts,
         "shell form missing or still shorthand",
     )
     check(
@@ -512,7 +513,7 @@ def main() -> int:
     )
     check(
         "plugin install step is still published beside the marketplace add",
-        "/plugin install mrbinnacle-engineering" in section
+        "/plugin install mrbinnacle-engineering" in commands
         and "/plugin install mrbinnacle-engineering" in site_commands,
         "plugin install command missing from a reader surface",
     )
@@ -521,7 +522,7 @@ def main() -> int:
     install_fences = [b for b in fence_blocks(section) if "marketplace add" in b]
     check(
         "README marketplace fence copies the HTTPS URL",
-        any(HTTPS_MARKETPLACE in b for b in install_fences),
+        any(HTTPS_MARKETPLACE in b for b in fence_blocks(commands) if "marketplace add" in b),
         f"fences={install_fences!r}",
     )
     check(
@@ -580,25 +581,25 @@ def main() -> int:
     # The vendor docs say a plugin loads on /reload-plugins or the next start,
     # and that a reload left pending stays pending until /reload-plugins --force.
     # The README must say so, with the page and the date it was read.
-    install_command_at = section.find("/plugin install mrbinnacle-engineering")
-    reload_guidance_at = section.find("/reload-plugins")
+    install_command_at = commands.find("/plugin install mrbinnacle-engineering")
+    reload_guidance_at = commands.find("/reload-plugins")
     check(
         "README puts reload guidance after the install commands",
         0 <= install_command_at < reload_guidance_at,
         "## Install does not tell the reader when the cards appear",
     )
     check(
-        "README gives /reload-plugins --force for a pending reload",
+        "install receipts give /reload-plugins --force for a pending reload",
         bool(
             re.search(
-                r"(?is)pending.{0,160}/reload-plugins --force", section
+                r"(?is)pending.{0,160}/reload-plugins --force", receipts
             )
         ),
         "## Install does not name the --force form for a pending reload",
     )
     check(
-        "README cites the Claude Code plugin docs URL with a read date",
-        PLUGIN_DOCS_URL in section and f"read {PLUGIN_DOCS_READ}" in section,
+        "install receipts cite the Claude Code plugin docs URL with a read date",
+        PLUGIN_DOCS_URL in receipts and f"read {PLUGIN_DOCS_READ}" in receipts,
         f"expected {PLUGIN_DOCS_URL} and a read date of {PLUGIN_DOCS_READ} in ## Install",
     )
 
@@ -606,11 +607,11 @@ def main() -> int:
     # The version and the plugin list come from the tool, not from prose the
     # README would have to retype on every release.
     check(
-        "README says claude plugin list reports installed plugins and versions",
+        "install receipts say claude plugin list reports installed plugins and versions",
         bool(
             re.search(
                 r"(?is)claude plugin list.{0,200}installed plugins.{0,100}versions",
-                section,
+                receipts,
             )
         ),
         "## Install does not name a command that shows the installed plugin and version",
@@ -656,23 +657,23 @@ def main() -> int:
     )
 
     # --- Requirement 2: published plugin names are declared -----------------
-    shell_install_commands = readme_shell_install_commands(section)
+    shell_install_commands = readme_shell_install_commands(receipts)
     shell_install_names = [command[3] for command in shell_install_commands]
     slash_names = slash_install_names(readme) + slash_install_names(site)
     check(
-        "README shell fence provides runnable marketplace and plugin commands",
+        "install receipts shell fence provides runnable marketplace and plugin commands",
         any(
             "marketplace add" in fence and "plugin install" in fence
             for fence in install_fences
         )
         or (
-            "claude plugin marketplace add" in section
+            "claude plugin marketplace add" in receipts
             and bool(shell_install_names)
         ),
         "shell fence must contain both `claude plugin marketplace add` and `claude plugin install`",
     )
     check(
-        "README shell install names are declared in marketplace.json",
+        "install receipts shell install names are declared in marketplace.json",
         bool(shell_install_names)
         and all(name in declared for name in shell_install_names),
         f"names={shell_install_names}, declared={sorted(declared)}",
@@ -685,8 +686,8 @@ def main() -> int:
 
     # --- Requirement 5: README prose about the incident ---------------------
     check(
-        "README cold-install transcript cites pull request #340",
-        "pull request that changed this section (#340)" in section,
+        "install receipts cold-install transcript cites pull request #340",
+        "pull request that changed this section (#340)" in receipts,
         "transcript sentence must cite #340 (the pull request), not #333 (the issue)",
     )
     check(
@@ -695,38 +696,38 @@ def main() -> int:
         "delete the private-path sentence from README",
     )
     check(
-        "README records issue #333 in the past tense",
-        "Issue #333 recorded that failure" in section
-        and "Issue #333 tracks that failure" not in section,
+        "install receipts record issue #333 in the past tense",
+        "Issue #333 recorded that failure" in receipts
+        and "Issue #333 tracks that failure" not in receipts,
         'README must say "Issue #333 recorded that failure." — #333 closes on merge',
     )
 
     # --- Criterion 3: README says which forms were verified -----------------
     check(
-        "README states which install forms were verified",
+        "install receipts state which install forms were verified",
         verification_record != "",
         "## Install does not name a verification record",
     )
     check(
-        "README names the interactive form among the verified surfaces",
+        "install receipts name the interactive form among the verified surfaces",
         f"interactive `/plugin marketplace add {HTTPS_MARKETPLACE}`"
         in verification_record,
         "## Install does not say the interactive form was verified",
     )
     check(
-        "README names the shell form among the verified surfaces",
+        "install receipts name the shell form among the verified surfaces",
         f"shell `claude plugin marketplace add {HTTPS_MARKETPLACE}`"
         in verification_record,
         "## Install does not say the shell form was verified",
     )
-    readme_claude_version, readme_plugin_version = parse_verified_forms(section)
+    readme_claude_version, readme_plugin_version = parse_verified_forms(receipts)
     check(
-        "README Verified forms record states a Claude Code version",
+        "install receipts Verified forms record states a Claude Code version",
         bool(readme_claude_version),
         "## Install does not state which Claude Code version was verified",
     )
     check(
-        "README Verified forms record states a plugin version",
+        "install receipts Verified forms record states a plugin version",
         bool(readme_plugin_version),
         "## Install does not state which plugin version was verified",
     )
@@ -817,7 +818,7 @@ def live_cold_installs(
         None,
     )
     check(
-        "README shell fence provides a runnable marketplace add command",
+        "install receipts shell fence provides a runnable marketplace add command",
         add_command is not None,
         "shell fence must contain `claude plugin marketplace add`",
     )
@@ -849,7 +850,7 @@ def live_cold_installs(
             (shlex.join(command), proc.returncode, proc.stdout + proc.stderr)
         )
     check(
-        "README shell install lines run as written succeed",
+        "install receipts shell install lines run as written succeed",
         bool(readme_installs)
         and all(
             rc == 0 and "Successfully installed plugin" in plugin_out
@@ -898,8 +899,8 @@ def live_cold_installs(
     # the record and the pinned CLI disagree, and it fails. On any other
     # machine a different CLI means the verification is stale for that
     # machine: reported, not failed.
-    name = "README Verified forms Claude Code version matches the installed CLI"
-    detail = f"README says {readme_claude_version!r}, CLI reports {cli_version!r}"
+    name = "install receipts Verified forms Claude Code version matches the installed CLI"
+    detail = f"install receipts say {readme_claude_version!r}, CLI reports {cli_version!r}"
     if not readme_claude_version:
         check(name, False, detail)
     elif readme_claude_version == cli_version:
@@ -915,8 +916,8 @@ def live_cold_installs(
     # The receipt records an install that happened, so it may lag the
     # published version but never lead it. A bump PR keeps the receipt
     # equal to main until a main run verifies the new version (#464).
-    name = "README Verified forms plugin version matches the cold install"
-    detail = f"README says {readme_plugin_version!r}, cold install reports {installed_versions!r}"
+    name = "install receipts Verified forms plugin version matches the cold install"
+    detail = f"install receipts say {readme_plugin_version!r}, cold install reports {installed_versions!r}"
     readme_key = version_key(readme_plugin_version)
     installed_key = (
         version_key(next(iter(installed_versions)))
