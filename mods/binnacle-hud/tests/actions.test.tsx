@@ -35,10 +35,10 @@ const keys = async (ui: any) =>
   (await ui.findAll({ type: 'Button' })).map((b: { key?: string }) => b.key).filter((k: string) => k.startsWith('k-')).sort()
 const shown = async (ui: any) => JSON.stringify(await ui.drawn())
 
-test('strip, ring on an engine stop: m w l are drawn, not just named', { options: { narrow: 'strip' } }, async ($, on) => {
+test('strip, ring on an engine stop: m and l are drawn, not just named', { options: { narrow: 'strip' } }, async ($, on) => {
   await start($, on, { view: view(0) })
   const ui = await $.ui.mount(pane('inline', true))
-  expect(await keys(ui)).toEqual(['k-l', 'k-m', 'k-w'])
+  expect(await keys(ui)).toEqual(['k-l', 'k-m'])
 })
 
 test('dock, empty memory: no send key is drawn or named', async ($, on) => {
@@ -64,13 +64,6 @@ test('dock, text in the field: a adds it to memory, and no remove key competes',
   await start($, on, { view: view(2), memory: ['ship slice 1'], typed: 'model slice 2' })
   const ui = await $.ui.mount(pane('dock', true))
   expect(await keys(ui)).toEqual(['k-a', 'k-s'])
-})
-
-test('dock: Watch draws no buttons and says it is a preview', async ($, on) => {
-  await start($, on, { view: view(2) })
-  const ui = await $.ui.mount(pane('dock', true))
-  expect(await keys(ui)).toEqual([])
-  expect(await shown(ui)).toContain('Preview. Not connected to an observer yet.')
 })
 
 test('unfocused: no buttons, so no hotkeys to fall through', async ($, on) => {

@@ -15,6 +15,7 @@ async function start($: any, on: any, seed: Record<string, unknown> = {}, answer
   const denied = new Set<string>()
   const sets: string[] = []
   let box = ''
+  let refusal = ''
   on('command.register', () => ({ value: undefined }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.focus', () => ({ value: {} }))
@@ -22,6 +23,7 @@ async function start($: any, on: any, seed: Record<string, unknown> = {}, answer
   on('state.get', (_: any, e: any) => ({ value: { ...cell(e.key) } }))
   on('state.set', (_: any, e: any) => {
     if (denied.has(e.key)) return { deny: `injected ${e.key} failure` }
+    if (e.key === 'approved' && refusal) return { deny: refusal }
     const old = cell(e.key)
     if (e.ifVersion !== undefined && e.ifVersion !== old.version) return { value: { isSet: false, version: old.version } }
     sets.push(e.key)
@@ -32,13 +34,10 @@ async function start($: any, on: any, seed: Record<string, unknown> = {}, answer
   on('prompt.change', (_: any, e: any) => ({ text: e.text }))
   on('prompt.submit', (_: any, e: any) => ({ text: e.text }))
   on('tool.call', (_: any, e: any) => ({ result: { answers: { [e.questions[0].question]: answer } } }))
-  const session = mock.session(on)
-  let deny = ''
-  on('session.append', { door: 'note' }, (_: any, e: any, next: any) => deny ? { deny } : next(e))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   const drawn = async () => { const ui = await $.ui.mount(pane); const d = JSON.stringify(await ui.drawn()); await ui.unmount(); return d }
   const press = async (k: string) => { const ui = await $.ui.mount(pane); try { await ui.press({ key: `k-${k}` }); await clock.settle() } finally { await ui.unmount() } }
-  return { cells, cell, denied, sets, session, refuseAppend: (why: string) => { deny = why }, settle: clock.settle, drawn, press,
+  return { cells, cell, denied, sets, refuseSend: (why: string) => { refusal = why }, settle: clock.settle, drawn, press,
     type: (text: string) => $.prompt.edit({ origin: { kind: 'composer' }, text: box, cursor: box.length, start: box.length, end: box.length, inputText: text }),
     change: (kind: string, text = '') => { box = text; return $.prompt.change({ text, cursor: text.length, origin: { kind } }) } }
 }
@@ -78,12 +77,12 @@ test('round5: a refused Send is not shown once the lines equal what Claude has a
   await s.press('s')
   s.cells.typed = { value: 'second line', version: 2 }
   await s.press('a')
-  s.refuseAppend('the session is read-only')
+  s.refuseSend('the session is read-only')
   await s.press('s')
-  expect(await s.drawn()).toContain('Not sent. the session is read-only')
+  expect(await s.drawn()).toContain('the session is read-only')
   await s.press('2')
   const d = await s.drawn()
-  expect(d).toContain("In Claude's context since")
+  expect(d).toContain("In Claude's instructions since")
   expect(d).not.toContain('Not sent.')
 })
 
@@ -102,17 +101,17 @@ test('round5: a landed Send whose view write fails does not show an older refusa
   s.denied.add('view')
   // The refused view write still fails the press; the pane is what must be true.
   await s.press('s').catch(() => undefined)
-  expect(s.session.appended().length).toBe(1)
+  expect(s.cell('approved').value.lines).toEqual(['ship it'])
   const d = await s.drawn()
-  expect(d).toContain("In Claude's context since")
+  expect(d).toContain("In Claude's instructions since")
   expect(d).not.toContain('earlier refusal')
 })
 
 test('a refusal is drawn only beside the lines that Send carried', async ($, on) => {
   const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }] })
-  s.refuseAppend('policy says no')
+  s.refuseSend('policy says no')
   await s.press('s')
-  expect(await s.drawn()).toContain('Not sent. policy says no')
+  expect(await s.drawn()).toContain('policy says no')
   s.cells.memory = { value: [{ id: 'a', text: 'ship it' }, { id: 'b', text: 'and test it' }], version: 2 }
   const d = await s.drawn()
   expect(d).toContain('Not sent.')
@@ -124,21 +123,12 @@ test('a refusal stored before the lines were recorded with it is not drawn', asy
   expect(await s.drawn()).not.toContain('old reason')
 })
 
-test('a landed Send whose snapshot write fails still says Claude has the lines', async ($, on) => {
-  const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }] })
-  s.denied.add('approved')
-  // Caught so that a thrown press fails the assertion below, not the harness.
-  await s.press('s').catch(() => undefined)
-  expect(s.session.appended().length).toBe(1)
-  expect(await s.drawn()).toContain('The HUD could not record that Send.')
-})
-
 test('a refusal follows the text a Send carries, so the same text under a new id keeps it', async ($, on) => {
   const s = await start($, on, { memory: [{ id: 'a', text: 'ship it' }] })
-  s.refuseAppend('policy says no')
+  s.refuseSend('policy says no')
   await s.press('s')
   s.cells.memory = { value: [{ id: 'c', text: 'ship it' }], version: 2 }
-  expect(await s.drawn()).toContain('Not sent. policy says no')
+  expect(await s.drawn()).toContain('policy says no')
 })
 
 test('a refusal stored without its lines is not drawn when Memory is empty', async ($, on) => {

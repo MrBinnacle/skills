@@ -11,7 +11,6 @@ const deferred = () => { let resolve: (v?: any) => void = () => {}; const promis
 const tick = async (ui: any, ok: () => boolean) => { for (let i = 0; i < 100 && !ok(); i++) await ui.drawn(); expect(ok()).toBe(true) }
 const redraw = async ($: any, ui: any) => { await ui.unmount(); return $.ui.mount(pane()) }
 const focus = ($: any, element: string) => $.ui.focus({ component: 'Pane', requestId: 'binnacle-hud', plugin: 'binnacle-hud', element, origin: { kind: 'person' } })
-const text = (row: any) => row.message.content[0].text
 async function start($: any, on: any, store: any, options: any = {}) {
   const versions: Record<string, number> = {}
   const events = { asked: [] as string[], prompt: [] as string[], writes: [] as string[] }
@@ -22,6 +21,8 @@ async function start($: any, on: any, store: any, options: any = {}) {
   on('state.get', (_: any, e: any) => ({ value: { value: store[e.key], version: versions[e.key] ?? 0 } }))
   on('state.set', async (_: any, e: any) => {
     if (options.beforeSet) await options.beforeSet(e)
+    const refusal = options.refuse?.(e)
+    if (refusal) return { deny: refusal }
     if (e.ifVersion !== undefined && e.ifVersion !== (versions[e.key] ?? 0)) return { value: { isSet: false, version: versions[e.key] ?? 0 } }
     store[e.key] = e.value
     versions[e.key] = (versions[e.key] ?? 0) + 1
@@ -42,7 +43,6 @@ async function start($: any, on: any, store: any, options: any = {}) {
 
 test('REVIEW shared Input change -> focus actions -> a; Enter -> p; empty and ninth-line removal never send or touch prompt', async ($, on) => {
   const store: any = {}
-  const session = mock.session(on)
   const events = await start($, on, store)
   let ui = await $.ui.mount(pane())
   await focus($, 'thought')
@@ -83,19 +83,16 @@ test('REVIEW shared Input change -> focus actions -> a; Enter -> p; empty and ni
   expect(store.log).toHaveLength(1)
   expect(store.memory).toHaveLength(9)
   expect(store.approved).toBeUndefined()
-  expect(session.appended()).toHaveLength(0)
   expect(events.prompt).toEqual([])
   expect(events.asked).toEqual([])
 })
 
-test('REVIEW pending Send freezes candidate through actual remove action; approve waits for append; double Send stays single', async ($, on) => {
+test('REVIEW pending Send freezes candidate through actual remove action; approve waits for its write; double Send stays single', async ($, on) => {
   const earlier = { lines: ['previous approved'], at: 0 }
   const store: any = { memory: ['candidate A', 'candidate B'], approved: earlier }
-  const ask = deferred(), append = deferred()
-  let appending = false
-  const session = mock.session(on)
-  on('session.append', { door: 'note' }, async (_: any, e: any, next: any) => { appending = true; await append.promise; return next(e) })
-  const events = await start($, on, store, { ask: () => ask.promise })
+  const ask = deferred(), write = deferred()
+  let writing = false
+  const events = await start($, on, store, { ask: () => ask.promise, beforeSet: async (e: any) => { if (e.key === 'approved') { writing = true; await write.promise } } })
   const ui = await $.ui.mount(pane())
   const sending = ui.press({ key: 'k-s' })
   await tick(ui, () => events.asked.length === 1)
@@ -103,40 +100,35 @@ test('REVIEW pending Send freezes candidate through actual remove action; approv
   await tick(ui, () => store.memory.length === 1)
   const second = ui.press({ key: 'k-s' })
   ask.resolve('Send')
-  await tick(ui, () => appending)
+  await tick(ui, () => writing)
   expect(store.approved).toEqual(earlier)
-  expect(session.appended()).toHaveLength(0)
-  append.resolve()
+  write.resolve()
   await Promise.all([sending, removing, second])
   expect(events.asked).toHaveLength(1)
   expect(events.asked[0]).toContain('- candidate A\n- candidate B')
-  expect(session.appended()).toHaveLength(1)
-  expect(text(session.appended()[0]).split('\n').slice(1)).toEqual(['candidate A', 'candidate B'])
   expect(store.approved.lines).toEqual(['candidate A', 'candidate B'])
   expect(store.memory.map((e: any) => e.text)).toEqual(['candidate A'])
   expect(JSON.stringify(await (await redraw($, ui)).drawn())).toContain('Changed since Send.')
 })
 
-test('REVIEW dismissed ask and refused append keep previous approval and allow a later retry', async ($, on) => {
+test('REVIEW dismissed ask and refused write keep previous approval and allow a later retry', async ($, on) => {
   const earlier = { lines: ['old'], at: 0 }
   const store: any = { memory: ['new'], approved: earlier }
-  let rejectAppend = true
-  const session = mock.session(on)
-  on('session.append', { door: 'note' }, async (_: any, e: any, next: any) => rejectAppend ? { deny: 'append offline' } : next(e))
-  const events = await start($, on, store, { ask: (() => { let first = true; return () => { if (first) { first = false; return undefined } return 'Send' } })() })
+  let refuse = true
+  const events = await start($, on, store, {
+    refuse: (e: any) => refuse && e.key === 'approved' ? 'state offline' : undefined,
+    ask: (() => { let first = true; return () => { if (first) { first = false; return undefined } return 'Send' } })(),
+  })
   let ui = await $.ui.mount(pane())
   await ui.press({ key: 'k-s' })
   expect(store.approved).toEqual(earlier)
-  expect(session.appended()).toHaveLength(0)
   await ui.press({ key: 'k-s' })
   expect(store.approved).toEqual(earlier)
-  expect(session.appended()).toHaveLength(0)
   ui = await redraw($, ui)
-  expect(JSON.stringify(await ui.drawn())).toContain('Not sent. append offline')
-  rejectAppend = false
+  expect(JSON.stringify(await ui.drawn())).toContain('state offline')
+  refuse = false
   await ui.press({ key: 'k-s' })
   expect(store.approved.lines).toEqual(['new'])
-  expect(session.appended()).toHaveLength(1)
   expect(events.asked).toHaveLength(3)
   expect(store.view.failed).toBe('')
 })
@@ -147,7 +139,6 @@ for (const action of ['keep', 'add']) {
     const store: any = {}
     const gate = deferred()
     let blocked = false
-    const session = mock.session(on)
     const events = await start($, on, store, { beforeSet: async (e: any) => {
       if (e.key === 'typed' && e.value === '' && !blocked) { blocked = true; await gate.promise }
     } })
@@ -163,7 +154,7 @@ for (const action of ['keep', 'add']) {
     expect(store.typed).toBe(raw)
     if (action === 'keep') expect(store.log.map((t: any) => t.text)).toEqual([raw])
     else expect(store.memory.map((e: any) => e.text)).toEqual(['first line'])
-    expect(session.appended()).toHaveLength(0)
+    expect(store.approved).toBeUndefined()
     expect(events.prompt).toEqual([])
   })
 }
@@ -173,7 +164,6 @@ for (const later of [['unfinished second line'], ['', '  first line  '], [], [''
     const store: any = {}
     const gate = deferred()
     let blocked = false
-    const session = mock.session(on)
     const events = await start($, on, store, { beforeSet: async (e: any) => { if (e.key === 'memory' && !blocked) { blocked = true; await gate.promise } } })
     let ui = await $.ui.mount(pane())
     await ui.input({ key: 'thought', text: '  first line  ', kind: 'change' })
@@ -189,7 +179,7 @@ for (const later of [['unfinished second line'], ['', '  first line  '], [], [''
     gate.resolve()
     await adding
     expect(store.memory.map((e: any) => e.text)).toEqual(['first line'])
-    expect(session.appended()).toHaveLength(0)
+    expect(store.approved).toBeUndefined()
     expect(events.prompt).toEqual([])
     expect(store.typed).toBe(later.at(-1) ?? '')
   })

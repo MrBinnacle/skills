@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 
 // Memory: the draft and the approved snapshot are two values, and only a
-// confirmed Send gives Claude the lines. A snapshot means its append landed.
+// confirmed Send gives Claude the lines. Claude reads the snapshot.
 
 const NOW = Date.UTC(2026, 10, 9, 14, 2)
 const hhmm = (ms: number) => new Date(ms).toTimeString().slice(0, 5)
@@ -18,13 +18,14 @@ const pane = (placement: 'dock' | 'inline' = 'dock') => ({
 type Store = Record<string, any>
 type Ask = (question: string) => string | Promise<string>
 
-const start = async ($: any, on: any, store: Store, ask: Ask = () => 'Send', asked: string[] = []) => {
+const start = async ($: any, on: any, store: Store, ask: Ask = () => 'Send', asked: string[] = [], refusal = '') => {
   const versions: Record<string, number> = {}
   on('command.register', () => ({ value: undefined }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('state.get', (_: unknown, e: { key: string }) => ({ value: { value: store[e.key], version: versions[e.key] ?? 0 } }))
   on('state.set', (_: unknown, e: { key: string; value: unknown }) => {
+    if (refusal && e.key === 'approved') return { deny: refusal }
     store[e.key] = e.value
     versions[e.key] = (versions[e.key] ?? 0) + 1
     return { value: { isSet: true, version: versions[e.key] } }
@@ -45,22 +46,19 @@ const shown = async (ui: any) => JSON.stringify(await ui.drawn())
 const redraw = async ($: any, ui: any, placement: 'dock' | 'inline' = 'dock') => { await ui.unmount(); return $.ui.mount(pane(placement)) }
 // Lets a held press reach the question before the test answers it.
 const until = async (ui: any, ok: () => boolean) => { for (let i = 0; i < 50 && !ok(); i++) await ui.drawn() }
-const rowText = (row: any) => row.message.content[0].text as string
 
 for (const answer of ['Not now', 'yes please']) {
-  test(`Send answered "${answer}" approves nothing and appends nothing`, async ($, on) => {
+  test(`Send answered "${answer}" approves nothing`, async ($, on) => {
     const store: Store = { memory: ['ship slice 1', 'probe step 2 decides'] }
-    const session = mock.session(on)
     await start($, on, store, () => answer)
     const ui = await $.ui.mount(pane())
     await ui.press({ key: 'k-s' })
     expect(store.approved ?? null).toBeNull()
-    expect(session.appended()).toHaveLength(0)
     expect(await shown(ui)).toContain('Not sent.')
   })
 }
 
-test('Send and yes appends one row of exactly the draft lines, then approves them', async ($, on) => {
+test('Send and yes approves exactly the draft lines, and adds no conversation row', async ($, on) => {
   const store: Store = { memory: ['ship slice 1', 'probe step 2 decides'] }
   const session = mock.session(on)
   const asked: string[] = []
@@ -68,15 +66,13 @@ test('Send and yes appends one row of exactly the draft lines, then approves the
   const ui = await $.ui.mount(pane())
   await ui.press({ key: 'k-s' })
   expect(asked[0]).toContain('ship slice 1')
-  expect(session.appended()).toHaveLength(1)
-  expect(rowText(session.appended()[0])).toBe(`Memory the operator approved at ${hhmm(NOW)}:\nship slice 1\nprobe step 2 decides`)
+  expect(session.appended()).toHaveLength(0)
   expect(store.approved).toEqual({ lines: ['ship slice 1', 'probe step 2 decides'], at: NOW })
-  expect(await shown(await redraw($, ui))).toContain(`In Claude's context since ${hhmm(NOW)}.`)
+  expect(await shown(await redraw($, ui))).toContain(`In Claude's instructions since ${hhmm(NOW)}.`)
 })
 
 test('an edit after Send leaves the approved snapshot and says Claude has the old version', async ($, on) => {
   const store: Store = { memory: ['ship slice 1', 'probe step 2 decides'] }
-  mock.session(on)
   await start($, on, store)
   let ui = await $.ui.mount(pane())
   await ui.press({ key: 'k-s' })
@@ -92,7 +88,6 @@ test('an edit after Send leaves the approved snapshot and says Claude has the ol
 
 test('an edit during the confirmation does not change what is sent', async ($, on) => {
   const store: Store = { memory: ['ship slice 1'] }
-  const session = mock.session(on)
   const asked: string[] = []
   let release = (_: string) => {}
   await start($, on, store, () => new Promise<string>(r => { release = r }), asked)
@@ -103,15 +98,12 @@ test('an edit during the confirmation does not change what is sent', async ($, o
   store.memory = ['ship slice 1', 'added while asked']
   release('Send')
   await sending
-  expect(session.appended()).toHaveLength(1)
-  expect(rowText(session.appended()[0])).toBe(`Memory the operator approved at ${hhmm(NOW)}:\nship slice 1`)
   expect(store.approved).toEqual({ lines: ['ship slice 1'], at: NOW })
   expect(await shown(await redraw($, ui))).toContain('Changed since Send.')
 })
 
 test('a second Send while the confirmation is open asks nothing more', async ($, on) => {
   const store: Store = { memory: ['ship slice 1'] }
-  const session = mock.session(on)
   const asked: string[] = []
   const releases: ((answer: string) => void)[] = []
   await start($, on, store, () => new Promise<string>(r => { releases.push(r) }), asked)
@@ -123,34 +115,33 @@ test('a second Send while the confirmation is open asks nothing more', async ($,
   releases.forEach(release => release('Send'))
   await Promise.all([first, second])
   expect(asked).toHaveLength(1)
-  expect(session.appended()).toHaveLength(1)
+  expect(store.approved).toEqual({ lines: ['ship slice 1'], at: NOW })
 })
 
-test('a refused append keeps the earlier snapshot and says why in words', async ($, on) => {
+test('a refused Send keeps the earlier snapshot and says why in words', async ($, on) => {
   const earlier = { lines: ['ship slice 1'], at: NOW - 3_600_000 }
   const store: Store = { memory: ['ship slice 1', 'new line'], approved: earlier }
-  on('session.append', { door: 'note' }, () => ({ deny: 'policy says no' }))
-  await start($, on, store)
+  await start($, on, store, () => 'Send', [], 'policy says no')
   const ui = await $.ui.mount(pane())
   await ui.press({ key: 'k-s' })
   expect(store.approved).toEqual(earlier)
-  expect(await shown(await redraw($, ui))).toContain('Not sent. policy says no')
+  const text = await shown(await redraw($, ui))
+  expect(text).toContain('policy says no')
+  expect(text).toContain(`Changed since Send. Claude has the ${hhmm(earlier.at)} version.`)
 })
 
-test('a refused append with nothing approved before approves nothing', async ($, on) => {
+test('a refused Send with nothing approved before approves nothing', async ($, on) => {
   const store: Store = { memory: ['ship slice 1'] }
-  on('session.append', { door: 'note' }, () => ({ deny: 'policy says no' }))
-  await start($, on, store)
+  await start($, on, store, () => 'Send', [], 'policy says no')
   const ui = await $.ui.mount(pane())
   await ui.press({ key: 'k-s' })
   expect(store.approved ?? null).toBeNull()
-  expect(await shown(await redraw($, ui))).toContain('Not sent. policy says no')
+  expect(await shown(await redraw($, ui))).toContain('policy says no')
 })
 
-test('a Log keep never touches Memory and never appends', async ($, on) => {
+test('a Log keep never touches Memory', async ($, on) => {
   const approved = { lines: ['ship slice 1'], at: NOW }
   const store: Store = { memory: ['ship slice 1'], approved }
-  const session = mock.session(on)
   await start($, on, store)
   const memory = store.memory
   await $.ui.mount(pane())
@@ -158,7 +149,6 @@ test('a Log keep never touches Memory and never appends', async ($, on) => {
   expect(store.log.map((t: { text: string }) => t.text)).toEqual(['call the venue'])
   expect(store.memory).toEqual(memory)
   expect(store.approved).toEqual(approved)
-  expect(session.appended()).toHaveLength(0)
 })
 
 test('nothing sent yet reads Not sent., and the strip says it in words too', { options: { narrow: 'strip' } }, async ($, on) => {
@@ -185,18 +175,16 @@ const thought = (text: string) => ({ text, at: '2026-11-09T14:00:00.000Z', from:
 
 test('p copies the newest Log thought into Memory and keeps it in the Log', async ($, on) => {
   const store: Store = { memory: [], log: [thought('older'), thought('ship slice 1')], typed: '' }
-  const session = mock.session(on)
   await start($, on, store)
   const ui = await $.ui.mount(pane())
   await ui.press({ key: 'k-p' })
   expect(store.memory.map((e: any) => e.text)).toEqual(['ship slice 1'])
   expect(store.log.map((t: any) => t.text)).toEqual(['older', 'ship slice 1'])
-  expect(session.appended()).toHaveLength(0)
+  expect(store.approved).toBeUndefined()
 })
 
 test('p is not offered when the newest Log thought is already a Memory line', async ($, on) => {
   const store: Store = { memory: ['ship slice 1'], log: [thought('ship slice 1')], typed: '' }
-  mock.session(on)
   await start($, on, store)
   const ui = await $.ui.mount(pane())
   expect(await shown(ui)).not.toContain('"k-p"')

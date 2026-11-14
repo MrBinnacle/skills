@@ -16,8 +16,7 @@ SOURCE = ROOT / "hooks" / "register.tsx"
 # name -> list of (find, replace); each find must occur exactly once.
 MUTANTS = {
     # Send record and failed keeps (#665)
-    "snapshot write failure caught": [(".catch(() => { unrecorded = at })", "")],
-    "refused Send keeps earlier notice": [("unrecorded: out.deny ? v.unrecorded : unrecorded", "unrecorded")],
+    "a refused snapshot write is reported": [(".then(() => '', (err: unknown) => err instanceof Error ? err.message : String(err))", ".then(() => '')")],
     "dismiss drops only the drawn ids": [("without(unsaved.flatMap(f => f.id ?? []))", "() => []")],
     "d shown only when something failed": [("...(unsaved.some(f => f.id) ? [{ k: 'd'", "...(true ? [{ k: 'd'")],
     "d needs an entry with an id": [("...(unsaved.some(f => f.id) ? [{ k: 'd'", "...(unsaved.length ? [{ k: 'd'")],
@@ -33,53 +32,35 @@ MUTANTS = {
     "remove last acts on the drawn last": [("without([last])", "without([rows[0]!.id!])")],
     "0 targets the line shown last": [("rows.at(-1)?.id", "rows.findLast(r => r.id)?.id")],
     # Refusal wording and the stale-refusal draw (#666)
-    "dock shows notice beside refusal": [("!(refused && !snap && !st.unrecorded)", "!(refused && !snap)")],
-    "strip refusal wording": [("(st.unrecorded ? `${status} The later Send was refused: ${refused}` : `Not sent. ${refused}`)",
-                               "`Not sent. ${refused}`")],
-    "dock refusal wording": [("st.unrecorded ? `The later Send was refused: ${refused}` : `Not sent. ${refused}`",
-                              "`Not sent. ${refused}`")],
+    "status stays beside a refusal when a Send stands": [("!(refused && !snap)", "!refused")],
+    "a refusal with no Send says Not sent once": [("!(refused && !snap)", "true")],
+    "strip refusal wording": [("`memory ${refused ? `Not sent. ${refused}` : status}`", "`memory ${status}`")],
+    "dock refusal wording": [("{`Not sent. ${refused}`}", "{refused}")],
     "refusal hidden once lines match the snapshot": [("besideRefused && !claudeHasThem", "besideRefused")],
     # A refusal is drawn only beside the lines it refused
     "refusal bound to its lines": [("!!st.refusedLines && same(lines, st.refusedLines)", "true")],
     "a refusal without lines is not drawn": [("!!st.refusedLines && same(lines, st.refusedLines)", "same(lines, st.refusedLines ?? [])")],
-    "Send records the refused lines": [("refusedLines: lines,", "refusedLines: undefined,")],
+    "Send records the refused lines": [("refusedLines: lines }", "refusedLines: undefined }")],
     "a adds the drawn text": [("run: () => addLine($, now) }", "run: () => read($, typed).then(t => addLine($, t)) }")],
-    # Memory across a compaction
-    "replay skips a subagent's compaction": [("if (e.agentId || e.trigger", "if (e.trigger")],
-    "replay skips a precompute": [("e.agentId || e.trigger === 'precompute' || ", "e.agentId || ")],
-    "replay reads the snapshot after the summary": [
-        ("    const out = await next(e)\n    if (e.agentId || e.trigger", "    const early = await read($, approved)\n    const out = await next(e)\n    if (e.agentId || e.trigger"),
-        ("const snap = await read($, approved)\n    if (!snap ||", "const snap = early\n    if (!snap ||")],
-    "replay row is built whole": [("text: memoryText(snap), toolUses: [] }", "text: memoryText(snap) }")],
-    "replay skips a Send the HUD could not record": [("if (!snap || (await read($, view)).unrecorded) return out", "if (!snap) return out")],
-    "watcher ignores subagent rows": [("if (e.agentId || !row) return out", "if (!row) return out")],
-    "the boundary starts the check": [("state: 'checking' as const", "state: 'found' as const")],
-    "only the boundary starts the check": [("row.name === 'compact_boundary'", "row.type === 'system'")],
-    "the boundary clears the unrecorded notice": [("      await update($, view, v => ({ ...v, unrecorded: 0 })).catch(() => undefined)\n", "")],
-    "the watcher reads the row as stored": [("const row = out.message\n", "const row = out.deny ? undefined : e.message\n")],
-    "check moves only while checking": [("att.state !== 'checking' ? att", "false ? att")],
-    "check finds the row by its text": [("textOf(row) === att.text", "false")],
-    "check concludes missing on a prompt": [("door === 'prompt' || door === 'response'", "door === 'response'")],
-    "check concludes missing on a response": [("door === 'prompt' || door === 'response'", "door === 'prompt'")],
-    "statusOf: missing above unrecorded": [
-        ("return unrecorded ? said(`Claude has the lines sent at ${hhmm(unrecorded)}. The HUD could not record that Send.`, 'warning')\n    : !snap ? said('Not sent.', null)\n    : replay?.state === 'missing' ?",
-         "return replay?.state === 'missing' ? said(`Not in Claude's context after the compaction at ${at}. Send again to give Claude these lines.`, 'warning')\n    : unrecorded ? said(`Claude has the lines sent at ${hhmm(unrecorded)}. The HUD could not record that Send.`, 'warning')\n    : !snap ? said('Not sent.', null)\n    : replay?.state === 'missing' ?")],
-    "boundary opens a check when the Send record is unreadable": [
-        ("() => ({ at, approvedAt: snap?.at ?? 0, text: snap ? memoryText(snap) : '', state: 'checking' as const })",
-         "() => snap && { at, approvedAt: snap.at, text: memoryText(snap), state: 'checking' as const }")],
-    "replay speaks only for its Send": [("att.approvedAt === snap.at ? att :", "true ? att :")],
-    "unchecked replay claims nothing": [("replay?.state === 'checking' ?", "false ?")],
-    "unchecked replay is drawn quietly": [("Not checked after the compaction at ${at}.`, null)", "Not checked after the compaction at ${at}.`, 'remember')")],
-    "Send offered when the replay was lost": [("const send = changed || replay?.state === 'missing'", "const send = changed")],
-    "a lost replay is a warning": [("Send again to give Claude these lines.`, 'warning')", "Send again to give Claude these lines.`, 'claude')")],
-    "changed lines beat a found replay": [("    : changed ? said(", "    : false ? said(")],
-    "a later check that replayed an older Send speaks for this one": [("att.at >= snap.at ? { ...att, state: 'missing' } : null", "null")],
-    "a same-millisecond check is not a check before the Send": [("att.at >= snap.at ?", "att.at > snap.at ?")],
-    "an open check outranks changed lines": [
-        ("    : replay?.state === 'checking' ? said(", "    : changed ? said(`Changed since Send. Claude has the ${hhmm(snap.at)} version.`, 'claude')\n    : replay?.state === 'checking' ? said(")],
+    # Memory in Claude's system prompt
+    "the section joins only Claude Code's memory section": [("on('prompt.section', { name: 'memory' },", "on('prompt.section',")],
+    "the section keeps the engine's text": [("[out.text, memoryText(snap)]", "[memoryText(snap)]")],
+    "the section drops an absent engine text": [("[out.text, memoryText(snap)].filter(Boolean).join", "[out.text, memoryText(snap)].join")],
+    "a changed section breaks the cache": [("breakPromptCache: true } : out", "breakPromptCache: false } : out")],
+    "no Send leaves the section as the engine wrote it": [("breakPromptCache: true } : out", "breakPromptCache: true } : { ...out, breakPromptCache: true }")],
+    "Send drops the cached section": [("  if (!refusal) $.ui.invalidate('prompt.section')\n", "")],
+    "a refused Send leaves the cached section": [("if (!refusal) $.ui.invalidate('prompt.section')", "$.ui.invalidate('prompt.section')")],
+    "Send drops prompt sections, not a drawing": [("$.ui.invalidate('prompt.section')", "$.ui.invalidate('ui.render')")],
+    # The status line
+    "nothing sent offers Send": [("tone: null, send: true", "tone: null, send: false")],
+    "changed lines say Changed since Send": [("!same(lines, snap.lines) ?", "false ?")],
+    "changed lines offer Send": [("tone: 'claude', send: true", "tone: 'claude', send: false")],
+    "lines Claude has offer no Send": [("tone: 'remember', send: false", "tone: 'remember', send: true")],
     "status colour comes from the status": [("color={said.tone ? TONE[said.tone] : undefined}", "color={snap ? TONE.remember : undefined}")],
     "a quiet status is dimmed": [("dimColor={!said.tone}", "dimColor={false}")],
-    "a refusal after a lost replay is drawn": [("const claudeHasThem = !said.send", "const claudeHasThem = !!snap && same(lines, snap.lines)")],
+    # The strip after Watch left
+    "strip keys are m and l": [("k: 'ml'[n - 1]!", "k: 'mw'[n - 1]!")],
+    "strip opens the Log at 2": [("st.expand === 2 ? log", "st.expand === 3 ? log")],
 }
 
 

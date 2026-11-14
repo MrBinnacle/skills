@@ -1,7 +1,7 @@
 {
   "name": "binnacle-hud",
   "version": "4.1.1",
-  "description": "A side panel with a Log the mod does not send to Claude, Memory lines the mod sends only after confirmation, and a preview of Watch. Absence from later model requests is unverified.",
+  "description": "A side panel with Memory lines that join Claude's system instructions on every request after you confirm a Send, and a Log the mod does not send to Claude. Absence of the Log from later model requests is unverified.",
   "types": "./types/index.d.ts",
   "userConfig": {
     "narrow": {

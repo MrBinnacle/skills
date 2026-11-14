@@ -10,8 +10,7 @@ async function setup($: any, on: any, initial: Record<string, any>, holdDismiss 
   const cell = (k: string) => cells[k] ?? {value: undefined, version: 0}
   const clock = mock.clock(on, {now: Date.UTC(2026,10,9,14,2)})
   const entered = deferred(), release = deferred(), otherDismissed = deferred(), freshCaptured = deferred()
-  let held = false, denyAppend = false, armed = false
-  const session = mock.session(on)
+  let held = false, armed = false
   on('command.register', () => ({value: undefined}))
   on('ui.open', () => ({value: {isPlaced: true}}))
   on('ui.focus', () => ({value: {}}))
@@ -31,37 +30,20 @@ async function setup($: any, on: any, initial: Record<string, any>, holdDismiss 
     return {value: {isSet: true, version: old.version + 1}}
   })
   on('tool.call', (_: any, e: any) => ({result: {answers: {[e.questions[0].question]: 'Send'}}}))
-  on('session.append', {door: 'note'}, (_: any, e: any, next: any) => denyAppend ? {deny: 'injected append refusal'} : next(e))
   await $.session.start({cwd: '/', surface: 'terminal', isInteractive: true})
   armed = true
-  return {clock, cells, cell, entered, release, otherDismissed, freshCaptured, appends: () => session.appended().length, refuseAppend: () => {denyAppend = true}}
+  return {clock, cells, cell, entered, release, otherDismissed, freshCaptured}
 }
 for (const placement of ['dock', 'inline'] as const) {
-  test(`review ${placement}: landed append and refused approval report success honestly`, {options: {narrow: 'strip'}}, async ($, on) => {
+  test(`review ${placement}: a refused approval write says Not sent, with the reason`, {options: {narrow: 'strip'}}, async ($, on) => {
     const s = await setup($, on, {memory: ['approved synthetic line'], view: {ring: 2, expand: 1, failed: ''}})
     const ui = await $.ui.mount(pane(placement))
     await ui.press({key: 'k-s'}); await s.clock.settle(); await ui.unmount()
     const after = await $.ui.mount(pane(placement))
     const text = JSON.stringify(await after.drawn()); await after.unmount()
-    expect(s.appends()).toBe(1)
     expect(s.cell('approved').value).toBeUndefined()
-    expect(text).toContain('Claude has the lines sent at')
-    expect(text).not.toContain('Not sent.')
-  })
-  test(`review ${placement}: a later refused send must not erase the last landed unrecorded Send`, {options: {narrow: 'strip'}}, async ($, on) => {
-    const s = await setup($, on, {memory: ['first landed line'], view: {ring: 2, expand: 1, failed: ''}})
-    const ui = await $.ui.mount(pane(placement))
-    await ui.press({key: 'k-s'}); await s.clock.settle(); await ui.unmount()
-    expect(s.appends()).toBe(1)
-    expect(s.cell('view').value.unrecorded).toBeGreaterThan(0)
-    s.cells.memory = {value: ['second refused line'], version: 1}
-    s.refuseAppend()
-    const second = await $.ui.mount(pane(placement))
-    await second.press({key: 'k-s'}); await s.clock.settle(); await second.unmount()
-    const final = await $.ui.mount(pane(placement))
-    const text = JSON.stringify(await final.drawn()); await final.unmount()
-    expect(s.appends()).toBe(1)
-    expect(text).toContain('Claude has the lines sent at')
+    expect(text).toContain('Not sent.')
+    expect(text).toContain('injected approval write failure')
   })
 }
 for (const visible of ['old visible failure', 'new unseen failure']) {

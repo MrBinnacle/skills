@@ -31,7 +31,7 @@
     {
       "name": "binnacle-hud",
       "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "mods/binnacle-hud", "ref": "v4.1.1", "sha": "07160390a1e04fbf726ebab241ce0407bc2ff481"},
-      "description": "A Claude Code mod, not a skill. A side panel with a Log the mod does not send to Claude, Memory lines the mod sends only after confirmation, and a Watch preview. Absence from later model requests is unverified."
+      "description": "A Claude Code mod, not a skill. A side panel with Memory lines that join Claude's system instructions on every request after you confirm a Send, and a Log the mod does not send to Claude. Absence of the Log from later model requests is unverified."
     }
   ]
 }
