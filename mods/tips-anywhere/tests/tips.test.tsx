@@ -452,7 +452,7 @@ test('a note handed over from the phone and then sent from the band reaches Clau
   await typed($, BAND_SEND)
   expect(prompts.length).toBe(2)
   expect(prompts[1]).toBe(BAND_SEND)
-  expect(contexts[1].join('\n')).toMatch(/already handed this heads-up to you earlier in this session/)
+  expect(contexts[1]!.join('\n')).toMatch(/already handed this heads-up to you earlier in this session/)
 })
 
 test('a note sent from the band first is settled, so the phone stops asking and /tips do sends nothing', async ($, on) => {
