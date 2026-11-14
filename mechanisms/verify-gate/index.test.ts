@@ -40,6 +40,18 @@ describe("verify-gate adapter", () => {
     expect(await settleAfterWriteThenEvil(true)).toEqual({ nudged: false, notes: [], levels: [] });
   });
 
+  test("a nudge keeps the entries an earlier extension proposed at the same settle", async () => {
+    const events = new Map<string, (...args: any[]) => any>();
+    extension({ on: (event: string, handler: any) => events.set(event, handler) } as any);
+    const ctx = { cwd: projectCountingEvilAsCheck(), hasUI: true, isProjectTrusted: () => true, ui: { notify: () => {} } };
+    await events.get("session_start")!({}, ctx);
+    await events.get("before_agent_start")!();
+    await events.get("tool_result")!({ toolName: "write", input: { path: "a.ts" }, isError: false });
+    const earlier = { type: "custom_message", customType: "earlier", content: "kept", display: true };
+    const result = await events.get("agent_before_settle")!({ outcome: "completed", entries: [earlier] });
+    expect(result.entries.map((e: { customType: string }) => e.customType)).toEqual(["earlier", "verify-gate"]);
+  });
+
   test("an untrusted project's checkCommands are ignored: the defaults apply and the user is warned", async () => {
     const { nudged, notes, levels } = await settleAfterWriteThenEvil(false);
     expect(nudged).toBe(true);

@@ -3,16 +3,19 @@ import { join } from "node:path";
 
 export const CONFIG_PATH = join(".pi", "engineering-env.json");
 
-/** Regexes (as strings) for shell commands that count as running the project's checks. */
+/**
+ * Regexes (as strings) for shell commands that count as running the project's checks. The gate
+ * tests each against every command segment.
+ */
 export const DEFAULT_CHECK_COMMANDS: readonly string[] = [
-  "\\b(npm|pnpm|yarn|bun)( run)? (test|check|lint|typecheck)\\b",
-  "\\bbun test\\b",
-  "\\b(npx )?(vitest|jest|tsc|eslint|biome)\\b",
-  "\\b(python -m )?(pytest|unittest|mypy|ruff)\\b",
-  "\\bcargo (test|check|clippy)\\b",
-  "\\bgo (test|vet)\\b",
-  "\\b(make|just) (test|check|lint)\\b",
-  "\\bpre-commit run\\b",
+  "^(npm|pnpm|yarn|bun)( run)? (test|check|lint|typecheck)\\b",
+  "^bun test\\b",
+  "^(npx |bunx |npm exec |pnpm (exec )?|yarn (run )?)?(vitest|jest|tsc|eslint|biome)\\b",
+  "^(python3? -m |py -m |uv run |uvx |poetry run )?(pytest|unittest|mypy|ruff)\\b",
+  "^cargo (test|check|clippy)\\b",
+  "^go (test|vet)\\b",
+  "^(make|just) (test|check|lint)\\b",
+  "^pre-commit run\\b",
 ];
 
 export interface Config {

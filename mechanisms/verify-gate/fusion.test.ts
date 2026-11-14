@@ -13,6 +13,14 @@ for (const status of ["succeeded", "failed", "not-run"] as const) {
     expect(gate.beforeSettle("completed") === undefined).toBe(status === "succeeded");
   });
 }
+test("a succeeded follow-up whose check output went through a pipe does not settle", () => {
+  const gate = createGate(["\\bbun test\\b"]);
+  gate.runStarted();
+  gate.toolFinished("write", { path: "a.ts" }, false, {
+    solPiFusion: { version: 1, mutation: "succeeded", followUp: { command: "bun test | tail -3", status: "succeeded" } },
+  });
+  expect(gate.beforeSettle("completed")).toContain("a.ts");
+});
 test("unknown or malformed receipts do not establish mutation or check success", () => {
   for (const details of [null, {}, { solPiFusion: {} }, { solPiFusion: { version: 2 } },
     { solPiFusion: { version: 1, mutation: "succeeded", followUp: { command: "bun test", status: "unknown" } } }]) {

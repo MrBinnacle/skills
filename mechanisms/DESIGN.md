@@ -22,6 +22,12 @@ physical copy of either next to this code** (a duplicate `typebox` can break sch
 Adapters use `import type` from Pi where they can. There is no `package.json` and no
 `node_modules` here.
 
+An `agent_before_settle` handler returns `entries: [...event.entries, mine]`, never `[mine]`.
+Pi 1.5.0 passes each handler the entries proposed so far and keeps the last `entries` returned
+(`emitBoundary` in `dist/core/extensions/runner.js`), so a bare `[mine]` drops the message of
+every extension Pi called earlier. The gate and `session-packet` both answer the settle that
+follows a `/packet-close` fill.
+
 Run all tests: `bun test mechanisms` from the worktree root.
 
 ## Project config: `.pi/engineering-env.json`
@@ -30,7 +36,7 @@ One file per project, read directly by the extensions (`shared/config.ts`). It i
 `.pi/settings.json` because Pi's `Settings` type has no slot for extension keys.
 
 The file is part of the repository, so in a cloned project its author writes it, not the
-operator. `/packet-close` and `/packet-open` run `sessionPacket.receiverChecks` through `sh -c`, and
+operator. `/packet-close` and `/packet-open` run `sessionPacket.receiverChecks` through a shell (`sh -c`, or Git Bash on Windows), and
 `/packet-open` runs a `trustedProbeCommands` entry when a packet's probe names it. `sessionPacket.store.worktree` is passed to
 `git worktree add`, at any path. `checkCommands` decides what the gate counts as a check. So the
 extensions honour the file only when Pi trusts the project (`ctx.isProjectTrusted()`) **and**
@@ -50,7 +56,7 @@ default `defaultProjectTrust: "ask"`, unless the run passes `-a`.
 
 ```json
 {
-  "checkCommands": ["\\bbun test\\b", "\\bpytest\\b"],
+  "checkCommands": ["^bun test\\b", "^pytest\\b"],
   "sessionPacket": {
     "dir": ".pi/session-packets",
     "receiverChecks": [{ "name": "clean-tree", "command": "git diff --quiet && git diff --cached --quiet" }],
@@ -60,6 +66,14 @@ default `defaultProjectTrust: "ask"`, unless the run passes `-a`.
   }
 }
 ```
+
+The gate cuts a shell command into segments at its control operators (`&&`, `||`, `|`, `|&`,
+`;`, `&`, newline) after blanking quoted text, and tests each `checkCommands` pattern against each
+segment. A matching segment counts as a passing check only when no `||` comes before it and only
+`&&` comes after it: Pi runs `bash -c` without `pipefail`, so `npm test | tail`, `npm test; echo`
+or `npm test || true` exits 0 when the tests fail. The default patterns start with `^`, so the
+tool must be the segment's command word and `echo npm test` is not a check. A pattern in the
+file without `^` matches anywhere in a segment; anchoring it is the file author's job.
 
 ## Observed Pi 1.1.0 behavior these extensions rely on
 
@@ -92,4 +106,6 @@ default `defaultProjectTrust: "ask"`, unless the run passes `-a`.
   `nominal`, active tools `read, grep, find, ls, submit_review`, cost $0.03.
 
 Missing file: every extension uses its defaults. Malformed file: the extension reports the
-error (notification, or the gate's continuation text) and does not guess.
+error through a notification, or on stderr when there is no UI, and does not guess. The gate
+stays off for the rest of the session, so the agent is not told; `/packet-close` and
+`/packet-open` refuse with the error each time they run.

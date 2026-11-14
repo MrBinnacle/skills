@@ -30,6 +30,7 @@ function fakeDeps(head: Record<string, string>, working: Record<string, string>,
     readHead: async (p) => (p in head ? enc(head[p]) : undefined),
     changedFiles: async () => changed,
     toRepoPath: (p) => (p.startsWith("/outside/") ? undefined : p.replace(/^\.\//, "")),
+    gitShowsEndingChange: async () => true,
   };
 }
 
@@ -70,6 +71,26 @@ describe("eol guard", () => {
     expect(await guard.toolFinished("bash", { command: "ls" }, false)).toBeUndefined();
     guard.runStarted();
     expect(await guard.toolFinished("bash", { command: "ls" }, false)).toBeDefined();
+  });
+
+  test("above 200 changed files a shell command is not checked, and the guard says so once per run", async () => {
+    const guardFor = (n: number) => {
+      const files = Array.from({ length: n }, (_, i) => `f${i}.md`);
+      const same = Object.fromEntries(files.map((f) => [f, LF3]));
+      return createEolGuard(fakeDeps(same, same, files));
+    };
+    const atLimit = guardFor(200);
+    atLimit.runStarted();
+    expect(await atLimit.toolFinished("bash", { command: "ls" }, false)).toBeUndefined();
+
+    const over = guardFor(201);
+    over.runStarted();
+    const note = await over.toolFinished("bash", { command: "ls" }, false);
+    expect(note).toContain("201 tracked files differ from HEAD");
+    expect(note).toContain("not checked");
+    expect(await over.toolFinished("bash", { command: "ls" }, false)).toBeUndefined();
+    over.runStarted();
+    expect(await over.toolFinished("bash", { command: "ls" }, false)).toContain("not checked");
   });
 
   test("a failed tool call and a non-file, non-shell tool are ignored", async () => {
