@@ -2,13 +2,12 @@
 
 Keep a Log of thoughts beside a Claude Code session, from the terminal or from the Claude app on your phone. The mod keeps each thought in session state. It does not send a thought to Claude or add it to the conversation. Whether a thought stays out of a later model request has not been verified.
 
-Keep the decisions you and Claude agreed in Memory. The mod sends Memory to Claude only when you press Send and confirm it. After Claude Code compacts the chat, the mod gives Claude the lines of that Send again.
+Keep the decisions you and Claude agreed in Memory. The mod gives Memory to Claude only when you press Send and confirm it. From then on the lines are part of Claude's system instructions on every request, so a long chat or a compaction does not push them out of Claude's view.
 
-The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has three sections:
+The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has two sections:
 
-- **Log** works. Type a thought in its field and press Enter, or send `/log` from the phone. The mod keeps the thought with the time and where it came from.
-- **Memory** holds the lines you want Claude to keep. Send gives Claude those lines at once, after you confirm.
-- **Watch** is a preview. It shows one sample finding and is not connected to an observer yet.
+- **Memory** holds the lines you want Claude to keep. Send gives Claude those lines, after you confirm.
+- **Log** keeps thoughts for you. Type a thought in its field and press Enter, or send `/log` from the phone. The mod keeps the thought with the time and where it came from.
 
 ## Give Claude your Memory lines
 
@@ -17,23 +16,25 @@ The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has th
 2. To remove a line, press its number. With more than nine lines, `0` removes the last one.
 3. Press `s` to send. Claude Code shows the lines and asks, for example, "Give Claude these 2 lines now?". Choose **Send**.
 
-The mod adds one row to the conversation that reads "Memory the operator approved at HH:MM:", followed by the lines. The row starts no model turn. Claude reads it on its next turn.
+The mod adds the lines to Claude Code's own memory section of the system prompt, under the heading "Memory the operator approved at HH:MM:". Claude reads them from its next turn and on every request after that. The system prompt is not part of the chat that Claude Code compacts, so the lines stay through a compaction. Send adds no row to the conversation and starts no model turn.
+
+A Send changes the system prompt, so Claude Code rewrites its prompt cache once. The next request writes the whole conversation to the cache again, which costs more and takes longer than a cached request. Claude also loses its earlier thinking blocks, and Claude Code shows a dim line naming the mod. Requests after that use the cache again.
 
 The line under the Memory heading says where things stand:
 
 | Status | Meaning |
 | --- | --- |
-| Not sent. | Claude has no Memory lines from this session. It also shows after a compaction when your only Send was one the HUD could not record, because the HUD does not hold those lines. |
-| In Claude's context since HH:MM. | Claude has exactly the lines shown. |
-| Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines. |
-| Re-attached after the compaction at HH:MM. | Claude Code compacted the chat at that time, and the HUD saw the row with your sent lines stored after it. |
-| Approved HH:MM. Not checked after the compaction at HH:MM. | Claude Code compacted the chat, and the HUD has not yet seen your lines or a later prompt or reply stored. This claims neither, so it is drawn quietly. |
-| Not in Claude's context after the compaction at HH:MM. Send again to give Claude these lines. | The chat went on after the compaction without your lines. Another mod or Claude Code dropped the row, or the HUD could not add it. It also shows when your Send landed while the compaction ran, so the compaction gave Claude your Send before it. Press `s` to send the lines shown. |
-| Claude has the lines sent at HH:MM. The HUD could not record that Send. | The row reached the conversation, so Claude has the lines. Claude Code refused the HUD's own record of the Send, so the line stays until the next Send that lands or the next compaction. A later refused Send shows "The later Send was refused:" and its reason beside it. Sending again adds the lines to the conversation again. |
+| Not sent. | Claude has no Memory lines from this session. |
+| Sent at HH:MM. Not yet in Claude's instructions. | You sent the lines shown, and Claude Code has not yet built a system prompt that carries them. It does so at Claude's next turn. If this stays after a turn, the lines are not reaching Claude. |
+| In Claude's instructions since HH:MM. | Claude Code put exactly the lines shown into the system prompt at HH:MM, and keeps them on every request. |
+| Changed since Send. The HH:MM version is not yet in Claude's instructions. | You changed the lines after the last Send, and that Send has not reached the system prompt yet either. |
+| Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines until you send again. |
 
-A compaction gives Claude the lines of the last Send that the HUD recorded, not lines you changed afterwards. It runs for the main chat only, not for a subagent. The code treats `/compact` and an automatic compaction the same way. If the summary already kept your lines, Claude sees them twice. A Send the HUD could not record is not given again, because the HUD does not hold its lines. Of the three compaction lines, only "Re-attached" says Claude has the lines, and only it is drawn in the success colour.
+The mod says the lines are in Claude's instructions only after its hook has added them to the memory section. A Send alone does not make that claim.
 
-If Claude Code refuses the row, the HUD shows "Not sent." and the reason while the lines are the ones that Send carried. The reason goes away when you change the lines or when they match what Claude has. The previous Send stays in force. To change a line, remove it and add the new wording.
+Memory goes to the main conversation. A subagent that is already running keeps the instructions it started with.
+
+If Claude Code refuses to save the Send, the HUD shows "Not sent." and the reason while the lines are the ones that Send carried. The reason goes away when you change the lines or when they match the last Send. The previous Send stays in force. To change a line, remove it and add the new wording.
 
 ## Get back a prompt you wiped by accident
 
@@ -100,7 +101,7 @@ If you type text after `/log`, the mod keeps nothing and asks you to use the dia
 - Keeping a thought starts no model turn, and the mod adds nothing to the conversation or the unfinished Claude prompt.
 - The command line and the mod's reply are part of the conversation, so neither one carries the thought.
 - The Log lasts as long as the session. A new session starts with an empty Log.
-- The mod appends Memory lines to the conversation only when you press Send and choose **Send** in the dialog. Keeping a thought does not add it to Memory; `p` copies it there without sending it.
+- The mod gives Memory lines to Claude only when you press Send and choose **Send** in the dialog. Keeping a thought does not add it to Memory; `p` copies it there without sending it.
 - The mod writes no file. Memory, like the Log, lasts as long as the session.
 
 ### Where a kept thought goes
@@ -118,12 +119,22 @@ On Claude Code 2.1.319, on 2026-11-08 and 2026-11-09, in a terminal session and 
 - From the phone, `/log` kept a thought and replied "Kept in the Log." The session stayed at 0 turns.
 - A conversation export taken afterwards held `/log` and the reply, but not the thought.
 
-The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, approval only after append, refusal and dismissal, and capture without appending or touching the Claude prompt. Run them with `claude plugin test mods/binnacle-hud`.
+On Claude Code 2.1.325, on 2026-11-13, in headless sessions with a test mod that used the same mechanism:
+
+- A section answer that changed between turns, with the cache-break flag, reached the model on the next turn and stayed on the turn after.
+- Without the flag, or without telling Claude Code that the answer changed, the model kept reading the old text.
+- A section added through the system-prompt composition hook did not change mid-conversation, which is why the mod uses Claude Code's memory section instead.
+
+The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, the memory section before and after Send, the engine's own memory text kept ahead of the lines, the status before and after the memory section carries a Send, a memory section that is never asked for, a refused save, and state written by earlier versions. Run them with `claude plugin test mods/binnacle-hud`.
 
 These are not verified:
 
-- Memory in a live session. Its tests run against the test kit, not a terminal or the phone.
-- Memory after a real compaction, from `/compact` or an automatic one. The compaction tests run against the test kit.
+- Memory in a live interactive session. Its tests run against the test kit, and the probe ran headless.
+- Memory after a real compaction, from `/compact` or an automatic one. That the lines survive follows from the system prompt not being compacted; it was not observed.
+- Memory after resuming the session in a new Claude Code process.
+- That the model read the lines. The status rests on the mod's hook adding them to the memory section, which is not proof that the model read them.
+- That no other plugin changes the memory section after this mod's hook. A plugin whose hook runs outside this one can replace the section, and the status would still say the lines are in Claude's instructions.
+- Which conversation the hook ran for. Claude Code does not say whether a section was built for the main conversation or a subagent, so a subagent started after a Send could turn the status before the main conversation picks the lines up.
 - That the thought is absent from what Claude reads on a later turn. The export suggests so, but no turn was sent to check it.
 - Pasting, dictation, and long text in the phone's dialog.
 - What the dialog's **Chat about this** option does. Use **Other** instead.

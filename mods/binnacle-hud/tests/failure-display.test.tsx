@@ -73,7 +73,7 @@ for (const newer of [false, true]) {
   })
 }
 
-for (const expand of [0, 3]) {
+for (const expand of [0, 2]) {
   test(`review display: inline strip expand=${expand} shows a denied keep after newer typing`,
     { options: { narrow: 'strip' } }, async ($, on) => {
       const p = await mount($, on, ['first capture'], 'inline', expand)

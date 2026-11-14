@@ -1,10 +1,10 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, SessionAppendInput } from 'claude-code'
-import type { Approved, Attached, Entry, Row, Saved, Thought, View } from '../types'
+import type { EngineInterface, Register } from 'claude-code'
+import type { Approved, Delivered, Entry, Row, Saved, Thought, View } from '../types'
 
 // Binnacle HUD. The mod does not send the Log to Claude; absence from later
-// model requests is unverified. Memory holds a draft and the snapshot a confirmed Send
-// gave Claude. Watch is still a preview with one sample finding.
+// model requests is unverified. Memory holds a draft and the snapshot a confirmed
+// Send gave Claude, which rides in Claude's system prompt on every request.
 //
 // Keys inside the pane (after /hud or a click, then Tab off the field): the action row under the field is the whole list, built from what
 // is on screen, so no key is shown that has no button.
@@ -12,9 +12,10 @@ import type { Approved, Attached, Entry, Row, Saved, Thought, View } from '../ty
 // State lives under keys types/index.d.ts declares: `view`, the pane's own UI
 // state; `typed`, the field's text, echoed wrapped above it because the host's
 // Input cuts a long line off at the edge (native, 2026-11-08); `log`, the kept
-// thoughts, newest last; `memory`, the draft lines; and `approved`, the lines
-// Send gave Claude. Draft and snapshot are two atoms so no edit can rewrite
-// what was approved.
+// thoughts, newest last; `memory`, the draft lines; `approved`, the lines
+// Send gave Claude; and `delivered`, which Send the memory section last carried.
+// Draft and snapshot are two atoms so no edit can rewrite what was approved,
+// and only the section hook writes `delivered`, so a Send cannot claim it arrived.
 const PANE = 'binnacle-hud'
 const SEND = 'Send'
 // $.ui.ask needs two labels; neither keeps anything.
@@ -27,16 +28,8 @@ const failed = atom({ plugin: 'binnacle-hud', key: 'failed' } as const, [] as Sa
 let edits = 0
 const draft = atom({ plugin: 'binnacle-hud', key: 'memory' } as const, [] as Saved[])
 const approved = atom({ plugin: 'binnacle-hud', key: 'approved' } as const, null as Approved | null)
+const delivered = atom({ plugin: 'binnacle-hud', key: 'delivered' } as const, null as Delivered | null)
 const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, expand: 0, failed: '' } as View)
-const attached = atom({ plugin: 'binnacle-hud', key: 'attached' } as const, null as Attached | null)
-
-type Finding = { text: string; why: string; source: string; age: string }
-const FINDING: Finding = {
-  text: 'Tests were skipped in the last run',
-  why: 'The test step printed "skipped: 12" and exited 0, so the green result covers only 3 of 15 tests. The skip came from a missing fixture file, not a marker.',
-  source: 'ysk',
-  age: '1m',
-}
 
 // Binnacle Board palette, dark (artifact AQriRu2Xwo2ACiR981H89b, via the skills session 2026-11-08).
 // shortcut: dark values only; add the light variants once a theme read exists.
@@ -67,44 +60,22 @@ const entry = (text: string): Entry => ({ id: crypto.randomUUID(), text })
 const entries = (saved: readonly Saved[]): Row[] => saved.map(s => typeof s === 'string' ? { id: null, text: s } : s)
 const minted = (saved: readonly Saved[]): Saved[] => saved.map(s => typeof s === 'string' ? entry(s) : s)
 
-// The compaction replay and the watcher match this exact text.
 const memoryText = (snap: Approved) => [`Memory the operator approved at ${hhmm(snap.at)}:`, ...snap.lines].join('\n')
 
-// Only a compaction that replayed this snapshot speaks for it. A compaction
-// after this Send that replayed an older one never showed these lines stored.
-const replayOf = (snap: Approved, att: Attached | null): Attached | null =>
-  !att ? null : att.approvedAt === snap.at ? att : att.at >= snap.at ? { ...att, state: 'missing' } : null
-
 // The words, their colour and the Send key come from one answer, so the
-// colour never says "Claude has them" beside words that do not.
+// colour never says "Claude has them" beside words that do not. Only the
+// section hook's record says Claude has a Send; a Send alone is pending.
 type Status = { text: string; tone: keyof typeof TONE | null; send: boolean }
-export const statusOf = (lines: readonly string[], snap: Approved | null, att: Attached | null = null, unrecorded = 0): Status => {
-  const replay = snap && replayOf(snap, att)
-  const at = replay && hhmm(replay.at)
-  const changed = !snap || !same(lines, snap.lines)
-  const send = changed || replay?.state === 'missing'
-  const said = (text: string, tone: Status['tone']): Status => ({ text, tone, send })
-  return unrecorded ? said(`Claude has the lines sent at ${hhmm(unrecorded)}. The HUD could not record that Send.`, 'warning')
-    : !snap ? said('Not sent.', null)
-    : replay?.state === 'missing' ? said(`Not in Claude's context after the compaction at ${at}. Send again to give Claude these lines.`, 'warning')
-    : replay?.state === 'checking' ? said(`Approved ${hhmm(snap.at)}. Not checked after the compaction at ${at}.`, null)
-    : changed ? said(`Changed since Send. Claude has the ${hhmm(snap.at)} version.`, 'claude')
-    : replay ? said(`Re-attached after the compaction at ${at}.`, 'remember')
-    : said(`In Claude's context since ${hhmm(snap.at)}.`, 'remember')
+export const statusOf = (lines: readonly string[], snap: Approved | null, seen: Delivered | null): Status => {
+  if (!snap) return { text: 'Not sent.', tone: null, send: true }
+  const arrived = seen?.at === snap.at
+  if (!same(lines, snap.lines)) return arrived
+    ? { text: `Changed since Send. Claude has the ${hhmm(snap.at)} version.`, tone: 'claude', send: true }
+    : { text: `Changed since Send. The ${hhmm(snap.at)} version is not yet in Claude's instructions.`, tone: 'claude', send: true }
+  return arrived
+    ? { text: `In Claude's instructions since ${hhmm(seen.since)}.`, tone: 'remember', send: false }
+    : { text: `Sent at ${hhmm(snap.at)}. Not yet in Claude's instructions.`, tone: null, send: false }
 }
-
-type Stored = SessionAppendInput['message']
-const textOf = (row: Stored) => row.content.flatMap(b => b.type === 'text' ? [b.text] : []).join('\n')
-const isBoundary = (row: Stored) => row.type === 'system' && row.name === 'compact_boundary'
-
-// After the boundary the session stores the summary and the rows compact
-// hooks added (live probe P6). A prompt or a response stored before
-// the Memory row means the row never arrived.
-export const step = (att: Attached, door: SessionAppendInput['door'], row: Stored): Attached =>
-  att.state !== 'checking' ? att
-  : textOf(row) === att.text ? { ...att, state: 'found' }
-  : door === 'prompt' || door === 'response' ? { ...att, state: 'missing' }
-  : att
 
 // Appends in one update, so two quick keeps cannot overwrite each other.
 async function keep($: EngineInterface, text: string, from: Thought['from']): Promise<boolean | null> {
@@ -148,10 +119,9 @@ async function promote($: EngineInterface, shown: string): Promise<void> {
 // Each caller names its atom at the update call, which the hooks scan requires.
 const without = (ids: readonly string[]) => (saved: readonly Saved[]) => saved.filter(s => typeof s === 'string' || !ids.includes(s.id))
 
-// The lines are frozen when Send is pressed: the question, the row and the
-// snapshot all carry that one value, whatever the draft becomes meanwhile.
-// The snapshot is written only after the append lands, so it always means
-// Claude has those lines.
+// The lines are frozen when Send is pressed: the question and the snapshot
+// carry that one value, whatever the draft becomes meanwhile. The prompt
+// section reads the snapshot, so writing it is the Send.
 async function send($: EngineInterface): Promise<void> {
   const lines = entries(await read($, draft)).map(l => l.text)
   if (!lines.length) return
@@ -159,22 +129,18 @@ async function send($: EngineInterface): Promise<void> {
   const answer = await $.ui.ask(question, [SEND, NOT_NOW]).catch(() => NOT_NOW)
   if (answer !== SEND) return
   const at = await $.clock.now()
-  const text = memoryText({ lines, at })
-  const out = await $.session.append({ message: { type: 'user', content: [{ type: 'text', text }] } })
-    .catch((err: unknown) => ({ deny: err instanceof Error ? err.message : String(err) }))
-  // The append landed but the snapshot write can still fail. Then Claude has
-  // the lines and the HUD must not say "Not sent."
-  // A refused Send changes nothing Claude has, so it keeps the earlier notice.
-  let unrecorded = 0
-  if (!out.deny) await update($, approved, () => ({ lines, at })).catch(() => { unrecorded = at }) // overwrite: the Send that landed last is the one Claude read last
-  await update($, view, v => ({ ...v, failed: out.deny ?? '', refusedLines: lines, unrecorded: out.deny ? v.unrecorded : unrecorded }))
+  const refusal = await update($, approved, () => ({ lines, at })) // overwrite: the newest Send replaces what Claude reads
+    .then(() => '', (err: unknown) => err instanceof Error ? err.message : String(err))
+  // The engine caches a section answer for the thread; dropping it makes the next turn ask again.
+  if (!refusal) $.ui.invalidate('prompt.section')
+  await update($, view, v => ({ ...v, failed: refusal, refusedLines: lines }))
 }
 
 export const register: Register = (on, options) => {
   const noDock = narrowOf(options.narrow)
   // rows is the inline height alone; a docked pane ignores it.
   const pane = { id: PANE, title: 'Binnacle', columns: 46, rows: noDock === 'hide' ? 1 : 8 }
-  // Held from the press to the end of the append, so a second press while
+  // Held from the press to the end of the Send, so a second press while
   // the question is open asks nothing.
   let sending = false
 
@@ -188,34 +154,18 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  // A precompute installs nothing. The row is added even when the summary
-  // kept one, so the watcher sees it stored after the boundary.
-  // shortcut: a Send whose record failed (view.unrecorded) is newer than `approved`, so nothing is replayed and the check reports it missing, or "Not sent." when it was the only Send; store its lines if that failure is ever seen.
-  on('session.compact', async ($, e, next) => {
+  // Memory joins Claude Code's own `memory` section, which the full and the
+  // short prompt both carry. A section of the mod's own is a prompt.compose
+  // answer, and a changed one waits for the next compaction (probe, 2.1.325).
+  // A section answer that breaks the cache goes out on the next turn.
+  on('prompt.section', { name: 'memory' }, async ($, e, next) => {
     const out = await next(e)
-    if (e.agentId || e.trigger === 'precompute' || !out.messages) return out
     const snap = await read($, approved)
-    if (!snap || (await read($, view)).unrecorded) return out
-    return { ...out, messages: [...out.messages, { role: 'user' as const, text: memoryText(snap), toolUses: [] }] }
-  })
-
-  // The watcher owns the check, so a compact hook that failed or a row a hook
-  // above dropped still ends in "missing". It reads the row as stored.
-  on('session.append', async ($, e, next) => {
-    const out = await next(e)
-    const row = out.message
-    if (e.agentId || !row) return out
-    if (isBoundary(row)) {
-      const snap = await read($, approved)
-      const at = await $.clock.now()
-      // A failed read gives a null snapshot, so open a check anyway: with a Send stored it ends missing, and with none the status stays "Not sent."
-      await update($, attached, () => ({ at, approvedAt: snap?.at ?? 0, text: snap ? memoryText(snap) : '', state: 'checking' as const })).catch(() => undefined) // overwrite: each compaction starts a new check
-      await update($, view, v => ({ ...v, unrecorded: 0 })).catch(() => undefined)
-      return out
-    }
-    const att = await read($, attached)
-    if (att && step(att, e.door, row) !== att) await update($, attached, now => now && step(now, e.door, row)).catch(() => undefined)
-    return out
+    if (!snap) return out
+    const since = await $.clock.now()
+    // A failed write must not fail the hook: a failed hook passes through and drops the lines.
+    await update($, delivered, now => now && now.at >= snap.at ? now : { at: snap.at, since }).catch(() => undefined)
+    return { text: [out.text, memoryText(snap)].filter(Boolean).join('\n\n'), breakPromptCache: true }
   })
 
   on('command.run', { command: 'hud' }, async ($, e) => {
@@ -267,13 +217,12 @@ export const register: Register = (on, options) => {
     const lines = rows.map(r => r.text)
     const last = rows.at(-1)?.id
     const snap = await read($, approved)
-    const att = await read($, attached)
-    const said = statusOf(lines, snap, att, st.unrecorded)
+    const said = statusOf(lines, snap, await read($, delivered))
     const status = said.text
-    // A refusal is news only beside the lines it refused, and while they differ from what Claude has.
+    // A refusal is news only beside the lines it refused, and while they differ from the last Send.
     const besideRefused = !!st.refusedLines && same(lines, st.refusedLines)
-    const claudeHasThem = !said.send
-    const refused = besideRefused && !claudeHasThem ? st.failed : ''
+    const sentThem = !said.send
+    const refused = besideRefused && !sentThem ? st.failed : ''
 
     const focused = e.props.isFocused
     const inline = e.props.placement === 'inline'
@@ -307,31 +256,12 @@ export const register: Register = (on, options) => {
     const memory = (
       <Box flexDirection="column">
         {header('Memory', lines.length ? `${lines.length} lines` : 'empty')}
-        {!(refused && !snap && !st.unrecorded) && <Text wrap="wrap" color={said.tone ? TONE[said.tone] : undefined} dimColor={!said.tone}>{status}</Text>}
-        {refused && <Text wrap="wrap" color={TONE.warning}>{st.unrecorded ? `The later Send was refused: ${refused}` : `Not sent. ${refused}`}</Text>}
+        {!(refused && !snap) && <Text wrap="wrap" color={said.tone ? TONE[said.tone] : undefined} dimColor={!said.tone}>{status}</Text>}
+        {refused && <Text wrap="wrap" color={TONE.warning}>{`Not sent. ${refused}`}</Text>}
         {rows.map((r, i) => (
           <Text key={`mem-${r.id}`} wrap={inline ? 'truncate-end' : 'wrap'}><Text dimColor>{i + 1} </Text>{r.text}</Text>
         ))}
         {lines.length === 0 && quiet('No lines yet. Write one in the field, then press a to add it.')}
-      </Box>
-    )
-
-    // --- watch -------------------------------------------------------------
-    const watch = (
-      <Box flexDirection="column">
-        {header('Watch', 'preview')}
-        <Box key="watch-0" flexDirection="column">
-          <Box flexDirection="row">
-            <Text color={LIGHT}>▎</Text>
-            <Text wrap="truncate-end" hover={{ bold: true }}>{FINDING.text}</Text>
-          </Box>
-          <Text dimColor>▎{FINDING.source} · {FINDING.age}</Text>
-          <Box position="absolute" top={2} left={1} width={w - 2} display="none" hover={{ display: 'flex' }}
-            borderStyle="round" borderDimColor paddingX={1} flexDirection="column">
-            <Text wrap="wrap">{FINDING.why}</Text>
-          </Box>
-        </Box>
-        {quiet('Preview. Not connected to an observer yet.')}
       </Box>
     )
 
@@ -371,7 +301,7 @@ export const register: Register = (on, options) => {
     const showsMemory = !inline || st.expand === 1
     const writing = now.trim() !== ''
     const newest = thoughts.at(-1)?.text
-    const toggle = (n: number): Act => ({ k: 'mwl'[n - 1]!, label: ['memory', 'watch', 'log'][n - 1]!,
+    const toggle = (n: number): Act => ({ k: 'ml'[n - 1]!, label: ['memory', 'log'][n - 1]!,
       run: () => void update($, view, v => ({ ...v, expand: v.expand === n ? 0 : n })) })
     const press = () => {
       if (sending) return
@@ -380,7 +310,7 @@ export const register: Register = (on, options) => {
     }
     const acts: Act[] = [
       ...(unsaved.some(f => f.id) ? [{ k: 'd', label: 'dismiss failed', run: () => void update($, failed, without(unsaved.flatMap(f => f.id ?? []))).catch(() => undefined) }] : []),
-      ...(inline ? [toggle(1), toggle(2), toggle(3)] : []),
+      ...(inline ? [toggle(1), toggle(2)] : []),
       ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($, now) }] : []),
       ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
       ...(showsMemory && lines.length && said.send ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
@@ -409,9 +339,9 @@ export const register: Register = (on, options) => {
 
     // --- inline: summary, actions, the field -------------------------------
     if (inline) {
-      const parts = [`memory ${refused ? (st.unrecorded ? `${status} The later Send was refused: ${refused}` : `Not sent. ${refused}`) : status}`, 'watch preview', `log ${thoughts.length}`]
-      const section = st.expand === 1 ? memory : st.expand === 2 ? watch : st.expand === 3 ? log : null
-      const hasField = !section || st.expand === 3
+      const parts = [`memory ${refused ? `Not sent. ${refused}` : status}`, `log ${thoughts.length}`]
+      const section = st.expand === 1 ? memory : st.expand === 2 ? log : null
+      const hasField = !section || st.expand === 2
       return (
         <Box flexDirection="column" paddingX={1}>
           <Text wrap="truncate-end">{title}<Text dimColor>  {parts.join(' · ')}</Text></Text>
@@ -430,7 +360,6 @@ export const register: Register = (on, options) => {
         {title}
         {hairline}
         {memory}
-        {watch}
         {log}
         {rail}
         {keyline}
