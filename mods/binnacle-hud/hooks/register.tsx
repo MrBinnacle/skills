@@ -131,7 +131,7 @@ export const register: Register = (on, options) => {
   const noDock = narrowOf(options.narrow)
   // rows is the inline height alone; a docked pane ignores it.
   const pane = { id: PANE, title: 'Binnacle', columns: 46, rows: noDock === 'hide' ? 1 : 8 }
-  // Held from the press to the end of the append, so a second press while
+  // Held from the press to the end of the Send, so a second press while
   // the question is open asks nothing.
   let sending = false
 
