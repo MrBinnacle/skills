@@ -37,6 +37,10 @@ describe("a shell command that exits 0 clears the gate only when a check ran and
     "rg eslint src",
     "echo npm test",
     "ls node_modules/.bin/tsc",
+    "echo cargo test",
+    "echo go test",
+    "echo make test",
+    "echo pre-commit run",
   ])("%j only names a check tool, so the gate still asks", (command) => {
     expect(satisfiedBy(command)).toBe(false);
   });
@@ -54,6 +58,19 @@ describe("a shell command that exits 0 clears the gate only when a check ran and
     'pytest -k "a or b"',
     "cargo test",
     "git status; npm test",
+    "npm test &> log",
+    "bunx vitest run",
+    "pnpm exec jest",
+    "pnpm tsc --noEmit",
+    "pnpm vitest",
+    "pnpm eslint .",
+    "pnpm jest",
+    "yarn jest",
+    "yarn run jest",
+    "npm exec vitest",
+    "py -m pytest",
+    "poetry run pytest",
+    "uvx ruff check",
   ])("%j runs a check whose exit status is the command's, so the gate is satisfied", (command) => {
     expect(satisfiedBy(command)).toBe(true);
   });

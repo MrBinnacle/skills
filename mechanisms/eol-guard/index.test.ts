@@ -6,9 +6,9 @@ import extension from "./index";
 
 type Handler = (...args: any[]) => any;
 
-function fakePi() {
+function fakePi(exec: Handler = nodeExec) {
   const events = new Map<string, Handler>();
-  extension({ on: (event: string, handler: Handler) => events.set(event, handler), exec: nodeExec } as any);
+  extension({ on: (event: string, handler: Handler) => events.set(event, handler), exec } as any);
   return events;
 }
 
@@ -54,6 +54,21 @@ describe("eol-guard adapter", () => {
     writeFileSync(join(root, "a.md"), text);
     const write = { toolName: "write", input: { path: "a.md" }, isError: false, content: [] };
     expect(await events.get("tool_result")!(write, ctxFor(root))).toBeUndefined();
+  }, GIT_TIMEOUT);
+
+  test("when git cannot diff the file the guard reports the conversion rather than stay quiet", async () => {
+    const { root } = await makeRepo();
+    writeFileSync(join(root, "a.md"), "one\ntwo\n");
+    await git(root, "add", "a.md");
+    await git(root, "commit", "-q", "-m", "lf");
+    writeFileSync(join(root, "a.md"), "one\r\ntwo\r\n");
+    const numstatFails: Handler = (command: string, args: string[], options: unknown) =>
+      args.includes("--numstat") ? Promise.resolve({ stdout: "", stderr: "fatal", code: 128, killed: false }) : nodeExec(command, args, options);
+    const events = fakePi(numstatFails);
+    await events.get("session_start")!({}, ctxFor(root));
+    await events.get("before_agent_start")!({}, ctxFor(root));
+    const result = await events.get("tool_result")!(edit("a.md"), ctxFor(root));
+    expect(result?.content.at(-1)?.text).toContain("a.md was LF-only (2 lines) at HEAD and is now CRLF-only");
   }, GIT_TIMEOUT);
 
   test("under core.autocrlf=false a conversion that also changes one line is still reported", async () => {

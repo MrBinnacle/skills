@@ -111,7 +111,7 @@ export function createEolGuard(deps: EolGuardDeps): EolGuard {
         if (files.length > MAX_FILES_PER_SHELL_CALL) {
           if (toldOverLimit) return undefined;
           toldOverLimit = true;
-          return `EOL guard: ${files.length} tracked files differ from HEAD, more than the ${MAX_FILES_PER_SHELL_CALL} it reads after a shell command, so line endings after shell commands are not checked for the rest of this run. Run \`git diff --stat\` to see whether a command converted them.`;
+          return `EOL guard: ${files.length} tracked files differ from HEAD, more than the ${MAX_FILES_PER_SHELL_CALL} it reads after a shell command, so line endings after shell commands are not checked while that many differ. This note shows once per run. Run \`git diff --stat\` to see whether a command converted them.`;
         }
         const notes: string[] = [];
         for (const f of files) {

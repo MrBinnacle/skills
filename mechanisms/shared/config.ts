@@ -10,8 +10,8 @@ export const CONFIG_PATH = join(".pi", "engineering-env.json");
 export const DEFAULT_CHECK_COMMANDS: readonly string[] = [
   "^(npm|pnpm|yarn|bun)( run)? (test|check|lint|typecheck)\\b",
   "^bun test\\b",
-  "^(npx |bunx |pnpm exec |yarn )?(vitest|jest|tsc|eslint|biome)\\b",
-  "^(python3? -m |py -m |uv run |poetry run )?(pytest|unittest|mypy|ruff)\\b",
+  "^(npx |bunx |npm exec |pnpm (exec )?|yarn (run )?)?(vitest|jest|tsc|eslint|biome)\\b",
+  "^(python3? -m |py -m |uv run |uvx |poetry run )?(pytest|unittest|mypy|ruff)\\b",
   "^cargo (test|check|clippy)\\b",
   "^go (test|vet)\\b",
   "^(make|just) (test|check|lint)\\b",
