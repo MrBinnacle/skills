@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 const deferred = () => { let resolve!: () => void; const promise = new Promise<void>(r => { resolve = r }); return {promise, resolve} }
-const pane = (placement = 'dock') => ({
+const pane = (placement: 'dock' | 'inline' = 'dock') => ({
   plugin: 'binnacle-hud', component: 'Pane', requestId: 'binnacle-hud', surface: 'terminal',
   viewport: { columns: 160, rows: 40, isFullscreen: true },
   props: { title: 'Binnacle', isFocused: true, bodyColumns: 46, placement, scroll: {offset: 0, bodyRows: 32}, view: {} },
@@ -36,7 +36,7 @@ async function setup($: any, on: any, initial: Record<string, any>, holdDismiss 
   armed = true
   return {clock, cells, cell, entered, release, otherDismissed, freshCaptured, appends: () => session.appended().length, refuseAppend: () => {denyAppend = true}}
 }
-for (const placement of ['dock', 'inline']) {
+for (const placement of ['dock', 'inline'] as const) {
   test(`review ${placement}: landed append and refused approval report success honestly`, {options: {narrow: 'strip'}}, async ($, on) => {
     const s = await setup($, on, {memory: ['approved synthetic line'], view: {ring: 2, expand: 1, failed: ''}})
     const ui = await $.ui.mount(pane(placement))
