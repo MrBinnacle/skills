@@ -27,12 +27,26 @@ Run all tests: `bun test mechanisms` from the worktree root.
 ## Project config: `.pi/engineering-env.json`
 
 One file per project, read directly by the extensions (`shared/config.ts`). It is not in
-`.pi/settings.json` because Pi does not load project settings for an untrusted project
-(observed: `-p` mode, `isProjectTrusted() === false`, project keys absent from
-`getSettings()`), and Pi's `Settings` type has no slot for extension keys. The file holds only
-patterns and paths; nothing in it is executed except commands the operator lists in
-`sessionPacket.receiverChecks` / `trustedProbeCommands`, which the packet runs only on an
-explicit command.
+`.pi/settings.json` because Pi's `Settings` type has no slot for extension keys.
+
+The file is part of the repository, so in a cloned project its author writes it, not the
+operator. `/packet-close` and `/packet-open` run `sessionPacket.receiverChecks` through `sh -c`, and
+`/packet-open` runs a `trustedProbeCommands` entry when a packet's probe names it. `sessionPacket.store.worktree` is passed to
+`git worktree add`, at any path. `checkCommands` decides what the gate counts as a check. So the
+extensions honour the file only when Pi trusts the project (`ctx.isProjectTrusted()`) **and**
+`.pi/settings.json` exists. Pi asks about trust only when the project holds something Pi gates: one of
+`.pi/settings.json`, `mcp.json`, `extensions`, `skills`, `prompts`, `themes`, `SYSTEM.md`,
+`APPEND_SYSTEM.md`, or an `.agents/skills` directory in the project or a parent. For a `.pi` that
+holds only this file, `isProjectTrusted()` is `true` and
+nobody was asked (Pi 1.5.0, checked 2026-11-13 with `pi -p` and a probe extension).
+
+An ignored file gives the defaults and one notice naming the remedy: add `.pi/settings.json`
+(`{}` is enough), then trust the project with `/trust` and restart Pi, because Pi applies a saved
+trust decision to later processes, or run `pi -a` for one command. The gate
+then uses its default patterns. `/packet-close` and `/packet-open` refuse, because a packet
+recorded without its declared checks would mislead the next session. Print mode cannot ask, so
+a project with `.pi/settings.json` and no saved trust decision is untrusted there under the
+default `defaultProjectTrust: "ask"`, unless the run passes `-a`.
 
 ```json
 {
