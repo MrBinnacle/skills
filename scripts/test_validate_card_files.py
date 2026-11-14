@@ -1666,6 +1666,7 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "ordinal-card": "1st",
         "escaped-quote-text-card": '"say \\"hi\\" when testing"',
         "hex-escape-text-card": '"Use when \\x41 testing"',
+        "octal-underscore-card": "0o1_7",
     }
     for name, form in one_line.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
@@ -1689,6 +1690,17 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "sexagesimal-card": "1:30",
         "underscore-card": "1_000",
         "iso-time-card": "2026-11-01T10:00:00Z",
+        "sexagesimal-float-card": "190:20:30.15",
+        "signed-exponent-card": "1.0e+3",
+        "binary-underscore-card": "0b1_0",
+        "hex-underscore-card": "0x1_F",
+        "sexagesimal-underscore-card": "1_0:30",
+        "sexagesimal-one-digit-card": "1:5",
+        "fraction-underscore-card": "1.0_0",
+        "leading-dot-underscore-card": ".5_0",
+        "sexagesimal-fraction-underscore-card": "1:30.5_0",
+        "sexagesimal-three-part-card": "1:2:3",
+        "plus-sign-card": "+1",
     }
     for name, form in not_text.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
@@ -1707,6 +1719,8 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "hex-escape-card": '"\\x00"',
         "four-digit-escape-card": '"\\u0000"',
         "eight-digit-escape-card": '"\\U00000000"',
+        "hex-letter-escape-card": '"\\xff"',
+        "four-digit-letter-escape-card": '"\\u00ff"',
         "blank-quoted-card": '"  "',
         "blank-single-quoted-card": "'  '",
     }

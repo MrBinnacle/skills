@@ -337,7 +337,7 @@ QUOTED_VALUE_RE: Final[re.Pattern[str]] = re.compile(
 # written unquoted. `3d-printing` and `1st` are strings to both (#648).
 NOT_TEXT_RE: Final[re.Pattern[str]] = re.compile(
     r"~|null|true|false|yes|no|on|off|[-+]?\.(?:inf|nan)"
-    r"|[-+]?(?:0b[01_]+|0o[0-7_]+|0x[\da-f_]+|\d[\d_]*(?::[0-5]?\d)+(?:\.[\d_]*)?"
+    r"|[-+]?(?:0b[01_]+|0o[0-7]+|0x[\da-f_]+|\d[\d_]*(?::[0-5]?\d)+(?:\.[\d_]*)?"
     r"|(?:\d[\d_]*(?:\.[\d_]*)?|\.\d[\d_]*)(?:e[-+]?\d+)?)"
     r"|\d{4}-\d\d?-\d\d?(?:(?:t|\s+)[\d:.]+(?:\s*(?:z|[-+][\d:]+))?)?",
     re.IGNORECASE,
