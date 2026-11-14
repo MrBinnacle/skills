@@ -32,7 +32,6 @@ for(const key of ['2'])test(`adversarial: equal legacy append after shift must n
  // Model a completed 4.1.0 append at the fixture state boundary, not a native reload.
  await s.legacyAppend('A')
  const ui=await $.ui.mount(pane);await ui.press({key:`k-${key}`});await s.clock.settle();await ui.unmount()
- console.log(JSON.stringify({scenario:`legacy-${key}`,actual:s.cell('memory').value}))
  expect(s.cell('memory').value.map((e:any)=>e.text??e)).toEqual(['B',...padding,'A'])
 })
 for(const key of ['2'])test(`adversarial: stale k-${key} must not match equal-text legacy replacement`,async($,on)=>{
@@ -41,6 +40,5 @@ for(const key of ['2'])test(`adversarial: stale k-${key} must not match equal-te
  const ui=await $.ui.mount(pane);await ui.press({key:`k-${key}`});await s.clock.settle()
  await s.legacyAppend('A')
  await ui.press({key:`k-${key}`});await s.clock.settle();await ui.unmount()
- console.log(JSON.stringify({scenario:`stale-legacy-${key}`,actual:s.cell('memory').value}))
  expect(s.cell('memory').value.map((e:any)=>e.text??e)).toEqual(['B',...padding,'A'])
 })

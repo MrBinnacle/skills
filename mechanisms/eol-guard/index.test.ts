@@ -6,9 +6,9 @@ import extension from "./index";
 
 type Handler = (...args: any[]) => any;
 
-function fakePi() {
+function fakePi(exec: Handler = nodeExec) {
   const events = new Map<string, Handler>();
-  extension({ on: (event: string, handler: Handler) => events.set(event, handler), exec: nodeExec } as any);
+  extension({ on: (event: string, handler: Handler) => events.set(event, handler), exec } as any);
   return events;
 }
 
@@ -35,5 +35,60 @@ describe("eol-guard adapter", () => {
     await events.get("before_agent_start")!({}, ctxFor(root));
     const result = await events.get("tool_result")!(edit("a.md"), ctxFor(root));
     expect(result?.content.at(-1)?.text).toContain("a.md was LF-only (2 lines) at HEAD and is now CRLF-only");
+  }, GIT_TIMEOUT);
+
+  test.each([
+    ["the same text", "one\ntwo\nthree\n"],
+    ["one line changed", "one\nTWO\nthree\n"],
+  ])("under core.autocrlf=true an LF write of %s over a CRLF checkout is not reported, because git stores LF", async (_, text) => {
+    const { root } = await makeRepo();
+    writeFileSync(join(root, "a.md"), "one\ntwo\nthree\n");
+    await git(root, "add", "a.md");
+    await git(root, "commit", "-q", "-m", "lf");
+    await git(root, "config", "core.autocrlf", "true");
+    writeFileSync(join(root, "a.md"), "one\r\ntwo\r\nthree\r\n");
+    await git(root, "add", "a.md");
+    const events = fakePi();
+    await events.get("session_start")!({}, ctxFor(root));
+    await events.get("before_agent_start")!({}, ctxFor(root));
+    writeFileSync(join(root, "a.md"), text);
+    const write = { toolName: "write", input: { path: "a.md" }, isError: false, content: [] };
+    expect(await events.get("tool_result")!(write, ctxFor(root))).toBeUndefined();
+  }, GIT_TIMEOUT);
+
+  test.each([
+    ["the plain diff", (args: string[]) => !args.includes("--ignore-cr-at-eol")],
+    ["the diff ignoring CR", (args: string[]) => args.includes("--ignore-cr-at-eol")],
+  ])("when git cannot run %s the guard reports the conversion rather than stay quiet", async (_, failing) => {
+    // The LF write under autocrlf=true changes nothing git stores, so both diffs print nothing: only the
+    // failed exit code can make the guard report.
+    const { root } = await makeRepo();
+    writeFileSync(join(root, "a.md"), "one\ntwo\n");
+    await git(root, "add", "a.md");
+    await git(root, "commit", "-q", "-m", "lf");
+    await git(root, "config", "core.autocrlf", "true");
+    writeFileSync(join(root, "a.md"), "one\r\ntwo\r\n");
+    await git(root, "add", "a.md");
+    const numstatFails: Handler = (command: string, args: string[], options: unknown) =>
+      args.includes("--numstat") && failing(args) ? Promise.resolve({ stdout: "", stderr: "fatal", code: 128, killed: false }) : nodeExec(command, args, options);
+    const events = fakePi(numstatFails);
+    await events.get("session_start")!({}, ctxFor(root));
+    await events.get("before_agent_start")!({}, ctxFor(root));
+    writeFileSync(join(root, "a.md"), "one\ntwo\n");
+    const result = await events.get("tool_result")!(edit("a.md"), ctxFor(root));
+    expect(result?.content.at(-1)?.text).toContain("a.md was CRLF-only (2 lines) at HEAD and is now LF-only");
+  }, GIT_TIMEOUT);
+
+  test("under core.autocrlf=false a conversion that also changes one line is still reported", async () => {
+    const { root } = await makeRepo();
+    writeFileSync(join(root, "a.md"), "one\ntwo\nthree\n");
+    await git(root, "add", "a.md");
+    await git(root, "commit", "-q", "-m", "lf");
+    const events = fakePi();
+    await events.get("session_start")!({}, ctxFor(root));
+    await events.get("before_agent_start")!({}, ctxFor(root));
+    writeFileSync(join(root, "a.md"), "one\r\nTWO\r\nthree\r\n");
+    const result = await events.get("tool_result")!(edit("a.md"), ctxFor(root));
+    expect(result?.content.at(-1)?.text).toContain("a.md was LF-only (3 lines) at HEAD and is now CRLF-only");
   }, GIT_TIMEOUT);
 });

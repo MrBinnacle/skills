@@ -10,8 +10,8 @@
  * so it must wait for an explicit command (../DESIGN.md).
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { loadConfig } from "../shared/config";
 import { fillInstructions, type Snapshot, snapshotPacket, validateFilled } from "./close";
 import { type Exec, git } from "./repo";
@@ -31,12 +31,27 @@ function report(ctx: ExtensionContext, message: string, level: Level): void {
 
 type Loaded = { ok: true; config: PacketConfig; declared: boolean } | { ok: false; error: string };
 
-function loadPacketConfig(cwd: string): Loaded {
-  const file = loadConfig(cwd);
+function loadPacketConfig(cwd: string, trusted: boolean): Loaded {
+  const file = loadConfig(cwd, trusted);
   if (!file.ok) return file;
+  if (file.ignored) return { ok: false, error: file.ignored };
   const parsed = parseSessionPacketConfig(file.config.sessionPacket);
   if (!parsed.ok) return { ok: false, error: `.pi/engineering-env.json: ${parsed.error}` };
   return { ok: true, config: parsed.config, declared: file.config.sessionPacket !== undefined };
+}
+
+/**
+ * Git for Windows puts only `Git\cmd` on PATH by default, so a Pi started from PowerShell or cmd finds no
+ * `sh`. Use the Git Bash that Pi 1.5.0's own bash tool tries first (`getShellConfig`).
+ * shortcut: ignores Pi's `shellPath` setting and a Git installed elsewhere; extensions cannot read
+ * that setting in Pi 1.5.0, so read it here once Pi exposes it.
+ */
+function gitBashOnWindows(): string | undefined {
+  if (process.platform !== "win32") return undefined;
+  return [process.env.ProgramFiles, process.env["ProgramFiles(x86)"]]
+    .filter((dir): dir is string => dir !== undefined)
+    .map((dir) => join(dir, "Git", "bin", "bash.exe"))
+    .find((path) => existsSync(path));
 }
 
 interface Pending {
@@ -48,10 +63,11 @@ interface Pending {
 
 export default function (pi: ExtensionAPI) {
   const exec: Exec = (command, args, options) => pi.exec(command, args, options);
+  exec.shell = gitBashOnWindows();
   let pending: Pending | undefined;
 
   async function receive(ctx: ExtensionContext, explicitPath: string | undefined): Promise<void> {
-    const loaded = loadPacketConfig(ctx.cwd);
+    const loaded = loadPacketConfig(ctx.cwd, ctx.isProjectTrusted());
     if (!loaded.ok) return report(ctx, `session-packet: ${loaded.error}`, "error");
     const repoRoot = await git(exec, ctx.cwd, "rev-parse", "--show-toplevel");
     let packetPath: string;
@@ -88,7 +104,7 @@ export default function (pi: ExtensionAPI) {
     description: "Close the session: snapshot repo state into a packet scaffold for the agent to fill",
     handler: async (args, ctx) => {
       try {
-        const loaded = loadPacketConfig(ctx.cwd);
+        const loaded = loadPacketConfig(ctx.cwd, ctx.isProjectTrusted());
         if (!loaded.ok) return report(ctx, `session-packet: ${loaded.error}`, "error");
         const repoRoot = await git(exec, ctx.cwd, "rev-parse", "--show-toplevel");
         const result = await snapshotPacket({ repoRoot, config: loaded.config, objective: args, exec });
@@ -139,7 +155,7 @@ export default function (pi: ExtensionAPI) {
         current.corrections++;
         return {
           continue: true,
-          entries: [{
+          entries: [...event.entries, {
             type: "custom_message" as const,
             customType: "session-packet-receipt",
             display: true,
