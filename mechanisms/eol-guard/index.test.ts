@@ -56,19 +56,27 @@ describe("eol-guard adapter", () => {
     expect(await events.get("tool_result")!(write, ctxFor(root))).toBeUndefined();
   }, GIT_TIMEOUT);
 
-  test("when git cannot diff the file the guard reports the conversion rather than stay quiet", async () => {
+  test.each([
+    ["the plain diff", (args: string[]) => !args.includes("--ignore-cr-at-eol")],
+    ["the diff ignoring CR", (args: string[]) => args.includes("--ignore-cr-at-eol")],
+  ])("when git cannot run %s the guard reports the conversion rather than stay quiet", async (_, failing) => {
+    // The LF write under autocrlf=true changes nothing git stores, so both diffs print nothing: only the
+    // failed exit code can make the guard report.
     const { root } = await makeRepo();
     writeFileSync(join(root, "a.md"), "one\ntwo\n");
     await git(root, "add", "a.md");
     await git(root, "commit", "-q", "-m", "lf");
+    await git(root, "config", "core.autocrlf", "true");
     writeFileSync(join(root, "a.md"), "one\r\ntwo\r\n");
+    await git(root, "add", "a.md");
     const numstatFails: Handler = (command: string, args: string[], options: unknown) =>
-      args.includes("--numstat") ? Promise.resolve({ stdout: "", stderr: "fatal", code: 128, killed: false }) : nodeExec(command, args, options);
+      args.includes("--numstat") && failing(args) ? Promise.resolve({ stdout: "", stderr: "fatal", code: 128, killed: false }) : nodeExec(command, args, options);
     const events = fakePi(numstatFails);
     await events.get("session_start")!({}, ctxFor(root));
     await events.get("before_agent_start")!({}, ctxFor(root));
+    writeFileSync(join(root, "a.md"), "one\ntwo\n");
     const result = await events.get("tool_result")!(edit("a.md"), ctxFor(root));
-    expect(result?.content.at(-1)?.text).toContain("a.md was LF-only (2 lines) at HEAD and is now CRLF-only");
+    expect(result?.content.at(-1)?.text).toContain("a.md was CRLF-only (2 lines) at HEAD and is now LF-only");
   }, GIT_TIMEOUT);
 
   test("under core.autocrlf=false a conversion that also changes one line is still reported", async () => {

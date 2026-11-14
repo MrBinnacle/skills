@@ -67,8 +67,8 @@ default `defaultProjectTrust: "ask"`, unless the run passes `-a`.
 }
 ```
 
-The gate cuts a shell command into segments at its control operators (`&&`, `||`, `|`, `;`,
-`&`, newline) after blanking quoted text, and tests each `checkCommands` pattern against each
+The gate cuts a shell command into segments at its control operators (`&&`, `||`, `|`, `|&`,
+`;`, `&`, newline) after blanking quoted text, and tests each `checkCommands` pattern against each
 segment. A matching segment counts as a passing check only when no `||` comes before it and only
 `&&` comes after it: Pi runs `bash -c` without `pipefail`, so `npm test | tail`, `npm test; echo`
 or `npm test || true` exits 0 when the tests fail. The default patterns start with `^`, so the

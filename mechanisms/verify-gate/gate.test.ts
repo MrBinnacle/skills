@@ -69,6 +69,7 @@ describe("a shell command that exits 0 clears the gate only when a check ran and
     "yarn run jest",
     "npm exec vitest",
     "py -m pytest",
+    "python -m pytest",
     "poetry run pytest",
     "uvx ruff check",
   ])("%j runs a check whose exit status is the command's, so the gate is satisfied", (command) => {
