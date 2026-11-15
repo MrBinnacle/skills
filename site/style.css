@@ -314,12 +314,6 @@ code {
   }
 }
 
-.owner {
-  font-size: 1.25rem;
-  font-weight: 400;
-  color: var(--ink);
-}
-
 .action {
   display: flex;
   flex-wrap: wrap;
