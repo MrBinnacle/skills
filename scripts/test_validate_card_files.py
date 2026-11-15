@@ -1702,6 +1702,8 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "sexagesimal-fraction-underscore-card": "1:30.5_0",
         "sexagesimal-three-part-card": "1:2:3",
         "plus-sign-card": "+1",
+        "negative-exponent-card": "1.0e-3",
+        "two-digit-exponent-card": "1.0e+10",
     }
     for name, form in not_text.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
@@ -1711,10 +1713,13 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "decoy-double-quoted-card": 'license: "MIT\ndescription: short"\n',
         "decoy-single-quoted-card": "compatibility: 'any\ndescription: short'\n",
         "decoy-duplicate-key-card": "description: short\n",
+        "bom-license-decoy-card": 'license: "MIT\ndescription: short"\n',
     }
     for name, decoy in decoys.items():
         skill = write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=long) / "SKILL.md"
         skill.write_text(skill.read_text(encoding="utf-8").replace("description: ", decoy + "description: ", 1), encoding="utf-8")
+    bom_decoy = root / "skills" / "engineering" / "bom-license-decoy-card" / "SKILL.md"
+    bom_decoy.write_bytes(b"\xef\xbb\xbf" + bom_decoy.read_bytes())
     no_readable_text = {
         "nul-escape-card": '"\\0"',
         "hex-escape-card": '"\\x00"',
@@ -1725,6 +1730,7 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "eight-digit-letter-escape-card": '"\\U000000ff"',
         "upper-hex-escape-card": '"\\xFF"',
         "upper-four-digit-escape-card": '"\\u00FF"',
+        "capital-long-escape-card": '"\\U000000FF"',
         "blank-quoted-card": '"  "',
         "blank-single-quoted-card": "'  '",
     }
