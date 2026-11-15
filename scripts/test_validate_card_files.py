@@ -1667,6 +1667,7 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "escaped-quote-text-card": '"say \\"hi\\" when testing"',
         "hex-escape-text-card": '"Use when \\x41 testing"',
         "octal-underscore-card": "0o1_7",
+        "sexagesimal-tens-card": "1:75",
     }
     for name, form in one_line.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
@@ -1721,6 +1722,9 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "eight-digit-escape-card": '"\\U00000000"',
         "hex-letter-escape-card": '"\\xff"',
         "four-digit-letter-escape-card": '"\\u00ff"',
+        "eight-digit-letter-escape-card": '"\\U000000ff"',
+        "upper-hex-escape-card": '"\\xFF"',
+        "upper-four-digit-escape-card": '"\\u00FF"',
         "blank-quoted-card": '"  "',
         "blank-single-quoted-card": "'  '",
     }
@@ -1736,27 +1740,27 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
     for name in [*forms, "bom-folded-card"]:
         check(
             f"a description past one line is refused: {name}",
-            any(name in line and "not a one-line value" in line for line in lines),
+            any(f"/{name}:" in line and "not a one-line value" in line for line in lines),
             result.stderr.strip(),
         )
     for name in one_line:
-        check(f"a one-line description passes: {name}", not any(name in line for line in lines), result.stderr.strip())
+        check(f"a one-line description passes: {name}", not any(f"/{name}:" in line for line in lines), result.stderr.strip())
     for name in not_text:
         check(
             f"a value YAML does not read as text is no description: {name}",
-            any(name in line and "states no frontmatter description" in line for line in lines),
+            any(f"/{name}:" in line and "states no frontmatter description" in line for line in lines),
             result.stderr.strip(),
         )
     for name in decoys:
         check(
             f"a second description line is refused, not measured in place of the key: {name}",
-            any(name in line and "2 lines, not one, that start with `description:`" in line for line in lines),
+            any(f"/{name}:" in line and "2 lines, not one, that start with `description:`" in line for line in lines),
             result.stderr.strip(),
         )
     for name in no_readable_text:
         check(
             f"a description of escapes and spaces holds no text: {name}",
-            any(name in line and "holds no readable text" in line for line in lines),
+            any(f"/{name}:" in line and "holds no readable text" in line for line in lines),
             result.stderr.strip(),
         )
     check(
