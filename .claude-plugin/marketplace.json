@@ -5,7 +5,7 @@
     "url": "https://github.com/MrBinnacle/skills"
   },
   "metadata": {
-    "description": "Agent skills that each carry an evidence record, test cases, and the condition that would retire it, and Claude Code mods this collection wrote."
+    "description": "Skill cards for specific mistakes coding agents make in real work, and Claude Code mods."
   },
   "plugins": [
     {

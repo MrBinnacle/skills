@@ -28,6 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from refresh_install_receipt import (  # noqa: E402
+    RECEIPTS,
     rewrite_receipt,
     select_receipt_run,
 )
@@ -155,6 +156,13 @@ def rewrite_cases() -> None:
     except ValueError:
         refused = True
     check("a receipt site that appears twice refuses", refused)
+
+    try:
+        rewrite_receipt(RECEIPTS.read_text(encoding="utf-8"), "9.9.9", 1, "2026-11-02")
+        found = True
+    except ValueError:
+        found = False
+    check("the file the refresher writes holds every receipt site once", found, str(RECEIPTS))
 
     crlf = README.replace("\n", "\r\n")
     out = rewrite_receipt(crlf, "3.2.0", 1, "2026-11-02")
