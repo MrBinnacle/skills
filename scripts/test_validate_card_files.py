@@ -1658,7 +1658,6 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "pipe-card": "'| pipe: use when testing'",
         "double-comment-card": '"Use when: testing" # note',
         "single-comment-card": "'Use when: testing' # note",
-        "next-line-comment-card": "Use when testing\n  # note",
         "doubled-quote-card": "'it''s for testing'",
         "long-comment-card": f"Use when testing # {long}",
         "quoted-null-card": '"null"',
@@ -1673,6 +1672,19 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "bare-binary-prefix-card": "0b",
         "bare-hex-prefix-card": "0x",
         "bare-exponent-card": "1e",
+        "sexagesimal-sixty-card": "1:60",
+        "octal-eight-card": "0o8",
+        "hex-g-card": "0xg",
+        "binary-two-card": "0b2",
+        "underscore-sexagesimal-head-card": "_:30",
+        "underscore-head-card": "_0",
+        "dot-underscore-card": "._1",
+        "double-sign-card": "++0",
+        "three-digit-minutes-card": "2:011",
+        "two-dot-card": "2..",
+        "two-exponent-sign-card": "5e+-9",
+        "two-exponent-card": "2E6E3",
+        "letter-exponent-card": "1eA",
     }
     for name, form in one_line.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
@@ -1711,6 +1723,17 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "two-digit-exponent-card": "1.0e+10",
         "trailing-dot-card": "1.",
         "sexagesimal-trailing-dot-card": "190:20.",
+        "sexagesimal-fifty-five-card": "1:55",
+        "sexagesimal-fifty-nine-card": "1:59",
+        "octal-zero-card": "0o0",
+        "octal-one-digit-card": "0o5",
+        "hex-a-card": "0xa",
+        "hex-one-digit-card": "0x1",
+        "binary-one-digit-card": "0b1",
+        "nine-card": "9",
+        "dot-zero-card": ".0",
+        "exponent-nine-card": "1e9",
+        "capital-exponent-card": "1E3",
     }
     for name, form in not_text.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
@@ -1727,10 +1750,28 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         skill.write_text(skill.read_text(encoding="utf-8").replace("description: ", decoy + "description: ", 1), encoding="utf-8")
     bom_decoy = root / "skills" / "engineering" / "bom-license-decoy-card" / "SKILL.md"
     bom_decoy.write_bytes(b"\xef\xbb\xbf" + bom_decoy.read_bytes())
-    # A continuation line that starts `descriptions` is not a second `description:` key.
-    plural = write_card(root, "plural-continuation-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description="Use when testing") / "SKILL.md"
-    plural.write_text(plural.read_text(encoding="utf-8").replace("description: ", 'license: "MIT\ndescriptions apply"\ndescription: ', 1), encoding="utf-8")
-    one_line["plural-continuation-card"] = "a license line that starts with descriptions"
+    # AGENTS.md permits three frontmatter keys and nothing else. Each text below
+    # replaces the `description: ` key; the last card is the verifier's round-5
+    # repro, a quoted 300-character key behind a decoy.
+    others = {
+        "plural-continuation-card": 'license: "MIT\ndescriptions apply"\ndescription: ',
+        "double-quoted-key-card": '"description": ',
+        "single-quoted-key-card": "'description': ",
+        "space-before-colon-card": "description : ",
+        "complex-key-card": "? description\n: ",
+        "indented-key-card": "  name: x\ndescription: ",
+        "blank-line-card": "\ndescription: ",
+        "comment-line-card": "# note\ndescription: ",
+        "names-key-card": "names: x\ndescription: ",
+        "descriptions-key-card": "descriptions: x\ndescription: ",
+        "plural-flag-key-card": "disable-model-invocations: true\ndescription: ",
+        "next-line-comment-card": "description: ",
+        "quoted-key-decoy-card": 'license: "MIT\ndescription: short"\n"description": ',
+    }
+    for name, key in others.items():
+        description = {"quoted-key-decoy-card": long, "next-line-comment-card": "Use when testing\n  # note"}.get(name, "Use when testing")
+        skill = write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=description) / "SKILL.md"
+        skill.write_text(skill.read_text(encoding="utf-8").replace("description: ", key, 1), encoding="utf-8")
     no_readable_text = {
         "nul-escape-card": '"\\0"',
         "hex-escape-card": '"\\x00"',
@@ -1742,6 +1783,8 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "upper-hex-escape-card": '"\\xFF"',
         "upper-four-digit-escape-card": '"\\u00FF"',
         "capital-long-escape-card": '"\\U000000FF"',
+        "line-feed-escape-card": '"\\x0a"',
+        "escaped-space-card": '"\\ "',
         "blank-quoted-card": '"  "',
         "blank-single-quoted-card": "'  '",
     }
@@ -1772,6 +1815,12 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         check(
             f"a second description line is refused, not measured in place of the key: {name}",
             any(f"/{name}:" in line and "2 lines, not one, that start with `description:`" in line for line in lines),
+            result.stderr.strip(),
+        )
+    for name in others:
+        check(
+            f"a frontmatter line that is none of the three keys is refused: {name}",
+            any(f"/{name}:" in line and "starts with none of `name:`" in line for line in lines),
             result.stderr.strip(),
         )
     for name in no_readable_text:

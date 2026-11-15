@@ -327,6 +327,8 @@ def corroborating_text(card: Path, *rows: str) -> str:
 DESCRIPTION_LIMIT: Final[int] = 200
 
 FRONTMATTER_RE: Final[re.Pattern[str]] = re.compile(r"\A---\r?\n(.*?)\r?\n---", re.S)
+# AGENTS.md, Authoring conventions: the only frontmatter keys a published card may carry.
+FRONTMATTER_KEYS: Final[tuple[str, ...]] = ("name:", "description:", "disable-model-invocation:")
 DESCRIPTION_LINE_RE: Final[re.Pattern[str]] = re.compile(
     r"^description:\s*(\S.*?)\s*$", re.MULTILINE
 )
@@ -415,6 +417,13 @@ def description_breaches(card: Path) -> list[str]:
             "line, opens with a YAML indicator, leaves a quote open, or continues on "
             "an indented line), so this bar cannot measure its length. Write it on "
             "one line"
+        ]
+    if block and any(not line.startswith(FRONTMATTER_KEYS) for line in block.group(1).splitlines()):
+        return [
+            "SKILL.md frontmatter has a line that starts with none of `name:`, `description:` "
+            "or `disable-model-invocation:`. AGENTS.md permits these keys and nothing else, "
+            "and any other line can hold a decoy `description:` this bar would measure. "
+            "Write each key on one line of its own"
         ]
     description = stated_description(card)
     if not description:
