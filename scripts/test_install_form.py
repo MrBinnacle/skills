@@ -520,6 +520,7 @@ def main() -> int:
 
     # Fence content must carry the HTTPS URL (the block a reader copies).
     install_fences = [b for b in fence_blocks(section) if "marketplace add" in b]
+    receipt_fences = [b for b in fence_blocks(receipts) if "marketplace add" in b]
     check(
         "README marketplace fence copies the HTTPS URL",
         any(HTTPS_MARKETPLACE in b for b in fence_blocks(commands) if "marketplace add" in b),
@@ -664,7 +665,7 @@ def main() -> int:
         "install receipts shell fence provides runnable marketplace and plugin commands",
         any(
             "marketplace add" in fence and "plugin install" in fence
-            for fence in install_fences
+            for fence in receipt_fences
         )
         or (
             "claude plugin marketplace add" in receipts
@@ -741,7 +742,7 @@ def main() -> int:
         check_cold_env(temp_root)
         live_cold_installs(
             temp_root,
-            install_fences,
+            receipt_fences,
             shell_install_commands,
             readme_claude_version,
             readme_plugin_version,
