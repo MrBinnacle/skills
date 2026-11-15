@@ -1668,6 +1668,11 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "hex-escape-text-card": '"Use when \\x41 testing"',
         "octal-underscore-card": "0o1_7",
         "sexagesimal-tens-card": "1:75",
+        "x86-card": "x86",
+        "bare-octal-prefix-card": "0o",
+        "bare-binary-prefix-card": "0b",
+        "bare-hex-prefix-card": "0x",
+        "bare-exponent-card": "1e",
     }
     for name, form in one_line.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
@@ -1704,6 +1709,8 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         "plus-sign-card": "+1",
         "negative-exponent-card": "1.0e-3",
         "two-digit-exponent-card": "1.0e+10",
+        "trailing-dot-card": "1.",
+        "sexagesimal-trailing-dot-card": "190:20.",
     }
     for name, form in not_text.items():
         write_card(root, name, CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description=form)
@@ -1720,6 +1727,10 @@ def case_block_scalar_description_is_rejected(root: Path) -> None:
         skill.write_text(skill.read_text(encoding="utf-8").replace("description: ", decoy + "description: ", 1), encoding="utf-8")
     bom_decoy = root / "skills" / "engineering" / "bom-license-decoy-card" / "SKILL.md"
     bom_decoy.write_bytes(b"\xef\xbb\xbf" + bom_decoy.read_bytes())
+    # A continuation line that starts `descriptions` is not a second `description:` key.
+    plural = write_card(root, "plural-continuation-card", CONFORMING_EVIDENCE, CONFORMING_GOTCHAS, description="Use when testing") / "SKILL.md"
+    plural.write_text(plural.read_text(encoding="utf-8").replace("description: ", 'license: "MIT\ndescriptions apply"\ndescription: ', 1), encoding="utf-8")
+    one_line["plural-continuation-card"] = "a license line that starts with descriptions"
     no_readable_text = {
         "nul-escape-card": '"\\0"',
         "hex-escape-card": '"\\x00"',
