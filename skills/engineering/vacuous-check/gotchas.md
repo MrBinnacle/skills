@@ -79,3 +79,18 @@
   control that never runs; its own text places it one step before this card, so it is a
   neighbouring defect, not this one. A session close summary and a later fix note repeat the
   2026-09-13 and 2026-10-02 entries above and are merged with them as fan-out.
+
+- [OBSERVED 2026-11-16] Occurrence: a guard test built after an incident that would have
+  passed on the incident. A repository's instructions named a module command that silently
+  did nothing: the module had no `__main__` block, so `python -m` on it exited 0. The planned
+  guard matched `python -m <package>.<module>`. A survey with that pattern found zero offenders,
+  so the test would have been green from birth. The incident's text named the command without
+  the `python -m` prefix, so the guard could never have caught it. A reviewer caught this before
+  the test was written. The pattern that shipped also matches a code span of the form
+  `` `<package>.<module> <args>` ``. It flagged the incident text and one real offender already
+  on the default branch, and the test failed with that module's entry point removed.
+
+  **The rule this adds to rule 4.** A check written because of an incident is first run
+  against the incident's own artifact, at the commit where it happened, and must go red there.
+  A survey that finds zero offenders today is not that proof: zero today is also what a check
+  shows when it cannot see the incident.
