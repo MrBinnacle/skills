@@ -72,7 +72,9 @@ claude --plugin-dir skills/mods/binnacle-hud
 
 `--plugin-dir` loads the mod for that session only. Pass it each time you start Claude Code.
 
-The mod's `tsconfig.json` extends `.claude-plugin/types/tsconfig.json`, which is not in git. Claude Code writes that folder, with the type declarations for the version you run, when you load the mod with `claude --plugin-dir skills/mods/binnacle-hud` in an interactive session ([Create a mod](https://code.claude.com/docs/en/plugins/mods/create.md), read 2026-11-17). Until then, `tsc -p` has nothing to extend. `claude plugin validate --strict skills/mods/binnacle-hud` type-checks the mod without that folder; run it with Claude Code 2.1.326 or later, because an older one does not know the three-line setting.
+The mod's `tsconfig.json` extends `.claude-plugin/types/tsconfig.json`, which is not in git. To create it, load the mod with `claude --plugin-dir skills/mods/binnacle-hud` in an interactive session. Claude Code then writes the type declarations for the version you run ([Create a mod](https://code.claude.com/docs/en/plugins/mods/create.md), read 2026-11-17). Until then, `tsc -p` has nothing to extend.
+
+`claude plugin validate --strict skills/mods/binnacle-hud` type-checks the mod without that folder. Run it with Claude Code 2.1.326 or later. An older one does not know the three-line setting and fails the check.
 
 ## Commands
 
@@ -106,8 +108,8 @@ If you type text after `/log`, the mod keeps nothing and asks you to use the dia
 - Keeping a thought starts no model turn, and the mod adds nothing to the conversation or the unfinished Claude prompt.
 - The command line and the mod's reply are part of the conversation, so neither one carries the thought.
 - The Log lasts as long as the session. A new session starts with an empty Log.
-- The Log keeps the newest 100 thoughts. When a new thought arrives, the oldest one is dropped. The list of failed keeps works the same way.
-- The mod keeps the first 2000 characters of a thought or a Memory line and drops the rest. When `/log` cuts a thought, its reply says so.
+- The Log keeps the newest 100 thoughts. When a new thought arrives, the oldest one is dropped. The list of thoughts that failed to save also keeps its newest 100.
+- The mod keeps the first 2000 characters of a thought or a Memory line and drops the rest. When the mod cuts one, `/log` says so in its reply, and the HUD says so in a notice.
 - In the side panel, a long thought or Memory line shows at most three lines, so the field stays in view. This needs Claude Code 2.1.326 or later. An older Claude Code shows the whole text, because it refuses the setting that stops a row at three lines.
 - The mod gives Memory lines to Claude only when you press Send and choose **Send** in the dialog. Keeping a thought does not add it to Memory; `p` copies it there without sending it.
 - The mod writes no file. Memory, like the Log, lasts as long as the session.
@@ -133,7 +135,7 @@ On Claude Code 2.1.325, on 2026-11-13, in headless sessions with a test mod that
 - Without the flag, or without telling Claude Code that the answer changed, the model kept reading the old text.
 - A section added through the system-prompt composition hook did not change mid-conversation, which is why the mod uses Claude Code's memory section instead.
 
-The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, the memory section before and after Send, the engine's own memory text kept ahead of the lines, the status before and after the memory section carries a Send, a memory section that is never asked for, a refused save, and state written by earlier versions. Other tests cover a refused command name, a pane that fails to open, the limits on the Log, the failed list, Memory and the length of one thought, and the three-line rows on 2.1.326 and their absence on older versions. Run them with `claude plugin test mods/binnacle-hud`.
+The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, the memory section before and after Send, the engine's own memory text kept ahead of the lines, the status before and after the memory section carries a Send, a memory section that is never asked for, a refused save, and state written by earlier versions. Other tests cover a refused command name, a pane that fails to open, the limits on the Log, the failed list, Memory and the length of one thought, and the three-line rows on 2.1.326 and their absence on older versions. Run them with `claude plugin test mods/binnacle-hud` on Claude Code 2.1.326 or later. On an older version, the test of the three-line rows fails, because that version refuses the setting.
 
 These are not verified:
 

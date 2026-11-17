@@ -39,6 +39,7 @@ const FAILED_MAX = 100
 const MEMORY_MAX = 20
 const TEXT_MAX = 2000 // characters in one thought or line
 const clip = (text: string) => Array.from(text).slice(0, TEXT_MAX).join('')
+const isLong = (text: string) => Array.from(text).length > TEXT_MAX
 // A docked row stops at this many lines, so one long thought cannot push the
 // field out of the pane. Text took maxLines in 2.1.326; an older engine refuses
 // the prop and the pane draws nothing (measured on 2.1.325), so it waits for a version.
@@ -118,7 +119,9 @@ async function clearDraft($: EngineInterface, text: string, at: number): Promise
 // not keep, so newer typing never hides the loss.
 async function submit($: EngineInterface, text: string): Promise<void> {
   const at = edits
-  if (await keep($, text, 'terminal')) await clearDraft($, text, at)
+  if (!(await keep($, text, 'terminal'))) return
+  if (isLong(text)) $.ui.toast(`binnacle-hud kept the first ${TEXT_MAX} characters. The rest was dropped.`)
+  await clearDraft($, text, at)
 }
 
 // Adds the field text the pane drew. A full Memory keeps the field's text.
@@ -128,12 +131,14 @@ async function addLine($: EngineInterface, text: string): Promise<void> {
   const line = entry(clip(text.trim()))
   let added = false
   await update($, draft, lines => (added = lines.length < MEMORY_MAX) ? [...lines, line] : lines)
-  if (added) await clearDraft($, text, at)
+  if (!added) return
+  if (isLong(text.trim())) $.ui.toast(`binnacle-hud kept the first ${TEXT_MAX} characters. The rest was dropped.`)
+  await clearDraft($, text, at)
 }
 
 async function promote($: EngineInterface, shown: string): Promise<void> {
-  const line = entry(shown)
-  await update($, draft, saved => entries(saved).at(-1)?.text === shown || saved.length >= MEMORY_MAX ? saved : [...saved, line])
+  const line = entry(clip(shown))
+  await update($, draft, saved => entries(saved).at(-1)?.text === line.text || saved.length >= MEMORY_MAX ? saved : [...saved, line])
 }
 
 // Each caller names its atom at the update call, which the hooks scan requires.
@@ -172,16 +177,19 @@ export const register: Register = (on, options) => {
   let rowLines: number | undefined
 
   // A hook that throws is skipped from that point, so a refused command name
-  // is caught, and the pane and the migrations run before either register.
+  // is caught, and the pane, the migrations and both registers come before
+  // the version read.
   on('session.start', async ($, e, next) => {
     // Unasked, the pane waits undrawn below 144 columns (d.ts 2532-2533).
     void $.ui.open(pane).catch((err: unknown) => $.ui.toast(`binnacle-hud could not open the HUD: ${err instanceof Error ? err.message : String(err)}. Run /hud to try again.`))
     if ((await read($, draft)).some(s => typeof s === 'string')) await update($, draft, minted).catch(() => undefined)
     if ((await read($, failed)).some(s => typeof s === 'string')) await update($, failed, minted).catch(() => undefined)
-    rowLines = await $.session.version().then(v => takesMaxLines(v.base ?? v.version) ? ROW_LINES : undefined, () => undefined)
     for (const command of COMMANDS) {
       await $.command.register(command).catch(() => $.ui.toast(`binnacle-hud could not register /${command.name}: Claude Code refused the name.`))
     }
+    rowLines = await $.session.version().then(v => takesMaxLines(v.base ?? v.version) ? ROW_LINES : undefined, () => undefined)
+    // The pane may have drawn before the version was known.
+    if (rowLines) $.ui.invalidate('ui.render')
     return next(e)
   })
 
@@ -226,7 +234,7 @@ export const register: Register = (on, options) => {
     if (answer === NOT_NOW || answer === CANCEL) return { text: 'Nothing kept.' }
     const from = e.origin.kind === 'bridge' ? 'phone' : 'terminal'
     const saved = await keep($, answer, from)
-    const cut = Array.from(answer).length > TEXT_MAX ? ` Only its first ${TEXT_MAX} characters were kept.` : ''
+    const cut = isLong(answer) ? ` Only its first ${TEXT_MAX} characters were kept.` : ''
     return { text: saved === null ? 'Not kept, the save failed. The thought is shown in the HUD.' : saved ? `Kept in the Log.${cut}` : 'Nothing kept.' }
   })
 
@@ -295,7 +303,7 @@ export const register: Register = (on, options) => {
           <Text key={`mem-${r.id}`} wrap={inline ? 'truncate-end' : 'wrap'} maxLines={inline ? undefined : rowLines}><Text dimColor>{i + 1} </Text>{r.text}</Text>
         ))}
         {lines.length === 0 && quiet('No lines yet. Write one in the field, then press a to add it.')}
-        {!room && quiet(`Memory holds ${MEMORY_MAX} lines, the most it keeps. Remove one to add another.`)}
+        {!room && quiet(`Memory holds ${lines.length} lines and keeps at most ${MEMORY_MAX}. Remove one to add another.`)}
       </Box>
     )
 
