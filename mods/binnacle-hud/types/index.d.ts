@@ -19,8 +19,14 @@ export type Delivered = { at: number; since: number }
 /** The pane's own state: where the focus ring is (0 nothing, 1 the field, 2 a button), the open strip section (0 none, 1 memory, 2 log), and why the last Send was not saved ('' when it was) with the lines it carried. */
 export type View = { ring: 0 | 1 | 2; expand: number; failed: string; refusedLines?: string[] }
 
+/** A heads-up from the You should know side agent: its one-line note and the longer details. */
+export type HeadsUp = { line: string; explanation: string }
+
+/** Heads-ups still waiting, and the lines already handed, sent or dismissed this session. */
+export type HeadsUps = { waiting: HeadsUp[]; done: string[] }
+
 declare module 'claude-code' {
   interface PluginState {
-    'binnacle-hud': { view: View; typed: string; log: Thought[]; failed: Saved[]; memory: Saved[]; approved: Approved | null; delivered: Delivered | null }
+    'binnacle-hud': { view: View; typed: string; log: Thought[]; failed: Saved[]; memory: Saved[]; approved: Approved | null; delivered: Delivered | null; headsups: HeadsUps }
   }
 }

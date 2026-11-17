@@ -1,6 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 import type { Approved, Delivered, Entry, Row, Saved, Thought, View } from '../types'
+import { dismissAll, handAll, scanStore, waitingHeadsUps, watchHeadsUps } from './headsups'
 
 // Binnacle HUD. The mod does not send the Log to Claude; absence from later
 // model requests is unverified. Memory holds a draft and the snapshot a confirmed
@@ -173,6 +174,7 @@ export const register: Register = (on, options) => {
   // Held from the press to the end of the Send, so a second press while
   // the question is open asks nothing.
   let sending = false
+  watchHeadsUps(on)
   // Unknown until session.start reads the engine's version.
   let rowLines: number | undefined
 
@@ -190,6 +192,7 @@ export const register: Register = (on, options) => {
     rowLines = await $.session.version().then(v => takesMaxLines(v.base ?? v.version) ? ROW_LINES : undefined, () => undefined)
     // The pane may have drawn before the version was known.
     if (rowLines) $.ui.invalidate('ui.render')
+    await scanStore($).catch(() => undefined)
     return next(e)
   })
 
@@ -257,6 +260,7 @@ export const register: Register = (on, options) => {
     const lines = rows.map(r => r.text)
     const last = rows.at(-1)?.id
     const snap = await read($, approved)
+    const notes = await waitingHeadsUps($)
     const said = statusOf(lines, snap, await read($, delivered))
     const room = lines.length < MEMORY_MAX
     const status = said.text
@@ -307,6 +311,16 @@ export const register: Register = (on, options) => {
       </Box>
     )
 
+    // --- heads-ups: shown only while one waits ----------------------------
+    const heads = notes.length > 0 && (
+      <Box flexDirection="column">
+        {header('Heads-ups', `${notes.length} waiting`)}
+        {notes.map((n, i) => (
+          <Text key={`hu-${i}`} color={LIGHT} wrap={inline ? 'truncate-end' : 'wrap'} maxLines={inline ? undefined : rowLines}><Text dimColor>{i + 1} </Text>{n.line}</Text>
+        ))}
+      </Box>
+    )
+
     // --- log ---------------------------------------------------------------
     const thought = (t: Thought, i: number) => (
       <Box key={`log-${i}`} flexDirection="row" justifyContent="space-between">
@@ -350,7 +364,10 @@ export const register: Register = (on, options) => {
       sending = true
       return send($).finally(() => { sending = false })
     }
+    const hand = () => void handAll($).then(why => { if (why) $.ui.toast(`Heads-ups not put in the prompt: ${why}.`) }).catch(() => undefined)
     const acts: Act[] = [
+      ...(notes.length ? [{ k: 'h', label: `${notes.length > 1 ? `all ${notes.length}` : 'heads-up'} to prompt`, run: hand, primary: true },
+        { k: 'x', label: 'dismiss heads-ups', run: () => void dismissAll($).catch(() => undefined) }] : []),
       ...(unsaved.some(f => f.id) ? [{ k: 'd', label: 'dismiss failed', run: () => void update($, failed, without(unsaved.flatMap(f => f.id ?? []))).catch(() => undefined) }] : []),
       ...(inline ? [toggle(1), toggle(2)] : []),
       ...(writing && room ? [{ k: 'a', label: 'to memory', run: () => addLine($, now) }] : []),
@@ -381,7 +398,7 @@ export const register: Register = (on, options) => {
 
     // --- inline: summary, actions, the field -------------------------------
     if (inline) {
-      const parts = [`memory ${refused ? `Not sent. ${refused}` : status}`, `log ${thoughts.length}`]
+      const parts = [...(notes.length ? [`heads-ups ${notes.length}`] : []), `memory ${refused ? `Not sent. ${refused}` : status}`, `log ${thoughts.length}`]
       const section = st.expand === 1 ? memory : st.expand === 2 ? log : null
       const hasField = !section || st.expand === 2
       return (
@@ -401,6 +418,7 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column" paddingX={1} height={e.props.scroll.bodyRows}>
         {title}
         {hairline}
+        {heads}
         {memory}
         {log}
         {rail}
