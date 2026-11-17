@@ -170,6 +170,16 @@ test('a full Memory offers no key that adds a line, and says how to make room', 
   expect(writing).not.toContain('to memory')
 })
 
+test('Memory left over 20 lines by old state is drawn whole, gives its real count and offers no add key', async ($, on) => {
+  const store: Store = { memory: lines(25), log: thoughts(1), typed: '' }
+  await start($, on, store)
+  const idle = await drawn($)
+  expect(idle).toContain('Memory holds 25 lines and keeps at most 20. Remove one to add another.')
+  expect(idle).toContain('line 24')
+  expect(idle).not.toContain('last thought to memory')
+  expect(store.memory).toHaveLength(25)
+})
+
 test('Memory below the cap still offers both add keys', async ($, on) => {
   const store: Store = { memory: lines(19), log: thoughts(1), typed: '' }
   await start($, on, store)

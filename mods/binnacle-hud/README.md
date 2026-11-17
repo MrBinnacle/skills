@@ -109,7 +109,7 @@ If you type text after `/log`, the mod keeps nothing and asks you to use the dia
 - The command line and the mod's reply are part of the conversation, so neither one carries the thought.
 - The Log lasts as long as the session. A new session starts with an empty Log.
 - The Log keeps the newest 100 thoughts. When a new thought arrives, the oldest one is dropped. The list of thoughts that failed to save also keeps its newest 100.
-- The mod keeps the first 2000 characters of a thought or a Memory line and drops the rest. When the mod cuts one, `/log` says so in its reply, and the HUD says so in a notice.
+- The mod keeps the first 2000 characters of a thought or a Memory line and drops the rest. When the mod cuts a thought it kept, `/log` says so in its reply, and the HUD says so in a notice. A thought that failed to save is cut the same way, without a notice.
 - In the side panel, a long thought or Memory line shows at most three lines, so the field stays in view. This needs Claude Code 2.1.326 or later. An older Claude Code shows the whole text, because it refuses the setting that stops a row at three lines.
 - The mod gives Memory lines to Claude only when you press Send and choose **Send** in the dialog. Keeping a thought does not add it to Memory; `p` copies it there without sending it.
 - The mod writes no file. Memory, like the Log, lasts as long as the session.
