@@ -1,7 +1,8 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 import type { Approved, Delivered, Entry, Row, Saved, Thought, View } from '../types'
-import { dismissAll, handAll, scanStore, unhidden, waitingHeadsUps, watchHeadsUps } from './headsups'
+import { dismissAll, handAll, heldHeadsUps, mergedHeadsUps, restoreHeadsUps, scanStore, unhidden, waitingHeadsUps, watchHeadsUps } from './headsups'
+import type { HeadsUps } from '../types'
 
 // Binnacle HUD. The mod does not send the Log to Claude; absence from later
 // model requests is unverified. Memory holds a draft and the snapshot a confirmed
@@ -185,6 +186,40 @@ async function checkCarried($: EngineInterface, from: number): Promise<void> {
   await update($, view, v => ({ ...v, missed: snap.at }))
 }
 
+// What /clear and /resume carry. The approved snapshot and its delivery
+// record are never carried: Memory is approved for one conversation. A resume
+// opens another conversation, so its heads-ups stay behind.
+type Held = { log: Thought[]; failed: Saved[]; draft: Saved[]; typed: string; heads: HeadsUps | null }
+const idOf = (s: Saved) => typeof s === 'string' ? s : s.id
+const merged = <T,>(held: readonly T[], now: readonly T[], same: (a: T, b: T) => boolean) => [...held, ...now.filter(n => !held.some(h => same(h, n)))]
+
+async function holdAll($: EngineInterface, reason: 'clear' | 'resume'): Promise<Held> {
+  return {
+    log: await read($, kept), failed: await read($, failed), draft: await read($, draft), typed: await read($, typed),
+    heads: reason === 'clear' ? await heldHeadsUps($) : null,
+  }
+}
+
+// Two holds, the older first: a second /clear before the first restore ran
+// folds into it, so one restore runs and the newer draft wins.
+const combined = (older: Held, newer: Held): Held => ({
+  log: merged(older.log, newer.log, (a, b) => a.at === b.at && a.text === b.text).slice(-LOG_MAX),
+  failed: merged(older.failed, newer.failed, (a, b) => idOf(a) === idOf(b)).slice(-FAILED_MAX),
+  draft: merged(older.draft, newer.draft, (a, b) => idOf(a) === idOf(b)).slice(0, MEMORY_MAX),
+  typed: newer.typed || older.typed,
+  heads: newer.heads && older.heads ? mergedHeadsUps(older.heads, newer.heads) : newer.heads,
+})
+
+// Merges by identity into whatever the new session already holds, so running
+// it twice loses and doubles nothing.
+async function restoreAll($: EngineInterface, held: Held): Promise<void> {
+  if (held.log.length) await update($, kept, now => merged(held.log, now, (a, b) => a.at === b.at && a.text === b.text).slice(-LOG_MAX))
+  if (held.failed.length) await update($, failed, now => merged(held.failed, now, (a, b) => idOf(a) === idOf(b)).slice(-FAILED_MAX))
+  if (held.draft.length) await update($, draft, now => merged(held.draft, now, (a, b) => idOf(a) === idOf(b)).slice(0, MEMORY_MAX))
+  if (held.typed) await update($, typed, now => now || held.typed)
+  if (held.heads && (held.heads.waiting.length || held.heads.done.length)) await restoreHeadsUps($, held.heads)
+}
+
 const COMMANDS = [
   { name: 'hud', description: 'Open the Binnacle HUD. /hud narrow hide|strip sets what it does without room to dock' },
   { name: 'log', description: 'Keep a thought in the Binnacle Log, from any surface, the phone included' },
@@ -217,6 +252,25 @@ export const register: Register = (on, options) => {
     if (rowLines) $.ui.invalidate('ui.render')
     await scanStore($).catch(() => undefined)
     return next(e)
+  })
+
+  // /clear and /resume reset session state and raise no session.start. State
+  // is still readable here, and a write from clock.after(0) lands in the new
+  // session (headless probes a and c, 2.1.326, each seen twice).
+  // A module variable outlives /clear (probe b), so a hold waits here for its restore.
+  let pending: Held | null = null
+  on('session.end', async ($, e, next) => {
+    const reason = e.reason === 'clear' || e.reason === 'resume' ? e.reason : null
+    const held = reason ? await holdAll($, reason).catch(() => null) : null
+    const ended = await next(e)
+    if (!held) return ended
+    pending = pending ? combined(pending, held) : held
+    $.clock.after(0, () => {
+      const due = pending
+      pending = null
+      if (due) void restoreAll($, due).catch(() => undefined)
+    })
+    return ended
   })
 
   // Subagents fire these too (`e.agentId`); only the main loop's turn counts.

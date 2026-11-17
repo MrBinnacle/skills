@@ -24,7 +24,7 @@ The notes go in as quoted data, each in its own `<heads-up>` block. The text bef
 
 Press `x` to dismiss every waiting note. A note you send from the side agent's band leaves the list too. If the prompt box cannot take the notes, for example while a dialog is open, they stay in the list and a notice says why.
 
-The list lasts as long as the session. It holds the newest 20 notes. The mod reads notes only from the side agent that comes with Claude Code: the plugin named `cc-plugin-you-should-know` in the built-in tier, and its own store file. Another plugin can still rewrite that side agent's state on its way through, and any program running as you can write the store file. That is why a note goes to Claude only as quoted data, and only when you send the prompt.
+The list lasts as long as the Claude Code process, through `/clear` (see [What `/clear` and `/resume` keep](#what-clear-and-resume-keep)). It holds the newest 20 notes. The mod reads notes only from the side agent that comes with Claude Code: the plugin named `cc-plugin-you-should-know` in the built-in tier, and its own store file. Another plugin can still rewrite that side agent's state on its way through, and any program running as you can write the store file. That is why a note goes to Claude only as quoted data, and only when you send the prompt.
 
 ## Give Claude your Memory lines
 
@@ -53,9 +53,22 @@ The line under the Memory heading says where things stand:
 
 The mod says the lines are in Claude's instructions only after its hook has added them to the memory section. A Send alone does not make that claim.
 
-Memory goes to the main conversation. A subagent that is already running keeps the instructions it started with. Whether a subagent started after a Send also receives the lines is not verified.
+Memory goes to the main conversation only. In one headless run on Claude Code 2.1.326, a general-purpose subagent started after a Send did not receive the memory section. A subagent that is already running keeps the instructions it started with. So the status "In Claude's instructions" is about the main conversation, and a subagent does not have the lines.
 
 If Claude Code refuses to save the Send, the HUD shows "Not sent." and the reason while the lines are the ones that Send carried. The reason goes away when you change the lines or when they match the last Send. The previous Send stays in force. To change a line, remove it and add the new wording.
+
+## What `/clear` and `/resume` keep
+
+Claude Code empties a session's state at `/clear` and `/resume`, and starts no new session for the mod. The mod reads its lists as the old session ends and writes them back once the new one runs. Nothing goes to a file.
+
+| What | After `/clear` | After `/resume` |
+| --- | --- | --- |
+| Log thoughts and failed keeps | kept | kept |
+| Memory lines you have not sent, and the field's text | kept | kept |
+| Heads-ups waiting, and the ones already handed or dismissed | kept | dropped, because they are about the conversation you left |
+| The Memory you approved with Send | dropped | dropped |
+
+The approved Memory is dropped on purpose. You approved it for one conversation, so a new conversation starts with "Not sent." and your unsent lines, ready to send again. Anything you write in the new session before the mod writes its lists back is kept beside them, and nothing is listed twice. A new Claude Code process starts with everything empty.
 
 ## Get back a prompt you wiped by accident
 
@@ -127,12 +140,12 @@ If you type text after `/log`, the mod keeps nothing and asks you to use the dia
 
 - Keeping a thought starts no model turn, and the mod adds nothing to the conversation or the unfinished Claude prompt.
 - The command line and the mod's reply are part of the conversation, so neither one carries the thought.
-- The Log lasts as long as the session. A new session starts with an empty Log.
+- The Log lasts as long as the Claude Code process. It comes back after `/clear` and `/resume`, and a new process starts with an empty Log.
 - The Log keeps the newest 100 thoughts. When a new thought arrives, the oldest one is dropped. The list of thoughts that failed to save also keeps its newest 100.
 - The mod keeps the first 2000 characters of a thought or a Memory line and drops the rest. When the mod cuts a thought it kept, `/log` says so in its reply, and the HUD says so in a notice. A thought that failed to save is cut the same way, without a notice.
 - In the side panel, a long thought or Memory line shows at most three lines, so the field stays in view. This needs Claude Code 2.1.326 or later. An older Claude Code shows the whole text, because it refuses the setting that stops a row at three lines.
 - The mod gives Memory lines to Claude only when you press Send and choose **Send** in the dialog. Keeping a thought does not add it to Memory; `p` copies it there without sending it.
-- The mod writes no file. Memory, like the Log and the Heads-ups list, lasts as long as the session.
+- The mod writes no file. Its lists live in Claude Code's session state, and the mod carries them across `/clear` in memory only.
 - The mod reads one file: the side agent's own store file in Claude Code's `plugins/store` folder, at session start and after each turn of the main conversation. It keeps only the note for the current session.
 
 ### Where a kept thought goes
@@ -163,6 +176,7 @@ These are not verified:
 - Memory in a live interactive session. Its tests run against the test kit, and the probe ran headless.
 - Memory after a real compaction, from `/compact` or an automatic one. That the lines survive follows from the system prompt not being compacted; it was not observed.
 - Memory after resuming the session in a new Claude Code process.
+- The carry in a live interactive session. Headless probes on 2.1.326 showed that state can be read as a session ends at `/clear` and written once the new one runs, twice each. An interactive `/clear` and `/resume` were not tried, and whether `/resume` empties state first was not probed; the mod doubles nothing if it does not.
 - That the model read the lines. The status rests on the mod's hook adding them to the memory section, which is not proof that the model read them.
 - That no other plugin changes the memory section after this mod's hook. A plugin whose hook runs outside this one can replace the section, and the status would still say the lines are in Claude's instructions.
 - Which conversation the hook ran for. Claude Code does not say whether a section was built for the main conversation or a subagent, so a subagent started after a Send could turn the status before the main conversation picks the lines up.

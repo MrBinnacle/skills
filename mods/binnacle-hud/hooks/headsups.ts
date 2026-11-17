@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
-import type { HeadsUp } from '../types'
+import type { HeadsUp, HeadsUps } from '../types'
 
 // Heads-ups from the bundled You should know side agent. Its store keeps one
 // offer per session, so a newer note replaces one nobody acted on; this list
@@ -88,6 +88,23 @@ export async function handAll($: EngineInterface): Promise<string | null> {
   const filled = await $.prompt.fill({ text: fillText(notes, draft), mode: 'append' }).catch(() => ({ isFilled: false, refusal: undefined }))
   if (!filled.isFilled) return filled.refusal === 'dialog' ? 'a dialog holds the prompt box' : 'the prompt box did not take them'
   return null
+}
+
+// The carry across /clear: read in session.end, merged back once the new
+// session runs. What arrived first stays first, and nothing is doubled.
+export async function heldHeadsUps($: EngineInterface): Promise<HeadsUps> {
+  return read($, headsUps)
+}
+
+// Older first; a line settled on either side stays settled.
+export const mergedHeadsUps = (older: HeadsUps, newer: HeadsUps): HeadsUps => {
+  const done = [...older.done.filter(d => !newer.done.includes(d)), ...newer.done].slice(-MAX_DONE)
+  const waiting = [...older.waiting, ...newer.waiting.filter(n => !older.waiting.some(o => o.line === n.line))]
+  return { waiting: waiting.filter(w => !done.includes(w.line)).slice(-MAX_WAITING), done }
+}
+
+export async function restoreHeadsUps($: EngineInterface, held: HeadsUps): Promise<void> {
+  await update($, headsUps, now => mergedHeadsUps(held, now))
 }
 
 // The pane reads the list here: a state read names an atom of its own file.
