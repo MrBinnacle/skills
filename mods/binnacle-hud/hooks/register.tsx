@@ -285,7 +285,8 @@ export const register: Register = (on, options) => {
     const from = turnFrom
     turnFrom = null
     await scanStore($).catch(() => undefined)
-    if (from !== null) await checkCarried($, from).catch(() => undefined)
+    // A stopped turn or an API error can end before any request asked for the section.
+    if (from !== null && (e.reason === 'answer' || e.reason === 'refusal')) await checkCarried($, from).catch(() => undefined)
     return result
   })
 

@@ -125,6 +125,16 @@ test('a turn that started before the Send does not count as one that missed it',
   expect(await drawn($)).not.toContain('Press q')
 })
 
+test('a turn you stop, or one an API error ends, does not count as one that missed the Send', async ($, on) => {
+  await start($, on, { memory: [{ id: 'm1', text: 'ship slice 1' }] })
+  await press($, 'k-s')
+  await $.turn.start({ text: 'main', turnId: 't1' })
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: true, reason: 'aborted', turnId: 't1' })
+  await $.turn.start({ text: 'main', turnId: 't2' })
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, reason: 'error', turnId: 't2' })
+  expect(await drawn($)).not.toContain('Press q')
+})
+
 test('a subagent turn does not count as one that missed the Send', async ($, on) => {
   await start($, on, { memory: [{ id: 'm1', text: 'ship slice 1' }] })
   await press($, 'k-s')
