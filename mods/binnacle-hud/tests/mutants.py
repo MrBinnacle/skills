@@ -54,7 +54,7 @@ MUTANTS = {
     "the record names the Send it carried": [("{ at: snap.at, since })", "{ at: since, since })")],
     "a re-ask keeps the first time": [("now && now.at >= snap.at ? now :", "now && now.at > snap.at ? now :")],
     "a late ask keeps a newer record": [("now && now.at >= snap.at ? now :", "now && now.at === snap.at ? now :")],
-    "the pane reads the record": [("statusOf(lines, snap, await read($, delivered))", "statusOf(lines, snap, null)")],
+    "the pane reads the record": [("statusOf(lines, snap, await read($, delivered), st.missed)", "statusOf(lines, snap, null, st.missed)")],
     "Send drops the cached section": [("  if (!refusal) $.ui.invalidate('prompt.section')\n", "")],
     "a refused Send leaves the cached section": [("if (!refusal) $.ui.invalidate('prompt.section')", "$.ui.invalidate('prompt.section')")],
     "Send drops prompt sections, not a drawing": [("$.ui.invalidate('prompt.section')", "$.ui.invalidate('ui.render')")],

@@ -19,9 +19,11 @@ const headsUps = atom({ plugin: 'binnacle-hud', key: 'headsups' } as const, { wa
 
 // Drops control characters, invisible format characters (bidi, zero-width,
 // tag characters) and line separators, then caps the length.
+export const unhidden = (text: string): string =>
+  text.replace(/[\u0000-\u0008\u000B-\u001F\u007F-\u009F\p{Cf}\p{Zl}\p{Zp}]/gu, '')
+
 export function clean(text: string, max: number): string {
-  const visible = text.replace(/[\u0000-\u0008\u000B-\u001F\u007F-\u009F\p{Cf}\p{Zl}\p{Zp}]/gu, '').trim()
-  return Array.from(visible).slice(0, max).join('').trim()
+  return Array.from(unhidden(text).trim()).slice(0, max).join('').trim()
 }
 
 const untagged = (text: string): string => {
@@ -112,7 +114,7 @@ export async function scanStore($: EngineInterface): Promise<void> {
   }
 }
 
-// The register module's own session.start calls scanStore: an event takes one unmatched hook per plugin.
+// The register module's session.start and turn.complete call scanStore: an event takes one unmatched hook per plugin.
 export function watchHeadsUps(on: On): void {
   on('state.set', async ($, e, next) => {
     const result = await next(e)
@@ -125,11 +127,6 @@ export function watchHeadsUps(on: On): void {
       const store = e.key === 'sessions' ? { sessions: e.value } : e.value
       void $.session.id().then(id => capture($, offerForSession(store, id))).catch(() => undefined)
     }
-    return result
-  })
-  on('turn.complete', async ($, e, next) => {
-    const result = await next(e)
-    if (e.agentId === undefined) await scanStore($).catch(() => undefined)
     return result
   })
   // A note sent any other way (the band, tips-anywhere) is settled, not listed twice.

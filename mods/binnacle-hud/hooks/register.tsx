@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 import type { Approved, Delivered, Entry, Row, Saved, Thought, View } from '../types'
-import { dismissAll, handAll, scanStore, waitingHeadsUps, watchHeadsUps } from './headsups'
+import { dismissAll, handAll, scanStore, unhidden, waitingHeadsUps, watchHeadsUps } from './headsups'
 
 // Binnacle HUD. The mod does not send the Log to Claude; absence from later
 // model requests is unverified. Memory holds a draft and the snapshot a confirmed
@@ -39,8 +39,9 @@ const LOG_MAX = 100
 const FAILED_MAX = 100
 const MEMORY_MAX = 20
 const TEXT_MAX = 2000 // characters in one thought or line
-const clip = (text: string) => Array.from(text).slice(0, TEXT_MAX).join('')
-const isLong = (text: string) => Array.from(text).length > TEXT_MAX
+// Hidden characters go first, so the cut counts what Claude reads (G5).
+const clip = (text: string) => Array.from(unhidden(text)).slice(0, TEXT_MAX).join('')
+const isLong = (text: string) => Array.from(unhidden(text)).length > TEXT_MAX
 // A docked row stops at this many lines, so one long thought cannot push the
 // field out of the pane. Text took maxLines in 2.1.326; an older engine refuses
 // the prop and the pane draws nothing (measured on 2.1.325), so it waits for a version.
@@ -87,7 +88,7 @@ const memoryText = (snap: Approved) => [`Memory the operator approved at ${hhmm(
 // colour never says "Claude has them" beside words that do not. Only the
 // section hook's record says Claude has a Send; a Send alone is pending.
 type Status = { text: string; tone: keyof typeof TONE | null; send: boolean }
-export const statusOf = (lines: readonly string[], snap: Approved | null, seen: Delivered | null): Status => {
+export const statusOf = (lines: readonly string[], snap: Approved | null, seen: Delivered | null, missed?: number): Status => {
   if (!snap) return { text: 'Not sent.', tone: null, send: true }
   const arrived = seen?.at === snap.at
   if (!same(lines, snap.lines)) return arrived
@@ -95,12 +96,14 @@ export const statusOf = (lines: readonly string[], snap: Approved | null, seen: 
     : { text: `Changed since Send. The ${hhmm(snap.at)} version is not yet in Claude's instructions.`, tone: 'claude', send: true }
   return arrived
     ? { text: `In Claude's instructions since ${hhmm(seen.since)}.`, tone: 'remember', send: false }
-    : { text: `Sent at ${hhmm(snap.at)}. Not yet in Claude's instructions.`, tone: null, send: false }
+    : missed === snap.at
+      ? { text: `Sent at ${hhmm(snap.at)}, but a turn ran without it in Claude's instructions. Press q to put the lines in the prompt instead.`, tone: 'warning', send: false }
+      : { text: `Sent at ${hhmm(snap.at)}. Not yet in Claude's instructions.`, tone: null, send: false }
 }
 
 // Appends in one update, so two quick keeps cannot overwrite each other.
 async function keep($: EngineInterface, text: string, from: Thought['from']): Promise<boolean | null> {
-  if (!text.trim()) return false
+  if (!clip(text).trim()) return false
   try {
     await update($, kept, items => [...items, { text: clip(text), at: new Date().toISOString(), from }].slice(-LOG_MAX))
     return true
@@ -128,8 +131,8 @@ async function submit($: EngineInterface, text: string): Promise<void> {
 // Adds the field text the pane drew. A full Memory keeps the field's text.
 async function addLine($: EngineInterface, text: string): Promise<void> {
   const at = edits
-  if (!text.trim()) return
-  const line = entry(clip(text.trim()))
+  if (!clip(text).trim()) return
+  const line = entry(clip(text).trim())
   let added = false
   await update($, draft, lines => (added = lines.length < MEMORY_MAX) ? [...lines, line] : lines)
   if (!added) return
@@ -151,7 +154,7 @@ const without = (ids: readonly string[]) => (saved: readonly Saved[]) => saved.f
 async function send($: EngineInterface): Promise<void> {
   const lines = entries(await read($, draft)).map(l => l.text)
   if (!lines.length) return
-  const question = `Memory for Claude:\n${lines.map(l => `- ${l}`).join('\n')}\n\nGive Claude these ${lines.length} lines now?`
+  const question = `Memory for Claude:\n${lines.map(l => `- ${l}`).join('\n')}\n\nGive Claude these ${lines.length} lines now? Claude's next request rewrites the prompt cache once, so it costs more and takes longer than a cached one.`
   const answer = await $.ui.ask(question, [SEND, NOT_NOW]).catch(() => NOT_NOW)
   if (answer !== SEND) return
   const at = await $.clock.now()
@@ -160,6 +163,26 @@ async function send($: EngineInterface): Promise<void> {
   // The engine caches a section answer for the thread; dropping it makes the next turn ask again.
   if (!refusal) $.ui.invalidate('prompt.section')
   await update($, view, v => ({ ...v, failed: refusal, refusedLines: lines }))
+}
+
+// Puts the approved lines in the prompt box, for a Send the memory section
+// never carried. Only the operator's submit sends them.
+async function quoteApproved($: EngineInterface): Promise<void> {
+  const snap = await read($, approved)
+  if (!snap) return
+  const draft = (await $.prompt.read().catch(() => ({ text: '' }))).text
+  const text = `${draft.trim() ? '\n\n' : ''}Keep to these decisions for the rest of this session (Memory I approved at ${hhmm(snap.at)}):\n${snap.lines.map(l => `- ${l}`).join('\n')}`
+  const filled = await $.prompt.fill({ text, mode: 'append' }).catch(() => ({ isFilled: false }))
+  if (!filled.isFilled) $.ui.toast('binnacle-hud could not put the Memory lines in the prompt box. Close any open dialog and press q again.')
+}
+
+// A main-loop turn that started after a Send and ended with the memory
+// section never carrying it: the lines did not reach Claude (G6). statusOf
+// ignores the mark once the section has carried that Send.
+async function checkCarried($: EngineInterface, from: number): Promise<void> {
+  const snap = await read($, approved)
+  if (!snap || from < snap.at) return
+  await update($, view, v => ({ ...v, missed: snap.at }))
 }
 
 const COMMANDS = [
@@ -194,6 +217,22 @@ export const register: Register = (on, options) => {
     if (rowLines) $.ui.invalidate('ui.render')
     await scanStore($).catch(() => undefined)
     return next(e)
+  })
+
+  // Subagents fire these too (`e.agentId`); only the main loop's turn counts.
+  let turnFrom: number | null = null
+  on('turn.start', async ($, e, next) => {
+    if (e.agentId === undefined) turnFrom = await $.clock.now()
+    return next(e)
+  })
+  on('turn.complete', async ($, e, next) => {
+    const result = await next(e)
+    if (e.agentId !== undefined) return result
+    const from = turnFrom
+    turnFrom = null
+    await scanStore($).catch(() => undefined)
+    if (from !== null) await checkCarried($, from).catch(() => undefined)
+    return result
   })
 
   // Memory joins Claude Code's own `memory` section, which the full and the
@@ -261,7 +300,7 @@ export const register: Register = (on, options) => {
     const last = rows.at(-1)?.id
     const snap = await read($, approved)
     const notes = await waitingHeadsUps($)
-    const said = statusOf(lines, snap, await read($, delivered))
+    const said = statusOf(lines, snap, await read($, delivered), st.missed)
     const room = lines.length < MEMORY_MAX
     const status = said.text
     // A refusal is news only beside the lines it refused, and while they differ from the last Send.
@@ -373,6 +412,7 @@ export const register: Register = (on, options) => {
       ...(writing && room ? [{ k: 'a', label: 'to memory', run: () => addLine($, now) }] : []),
       ...(!writing && room && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
       ...(showsMemory && lines.length && said.send ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
+      ...(said.tone === 'warning' ? [{ k: 'q', label: 'memory to prompt', run: () => void quoteApproved($).catch(() => undefined), primary: true }] : []),
       // shortcut: lines past the ninth have only 0, which removes the last one; add paging if Memory grows that long.
       ...(showsMemory && !writing ? rows.slice(0, 9).flatMap(({ id }, i) => id ? [{ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([id])).catch(() => undefined) }] : []) : []),
       ...(showsMemory && !writing && rows.length > 9 && last ? [{ k: '0', label: 'remove last', run: () => void update($, draft, without([last])).catch(() => undefined) }] : []),
