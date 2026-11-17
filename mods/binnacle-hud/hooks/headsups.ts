@@ -78,13 +78,15 @@ const settle = (lines: readonly string[]) => (now: { waiting: HeadsUp[]; done: s
 })
 
 // The box takes the notes after any draft; a refused fill leaves them waiting.
+// Fills only the notes the box does not already hold. A note leaves the list
+// when a submit carries it, so clearing the box without sending loses nothing.
+// shortcut: a note whose line holds a heads-up tag is changed by the framing, so a submit cannot settle it; it stays until x.
 export async function handAll($: EngineInterface): Promise<string | null> {
-  const notes = (await read($, headsUps)).waiting
-  if (!notes.length) return null
   const draft = (await $.prompt.read().catch(() => ({ text: '' }))).text
+  const notes = (await read($, headsUps)).waiting.filter(n => !draft.includes(n.line))
+  if (!notes.length) return 'they are already there'
   const filled = await $.prompt.fill({ text: fillText(notes, draft), mode: 'append' }).catch(() => ({ isFilled: false, refusal: undefined }))
   if (!filled.isFilled) return filled.refusal === 'dialog' ? 'a dialog holds the prompt box' : 'the prompt box did not take them'
-  await update($, headsUps, settle(notes.map(n => n.line)))
   return null
 }
 
@@ -116,11 +118,8 @@ export async function scanStore($: EngineInterface): Promise<void> {
 
 // The register module's session.start and turn.complete call scanStore: an event takes one unmatched hook per plugin.
 export function watchHeadsUps(on: On): void {
-  on('state.set', async ($, e, next) => {
-    const result = await next(e)
-    if (isSource(next.origin)) void capture($, offerOf(e.value)).catch(() => undefined)
-    return result
-  })
+  // The built-in writes a note only with store.set("sessions"): its one state key is aboutOpen (2.1.326 binary).
+  // Each hook catches its own work, and a hook that fails is skipped, so neither can stop the write or the prompt.
   on('store.set', async ($, e, next) => {
     const result = await next(e)
     if (isSource(next.origin)) {

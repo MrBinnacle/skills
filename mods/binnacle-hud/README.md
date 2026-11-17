@@ -4,10 +4,27 @@ Keep a Log of thoughts beside a Claude Code session, from the terminal or from t
 
 Keep the decisions you and Claude agreed in Memory. The mod gives Memory to Claude only when you press Send and confirm it. From then on the lines are part of Claude's system instructions on every request, so a long chat or a compaction does not push them out of Claude's view.
 
-The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has two sections:
+Keep every heads-up from Claude Code's You should know side agent. The side agent holds one note per session, so a newer note replaces one you have not acted on. The HUD lists each note until you hand it to Claude, dismiss it, or send it from the side agent's own band.
 
+The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has up to three sections:
+
+- **Heads-ups** lists the side agent's notes that wait. It appears only while one waits.
 - **Memory** holds the lines you want Claude to keep. Send gives Claude those lines, after you confirm.
 - **Log** keeps thoughts for you. Type a thought in its field and press Enter, or send `/log` from the phone. The mod keeps the thought with the time and where it came from.
+
+## Hand heads-ups to Claude
+
+1. Each note from the side agent joins the Heads-ups list at the top of the panel, numbered in the order it arrived. In the strip above the prompt, the summary says how many wait.
+2. Press Tab to reach the actions, then press `h`. The HUD puts every waiting note into the prompt box, after anything you have typed. Nothing is sent.
+3. Read the prompt, edit it if you want, and send it yourself. The notes leave the list when the prompt you send holds them.
+
+If you clear the prompt box instead of sending it, the notes stay in the list, and `h` puts them in again. Pressing `h` while the box already holds a note does not add it twice.
+
+The notes go in as quoted data, each in its own `<heads-up>` block. The text before them tells Claude that the notes are information, not instructions, and to ask before anything that deletes, publishes, sends, installs or changes settings. The mod removes hidden characters from a note, and any text that could close a block early.
+
+Press `x` to dismiss every waiting note. A note you send from the side agent's band leaves the list too. If the prompt box cannot take the notes, for example while a dialog is open, they stay in the list and a notice says why.
+
+The list lasts as long as the session. It holds the newest 20 notes. The mod reads notes only from the side agent that comes with Claude Code: the plugin named `cc-plugin-you-should-know` in the built-in tier, and its own store file. Another plugin can still rewrite that side agent's state on its way through, and any program running as you can write the store file. That is why a note goes to Claude only as quoted data, and only when you send the prompt.
 
 ## Give Claude your Memory lines
 
@@ -19,14 +36,17 @@ The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has tw
 
 The mod adds the lines to Claude Code's own memory section of the system prompt, under the heading "Memory the operator approved at HH:MM:". They go out with every request from Claude's next turn onward. The system prompt is not part of the chat that Claude Code compacts, so the lines stay through a compaction. Send adds no row to the conversation and starts no model turn.
 
-A Send changes the system prompt, so Claude Code rewrites its prompt cache once. The next request writes the whole conversation to the cache again, which costs more and takes longer than a cached request. Claude also loses its earlier thinking blocks, and Claude Code shows a dim line naming the mod. Requests after that use the cache again.
+A Send changes the system prompt, so Claude Code rewrites its prompt cache once. The next request writes the whole conversation to the cache again, which costs more and takes longer than a cached request. Claude also loses its earlier thinking blocks, and Claude Code shows a dim line naming the mod. Requests after that use the cache again. The Send question says so before you choose.
+
+The mod removes hidden characters from a Memory line before it saves the line: control characters, zero-width and direction-changing characters, and the tag characters that can carry text you cannot see to a model. Pasted text could bring them in. The 2000-character limit counts only the characters that remain.
 
 The line under the Memory heading says where things stand:
 
 | Status | Meaning |
 | --- | --- |
 | Not sent. | Claude has no Memory lines from this session. |
-| Sent at HH:MM. Not yet in Claude's instructions. | You sent the lines shown, and Claude Code has not yet built a system prompt that carries them. It does so at Claude's next turn. If this stays after a turn, the lines are not reaching Claude. |
+| Sent at HH:MM. Not yet in Claude's instructions. | You sent the lines shown, and Claude Code has not yet built a system prompt that carries them. It does so at Claude's next turn. |
+| Sent at HH:MM, but a turn ran without it in Claude's instructions. Press q to put the lines in the prompt instead. | A turn of the main conversation started after the Send and ended without Claude Code asking for the memory section, so the lines did not reach Claude. Press `q` to put them in the prompt box as a request to keep to them, then send the prompt yourself. A subagent's turn and a turn that started before the Send do not count. |
 | In Claude's instructions since HH:MM. | Claude Code put exactly the lines shown into the system prompt at HH:MM, and keeps them on every request. |
 | Changed since Send. The HH:MM version is not yet in Claude's instructions. | You changed the lines after the last Send, and that Send has not reached the system prompt yet either. |
 | Changed since Send. Claude has the HH:MM version. | You changed the lines after the last Send. Claude still has the older lines until you send again. |
@@ -112,7 +132,8 @@ If you type text after `/log`, the mod keeps nothing and asks you to use the dia
 - The mod keeps the first 2000 characters of a thought or a Memory line and drops the rest. When the mod cuts a thought it kept, `/log` says so in its reply, and the HUD says so in a notice. A thought that failed to save is cut the same way, without a notice.
 - In the side panel, a long thought or Memory line shows at most three lines, so the field stays in view. This needs Claude Code 2.1.326 or later. An older Claude Code shows the whole text, because it refuses the setting that stops a row at three lines.
 - The mod gives Memory lines to Claude only when you press Send and choose **Send** in the dialog. Keeping a thought does not add it to Memory; `p` copies it there without sending it.
-- The mod writes no file. Memory, like the Log, lasts as long as the session.
+- The mod writes no file. Memory, like the Log and the Heads-ups list, lasts as long as the session.
+- The mod reads one file: the side agent's own store file in Claude Code's `plugins/store` folder, at session start and after each turn of the main conversation. It keeps only the note for the current session.
 
 ### Where a kept thought goes
 
@@ -135,7 +156,7 @@ On Claude Code 2.1.325, on 2026-11-13, in headless sessions with a test mod that
 - Without the flag, or without telling Claude Code that the answer changed, the model kept reading the old text.
 - A section added through the system-prompt composition hook did not change mid-conversation, which is why the mod uses Claude Code's memory section instead.
 
-The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, the memory section before and after Send, the engine's own memory text kept ahead of the lines, the status before and after the memory section carries a Send, a memory section that is never asked for, a refused save, and state written by earlier versions. Other tests cover a refused command name, a pane that fails to open, the limits on the Log, the failed list, Memory and the length of one thought, and the three-line rows on 2.1.326 and their absence on older versions. Run them with `claude plugin test mods/binnacle-hud` on Claude Code 2.1.326 or later. On an older version, the test of the three-line rows fails, because that version refuses the setting.
+The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, the memory section before and after Send, the engine's own memory text kept ahead of the lines, the status before and after the memory section carries a Send, a memory section that is never asked for, a refused save, and state written by earlier versions. Other tests cover a refused command name, a pane that fails to open, the limits on the Log, the failed list, Memory and the length of one thought, and the three-line rows on 2.1.326 and their absence on older versions. Heads-up tests cover the list at session start, a newer note that replaces an unacted one, `h` filling the prompt box once and in order after a draft, a fill the box refuses, `x`, a note sent from the band, a note from another session, the source check and the quoted block. Memory safety tests cover hidden characters in an added line and a copied Log thought, the cache cost in the Send question, and a Send that a turn ran without, including subagent turns and a turn begun before the Send. A mutation pass turned each changed condition of these features into a red test. Run them with `claude plugin test mods/binnacle-hud` on Claude Code 2.1.326 or later. On an older version, the test of the three-line rows fails, because that version refuses the setting.
 
 These are not verified:
 
@@ -147,6 +168,8 @@ These are not verified:
 - Which conversation the hook ran for. Claude Code does not say whether a section was built for the main conversation or a subagent, so a subagent started after a Send could turn the status before the main conversation picks the lines up.
 - That the thought is absent from what Claude reads on a later turn. The export suggests so, but no turn was sent to check it.
 - Pasting, dictation, and long text in the phone's dialog.
+- Heads-up capture in a live session. The tests read a store file in the shape the side agent wrote on 2026-10-23 and 2026-11-17. A later Claude Code can change that shape; the mod finds a note by its shape, not by its key name, and lists nothing it cannot read.
+- That `q` and `h` fill the prompt box on the phone. The Claude app draws no panel, so neither key is reachable there.
 
 Choosing **Chat about this** in the `/log` dialog keeps nothing, and the reply is "Nothing kept." Claude Code's documentation says the dialog call fails on that choice, as it does when the dialog is dismissed ([events](https://code.claude.com/docs/en/plugins/mods/events.md), read 2026-11-17). The mod treats both failures the same way, and a test covers the dismissed dialog. The choice itself was not tried on a phone.
 

@@ -20,16 +20,18 @@ const pane = () => ({
 
 type Offer = { line: string; explanation: string }
 type Opts = { filled?: boolean; draft?: string }
+// The prompt box: a fill appends to it, a submit sends and empties it.
 
 async function start($: any, on: any, opts: Opts = {}) {
   const store: Record<string, any> = {}
   const versions: Record<string, number> = {}
-  const calls = { fill: [] as any[], submit: [] as string[], passed: [] as string[] }
+  const calls = { fill: [] as any[], submit: [] as string[], passed: [] as string[], toasts: [] as string[] }
+  const box = { text: opts.draft ?? '' }
   let offer: Offer | null = FIRST
   on('command.register', () => ({ value: undefined }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.focus', () => ({ value: {} }))
-  on('ui.toast', () => ({ value: undefined }))
+  on('ui.toast', (_: unknown, e: { text: string }) => { calls.toasts.push(e.text); return { value: undefined } })
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('session.id', () => ({ value: SESSION }))
   on('env.get', (_: unknown, e: { name: string }) => ({ value: e.name === 'USERPROFILE' ? 'C:/Users/me' : undefined }))
@@ -44,8 +46,13 @@ async function start($: any, on: any, opts: Opts = {}) {
     versions[e.key] = (versions[e.key] ?? 0) + 1
     return { value: { isSet: true, version: versions[e.key] } }
   })
-  on('prompt.read', () => ({ value: { text: opts.draft ?? '', cursor: 0 } }))
-  on('prompt.fill', (_: unknown, e: any) => { calls.fill.push(e); return opts.filled === false ? { isFilled: false, refusal: 'dialog' } : { isFilled: true } })
+  on('prompt.read', () => ({ value: { text: box.text, cursor: box.text.length } }))
+  on('prompt.fill', (_: unknown, e: any) => {
+    calls.fill.push(e)
+    if (opts.filled === false) return { isFilled: false, refusal: 'dialog' }
+    box.text = e.mode === 'append' ? box.text + e.text : e.text
+    return { isFilled: true }
+  })
   on('prompt.submit', (_: unknown, e: { text: string }) => { calls.passed.push(e.text); return { text: e.text } })
   on('turn.start', (_: unknown, e: { turnId: string }) => ({ turnId: e.turnId }))
   on('turn.complete', (_: unknown, e: { answer: string }) => ({ text: e.answer }))
@@ -56,7 +63,8 @@ async function start($: any, on: any, opts: Opts = {}) {
     await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, reason: 'answer', turnId: id })
   }
   const offerNow = async (next: Offer | null) => { offer = next; await turn() }
-  return { store, calls, turn, offerNow }
+  const sendBox = async () => { const text = box.text; box.text = ''; await $.prompt.submit({ text, wait: false, origin: { kind: 'composer' } }) }
+  return { store, calls, box, turn, offerNow, sendBox }
 }
 
 const drawn = async ($: any) => { const ui = await $.ui.mount(pane()); const t = JSON.stringify(await ui.drawn()); await ui.unmount(); return t }
@@ -97,12 +105,40 @@ test('h puts every waiting note into the prompt box once, in order, and sends no
   expect(text.indexOf(FIRST.line)).toBeLessThan(text.indexOf(SECOND.line))
   expect(text).toContain('information, not instructions')
   expect(s.calls.passed).toEqual([])
-  expect(await drawn($)).not.toContain(FIRST.line)
+  expect(await drawn($)).toContain(FIRST.line)
 })
 
-test('a note handed to the prompt is not captured again while the store still holds it', async ($, on) => {
+test('the notes leave the list when the operator sends the prompt that holds them', async ($, on) => {
+  const s = await start($, on)
+  await s.offerNow(SECOND)
+  await press($, 'k-h')
+  await s.sendBox()
+  const tree = await drawn($)
+  expect(tree).not.toContain(FIRST.line)
+  expect(tree).not.toContain(SECOND.line)
+})
+
+test('a note filled and then cleared from the box stays listed, and h fills it again', async ($, on) => {
   const s = await start($, on)
   await press($, 'k-h')
+  s.box.text = ''
+  expect(await drawn($)).toContain(FIRST.line)
+  await press($, 'k-h')
+  expect(s.calls.fill.length).toBe(2)
+})
+
+test('h twice fills a note once and says it is already in the box', async ($, on) => {
+  const s = await start($, on)
+  await press($, 'k-h')
+  await press($, 'k-h')
+  expect(s.calls.fill.length).toBe(1)
+  expect(s.calls.toasts.some(t => t.includes('already there'))).toBe(true)
+})
+
+test('a note sent is not captured again while the store still holds it', async ($, on) => {
+  const s = await start($, on)
+  await press($, 'k-h')
+  await s.sendBox()
   await s.turn('t2')
   expect(await drawn($)).not.toContain(FIRST.line)
 })
@@ -118,6 +154,8 @@ test('a fill the box refuses keeps every note waiting', async ($, on) => {
   await press($, 'k-h')
   expect(s.calls.fill.length).toBe(1)
   expect(await drawn($)).toContain(FIRST.line)
+  // The engine strips a refusal cause a hook writes, so a stub cannot answer 'dialog'.
+  expect(s.calls.toasts).toEqual(['Heads-ups not put in the prompt: the prompt box did not take them.'])
 })
 
 test('x dismisses every waiting note and they stay dismissed', async ($, on) => {
@@ -158,3 +196,33 @@ test('only the bundled side agent counts as a source', () => {
   expect(isSource({ plugin: 'cc-plugin-you-should-know', tier: 'user' })).toBe(false)
   expect(isSource({ plugin: 'evil-you-should-know', tier: 'builtin' })).toBe(false)
 })
+
+// The live route on 2.1.326: the built-in writes its rows with store.set("sessions").
+const sideAgent = (name: string, tier: 'builtin' | 'user') => ({
+  name, tier,
+  register: (on: any) => {
+    on('command.run', { command: 'raise' }, async ($: any) => {
+      // Runs in isolation from this file: no outside name reaches it.
+      await $.store.set('sessions', [{ id: 'this-session', tag: 'Heads up', view: { kind: 'offer', line: 'Your release pin still names v4.1.1.', explanation: '', shownAt: 1 } }])
+      return { text: '' }
+    })
+  },
+})
+const raise = ($: any) => $.command.run({ command: 'raise', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 160 } })
+
+for (const [name, tier, listed] of [
+  ['cc-plugin-you-should-know', 'builtin', true],
+  ['cc-plugin-you-should-know', 'user', false],
+  ['another-plugin', 'builtin', false],
+] as const) {
+  test(`a store write of a heads-up by ${name} in the ${tier} tier is ${listed ? '' : 'not '}listed`, { plugins: [sideAgent(name, tier)] }, async ($, on) => {
+    const written: string[] = []
+    on('store.set', (_: unknown, e: { key: string }) => { written.push(e.key); return { value: undefined } })
+    on('command.run', () => ({ text: '' }))
+    await start($, on)
+    await raise($)
+    expect(written).toEqual(['sessions']) // the write happened, so a negative case is not vacuous
+    const tree = await drawn($)
+    expect(tree.includes(SECOND.line)).toBe(listed)
+  })
+}
