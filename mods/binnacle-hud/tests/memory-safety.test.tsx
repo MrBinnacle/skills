@@ -49,7 +49,7 @@ const turn = async ($: any, id: string) => {
   await $.turn.start({ text: 'main', turnId: id })
   await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, reason: 'answer', turnId: id })
 }
-const HIDDEN = '​‮⁦\u{E0041}'
+const HIDDEN = '\uFE0F\u3164​‮⁦\u{E0041}'
 
 test('a Memory line added from the field holds no hidden characters', async ($, on) => {
   const store: Store = {}

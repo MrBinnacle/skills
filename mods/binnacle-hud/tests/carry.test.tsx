@@ -127,3 +127,23 @@ test('an end that leaves state in place doubles nothing', async ($, on) => {
   expect(store.failed).toEqual([{ id: 'f1', text: 'a keep that failed' }])
   expect(store.memory).toEqual([LINE])
 })
+
+// If /resume leaves state in place, the mod drops what it says it drops, and
+// keeps what the new conversation already made.
+test('a resume that leaves state in place still drops the old Send and heads-ups, and keeps new ones', async ($, on) => {
+  const store: Record<string, any> = seeded()
+  const s = await start($, on, store, false)
+  await s.end('resume', () => { store.headsups = { ...store.headsups, waiting: [...store.headsups.waiting, { line: 'A note from the new conversation.', explanation: '' }] } })
+  expect(store.approved).toBe(null)
+  expect(store.delivered).toBe(null)
+  expect(store.view.missed).toBe(undefined)
+  expect(store.headsups.waiting).toEqual([{ line: 'A note from the new conversation.', explanation: '' }])
+})
+
+test('a Send made in the new session before the restore is kept', async ($, on) => {
+  const store: Record<string, any> = seeded()
+  const s = await start($, on, store, false)
+  const fresh = { lines: ['a new decision'], at: NOW }
+  await s.end('resume', () => { store.approved = fresh })
+  expect(store.approved).toEqual(fresh)
+})

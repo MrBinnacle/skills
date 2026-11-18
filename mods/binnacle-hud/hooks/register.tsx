@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 import type { Approved, Delivered, Entry, Row, Saved, Thought, View } from '../types'
-import { dismissAll, handAll, heldHeadsUps, mergedHeadsUps, restoreHeadsUps, scanStore, unhidden, waitingHeadsUps, watchHeadsUps } from './headsups'
+import { dismissAll, handAll, heldHeadsUps, mergedHeadsUps, restoreHeadsUps, scanStore, settleHeadsUps, unhidden, waitingHeadsUps, watchHeadsUps } from './headsups'
 import type { HeadsUps } from '../types'
 
 // Binnacle HUD. The mod does not send the Log to Claude; absence from later
@@ -188,8 +188,10 @@ async function checkCarried($: EngineInterface, from: number): Promise<void> {
 
 // What /clear and /resume carry. The approved snapshot and its delivery
 // record are never carried: Memory is approved for one conversation. A resume
-// opens another conversation, so its heads-ups stay behind.
-type Held = { log: Thought[]; failed: Saved[]; draft: Saved[]; typed: string; heads: HeadsUps | null }
+// opens another conversation, so its heads-ups stay behind. Whether /resume
+// empties state was not probed, so the restore drops these itself (`gone`,
+// `sentAt`), touching nothing the new session made.
+type Held = { log: Thought[]; failed: Saved[]; draft: Saved[]; typed: string; heads: HeadsUps | null; gone: string[]; sentAt: number | null }
 const idOf = (s: Saved) => typeof s === 'string' ? s : s.id
 const merged = <T,>(held: readonly T[], now: readonly T[], same: (a: T, b: T) => boolean) => [...held, ...now.filter(n => !held.some(h => same(h, n)))]
 
@@ -197,6 +199,8 @@ async function holdAll($: EngineInterface, reason: 'clear' | 'resume'): Promise<
   return {
     log: await read($, kept), failed: await read($, failed), draft: await read($, draft), typed: await read($, typed),
     heads: reason === 'clear' ? await heldHeadsUps($) : null,
+    gone: reason === 'resume' ? (await heldHeadsUps($)).waiting.map(n => n.line) : [],
+    sentAt: (await read($, approved))?.at ?? null,
   }
 }
 
@@ -208,6 +212,8 @@ const combined = (older: Held, newer: Held): Held => ({
   draft: merged(older.draft, newer.draft, (a, b) => idOf(a) === idOf(b)).slice(0, MEMORY_MAX),
   typed: newer.typed || older.typed,
   heads: newer.heads && older.heads ? mergedHeadsUps(older.heads, newer.heads) : newer.heads,
+  gone: [...older.gone, ...newer.gone],
+  sentAt: newer.sentAt ?? older.sentAt,
 })
 
 // Merges by identity into whatever the new session already holds, so running
@@ -218,6 +224,14 @@ async function restoreAll($: EngineInterface, held: Held): Promise<void> {
   if (held.draft.length) await update($, draft, now => merged(held.draft, now, (a, b) => idOf(a) === idOf(b)).slice(0, MEMORY_MAX))
   if (held.typed) await update($, typed, now => now || held.typed)
   if (held.heads && (held.heads.waiting.length || held.heads.done.length)) await restoreHeadsUps($, held.heads)
+  const stale = held.gone.length ? (await waitingHeadsUps($)).filter(n => held.gone.includes(n.line)) : []
+  if (stale.length) await settleHeadsUps($, stale.map(n => n.line))
+  const at = held.sentAt
+  // Written only while the old Send is still there, so a reset session gains no keys.
+  if (at === null) return
+  if ((await read($, approved))?.at === at) await update($, approved, now => now?.at === at ? null : now)
+  if ((await read($, delivered))?.at === at) await update($, delivered, now => now?.at === at ? null : now)
+  if ((await read($, view)).missed === at) await update($, view, now => now.missed === at ? { ...now, missed: undefined } : now)
 }
 
 const COMMANDS = [
