@@ -138,6 +138,14 @@ test('a resume that leaves state in place still drops the old Send and heads-ups
   expect(store.delivered).toBe(null)
   expect(store.view.missed).toBe(undefined)
   expect(store.headsups.waiting).toEqual([{ line: 'A note from the new conversation.', explanation: '' }])
+  expect(store.headsups.done).toEqual([])
+})
+
+test('after a resume that leaves state in place, the new conversation can list an old note again', async ($, on) => {
+  const store: Record<string, any> = seeded()
+  const s = await start($, on, store, false)
+  await s.end('resume', () => { store.headsups = { waiting: [NOTE], done: [] } })
+  expect(store.headsups.waiting).toEqual([NOTE])
 })
 
 test('a Send made in the new session before the restore is kept', async ($, on) => {

@@ -20,7 +20,7 @@ The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has up
 
 If you clear the prompt box instead of sending it, the notes stay in the list, and `h` puts them in again. Pressing `h` while the box already holds a note does not add it twice.
 
-The notes go in as quoted data, each in its own `<heads-up>` block. The text before them tells Claude that the notes are information, not instructions, and to ask before anything that deletes, publishes, sends, installs or changes settings. In the copy that goes into a block, the mod removes characters that draw as nothing and turns full-width look-alikes of `<` and `>` into the plain ones, then removes any text that could open or close a block early, spaced or not. The list and the panel keep each note as the side agent wrote it.
+The notes go in as quoted data, each in its own `<heads-up>` block. The text before them tells Claude that the notes are information, not instructions, and to ask before anything that deletes, publishes, sends, installs or changes settings. In the copy that goes into a block, the mod removes characters that draw as nothing and turns full-width look-alikes of `<` and `>` into the plain ones, then removes any text that could open or close a block early: spaced, split by an underscore, or joined by a Unicode hyphen or minus sign. A tag spelled with look-alike letters from another alphabet, such as a Cyrillic e, is not removed. Each block's opening tag carries an id made from the note's line, and the mod finds a sent note by that tag, never by searching for its words. The list and the panel keep each note as the side agent wrote it.
 
 Press `x` to dismiss every waiting note. A note you send from the side agent's band leaves the list too. If the prompt box cannot take the notes, for example while a dialog is open, they stay in the list and a notice says why.
 
@@ -59,7 +59,7 @@ If Claude Code refuses to save the Send, the HUD shows "Not sent." and the reaso
 
 ## What `/clear` and `/resume` keep
 
-Claude Code empties a session's state at `/clear` and starts no new session for the mod. Whether it also empties state at `/resume` was not tested, so the mod does not rely on it: at `/resume` it drops the old Send and the old heads-ups itself, and leaves alone anything the new session made. The mod reads its lists as the old session ends and writes them back once the new one runs. Nothing goes to a file.
+Claude Code empties a session's state at `/clear` and starts no new session for the mod. Whether it also empties state at `/resume` was not tested, so the mod does not rely on it: it drops the old Send at `/clear` and `/resume`, and the old heads-ups at `/resume`, itself, as the old session ends and before Claude Code acts, so nothing the new session makes is touched. The mod reads its lists as the old session ends and writes them back once the new one runs. Nothing goes to a file.
 
 | What | After `/clear` | After `/resume` |
 | --- | --- | --- |
@@ -176,7 +176,7 @@ These are not verified:
 - Memory in a live interactive session. Its tests run against the test kit, and the probe ran headless.
 - Memory after a real compaction, from `/compact` or an automatic one. That the lines survive follows from the system prompt not being compacted; it was not observed.
 - Memory after resuming the session in a new Claude Code process.
-- The carry in a live interactive session. Headless probes on 2.1.326 showed that state can be read as a session ends at `/clear` and written once the new one runs, twice each. An interactive `/clear` and `/resume` were not tried, and whether `/resume` empties state was not probed. The tests cover both cases: a resume that empties state and one that leaves it in place give the same result.
+- The carry in a live interactive session. Headless probes on 2.1.326 showed that state can be read as a session ends at `/clear` and written once the new one runs, twice each. An interactive `/clear` and `/resume` were not tried, and whether `/resume` empties state was not probed. The tests cover both cases: a resume that empties state and one that leaves it in place give the same result. The drop is a state write as the session ends; the headless probes showed state can be read there, and a write there was not probed.
 - That the model read the lines. The status rests on the mod's hook adding them to the memory section, which is not proof that the model read them.
 - That no other plugin changes the memory section after this mod's hook. A plugin whose hook runs outside this one can replace the section, and the status would still say the lines are in Claude's instructions.
 - Which conversation the hook ran for. Claude Code does not say whether a section was built for the main conversation or a subagent, so a subagent started after a Send could turn the status before the main conversation picks the lines up.
