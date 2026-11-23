@@ -73,7 +73,22 @@ MUTANTS = {
     "status colour comes from the status": [("color={said.tone ? TONE[said.tone] : undefined}", "color={snap ? TONE.remember : undefined}")],
     "a quiet status is dimmed": [("dimColor={!said.tone}", "dimColor={false}")],
     # The strip after Watch left
-    "strip keys are m and l": [("k: 'ml'[n - 1]!", "k: 'mw'[n - 1]!")],
+    "strip keys are m and l": [("toggle(2, 'l', 'log')", "toggle(2, 'w', 'log')")],
+    # Heads-ups from the built-in side agent
+    "only a built-in's store write counts": [("next.origin.tier !== 'builtin' || ", "")],
+    "only the side agent's store write counts": [("next.origin.plugin !== SIDE || ", "")],
+    "only this session's offer": [("s => isRecord(s) && s.id === sessionId", "s => isRecord(s)")],
+    "a key must be a turn id": [("|| !KEY.test(row.offeredTurn)) return null", ") return null")],
+    "only an offer view is taken": [("v.kind !== 'offer' || ", "")],
+    "a listed note is taken once": [("if (now.list.some(n => n.key === found.key)) return now", "if (false) return now")],
+    "one own turn until the person speaks": [("free: now.free && !own }", "free: now.free }")],
+    "the person's message frees the turn": [("return { free: true, list:", "return { free: now.free, list:")],
+    "a slash command carries nothing": [(" || e.text.startsWith('/')) return next(e)", ") return next(e)")],
+    "a refused turn leaves the note waiting": [("if (sent.drop !== undefined) {", "if (false) {")],
+    "waiting notes ride as context": [("...waiting.map(quoted)] })", "] })")],
+    "only a listed note's row leaves the band": [("r.plugin === SIDE && lines.some(l => text.includes(l))", "r.plugin === SIDE")],
+    "brackets and separators are escaped": [(r"/[<>&`\u0085\u2028\u2029]/g", "/[&]/g")],
+    "hidden characters go before NFKC": [(r"const once = text.replace(/\s/g, ' ').replace(HIDDEN, '')", r"const once = text.replace(/\s/g, ' ')")],
     "strip opens the Log at 2": [("st.expand === 2 ? log", "st.expand === 3 ? log")],
 }
 
