@@ -19,10 +19,10 @@ export type Delivered = { at: number; since: number }
 /** The pane's own state: where the focus ring is (0 nothing, 1 the field, 2 a button), the open strip section (0 none, 1 memory, 2 log), why the last Send was not saved ('' when it was) with the lines it carried, and the Send (its `at`) a main-loop turn ran without. */
 export type View = { ring: 0 | 1 | 2; expand: number; failed: string; refusedLines?: string[]; missed?: number }
 
-/** A heads-up from the You should know side agent: its one-line note and the longer details. */
-export type HeadsUp = { line: string; explanation: string }
+/** A heads-up from the You should know side agent: its key (the offeredTurn written with it), its one-line note and the longer details. */
+export type HeadsUp = { key: string; line: string; explanation: string }
 
-/** Heads-ups still waiting, and the lines already handed, sent or dismissed this session. */
+/** Heads-ups still waiting, and the keys (offeredTurn) already sent or dismissed this session. */
 export type HeadsUps = { waiting: HeadsUp[]; done: string[] }
 
 declare module 'claude-code' {

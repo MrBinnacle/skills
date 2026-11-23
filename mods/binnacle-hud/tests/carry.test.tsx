@@ -10,7 +10,8 @@ const NOW = Date.UTC(2026, 10, 17, 20, 0)
 const AT = '2026-11-17T19:00:00.000Z'
 const THOUGHT = { text: 'rename the flag', at: AT, from: 'terminal' }
 const LINE = { id: 'm1', text: 'ship slice 1' }
-const NOTE = { line: 'Your release pin still names v4.1.1.', explanation: '' }
+const EARLIER = '00000000-0000-4000-8000-0000000000e0'
+const NOTE = { key: '00000000-0000-4000-8000-000000000001', line: 'Your release pin still names v4.1.1.', explanation: '' }
 const SNAP = { lines: ['ship slice 1'], at: NOW - 1000 }
 
 const seeded = () => ({
@@ -20,7 +21,7 @@ const seeded = () => ({
   typed: 'half a thought',
   approved: SNAP,
   delivered: { at: SNAP.at, since: SNAP.at },
-  headsups: { waiting: [NOTE], done: ['an earlier note'] },
+  headsups: { waiting: [NOTE], done: [EARLIER] },
   view: { ring: 0, expand: 0, failed: '', missed: SNAP.at },
 })
 
@@ -55,7 +56,7 @@ test('after /clear the heads-ups, thoughts, failed keeps, draft and field come b
   expect(store.failed).toEqual([{ id: 'f1', text: 'a keep that failed' }])
   expect(store.memory).toEqual([LINE])
   expect(store.typed).toBe('half a thought')
-  expect(store.headsups).toEqual({ waiting: [NOTE], done: ['an earlier note'] })
+  expect(store.headsups).toEqual({ waiting: [NOTE], done: [EARLIER] })
   expect(store.approved).toBeUndefined()
   expect(store.delivered).toBeUndefined()
   expect(store.view).toBeUndefined()
@@ -88,7 +89,7 @@ test('the restore merges into what the new session already holds, so nothing is 
   const fresh = { text: 'a thought after the clear', at: '2026-11-17T20:00:01.000Z', from: 'phone' }
   store.log = [fresh]
   store.typed = 'new typing'
-  store.headsups = { waiting: [{ line: 'A newer note.', explanation: '' }], done: [] }
+  store.headsups = { waiting: [{ key: '00000000-0000-4000-8000-000000000002', line: 'A newer note.', explanation: '' }], done: [] }
   await s.end('clear') // a second end before the first restore ran
   expect(store.log).toEqual([THOUGHT, fresh])
   expect(store.typed).toBe('new typing')
@@ -113,9 +114,9 @@ test('text typed in the new session before the restore lands is kept', async ($,
 test('a heads-up sent in the new session before the restore lands is not listed again', async ($, on) => {
   const store: Record<string, any> = seeded()
   const s = await start($, on, store)
-  await s.end('clear', () => { store.headsups = { waiting: [], done: [NOTE.line] } })
+  await s.end('clear', () => { store.headsups = { waiting: [], done: [NOTE.key] } })
   expect(store.headsups.waiting).toEqual([])
-  expect(store.headsups.done).toEqual(['an earlier note', NOTE.line])
+  expect(store.headsups.done).toEqual([EARLIER, NOTE.key])
 })
 
 // Whether /resume resets session state was not probed; if it does not, nothing doubles.
@@ -133,11 +134,11 @@ test('an end that leaves state in place doubles nothing', async ($, on) => {
 test('a resume that leaves state in place still drops the old Send and heads-ups, and keeps new ones', async ($, on) => {
   const store: Record<string, any> = seeded()
   const s = await start($, on, store, false)
-  await s.end('resume', () => { store.headsups = { ...store.headsups, waiting: [...store.headsups.waiting, { line: 'A note from the new conversation.', explanation: '' }] } })
+  await s.end('resume', () => { store.headsups = { ...store.headsups, waiting: [...store.headsups.waiting, { key: '00000000-0000-4000-8000-000000000003', line: 'A note from the new conversation.', explanation: '' }] } })
   expect(store.approved).toBe(null)
   expect(store.delivered).toBe(null)
   expect(store.view.missed).toBe(undefined)
-  expect(store.headsups.waiting).toEqual([{ line: 'A note from the new conversation.', explanation: '' }])
+  expect(store.headsups.waiting).toEqual([{ key: '00000000-0000-4000-8000-000000000003', line: 'A note from the new conversation.', explanation: '' }])
   expect(store.headsups.done).toEqual([])
 })
 
