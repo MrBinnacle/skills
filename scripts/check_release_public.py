@@ -6,14 +6,16 @@ each gap, and exits 0 only when every public surface carries the release in pack
 
 - the tag v<version> exists on origin and points at a commit on main;
 - every v* tag has a published GitHub Release, and v<version> is the one marked Latest;
-- the newest Pages deploy on main succeeded at or after the last commit that pages.yml deploys on.
+- the newest Pages deploy on main succeeded at or after the last commit that pages.yml deploys on;
+- the repository social preview GitHub serves is byte for byte assets/social-preview.png.
 
 The marketplace pin has its own check, scripts/check_marketplace_pin.py. The skills.sh
-listing and the repository social preview have no API this script can read, so it prints
-them as manual steps on every run.
+listing has no API this script can read, so it prints it as a manual step on every run.
 """
+import hashlib
 import json
 import subprocess
+import urllib.request
 import sys
 from pathlib import Path
 from typing import Callable
@@ -21,6 +23,8 @@ from typing import Callable
 ROOT = Path(__file__).resolve().parent.parent
 REPO = "MrBinnacle/skills"
 Run = Callable[[list[str]], str]
+Fetch = Callable[[str], bytes]
+PREVIEW = ROOT / "assets" / "social-preview.png"
 
 # The paths .github/workflows/pages.yml deploys on. Keep in step with its on.push.paths.
 PAGES_PATHS = ["site", "assets/favicon.svg", "assets/social-preview.png", ".github/workflows/pages.yml"]
@@ -28,7 +32,6 @@ PAGES_PATHS = ["site", "assets/favicon.svg", "assets/social-preview.png", ".gith
 MANUAL = [
     "Compare https://www.skills.sh/MrBinnacle/skills with the folders under skills/<bucket>/; "
     "give each stale name a row in RETIRED.md (AGENTS.md, after the release merges).",
-    "Check the repository social preview in Settings, General, Social preview (#481).",
 ]
 
 
@@ -52,7 +55,12 @@ def tags(run: Run) -> dict[str, str]:
     return out
 
 
-def check(version: str, run: Run) -> list[str]:
+def fetch(url: str) -> bytes:
+    with urllib.request.urlopen(url, timeout=30) as resp:
+        return resp.read()
+
+
+def check(version: str, run: Run, get: Fetch) -> list[str]:
     gaps: list[str] = []
     tag = f"v{version}"
     found = tags(run)
@@ -74,7 +82,23 @@ def check(version: str, run: Run) -> list[str]:
     latest = [n for n, r in releases.items() if r.get("isLatest")]
     if tag in found and latest != [tag]:
         gaps.append(f"GitHub marks {latest[0] if latest else 'no release'} as Latest, not {tag}: gh release edit {tag} --latest.")
-    return gaps + site_gaps(run)
+    return gaps + site_gaps(run) + preview_gaps(run, get)
+
+
+def preview_gaps(run: Run, get: Fetch) -> list[str]:
+    """GitHub serves the uploaded social preview unchanged, so its bytes must equal the asset's."""
+    repo = json.loads(run(["gh", "api", "graphql", "-f", "query={repository(owner:\"MrBinnacle\",name:\"skills\")"
+                           "{openGraphImageUrl usesCustomOpenGraphImage}}"]))["data"]["repository"]
+    fix = "upload assets/social-preview.png in Settings, General, Social preview."
+    if not repo["usesCustomOpenGraphImage"]:
+        return [f"GitHub generates the social preview instead of serving ours: {fix}"]
+    try:
+        served = hashlib.sha256(get(repo["openGraphImageUrl"])).hexdigest()
+    except OSError as err:  # urllib's URLError and HTTPError are OSErrors
+        return [f"Could not download the social preview GitHub serves ({err}): run the check again."]
+    if served != hashlib.sha256(PREVIEW.read_bytes()).hexdigest():
+        return [f"The social preview GitHub serves ({served[:12]}) is not assets/social-preview.png: {fix}"]
+    return []
 
 
 def site_gaps(run: Run) -> list[str]:
@@ -98,7 +122,7 @@ def site_gaps(run: Run) -> list[str]:
 def main() -> int:
     version = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
     sh(["git", "fetch", "--quiet", "--tags", "origin"])  # a stale origin/main reads a new tag as off main
-    gaps = check(version, sh)
+    gaps = check(version, sh, fetch)
     for gap in gaps:
         print("FAIL ", gap)
     for step in MANUAL:
