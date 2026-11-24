@@ -85,6 +85,16 @@ def make_root(readme: str, receipts: dict[str, str]) -> Path:
     return root
 
 
+def listed_backwards(root: Path) -> list[str]:
+    """Run the check while the disk lists files in reverse name order, as ext4 may."""
+    real = Path.glob
+    Path.glob = lambda self, pattern: reversed(sorted(real(self, pattern)))
+    try:
+        return gaps(root=root)
+    finally:
+        Path.glob = real
+
+
 def gaps(root: Path | None = None, **change) -> list[str]:
     state = {**GOOD, **change}
 
@@ -164,9 +174,14 @@ CASES = [
                                      "2026-01-01-pi-install.md": RECEIPT_NEW})),
      "The newest Pi install receipt tested v1.0.0, but the README sends Pi users to v1.1.0: " + PI_FIX),
     ("a Pi gap is reported beside the other gaps",
-     gaps(root=make_root(README_PI, {"2026-01-01-pi-install.md": RECEIPT_OLD}), on_main={"aaa"}),
+     gaps(root=make_root(README_PI, {"2026-01-01-pi-install.md": RECEIPT_OLD}), on_main={"aaa"},
+          served=b"old image"),
      "names bbb, which is not on main",
+     "The social preview GitHub serves (fbb22b3adc86) is not assets/social-preview.png",
      "The newest Pi install receipt tested v1.0.0, but the README sends Pi users to v1.1.0: " + PI_FIX),
+    ("the newest receipt wins whatever order the disk lists files in",
+     listed_backwards(make_root(README_PI, {"2026-01-01-pi-install.md": RECEIPT_OLD,
+                                           "2026-01-02-pi-install.md": RECEIPT_NEW}))),
     ("a newest receipt at the pin, beside other files, is no gap",
      gaps(root=make_root(README_PI, {"2026-01-01-pi-install.md": RECEIPT_OLD,
                                      "2026-01-02-pi-install.md": RECEIPT_NEW,

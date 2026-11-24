@@ -64,7 +64,7 @@ def fetch(url: str) -> bytes:
         return resp.read()
 
 
-def check(version: str, run: Run, get: Fetch, root: Path) -> list[str]:
+def check(version: str, run: Run, get: Fetch, root: Path = ROOT) -> list[str]:
     gaps: list[str] = []
     tag = f"v{version}"
     found = tags(run)
@@ -151,7 +151,7 @@ def site_gaps(run: Run) -> list[str]:
 def main() -> int:
     version = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
     sh(["git", "fetch", "--quiet", "--tags", "origin"])  # a stale origin/main reads a new tag as off main
-    gaps = check(version, sh, fetch, ROOT)
+    gaps = check(version, sh, fetch)
     for gap in gaps:
         print("FAIL ", gap)
     for step in MANUAL:
