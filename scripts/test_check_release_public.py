@@ -113,6 +113,13 @@ PI_FIX = ("run the Pi install receipt at v1.1.0 and save it as docs/product/rece
           "(see the newest receipt for the steps).")
 
 
+def by_default() -> list[str]:
+    """check() with no root must read this repository, the same as check() given ROOT."""
+    get = lambda url: GOOD["served"]
+    same = check("1.1.0", fake(dict(GOOD)), get) == check("1.1.0", fake(dict(GOOD)), get, ROOT)
+    return [] if same else ["check() without a root reads another tree"]
+
+
 def path_drift() -> list[str]:
     """Each path pages.yml's on.push.paths lists that PAGES_PATHS lacks, and the reverse."""
     lines = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8").splitlines()
@@ -186,6 +193,9 @@ CASES = [
      gaps(root=make_root(README_PI, {"2026-01-01-pi-install.md": RECEIPT_OLD,
                                      "2026-01-02-pi-install.md": RECEIPT_NEW,
                                      "2026-01-03-notes.md": RECEIPT_OLD}))),
+    ("check() reads this repository when given no root", by_default()),
+    ("a receipt and README in UTF-8 are read as UTF-8",
+     gaps(root=make_root(README_PI + "\u00c1\n", {"2026-01-01-pi-install.md": RECEIPT_NEW + " \u00c1"}))),
 ]
 
 
