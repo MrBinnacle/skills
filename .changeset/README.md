@@ -47,6 +47,11 @@ every commit you want credited first. `release_gate.py --write` stamps every plu
 version in `.claude-plugin/marketplace.json` from `package.json` and reports release fitness
 (every stale surface in one run). Commit the result and merge only when the gate is green.
 
+Before you commit, read the new `CHANGELOG.md` section as a reader outside the repository
+would, because each entry is copied verbatim from its changeset. Check that each "Action for
+installed users" line is true for this release, that no entry promises "the next release",
+and that each entry describes its change rather than giving a command.
+
 **After the bump merges**, two workflows finish the release with `GITHUB_TOKEN` (#517). Each
 opens a pull request; a maintainer selects **Approve workflows to run** on it, then merges it.
 
@@ -61,8 +66,9 @@ opens a pull request; a maintainer selects **Approve workflows to run** on it, t
    push run at the new version, and `tests.yml` stays red on `main` until the pin lands. Until
    then the `Install form` check warns rather than fails while the receipt lags.
 
-The workflows need the repository setting "Allow GitHub Actions to create and approve pull
-requests" turned on. To run the receipt step by hand:
+Both workflows need the repository setting "Allow GitHub Actions to create and approve pull
+requests" turned on. Since #630 (2026-10-24) only `pages.yml` and `release-pin.yml` are
+tracked, so step 2 does not run on GitHub. Run the receipt step by hand:
 
 ```bash
 python scripts/refresh_install_receipt.py          # print the diff
@@ -71,3 +77,17 @@ python scripts/refresh_install_receipt.py --write  # apply it
 
 It cites that run's id and date, and needs `gh` authenticated against the repository.
 Open the result as its own pull request.
+
+**Last, check what the public sees.** After the tag is pushed, publish the release on GitHub
+from its `CHANGELOG.md` section, then run:
+
+```bash
+gh release create v<version> --title v<version> --notes-file <the section> --latest
+python scripts/check_release_public.py
+```
+
+The check fails when the tag is missing or off `main`, when any `v*` tag has no published
+GitHub Release, when another release is marked Latest, or when the site's last change is not
+deployed. Each failure names its fix. It also prints the two checks it cannot make: the
+skills.sh listing and the repository social preview. The release is done when it prints
+`PASS` and those two are checked.
