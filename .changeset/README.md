@@ -47,27 +47,43 @@ every commit you want credited first. `release_gate.py --write` stamps every plu
 version in `.claude-plugin/marketplace.json` from `package.json` and reports release fitness
 (every stale surface in one run). Commit the result and merge only when the gate is green.
 
-**After the bump merges**, two workflows finish the release with `GITHUB_TOKEN` (#517). Each
-opens a pull request; a maintainer selects **Approve workflows to run** on it, then merges it.
+Before you commit, read the new `CHANGELOG.md` section as a reader outside the repository
+would, because each entry is copied verbatim from its changeset. Check that each "Action for
+installed users" line is true for this release, that no entry promises "the next release",
+and that each entry describes its change rather than giving a command.
 
-1. `release-pin.yml` runs on the push that changes `package.json` and opens the marketplace pin
-   PR (`python scripts/check_marketplace_pin.py --write`). The release gate is red on `main` and
-   on every PR until that PR merges. Tag the release squash commit `v<version>` by hand as well,
-   because no workflow pushes a tag. The pin check verifies the tag only once it resolves, so the
-   tag and the pin merge can land in either order ([AGENTS.md](../AGENTS.md) step 4).
-2. `release-receipt.yml` refreshes the install receipt in `docs/product/runtime-delivery-matrix.md` and opens it as its own PR. It
-   runs after each passing push run of `tests.yml` on `main`, and does nothing while the
-   receipt is current. It waits for the pin merge because the receipt cites the first passing
-   push run at the new version, and `tests.yml` stays red on `main` until the pin lands. Until
-   then the `Install form` check warns rather than fails while the receipt lags.
+**After the bump merges**, finish the release in two steps.
 
-The workflows need the repository setting "Allow GitHub Actions to create and approve pull
-requests" turned on. To run the receipt step by hand:
+1. Merge the pin pull request. `release-pin.yml` runs on the push that changes `package.json`
+   and opens it with `GITHUB_TOKEN` (#517), which needs the repository setting "Allow GitHub
+   Actions to create and approve pull requests". Select **Approve workflows to run** on it, then
+   merge it. The release gate is red on `main` and on every PR until it merges. Tag the release
+   squash commit `v<version>` as well, because no workflow pushes a tag. The pin check verifies
+   the tag only once it resolves, so the tag and the pin merge can land in either order
+   ([AGENTS.md](../AGENTS.md) step 4).
+2. Refresh the install receipt in `docs/product/runtime-delivery-matrix.md`. The receipt cites
+   the first passing push run of `tests.yml` on `main` at the new version. `tests.yml` and
+   `release-receipt.yml` have been untracked since #630 (2026-10-24), so no such run exists, and
+   the script below exits 1 with `no passing push run of tests.yml on main`. Record that line
+   on the release pull request until #690 brings a hosted test run back. Then run:
 
 ```bash
 python scripts/refresh_install_receipt.py          # print the diff
 python scripts/refresh_install_receipt.py --write  # apply it
 ```
 
-It cites that run's id and date, and needs `gh` authenticated against the repository.
-Open the result as its own pull request.
+It needs `gh` authenticated against the repository. Open the result as its own pull request.
+
+**Last, check what the public sees.** After the tag is pushed, publish the release on GitHub
+from its `CHANGELOG.md` section, then run:
+
+```bash
+gh release create v<version> --title v<version> --notes-file <the section> --latest
+python scripts/check_release_public.py
+```
+
+The check fails when the tag is missing or off `main`, when any `v*` tag has no published
+GitHub Release, when another release is marked Latest, or when the newest Pages deploy is older
+than the last change it deploys. Each failure names its fix. It also prints the two checks it cannot make: the
+skills.sh listing and the repository social preview. The release is done when it prints
+`PASS` and those two are checked.
