@@ -1,0 +1,5 @@
+---
+"mrbinnacle-skills": patch
+---
+
+The landing page gets a second pass from the design critique of 2026-11-24, which scored it 17 of 24. On a phone the demo picture's text rendered about 3px high, so below 768px the page now shows a link that opens the picture full size, and wider screens keep the picture. The demo instructions on the page and in `README.md` now start with `git clone https://github.com/MrBinnacle/skills.git` and `cd skills`, because the demo runs from a clone. The header carries a GitHub link, "Pi" links to pi.dev, the page ends with the README's Contribute paragraph, and a click on a command selects all of it. Body text lines now run at most about 80 characters at 1440px, down from 88 to 97. The footer drops the skill-harness link, and "How it is kept" ends with a link to the README. `scripts/validate_site_links.py` now checks `src` as well as `href`, and resolves a relative path through the `cp` lines in `.github/workflows/pages.yml`, so a picture the deploy would not publish fails the check. The docstring of `scripts/check_release_public.py` now says its Pi check compares pins, not whether the recorded install passed.

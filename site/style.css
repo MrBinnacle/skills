@@ -95,7 +95,7 @@
   --s6: 48px;
   --s7: 96px;
 
-  --measure: 70ch;
+  --measure: 58ch;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -246,7 +246,8 @@ code {
   vertical-align: -0.2em;
 }
 
-/* Header: the lockup, no navigation, one hairline below */
+/* Header: the lockup, one repository link at the row's end, one hairline below.
+   Below about 430px the link cannot fit beside the lockup and wraps to its own row. */
 
 .site-head {
   border-bottom: 1px solid var(--line);
@@ -255,7 +256,13 @@ code {
 .site-head-row {
   min-height: 56px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  column-gap: var(--s4);
+}
+
+.head-link {
+  margin-inline-start: auto;
 }
 
 .lockup {
@@ -335,11 +342,16 @@ code {
   color: var(--muted);
 }
 
+.runs a {
+  color: var(--muted);
+}
+
 /* Regions: one hairline above each, more space above a heading than below */
 
 .install,
 .demo,
-.kept {
+.kept,
+.contribute {
   border-top: 1px solid var(--line);
   padding-block: var(--s6);
 }
@@ -378,6 +390,9 @@ code {
   font-size: 1rem;
   line-height: 1.6;
   overflow-wrap: anywhere;
+  /* One click selects the whole command for copying. */
+  -webkit-user-select: all;
+  user-select: all;
 }
 
 /* The demo picture: the rendered run at the column's width, its limits below it */
@@ -386,11 +401,25 @@ code {
   margin: var(--s4) 0 0;
 }
 
-/* The picture links to its full-size file: at phone width its text is too small to read. */
+/* Below 768px the picture's text is too small to read, so phones get a link to
+   the full-size file instead of the picture. */
 .demo .shot {
-  display: block;
+  display: none;
   padding-block: 0;
   margin-block: 0;
+}
+
+.shot-link {
+  margin-bottom: var(--s2);
+}
+
+@media (min-width: 768px) {
+  .demo .shot {
+    display: block;
+  }
+  .shot-link {
+    display: none;
+  }
 }
 
 .demo img {
@@ -431,7 +460,8 @@ code {
 }
 
 .isnt a,
-.foot li a {
+.foot li a,
+.head-link {
   display: inline-flex;
   align-items: center;
   min-height: 44px;

@@ -18,18 +18,65 @@ sys.path.insert(0, str(SCRIPT_DIR))
 import validate_site_links as sl  # noqa: E402
 
 ROOT = SCRIPT_DIR.parent
+DEMO = "mechanisms/verify-gate/demo.svg"
+DEMO_CP = "cp mechanisms/verify-gate/demo.svg _site/assets/demo.svg"
+UNRESOLVED = "not in site/, not a root assets/ file, and no pages.yml cp line copies an existing file there"
 
 
-def _copy_with_href(href: str) -> Path:
+def _copy_with(snippet: str) -> Path:
     tmp = Path(tempfile.mkdtemp())
-    for name in ("README.md", "CATALOG.md"):
+    for name in ("README.md", "CATALOG.md", sl.PAGES_WORKFLOW, DEMO):
+        (tmp / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / name, tmp / name)
     shutil.copytree(ROOT / "site", tmp / "site")
     shutil.copytree(ROOT / "assets", tmp / "assets")
     page = tmp / "site" / "index.html"
     html = page.read_text(encoding="utf-8")
-    page.write_text(html.replace("</main>", f'<a href="{href}">x</a></main>'), encoding="utf-8", newline="")
+    page.write_text(html.replace("</main>", f"{snippet}</main>"), encoding="utf-8", newline="")
     return tmp
+
+
+def _copy_with_href(href: str) -> Path:
+    return _copy_with(f'<a href="{href}">x</a>')
+
+
+def _drop_demo_cp(tmp: Path) -> None:
+    workflow = tmp / sl.PAGES_WORKFLOW
+    text = workflow.read_text(encoding="utf-8")
+    workflow.write_text("\n".join(line for line in text.splitlines() if line.strip() != DEMO_CP), encoding="utf-8")
+
+
+def src_failures() -> list[str]:
+    """Each src form resolves the way pages.yml deploys it, and each unresolved form is refused whole."""
+    failures: list[str] = []
+    if 'src="assets/demo.svg"' not in (ROOT / "site" / "index.html").read_text(encoding="utf-8"):
+        failures.append("live page no longer carries the demo src; the demo cases prove nothing")
+    if DEMO_CP not in (ROOT / sl.PAGES_WORKFLOW).read_text(encoding="utf-8"):
+        failures.append("pages.yml no longer carries the demo cp line; the demo cases prove nothing")
+
+    cases = {
+        "missing src": ('<img src="assets/no-such.svg" alt="">', None, [f"assets/no-such.svg: {UNRESOLVED}"]),
+        "demo src copied by pages.yml": ("", None, []),
+        "demo src without its cp line": ("", _drop_demo_cp, [f"assets/demo.svg: {UNRESOLVED}"]),
+        "demo src whose cp source is gone": ("", lambda tmp: (tmp / DEMO).unlink(), [f"assets/demo.svg: {UNRESOLVED}"]),
+    }
+    for label, (snippet, mutate, want) in cases.items():
+        tmp = _copy_with(snippet)
+        try:
+            if mutate:
+                mutate(tmp)
+            # The fixture copies only a few repository files, so its repository links fail; local refs are the subject.
+            got = [error for error in sl.check(tmp) if not error.startswith(sl.REPO_URL)]
+            if got != want:
+                failures.append(f"{label}: want {want}, got {got}")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    workflow = "cp -r site/. _site/\n  cp x/a.svg b.png _site/assets/\n  cp m/d.svg _site/assets/demo.svg\ncp a b\n"
+    want_copies = {"assets/a.svg": "x/a.svg", "assets/b.png": "b.png", "assets/demo.svg": "m/d.svg"}
+    if sl.deploy_copies(workflow) != want_copies:
+        failures.append(f"deploy_copies: want {want_copies}, got {sl.deploy_copies(workflow)}")
+    return failures
 
 
 INLINE_MARGIN = re.compile(r"^margin(-inline(-start|-end)?|-left|-right)?$")
@@ -60,7 +107,7 @@ def footer_column_failures() -> list[str]:
 
 
 def main() -> int:
-    failures: list[str] = footer_column_failures()
+    failures: list[str] = footer_column_failures() + src_failures()
 
     if sl.check(ROOT):
         failures.append(f"live site should pass, got {sl.check(ROOT)}")
@@ -89,7 +136,7 @@ def main() -> int:
         print(f"FAIL: {failure}")
     if failures:
         return 1
-    print(f"PASS: site link suite, {len(broken) + 5} checks")
+    print(f"PASS: site link suite, {len(broken) + 10} checks")
     return 0
 
 

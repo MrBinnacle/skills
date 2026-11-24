@@ -21,9 +21,11 @@ Each of these happened in real work with a coding agent. This repository is what
 
 ## See a guard fire
 
-With Pi installed, run this from the repository root. It needs no API key and takes a few seconds.
+With Pi installed, clone the repository and run the demo from its root. It needs no API key and takes a few seconds.
 
 ```sh
+git clone https://github.com/MrBinnacle/skills.git
+cd skills
 node mechanisms/verify-gate/demo.mjs
 ```
 
