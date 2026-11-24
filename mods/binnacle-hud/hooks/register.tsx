@@ -243,18 +243,20 @@ export const register: Register = (on, options) => {
   })
 
   // A note that could not take a turn of its own goes with the person's next message. A slash command starts no
-  // model turn, so it carries nothing.
+  // model turn, so it carries nothing. The notes are marked sent, and the turn freed, only once the message entered:
+  // a message a hook beneath drops leaves them waiting. A message that changes nothing writes nothing.
   on('prompt.submit', async ($, e, next) => {
     const from = e.origin?.kind
     if ((from !== 'composer' && from !== 'bridge') || e.text.startsWith('/')) return next(e)
-    let waiting: Note[] = []
-    await update($, notes, now => {
-      waiting = now.list.filter(n => n.how === 'waiting')
-      if (!waiting.length && now.free) return now
-      return { free: true, list: now.list.map(n => n.how === 'waiting' ? { ...n, how: 'with your message' as const } : n) }
-    }).catch(() => undefined)
-    if (!waiting.length) return next(e)
-    return next({ ...e, context: [...(e.context ?? []), ...waiting.map(quoted)] })
+    const now = await read($, notes)
+    const waiting = now.list.filter(n => n.how === 'waiting')
+    if (!waiting.length && now.free) return next(e)
+    const result = await next(waiting.length ? { ...e, context: [...(e.context ?? []), ...waiting.map(quoted)] } : e)
+    if (result.drop !== undefined) return result
+    const keys = waiting.map(n => n.key)
+    await update($, notes, cur => ({ free: true, list: cur.list.map(n => keys.includes(n.key) && n.how === 'waiting' ? { ...n, how: 'with your message' as const } : n) }))
+      .catch(() => undefined)
+    return result
   })
 
   // Memory joins Claude Code's own `memory` section, which the full and the

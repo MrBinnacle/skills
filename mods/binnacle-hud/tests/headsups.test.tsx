@@ -44,10 +44,11 @@ const pane = (placement: 'dock' | 'inline' = 'dock') => ({
   props: { title: 'Binnacle', isFocused: true, bodyColumns: placement === 'dock' ? 46 : 90, placement, scroll: { offset: 0, bodyRows: 32 }, view: {} },
 }) as const
 
-type World = { store: Record<string, any>; sent: string[]; carried: string[][]; left: string[][] }
+type World = { store: Record<string, any>; sent: string[]; carried: string[][]; left: string[][]; writes: string[] }
 
-const start = async ($: any, on: any, store: Record<string, any> = {}, opts: { deny?: boolean; written?: string[] } = {}): Promise<World> => {
-  const w: World = { store, sent: [], carried: [], left: [] }
+type Opts = { deny?: boolean; throws?: boolean; dropMessages?: boolean; written?: string[] }
+const start = async ($: any, on: any, store: Record<string, any> = {}, opts: Opts = {}): Promise<World> => {
+  const w: World = { store, sent: [], carried: [], left: [], writes: [] }
   const versions: Record<string, number> = {}
   on('command.register', () => ({ value: undefined }))
   on('command.run', () => ({ text: '' }))
@@ -58,15 +59,22 @@ const start = async ($: any, on: any, store: Record<string, any> = {}, opts: { d
   on('store.set', (_: unknown, e: { key: string }) => { opts.written?.push(e.key); return { value: undefined } })
   on('store.get', () => ({ value: undefined }))
   on('state.get', (_: unknown, e: { key: string }) => ({ value: { value: store[e.key], version: versions[e.key] ?? 0 } }))
-  on('state.set', (_: unknown, e: { key: string; value: unknown }) => {
+  // Honours ifVersion as the engine does, so a write that lost a race is retried.
+  on('state.set', (_: unknown, e: { key: string; value: unknown; ifVersion?: number }) => {
+    if (e.ifVersion !== undefined && e.ifVersion !== (versions[e.key] ?? 0)) return { value: { isSet: false, version: versions[e.key] ?? 0 } }
+    w.writes.push(e.key)
     store[e.key] = e.value
     versions[e.key] = (versions[e.key] ?? 0) + 1
     return { value: { isSet: true, version: versions[e.key] } }
   })
   on('prompt.submit', (_: unknown, e: any) => {
-    if (e.origin?.kind === 'plugin') { w.sent.push(e.text); return opts.deny ? { drop: 'refused here' } : { text: e.text } }
+    if (e.origin?.kind === 'plugin') {
+      w.sent.push(e.text)
+      if (opts.throws) throw new Error('the engine failed')
+      return opts.deny ? { drop: 'refused here' } : { text: e.text }
+    }
     w.carried.push([...(e.context ?? [])])
-    return { text: e.text }
+    return opts.dropMessages ? { drop: 'held by a hook beneath' } : { text: e.text }
   })
   on('ui.render', { component: 'AbovePromptList' }, (_: unknown, e: any) => {
     w.left.push(e.props.rows.map((r: { plugin: string }) => r.plugin))
@@ -298,4 +306,58 @@ test('the list keeps the newest 50 notes', AGENT, async ($, on) => {
   expect(w.store.notes.list.length).toBe(50)
   expect(w.store.notes.list[0].line).toBe('Note 2.')
   expect(w.store.notes.list.at(-1).line).toBe('Note 51.')
+})
+
+test('three racing writes of one offer send it once', AGENT, async ($, on) => {
+  const w = await start($, on)
+  await Promise.all([raise($, 1, 'First note.'), raise($, 1, 'First note.'), raise($, 1, 'First note.')])
+  await settle($)
+  expect(w.sent.length).toBe(1)
+  expect(notes(w)).toEqual([['First note.', 'own turn']])
+})
+
+test('two racing offers take one turn of their own between them', AGENT, async ($, on) => {
+  const w = await start($, on)
+  await Promise.all([raise($, 1, 'First note.'), raise($, 2, 'Second note.')])
+  await settle($)
+  expect(w.sent.length).toBe(1)
+  expect(notes(w).map((n: any) => n[1]).sort()).toEqual(['own turn', 'waiting'])
+})
+
+test('an opened row, its details showing, still leaves the band', async ($, on) => {
+  const w = await start($, on, { notes: { list: [listed(1, 'First note.', 'own turn')], free: false } })
+  const opened = row(SIDE, 'First note.') as any
+  opened.tree.children.push({ type: 'Markdown', props: {}, children: ['The long details.'] })
+  const ui = await $.ui.mount(band([opened]))
+  await ui.drawn()
+  await ui.unmount()
+  expect(w.left).toEqual([[]])
+})
+
+test('a turn that fails to start leaves the note waiting for the next message', AGENT, async ($, on) => {
+  const w = await start($, on, {}, { throws: true })
+  await raise($, 1, 'First note.')
+  await settle($)
+  expect(notes(w)).toEqual([['First note.', 'waiting']])
+})
+
+test('details are cut at 2,000 characters', () => {
+  const found = offerOf([{ id: SESSION, offeredTurn: keyOf(1), view: { kind: 'offer', line: 'x', explanation: 'd'.repeat(2100) } }], SESSION)!
+  expect(found.explanation).toBe('d'.repeat(2000))
+})
+
+test('a message that changes nothing writes nothing', AGENT, async ($, on) => {
+  const w = await start($, on, { notes: { list: [listed(1, 'First note.', 'with your message')], free: true } })
+  await say($, 'hello')
+  await say($, 'again')
+  expect(w.writes.filter(k => k === 'notes')).toEqual([])
+  expect(w.carried).toEqual([[], []])
+})
+
+test('a message a hook beneath drops leaves its notes waiting and the turn taken', AGENT, async ($, on) => {
+  const w = await start($, on, { notes: { list: [listed(1, 'First note.', 'waiting')], free: false } }, { dropMessages: true })
+  await say($, 'hello')
+  expect(w.carried.at(-1)).toEqual([quoted({ line: 'First note.', explanation: '' })])
+  expect(notes(w)).toEqual([['First note.', 'waiting']])
+  expect(w.store.notes.free).toBe(false)
 })

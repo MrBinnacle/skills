@@ -47,7 +47,7 @@ Claude Code's built-in side agent (`cc-plugin-you-should-know`) watches the sess
 2. The row leaves the band above the prompt once its headline is exactly the line of a note listed in the panel. Any other row stays, so a note the mod missed, or a headline the side agent shortened, is still on screen.
 3. The first note since your last message goes to Claude as a turn of its own. Claude Code labels that turn as sent by the mod.
 4. A note that comes before you send another message waits, and goes with your next message as context Claude reads beside it. A slash command carries no note. One note-started turn for each message you send means a note's turn cannot set off a chain of turns.
-5. If Claude Code refuses the note's turn, the note waits for your next message instead.
+5. If Claude Code refuses or fails the note's turn, the note waits for your next message instead. If another mod or Claude Code drops your message, its notes stay waiting for the one after.
 
 The panel lists every note of the session, numbered, with its line. Press `h` to open them: each shows its details, the time it came and how it reached Claude ("sent to Claude", "goes with your next message" or "sent with your message"). The list lasts as long as the session.
 
