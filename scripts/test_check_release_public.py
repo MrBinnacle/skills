@@ -15,7 +15,8 @@ tell apart:
   - an annotated tag is read by the commit it peels to;
   - GitHub serves assets/social-preview.png as the social preview: green;
   - it serves other bytes, or a generated preview: red, naming the upload as the fix;
-  - the served image cannot be downloaded: red, not a traceback.
+  - the served image cannot be downloaded: red, not a traceback;
+  - PAGES_PATHS names exactly the paths pages.yml deploys on, so no deployed file escapes the check.
 
 Run directly:  python scripts/test_check_release_public.py
 """
@@ -27,7 +28,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_release_public import PREVIEW, check  # noqa: E402
+from check_release_public import PAGES_PATHS, PREVIEW, ROOT, check  # noqa: E402
 
 OURS = PREVIEW.read_bytes()
 QUERY = 'query={repository(owner:"MrBinnacle",name:"skills"){openGraphImageUrl usesCustomOpenGraphImage}}'
@@ -82,6 +83,18 @@ def gaps(**change) -> list[str]:
     return check("1.1.0", fake(state), get)
 
 
+def path_drift() -> list[str]:
+    """Each path pages.yml's on.push.paths lists that PAGES_PATHS lacks, and the reverse."""
+    lines = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8").splitlines()
+    start = lines.index("    paths:") + 1
+    listed = []
+    for line in lines[start:]:
+        if not line.startswith("      - "):
+            break
+        listed.append(line[8:].strip('"').removesuffix("/**"))
+    return [f"pages.yml only: {x}" for x in listed if x not in PAGES_PATHS] +            [f"PAGES_PATHS only: {x}" for x in PAGES_PATHS if x not in listed]
+
+
 def expect(name: str, got: list[str], *needles: str) -> bool:
     ok = len(got) == len(needles) and all(any(n in g for g in got) for n in needles)
     print(("PASS " if ok else "FAIL ") + name + ("" if ok else f": {got}"))
@@ -109,6 +122,7 @@ CASES = [
     ("a later successful Pages run deploys the site", gaps(pages=[{"headSha": "later", "conclusion": "success"}])),
     ("nothing to deploy is no gap", gaps(site="", pages=[])),
     ("an undeployed favicon change is a gap", gaps(favicon="fff"), "last change fff is not deployed"),
+    ("the check reads every path pages.yml deploys on", path_drift()),
     ("an annotated tag is read by its commit", gaps(tags="aaa\trefs/tags/v1.0.0\nttt\trefs/tags/v1.1.0\nbbb\trefs/tags/v1.1.0^{}")),
     ("an old social preview is a gap", gaps(served=b"old image"),
      "The social preview GitHub serves (fbb22b3adc86) is not assets/social-preview.png: upload assets/social-preview.png in Settings, General, Social preview."),
