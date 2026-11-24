@@ -72,7 +72,7 @@ def src_failures() -> list[str]:
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
-    workflow = "cp -r site/. _site/\n  cp x/a.svg b.png _site/assets/\n  cp m/d.svg _site/assets/demo.svg\ncp a b\n"
+    workflow = "cp -r site/. _site/\n  cp x/a.svg b.png _site/assets/\n  cp m/d.svg _site/assets/demo.svg\ncp a b\nmv x/c.svg _site/assets/c.svg\n"
     want_copies = {"assets/a.svg": "x/a.svg", "assets/b.png": "b.png", "assets/demo.svg": "m/d.svg"}
     if sl.deploy_copies(workflow) != want_copies:
         failures.append(f"deploy_copies: want {want_copies}, got {sl.deploy_copies(workflow)}")

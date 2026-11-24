@@ -247,7 +247,7 @@ code {
 }
 
 /* Header: the lockup, one repository link at the row's end, one hairline below.
-   Below about 430px the link cannot fit beside the lockup and wraps to its own row. */
+   Below about 482px the link cannot fit beside the lockup and wraps to its own row. */
 
 .site-head {
   border-bottom: 1px solid var(--line);
@@ -279,6 +279,13 @@ code {
   display: none;
   height: 61px;
   width: auto;
+}
+
+/* Once the link wraps, the row no longer centres the lockup in 56px; restore its clear space above. */
+@media (max-width: 481.98px) {
+  .site-head-row {
+    padding-top: var(--s3);
+  }
 }
 
 @media (max-width: 359.98px) {
