@@ -54,7 +54,7 @@ Install `mrbinnacle-orchestration`, `mrbinnacle-meta`, `binnacle-hud` and `tips-
 ### Pi
 
 ```bash
-pi install git:github.com/MrBinnacle/skills@v4.1.1
+pi install git:github.com/MrBinnacle/skills@v4.2.0
 ```
 
 This installs the cards and the four guards. `pi list` confirms the install, and `pi remove` with the same source undoes it.

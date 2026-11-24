@@ -1,6 +1,6 @@
 {
   "name": "mrbinnacle-orchestration",
-  "version": "4.1.1",
+  "version": "4.2.0",
   "description": "Disciplines for multi-agent work - dispatch, joinability, and synthesis across parallel agents.",
   "author": {
     "name": "MrBinnacle",
