@@ -84,6 +84,7 @@ python scripts/check_release_public.py
 
 The check fails when the tag is missing or off `main`, when any `v*` tag has no published
 GitHub Release, when another release is marked Latest, or when the newest Pages deploy is older
-than the last change it deploys. Each failure names its fix. It also prints the two checks it cannot make: the
-skills.sh listing and the repository social preview. The release is done when it prints
-`PASS` and those two are checked.
+than the last change it deploys, or when the repository social preview GitHub serves is not
+`assets/social-preview.png`. Each failure names its fix. It also prints the one check it cannot
+make: the skills.sh listing. The release is done when it prints `PASS` and that listing is
+checked.

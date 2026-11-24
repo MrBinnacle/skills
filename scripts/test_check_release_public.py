@@ -12,7 +12,9 @@ tell apart:
   - a Pages run at a later commit, such as a manual run, deploys the site: green;
   - a repository with nothing pages.yml deploys: green;
   - a change to another path pages.yml deploys, such as the favicon, is not yet deployed: red;
-  - an annotated tag is read by the commit it peels to.
+  - an annotated tag is read by the commit it peels to;
+  - GitHub serves assets/social-preview.png as the social preview: green;
+  - it serves other bytes, or a generated preview: red.
 
 Run directly:  python scripts/test_check_release_public.py
 """
@@ -24,7 +26,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_release_public import check  # noqa: E402
+from check_release_public import PREVIEW, check  # noqa: E402
+
+OURS = PREVIEW.read_bytes()
 
 GOOD = {
     "tags": "aaa\trefs/tags/v1.0.0\nbbb\trefs/tags/v1.1.0",
@@ -35,6 +39,8 @@ GOOD = {
     "favicon": "",
     "pages": [{"headSha": "sss", "conclusion": "success"}],
     "after": {("sss", "sss"), ("sss", "later")},
+    "custom": True,
+    "served": OURS,
 }
 
 
@@ -55,12 +61,16 @@ def fake(state: dict):
             return state["favicon"] if "assets/favicon.svg" in cmd and state["favicon"] else state["site"]
         if cmd[:3] == ["gh", "run", "list"]:
             return json.dumps(state["pages"])
+        if cmd[:3] == ["gh", "api", "graphql"]:
+            return json.dumps({"data": {"repository": {
+                "openGraphImageUrl": "https://og.example/img", "usesCustomOpenGraphImage": state["custom"]}}})
         raise AssertionError(f"unexpected command {cmd}")
     return run
 
 
 def gaps(**change) -> list[str]:
-    return check("1.1.0", fake({**GOOD, **change}))
+    state = {**GOOD, **change}
+    return check("1.1.0", fake(state), lambda url: state["served"])
 
 
 def expect(name: str, got: list[str], *needles: str) -> bool:
@@ -91,6 +101,8 @@ CASES = [
     ("nothing to deploy is no gap", gaps(site="", pages=[])),
     ("an undeployed favicon change is a gap", gaps(favicon="fff"), "last change fff is not deployed"),
     ("an annotated tag is read by its commit", gaps(tags="aaa\trefs/tags/v1.0.0\nttt\trefs/tags/v1.1.0\nbbb\trefs/tags/v1.1.0^{}")),
+    ("an old social preview is a gap", gaps(served=b"old image"), "is not assets/social-preview.png"),
+    ("a generated social preview is a gap", gaps(custom=False), "GitHub generates the social preview"),
 ]
 
 
