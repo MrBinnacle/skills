@@ -77,6 +77,13 @@ function rowText(tree: unknown): string {
   return (Array.isArray(tree.children) ? tree.children : []).map(rowText).join('')
 }
 
+// The row's headline: its words after the tag, "Heads up · <headline>" (2.1.331), or '' when there is no tag.
+export function headline(tree: unknown): string {
+  const text = clean(rowText(tree), 2000)
+  const at = text.indexOf(' · ')
+  return at < 0 ? '' : text.slice(at + 3)
+}
+
 const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, expand: 0, failed: '' } as View)
 
 // Binnacle Board palette, dark (artifact AQriRu2Xwo2ACiR981H89b, via the skills session 2026-11-08).
@@ -227,14 +234,11 @@ export const register: Register = (on, options) => {
     return result
   })
 
-  // The side agent's row leaves the band once its note is listed here. A row the mod has not listed stays, so a
-  // note the mod missed is still seen.
+  // The side agent's row leaves the band once its headline is exactly a listed note's line. Any other row stays, so
+  // a note the mod missed, or a headline the side agent shortened, is still seen.
   on('ui.render', { component: 'AbovePromptList' }, async ($, e, next) => {
     const lines = (await read($, notes)).list.map(n => n.line)
-    const listed = (r: { plugin: string; tree: unknown }) => {
-      const text = clean(rowText(r.tree), 2000)
-      return r.plugin === SIDE && lines.some(l => text.includes(l))
-    }
+    const listed = (r: { plugin: string; tree: unknown }) => r.plugin === SIDE && lines.includes(headline(r.tree))
     return next({ ...e, props: { ...e.props, rows: e.props.rows.filter(r => !listed(r)) } })
   })
 

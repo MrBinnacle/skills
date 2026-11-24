@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { clean, offerOf, quoted } from '../hooks/register'
+import { clean, headline, offerOf, quoted } from '../hooks/register'
 
 // Heads-ups: each note the built-in side agent writes into its store is listed in the pane under the turn id it
 // was written with, its row leaves the band above the prompt, and it reaches Claude with no key press: one note as
@@ -17,7 +17,8 @@ const sideAgent = (name: string, tier: 'builtin' | 'user') => ({
   name, tier,
   register: (on: any) => {
     on('command.run', { command: 'raise' }, async ($: any, e: { args: string }) => {
-      await $.store.set('sessions', JSON.parse(e.args))
+      const v = JSON.parse(e.args)
+      await (Array.isArray(v) ? $.store.set('sessions', v) : $.store.set(v.key, v.value))
       return { text: '' }
     })
   },
@@ -35,7 +36,8 @@ const row = (plugin: string, headline: string) => ({
     { type: 'Button', props: { key: 'Learn more', label: 'Learn more', hotkey: '1' } },
   ] },
 })
-const band = (rows: unknown[]) => ({ plugin: 'binnacle-hud', surface: 'terminal', component: 'AbovePromptList', props: { rows } }) as const
+const band = (rows: any[]) => ({ plugin: 'binnacle-hud', surface: 'terminal', component: 'AbovePromptList',
+  props: { rows, hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 4, bodyColumns: 120, scroll: { offset: 0, bodyRows: 4 }, view: {} } }) as const
 const pane = (placement: 'dock' | 'inline' = 'dock') => ({
   plugin: 'binnacle-hud', component: 'Pane', requestId: 'binnacle-hud', surface: 'terminal',
   viewport: { columns: 160, rows: 40, isFullscreen: true },
@@ -243,4 +245,57 @@ test('the strip counts the notes and opens them with h', { options: { narrow: 's
   await ui.unmount()
   ui = await $.ui.mount(pane('inline'))
   expect(await shown(ui)).toContain('sent to Claude')
+})
+
+test('details are cleaned before they are kept or sent', AGENT, async ($, on) => {
+  const w = await start($, on)
+  await raise($, 1, 'First note.', `Why${ch(0x200b)} it${ch(0x1b)} matters.${ch(0x202e)}`)
+  await settle($)
+  expect(w.store.notes.list[0].explanation).toBe('Why it matters.')
+  expect(w.sent[0]).toContain('"details":"Why it matters."')
+})
+
+test('an offer whose line cleans to nothing is not taken, and a long line is cut at 280', () => {
+  const at = (line: string) => offerOf([{ id: SESSION, offeredTurn: keyOf(1), view: { kind: 'offer', line, explanation: '' } }], SESSION)
+  expect(at(`${ch(0x200b)} ${ch(0x2060)}`)).toBeNull()
+  expect(at('x'.repeat(300))!.line).toBe('x'.repeat(280))
+})
+
+test("only a side-agent row whose headline is exactly a listed line leaves the band", async ($, on) => {
+  const w = await start($, on, { notes: { list: [listed(1, 'Heads up', 'own turn'), listed(2, 'a', 'own turn'), listed(3, 'First note.', 'own turn'), listed(4, 'note the mod', 'own turn')], free: false } })
+  const ui = await $.ui.mount(band([row(SIDE, 'A note the mod missed.'), row('other-mod', 'First note.')]))
+  await ui.drawn()
+  await ui.unmount()
+  expect(w.left).toEqual([[SIDE, 'other-mod']])
+})
+
+test("the headline is the row's words after its tag, not its buttons", () => {
+  expect(headline(row(SIDE, 'First note.').tree)).toBe('First note.')
+  const buttonOnly = { type: 'Box', props: {}, children: [{ type: 'Button', props: { key: 'x', label: 'First note.' }, children: ['Heads up · First note.'] }] }
+  expect(headline(buttonOnly)).toBe('')
+})
+
+test("a side-agent write of another store key is not taken", AGENT, async ($, on) => {
+  const w = await start($, on)
+  await $.command.run({ command: 'raise', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 160 },
+    args: JSON.stringify({ key: 'seen', value: [{ id: SESSION, offeredTurn: keyOf(1), view: { kind: 'offer', line: 'Not a note.', explanation: '' } }] }) })
+  await settle($)
+  expect(notes(w)).toEqual([])
+  expect(w.sent).toEqual([])
+})
+
+test('a message from the phone carries waiting notes too', AGENT, async ($, on) => {
+  const w = await start($, on, { notes: { list: [listed(1, 'First note.', 'waiting')], free: false } })
+  await say($, 'from the phone', 'bridge')
+  expect(w.carried.at(-1)).toEqual([quoted({ line: 'First note.', explanation: '' })])
+})
+
+test('the list keeps the newest 50 notes', AGENT, async ($, on) => {
+  const list = Array.from({ length: 50 }, (_, i) => listed(i + 1, `Note ${i + 1}.`, 'with your message'))
+  const w = await start($, on, { notes: { list, free: false } })
+  await raise($, 51, 'Note 51.')
+  await settle($)
+  expect(w.store.notes.list.length).toBe(50)
+  expect(w.store.notes.list[0].line).toBe('Note 2.')
+  expect(w.store.notes.list.at(-1).line).toBe('Note 51.')
 })

@@ -44,7 +44,7 @@ If Claude Code refuses to save the Send, the HUD shows "Not sent." and the reaso
 Claude Code's built-in side agent (`cc-plugin-you-should-know`) watches the session and sometimes offers a note, the "Heads up" row above the prompt with Learn more, Knew this already and Dismiss. With this mod installed:
 
 1. The mod takes the note from the side agent's own store write, under the turn id the side agent wrote it with. A reload or a redraw does not take a note twice.
-2. The row leaves the band above the prompt once the note is listed in the panel. A row the mod did not list stays, so a note the mod missed is still on screen.
+2. The row leaves the band above the prompt once its headline is exactly the line of a note listed in the panel. Any other row stays, so a note the mod missed, or a headline the side agent shortened, is still on screen.
 3. The first note since your last message goes to Claude as a turn of its own. Claude Code labels that turn as sent by the mod.
 4. A note that comes before you send another message waits, and goes with your next message as context Claude reads beside it. A slash command carries no note. One note-started turn for each message you send means a note's turn cannot set off a chain of turns.
 5. If Claude Code refuses the note's turn, the note waits for your next message instead.
@@ -154,7 +154,7 @@ These are not verified:
 - The heads-up path in a live session: the store route, the row leaving the band, and a note riding with a message.
 - How often Claude follows an instruction planted in a heads-up.
 - Whether the side agent offers fewer notes over time. It counts each message sent while its note is open and unanswered, and after a run of them it holds back later notes. With the row hidden, no note is ever answered, so every open note counts. A mod cannot answer for you, because it cannot write another plugin's store.
-- Whether the row's headline always contains the note's line word for word. If it does not, the row stays above the prompt, and the note is still listed and sent.
+- Whether the row's headline is always the note's line word for word. If it is not, the row stays above the prompt, and the note is still listed and sent.
 
 - Memory in a live interactive session. Its tests run against the test kit, and the probe ran headless.
 - Memory after a real compaction, from `/compact` or an automatic one. That the lines survive follows from the system prompt not being compacted; it was not observed.
