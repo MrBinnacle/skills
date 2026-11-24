@@ -7,7 +7,7 @@
 
 # MRBINNACLE / skills
 
-Skills that started with problems I encountered.
+Less prompting. Better plumbing.
 
 The agent says "Done." It never ran the tests.<br>
 The check passed. It could not have failed.<br>
