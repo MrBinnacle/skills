@@ -12,7 +12,8 @@ tell apart:
   - a Pages run at a later commit, such as a manual run, deploys the site: green;
   - a repository with nothing pages.yml deploys: green;
   - a change to another path pages.yml deploys, such as the favicon, is not yet deployed: red;
-  - an annotated tag is read by the commit it peels to.
+  - an annotated tag is read by the commit it peels to;
+  - PAGES_PATHS names exactly the paths pages.yml deploys on, so no deployed file escapes the check.
 
 Run directly:  python scripts/test_check_release_public.py
 """
@@ -24,7 +25,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_release_public import check  # noqa: E402
+from check_release_public import PAGES_PATHS, ROOT, check  # noqa: E402
 
 GOOD = {
     "tags": "aaa\trefs/tags/v1.0.0\nbbb\trefs/tags/v1.1.0",
@@ -63,6 +64,18 @@ def gaps(**change) -> list[str]:
     return check("1.1.0", fake({**GOOD, **change}))
 
 
+def path_drift() -> list[str]:
+    """Each path pages.yml's on.push.paths lists that PAGES_PATHS lacks, and the reverse."""
+    lines = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8").splitlines()
+    start = lines.index("    paths:") + 1
+    listed = []
+    for line in lines[start:]:
+        if not line.startswith("      - "):
+            break
+        listed.append(line[8:].strip('"').removesuffix("/**"))
+    return [f"pages.yml only: {x}" for x in listed if x not in PAGES_PATHS] +            [f"PAGES_PATHS only: {x}" for x in PAGES_PATHS if x not in listed]
+
+
 def expect(name: str, got: list[str], *needles: str) -> bool:
     ok = len(got) == len(needles) and all(any(n in g for g in got) for n in needles)
     print(("PASS " if ok else "FAIL ") + name + ("" if ok else f": {got}"))
@@ -90,6 +103,7 @@ CASES = [
     ("a later successful Pages run deploys the site", gaps(pages=[{"headSha": "later", "conclusion": "success"}])),
     ("nothing to deploy is no gap", gaps(site="", pages=[])),
     ("an undeployed favicon change is a gap", gaps(favicon="fff"), "last change fff is not deployed"),
+    ("the check reads every path pages.yml deploys on", path_drift()),
     ("an annotated tag is read by its commit", gaps(tags="aaa\trefs/tags/v1.0.0\nttt\trefs/tags/v1.1.0\nbbb\trefs/tags/v1.1.0^{}")),
 ]
 
