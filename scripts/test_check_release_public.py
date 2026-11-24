@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -74,7 +75,17 @@ def fake(state: dict):
     return run
 
 
-def gaps(**change) -> list[str]:
+def make_root(readme: str, receipts: dict[str, str]) -> Path:
+    """A repository root holding only a README and the named receipt files."""
+    root = Path(tempfile.mkdtemp())
+    (root / "README.md").write_text(readme, encoding="utf-8")
+    (root / "docs" / "product" / "receipts").mkdir(parents=True)
+    for name, text in receipts.items():
+        (root / "docs" / "product" / "receipts" / name).write_text(text, encoding="utf-8")
+    return root
+
+
+def gaps(root: Path | None = None, **change) -> list[str]:
     state = {**GOOD, **change}
 
     def get(url: str) -> bytes:
@@ -82,7 +93,7 @@ def gaps(**change) -> list[str]:
         if state["served"] is None:
             raise OSError("timed out")
         return state["served"]
-    return check("1.1.0", fake(state), get)
+    return check("1.1.0", fake(state), get, root or make_root("Install in Claude Code only.", {}))
 
 
 README_PI = "Run it:\n\n    pi install git:github.com/MrBinnacle/skills@v1.1.0\n"
@@ -146,6 +157,20 @@ CASES = [
     ("a receipt naming no pin is a gap", pi_receipt_gaps(README_PI, ["# Receipt\nno command here"]),
      "No Pi install receipt names a pin, but the README sends Pi users to v1.1.0: " + PI_FIX),
     ("a README with no Pi command needs no receipt", pi_receipt_gaps("Install in Claude Code only.", [])),
+    ("another repository's Pi command needs no receipt",
+     pi_receipt_gaps("pi install git:github.com/someone/else@v9.9.9", [])),
+    ("the check reads the newest dated receipt from the repository",
+     gaps(root=make_root(README_PI, {"2026-01-02-pi-install.md": RECEIPT_OLD,
+                                     "2026-01-01-pi-install.md": RECEIPT_NEW})),
+     "The newest Pi install receipt tested v1.0.0, but the README sends Pi users to v1.1.0: " + PI_FIX),
+    ("a Pi gap is reported beside the other gaps",
+     gaps(root=make_root(README_PI, {"2026-01-01-pi-install.md": RECEIPT_OLD}), on_main={"aaa"}),
+     "names bbb, which is not on main",
+     "The newest Pi install receipt tested v1.0.0, but the README sends Pi users to v1.1.0: " + PI_FIX),
+    ("a newest receipt at the pin, beside other files, is no gap",
+     gaps(root=make_root(README_PI, {"2026-01-01-pi-install.md": RECEIPT_OLD,
+                                     "2026-01-02-pi-install.md": RECEIPT_NEW,
+                                     "2026-01-03-notes.md": RECEIPT_OLD}))),
 ]
 
 

@@ -64,7 +64,7 @@ def fetch(url: str) -> bytes:
         return resp.read()
 
 
-def check(version: str, run: Run, get: Fetch) -> list[str]:
+def check(version: str, run: Run, get: Fetch, root: Path) -> list[str]:
     gaps: list[str] = []
     tag = f"v{version}"
     found = tags(run)
@@ -86,7 +86,7 @@ def check(version: str, run: Run, get: Fetch) -> list[str]:
     latest = [n for n, r in releases.items() if r.get("isLatest")]
     if tag in found and latest != [tag]:
         gaps.append(f"GitHub marks {latest[0] if latest else 'no release'} as Latest, not {tag}: gh release edit {tag} --latest.")
-    return gaps + site_gaps(run) + preview_gaps(run, get)
+    return gaps + site_gaps(run) + preview_gaps(run, get) + pi_gaps(root)
 
 
 def preview_gaps(run: Run, get: Fetch) -> list[str]:
@@ -123,6 +123,13 @@ def pi_receipt_gaps(readme: str, receipts: list[str]) -> list[str]:
     return []
 
 
+def pi_gaps(root: Path) -> list[str]:
+    """Read the README and the dated Pi install receipts under root, oldest first."""
+    receipts = sorted((root / "docs" / "product" / "receipts").glob("*-pi-install.md"))
+    return pi_receipt_gaps((root / "README.md").read_text(encoding="utf-8"),
+                           [f.read_text(encoding="utf-8") for f in receipts])
+
+
 def site_gaps(run: Run) -> list[str]:
     """The newest Pages run on main must succeed at, or after, the last commit it deploys on."""
     site = run(["git", "log", "-1", "--format=%H", "origin/main", "--", *PAGES_PATHS])
@@ -144,8 +151,7 @@ def site_gaps(run: Run) -> list[str]:
 def main() -> int:
     version = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
     sh(["git", "fetch", "--quiet", "--tags", "origin"])  # a stale origin/main reads a new tag as off main
-    receipts = [f.read_text(encoding="utf-8") for f in sorted((ROOT / "docs" / "product" / "receipts").glob("*-pi-install.md"))]
-    gaps = check(version, sh, fetch) + pi_receipt_gaps((ROOT / "README.md").read_text(encoding="utf-8"), receipts)
+    gaps = check(version, sh, fetch, ROOT)
     for gap in gaps:
         print("FAIL ", gap)
     for step in MANUAL:
