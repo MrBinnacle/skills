@@ -13,6 +13,9 @@ tell apart:
   - a repository with nothing pages.yml deploys: green;
   - a change to another path pages.yml deploys, such as the favicon, is not yet deployed: red;
   - an annotated tag is read by the commit it peels to;
+  - GitHub serves assets/social-preview.png as the social preview: green;
+  - it serves other bytes, or a generated preview: red, naming the upload as the fix;
+  - the served image cannot be downloaded: red, not a traceback;
   - PAGES_PATHS names exactly the paths pages.yml deploys on, so no deployed file escapes the check.
 
 Run directly:  python scripts/test_check_release_public.py
@@ -25,7 +28,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_release_public import PAGES_PATHS, ROOT, check  # noqa: E402
+from check_release_public import PAGES_PATHS, PREVIEW, ROOT, check  # noqa: E402
+
+OURS = PREVIEW.read_bytes()
+QUERY = 'query={repository(owner:"MrBinnacle",name:"skills"){openGraphImageUrl usesCustomOpenGraphImage}}'
 
 GOOD = {
     "tags": "aaa\trefs/tags/v1.0.0\nbbb\trefs/tags/v1.1.0",
@@ -36,6 +42,8 @@ GOOD = {
     "favicon": "",
     "pages": [{"headSha": "sss", "conclusion": "success"}],
     "after": {("sss", "sss"), ("sss", "later")},
+    "custom": True,
+    "served": OURS,
 }
 
 
@@ -56,12 +64,23 @@ def fake(state: dict):
             return state["favicon"] if "assets/favicon.svg" in cmd and state["favicon"] else state["site"]
         if cmd[:3] == ["gh", "run", "list"]:
             return json.dumps(state["pages"])
+        if cmd[:3] == ["gh", "api", "graphql"]:
+            assert cmd[-1] == QUERY, cmd[-1]  # this repository, both fields
+            return json.dumps({"data": {"repository": {
+                "openGraphImageUrl": "https://og.example/img", "usesCustomOpenGraphImage": state["custom"]}}})
         raise AssertionError(f"unexpected command {cmd}")
     return run
 
 
 def gaps(**change) -> list[str]:
-    return check("1.1.0", fake({**GOOD, **change}))
+    state = {**GOOD, **change}
+
+    def get(url: str) -> bytes:
+        assert url == "https://og.example/img", url  # the address GitHub reported
+        if state["served"] is None:
+            raise OSError("timed out")
+        return state["served"]
+    return check("1.1.0", fake(state), get)
 
 
 def path_drift() -> list[str]:
@@ -105,6 +124,11 @@ CASES = [
     ("an undeployed favicon change is a gap", gaps(favicon="fff"), "last change fff is not deployed"),
     ("the check reads every path pages.yml deploys on", path_drift()),
     ("an annotated tag is read by its commit", gaps(tags="aaa\trefs/tags/v1.0.0\nttt\trefs/tags/v1.1.0\nbbb\trefs/tags/v1.1.0^{}")),
+    ("an old social preview is a gap", gaps(served=b"old image"),
+     "The social preview GitHub serves (fbb22b3adc86) is not assets/social-preview.png: upload assets/social-preview.png in Settings, General, Social preview."),
+    ("a generated social preview is a gap", gaps(custom=False),
+     "GitHub generates the social preview instead of serving ours: upload assets/social-preview.png in Settings, General, Social preview."),
+    ("a failed download is a gap", gaps(served=None), "Could not download the social preview GitHub serves (timed out): run the check again."),
 ]
 
 
