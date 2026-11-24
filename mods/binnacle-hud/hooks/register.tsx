@@ -246,6 +246,7 @@ export const register: Register = (on, options) => {
     let waiting: Note[] = []
     await update($, notes, now => {
       waiting = now.list.filter(n => n.how === 'waiting')
+      if (!waiting.length && now.free) return now
       return { free: true, list: now.list.map(n => n.how === 'waiting' ? { ...n, how: 'with your message' as const } : n) }
     }).catch(() => undefined)
     if (!waiting.length) return next(e)

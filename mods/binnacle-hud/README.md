@@ -153,6 +153,8 @@ These are not verified:
 
 - The heads-up path in a live session: the store route, the row leaving the band, and a note riding with a message.
 - How often Claude follows an instruction planted in a heads-up.
+- Whether the side agent offers fewer notes over time. It counts each message sent while its note is open and unanswered, and after a run of them it holds back later notes. With the row hidden, no note is ever answered, so every open note counts. A mod cannot answer for you, because it cannot write another plugin's store.
+- Whether the row's headline always contains the note's line word for word. If it does not, the row stays above the prompt, and the note is still listed and sent.
 
 - Memory in a live interactive session. Its tests run against the test kit, and the probe ran headless.
 - Memory after a real compaction, from `/compact` or an automatic one. That the lines survive follows from the system prompt not being compacted; it was not observed.
