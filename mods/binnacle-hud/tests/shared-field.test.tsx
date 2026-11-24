@@ -41,7 +41,9 @@ async function start($: any, on: any, store: any, options: any = {}) {
   return events
 }
 
-test('REVIEW shared Input change -> focus actions -> a; Enter -> p; empty and ninth-line removal never send or touch prompt', async ($, on) => {
+// One flow, split in three so each test fits the kit's 5 s limit on a loaded machine; the second and third start
+// from the state the first proves it reaches.
+test('REVIEW shared Input change -> focus actions -> a; Enter -> p never send or touch prompt', async ($, on) => {
   const store: any = {}
   const events = await start($, on, store)
   let ui = await $.ui.mount(pane())
@@ -66,6 +68,16 @@ test('REVIEW shared Input change -> focus actions -> a; Enter -> p; empty and ni
   await ui.press({ key: 'k-p' })
   expect(store.memory.map((e: any) => e.text)).toEqual(['private decision', 'log decision'])
   expect(store.log.map((t: any) => t.text)).toEqual(['log decision'])
+  expect(store.approved).toBeUndefined()
+  expect(events.prompt).toEqual([])
+  expect(events.asked).toEqual([])
+})
+
+test('REVIEW eight more adds, then the ninth-line removal, never send or touch prompt', async ($, on) => {
+  const store: any = { memory: [{ id: 'm1', text: 'private decision' }, { id: 'm2', text: 'log decision' }], log: [{ text: 'log decision', at: new Date(NOW).toISOString(), from: 'terminal' }] }
+  const events = await start($, on, store)
+  let ui = await $.ui.mount(pane())
+  await focus($, 'thought')
   for (let n = 3; n <= 10; n++) {
     await ui.input({ key: 'thought', text: `decision ${n}`, kind: 'change' })
     ui = await redraw($, ui)
@@ -76,6 +88,17 @@ test('REVIEW shared Input change -> focus actions -> a; Enter -> p; empty and ni
   await ui.press({ key: 'k-9' })
   expect(store.memory).toHaveLength(9)
   expect(store.memory.map((e: any) => e.text).slice(-2)).toEqual(['decision 8', 'decision 10'])
+  expect(store.approved).toBeUndefined()
+  expect(events.prompt).toEqual([])
+  expect(events.asked).toEqual([])
+})
+
+test('REVIEW empty input offers no add, keeps nothing, and never sends or touches prompt', async ($, on) => {
+  const nine = Array.from({ length: 9 }, (_, i) => ({ id: `m${i}`, text: `decision ${i}` }))
+  const store: any = { memory: nine, log: [{ text: 'log decision', at: new Date(NOW).toISOString(), from: 'terminal' }] }
+  const events = await start($, on, store)
+  let ui = await $.ui.mount(pane())
+  await focus($, 'thought')
   await ui.input({ key: 'thought', text: '   ', kind: 'change' })
   ui = await redraw($, ui)
   expect(await ui.find({ key: 'k-a' })).toBeUndefined()
