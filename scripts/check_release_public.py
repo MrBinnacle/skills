@@ -23,7 +23,8 @@ REPO = "MrBinnacle/skills"
 Run = Callable[[list[str]], str]
 
 # The paths .github/workflows/pages.yml deploys on. Keep in step with its on.push.paths.
-PAGES_PATHS = ["site", "assets/favicon.svg", "assets/social-preview.png", ".github/workflows/pages.yml"]
+PAGES_PATHS = ["site", "assets/favicon.svg", "assets/social-preview.png", "mechanisms/verify-gate/demo.svg",
+               ".github/workflows/pages.yml"]
 
 MANUAL = [
     "Compare https://www.skills.sh/MrBinnacle/skills with the folders under skills/<bucket>/; "
