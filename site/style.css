@@ -20,9 +20,9 @@
  * Latin1 files; see site/fonts/README.md). No request leaves this origin.
  *
  * Radius scale (tokens.json > shape), one documented use per value:
- *   radius.none  0    -> layout, rules, list items, links
- *   radius.small 2px  -> inline <code> (declared; no inline code is on the page today)
- *   radius.panel 4px  -> the install command block (<kbd>)
+ *   radius.none  0    -> layout, rules, list items, links, the demo image
+ *   radius.small 2px  -> inline <code>
+ *   radius.panel 4px  -> a command block (<kbd>)
  *
  * Regions separate with 1px rules (color.structural*.line), never shadows.
  * No gradient, glow, blur, glass, parallax or decorative motion. Motion is
@@ -168,7 +168,7 @@ body {
 
 h1 {
   font-weight: 700;
-  font-size: clamp(1.75rem, 1rem + 3vw, 3rem);
+  font-size: clamp(2.125rem, 1.25rem + 3.5vw, 3.5rem);
   line-height: 1.1;
   letter-spacing: -0.02em;
   margin: 0 0 var(--s4);
@@ -222,6 +222,7 @@ code {
   background: var(--surface);
   border-radius: var(--radius-small);
   padding: 0 var(--s1);
+  white-space: nowrap;
 }
 
 /* Icons: currentColor of the enclosing text, centred on the x-height with a
@@ -285,52 +286,90 @@ code {
   }
 }
 
-/* Hero: split, mark column and text column at 768px and above */
+/* Hero: the line, the three failures, then what was built in response */
 
 .hero {
-  padding-top: var(--s6);
-  padding-bottom: var(--s6);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--s4);
-}
-
-.mark {
-  display: block;
-  height: 72px;
-  width: auto;
-  color: var(--ink);
+  padding-block: var(--s6);
 }
 
 @media (min-width: 768px) {
   .hero {
-    padding-top: 64px;
-    grid-template-columns: 160px minmax(0, 1fr);
-    gap: var(--s5);
-    align-items: start;
-  }
-  .mark {
-    height: 144px;
+    padding-top: var(--s7);
   }
 }
 
-.action {
+.incidents {
+  font-size: 1.25rem;
+  line-height: 1.5;
+  margin-bottom: var(--s4);
+}
+
+/* One block per failure, so a line that wraps on a phone still reads as its own failure. */
+.incidents span {
+  display: block;
+}
+
+.incidents span + span {
+  margin-top: var(--s1);
+}
+
+.parts {
+  list-style: none;
+  margin: var(--s5) 0 0;
+  padding: 0;
+  max-width: var(--measure);
+}
+
+.parts li {
+  padding-block: var(--s3);
+}
+
+.parts li + li {
+  border-top: 1px solid var(--line);
+}
+
+.runs {
+  display: block;
+  margin-top: var(--s1);
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+/* Regions: one hairline above each, more space above a heading than below */
+
+.install,
+.demo,
+.kept {
+  border-top: 1px solid var(--line);
+  padding-block: var(--s6);
+}
+
+.route + .route {
+  margin-top: var(--s6);
+}
+
+.route h2 {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s2) var(--s3);
-  margin-top: var(--s5);
-  max-width: none;
-}
-
-.action-label {
-  font-weight: 600;
-  display: inline-flex;
   align-items: center;
 }
 
-.action kbd {
-  display: inline-block;
+.route h2 .icon {
+  top: 0;
+}
+
+/* Commands: one panel per command, stacked tight so the pair reads as one step */
+
+.commands {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s2);
+  margin: 0 0 var(--s3);
+}
+
+.commands kbd {
+  display: block;
+  max-width: 100%;
   min-height: 44px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -341,134 +380,67 @@ code {
   overflow-wrap: anywhere;
 }
 
-.secondary {
-  margin: var(--s2) 0 0;
+/* The demo picture: the rendered run at the column's width, its limits below it */
+
+.demo figure {
+  margin: var(--s4) 0 0;
 }
 
-/* Regions: one hairline above each, more space above a heading than below */
-
-.record,
-.pair {
-  border-top: 1px solid var(--line);
-  padding-top: var(--s6);
-  padding-bottom: var(--s6);
+/* The picture links to its full-size file: at phone width its text is too small to read. */
+.demo .shot {
+  display: block;
+  padding-block: 0;
+  margin-block: 0;
 }
 
-/* The record: label/value pairs in a hairline grid */
-
-.record dl {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  gap: 1px;
-  background: var(--line);
+.demo img {
+  display: block;
+  width: 100%;
+  height: auto;
   border: 1px solid var(--line);
-  margin: 0;
+  border-radius: var(--radius-none);
 }
 
-.record dt,
-.record dd {
-  background: var(--bg);
-  margin: 0;
-  padding: var(--s3);
-}
-
-.record dt {
-  font-weight: 600;
-  display: flex;
-  align-items: flex-start;
-}
-
-.record dt .icon {
-  top: 0;
-  margin-top: 0.2em;
-}
-
-.record dd {
+.demo figcaption {
+  margin-top: var(--s2);
+  max-width: var(--measure);
+  font-size: 1rem;
   color: var(--muted);
 }
 
-@media (max-width: 639.98px) {
-  .record dl {
-    display: block;
-    border: 0;
-    border-top: 1px solid var(--line);
-    background: transparent;
-  }
-  .record dt {
-    padding: var(--s3) 0 var(--s1);
-  }
-  .record dd {
-    padding: 0 0 var(--s3);
-    border-bottom: 1px solid var(--line);
-  }
-}
-
-/* The pair: two sections side by side with one vertical hairline between */
-
-.pair {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--s6);
-  padding-bottom: 0;
-}
-
-.pair section {
-  padding-bottom: var(--s6);
-}
-
-.pair .isnt {
-  border-top: 1px solid var(--line);
-  padding-top: var(--s6);
-}
-
-@media (min-width: 768px) {
-  .pair {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 0;
-  }
-  .pair .version {
-    padding-right: var(--s5);
-    border-right: 1px solid var(--line);
-  }
-  .pair .isnt {
-    padding-left: var(--s5);
-    padding-top: 0;
-    border-top: 0;
-  }
-}
-
-.pair h2 {
-  display: flex;
-  align-items: center;
-}
-
-.pair h2 .icon {
-  top: 0;
+.demo figcaption a {
+  color: var(--muted);
 }
 
 /* Lists */
 
 /* margin-block, not margin: the footer list carries .wrap, whose auto inline
    margins centre it on the content column (#365). */
-.isnt ul,
+.isnt,
 .foot ul {
   list-style: none;
   margin-block: 0;
   padding: 0;
 }
 
-.isnt li {
-  padding: var(--s2) 0;
+.isnt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s4);
+  margin-block: 0 var(--s3);
 }
 
-.isnt li a,
-.foot li a,
-.secondary a {
+.isnt a,
+.foot li a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
   padding-block: 0;
   margin-block: 0;
+}
+
+.isnt .icon {
+  top: 0;
 }
 
 /* Footer */
