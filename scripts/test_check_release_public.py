@@ -112,7 +112,7 @@ CASES = [
      "is not assets/social-preview.png: upload assets/social-preview.png in Settings, General, Social preview."),
     ("a generated social preview is a gap", gaps(custom=False),
      "GitHub generates the social preview instead of serving ours: upload assets/social-preview.png in Settings, General, Social preview."),
-    ("a failed download is a gap", gaps(served=None), "Could not download the social preview"),
+    ("a failed download is a gap", gaps(served=None), "Could not download the social preview GitHub serves (timed out): run the check again."),
 ]
 
 
