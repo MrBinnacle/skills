@@ -14,7 +14,8 @@ tell apart:
   - a change to another path pages.yml deploys, such as the favicon, is not yet deployed: red;
   - an annotated tag is read by the commit it peels to;
   - GitHub serves assets/social-preview.png as the social preview: green;
-  - it serves other bytes, or a generated preview: red.
+  - it serves other bytes, or a generated preview: red, naming the upload as the fix;
+  - the served image cannot be downloaded: red, not a traceback.
 
 Run directly:  python scripts/test_check_release_public.py
 """
@@ -70,7 +71,13 @@ def fake(state: dict):
 
 def gaps(**change) -> list[str]:
     state = {**GOOD, **change}
-    return check("1.1.0", fake(state), lambda url: state["served"])
+
+    def get(url: str) -> bytes:
+        assert url == "https://og.example/img", url  # the address GitHub reported
+        if state["served"] is None:
+            raise OSError("timed out")
+        return state["served"]
+    return check("1.1.0", fake(state), get)
 
 
 def expect(name: str, got: list[str], *needles: str) -> bool:
@@ -101,8 +108,11 @@ CASES = [
     ("nothing to deploy is no gap", gaps(site="", pages=[])),
     ("an undeployed favicon change is a gap", gaps(favicon="fff"), "last change fff is not deployed"),
     ("an annotated tag is read by its commit", gaps(tags="aaa\trefs/tags/v1.0.0\nttt\trefs/tags/v1.1.0\nbbb\trefs/tags/v1.1.0^{}")),
-    ("an old social preview is a gap", gaps(served=b"old image"), "is not assets/social-preview.png"),
-    ("a generated social preview is a gap", gaps(custom=False), "GitHub generates the social preview"),
+    ("an old social preview is a gap", gaps(served=b"old image"),
+     "is not assets/social-preview.png: upload assets/social-preview.png in Settings, General, Social preview."),
+    ("a generated social preview is a gap", gaps(custom=False),
+     "GitHub generates the social preview instead of serving ours: upload assets/social-preview.png in Settings, General, Social preview."),
+    ("a failed download is a gap", gaps(served=None), "Could not download the social preview"),
 ]
 
 

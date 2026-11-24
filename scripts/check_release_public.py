@@ -92,7 +92,10 @@ def preview_gaps(run: Run, get: Fetch) -> list[str]:
     fix = "upload assets/social-preview.png in Settings, General, Social preview."
     if not repo["usesCustomOpenGraphImage"]:
         return [f"GitHub generates the social preview instead of serving ours: {fix}"]
-    served = hashlib.sha256(get(repo["openGraphImageUrl"])).hexdigest()
+    try:
+        served = hashlib.sha256(get(repo["openGraphImageUrl"])).hexdigest()
+    except OSError as err:  # urllib's URLError and HTTPError are OSErrors
+        return [f"Could not download the social preview GitHub serves ({err}): run the check again."]
     if served != hashlib.sha256(PREVIEW.read_bytes()).hexdigest():
         return [f"The social preview GitHub serves ({served[:12]}) is not assets/social-preview.png: {fix}"]
     return []
