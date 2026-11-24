@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_release_public import PREVIEW, check  # noqa: E402
 
 OURS = PREVIEW.read_bytes()
+QUERY = 'query={repository(owner:"MrBinnacle",name:"skills"){openGraphImageUrl usesCustomOpenGraphImage}}'
 
 GOOD = {
     "tags": "aaa\trefs/tags/v1.0.0\nbbb\trefs/tags/v1.1.0",
@@ -63,6 +64,7 @@ def fake(state: dict):
         if cmd[:3] == ["gh", "run", "list"]:
             return json.dumps(state["pages"])
         if cmd[:3] == ["gh", "api", "graphql"]:
+            assert cmd[-1] == QUERY, cmd[-1]  # this repository, both fields
             return json.dumps({"data": {"repository": {
                 "openGraphImageUrl": "https://og.example/img", "usesCustomOpenGraphImage": state["custom"]}}})
         raise AssertionError(f"unexpected command {cmd}")
@@ -109,7 +111,7 @@ CASES = [
     ("an undeployed favicon change is a gap", gaps(favicon="fff"), "last change fff is not deployed"),
     ("an annotated tag is read by its commit", gaps(tags="aaa\trefs/tags/v1.0.0\nttt\trefs/tags/v1.1.0\nbbb\trefs/tags/v1.1.0^{}")),
     ("an old social preview is a gap", gaps(served=b"old image"),
-     "is not assets/social-preview.png: upload assets/social-preview.png in Settings, General, Social preview."),
+     "The social preview GitHub serves (fbb22b3adc86) is not assets/social-preview.png: upload assets/social-preview.png in Settings, General, Social preview."),
     ("a generated social preview is a gap", gaps(custom=False),
      "GitHub generates the social preview instead of serving ours: upload assets/social-preview.png in Settings, General, Social preview."),
     ("a failed download is a gap", gaps(served=None), "Could not download the social preview GitHub serves (timed out): run the check again."),
