@@ -8,7 +8,10 @@ tell apart:
   - the tag is missing, or names a commit off main: red;
   - a v* tag has no GitHub Release, or only a draft: red, one gap per tag;
   - another release is marked Latest: red;
-  - the site's last change is not the newest Pages run, or that run failed: red;
+  - the newest Pages run is before the last commit pages.yml deploys on, or it failed: red;
+  - a Pages run at a later commit, such as a manual run, deploys the site: green;
+  - a repository with nothing pages.yml deploys: green;
+  - a change to another path pages.yml deploys, such as the favicon, is not yet deployed: red;
   - an annotated tag is read by the commit it peels to.
 
 Run directly:  python scripts/test_check_release_public.py
@@ -29,7 +32,9 @@ GOOD = {
                  {"tagName": "v1.1.0", "isDraft": False, "isLatest": True}],
     "on_main": {"aaa", "bbb", "ppp"},
     "site": "sss",
+    "favicon": "",
     "pages": [{"headSha": "sss", "conclusion": "success"}],
+    "after": {("sss", "sss"), ("sss", "later")},
 }
 
 
@@ -38,13 +43,16 @@ def fake(state: dict):
         if cmd[:2] == ["git", "ls-remote"]:
             return state["tags"]
         if cmd[:2] == ["git", "merge-base"]:
-            if cmd[3] not in state["on_main"]:
-                raise RuntimeError("not an ancestor")
-            return ""
+            if cmd[4] == "origin/main" and cmd[3] in state["on_main"]:
+                return ""
+            if cmd[4] != "origin/main" and (cmd[3], cmd[4]) in state["after"]:
+                return ""
+            raise RuntimeError("not an ancestor")
         if cmd[:3] == ["gh", "release", "list"]:
             return json.dumps(state["releases"])
         if cmd[:2] == ["git", "log"]:
-            return state["site"]
+            # The newest commit among the paths asked about; "favicon" is newer than "site".
+            return state["favicon"] if "assets/favicon.svg" in cmd and state["favicon"] else state["site"]
         if cmd[:3] == ["gh", "run", "list"]:
             return json.dumps(state["pages"])
         raise AssertionError(f"unexpected command {cmd}")
@@ -79,6 +87,9 @@ CASES = [
      "not deployed"),
     ("a failed Pages run is a gap", gaps(pages=[{"headSha": "sss", "conclusion": "failure"}]), "not deployed"),
     ("no Pages run is a gap", gaps(pages=[]), "newest Pages run: none"),
+    ("a later successful Pages run deploys the site", gaps(pages=[{"headSha": "later", "conclusion": "success"}])),
+    ("nothing to deploy is no gap", gaps(site="", pages=[])),
+    ("an undeployed favicon change is a gap", gaps(favicon="fff"), "last change fff is not deployed"),
     ("an annotated tag is read by its commit", gaps(tags="aaa\trefs/tags/v1.0.0\nttt\trefs/tags/v1.1.0\nbbb\trefs/tags/v1.1.0^{}")),
 ]
 

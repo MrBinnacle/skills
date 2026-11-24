@@ -6,7 +6,7 @@ each gap, and exits 0 only when every public surface carries the release in pack
 
 - the tag v<version> exists on origin and points at a commit on main;
 - every v* tag has a published GitHub Release, and v<version> is the one marked Latest;
-- the newest Pages deploy ran on the last main commit that touched site/, and succeeded.
+- the newest Pages deploy on main succeeded at or after the last commit that pages.yml deploys on.
 
 The marketplace pin has its own check, scripts/check_marketplace_pin.py. The skills.sh
 listing and the repository social preview have no API this script can read, so it prints
@@ -21,6 +21,9 @@ from typing import Callable
 ROOT = Path(__file__).resolve().parent.parent
 REPO = "MrBinnacle/skills"
 Run = Callable[[list[str]], str]
+
+# The paths .github/workflows/pages.yml deploys on. Keep in step with its on.push.paths.
+PAGES_PATHS = ["site", "assets/favicon.svg", "assets/social-preview.png", ".github/workflows/pages.yml"]
 
 MANUAL = [
     "Compare https://www.skills.sh/MrBinnacle/skills with the folders under skills/<bucket>/; "
@@ -71,18 +74,30 @@ def check(version: str, run: Run) -> list[str]:
     latest = [n for n, r in releases.items() if r.get("isLatest")]
     if tag in found and latest != [tag]:
         gaps.append(f"GitHub marks {latest[0] if latest else 'no release'} as Latest, not {tag}: gh release edit {tag} --latest.")
-    site = run(["git", "log", "-1", "--format=%H", "origin/main", "--", "site"])
+    return gaps + site_gaps(run)
+
+
+def site_gaps(run: Run) -> list[str]:
+    """The newest Pages run on main must succeed at, or after, the last commit it deploys on."""
+    site = run(["git", "log", "-1", "--format=%H", "origin/main", "--", *PAGES_PATHS])
+    if not site:
+        return []
     runs = json.loads(run(["gh", "run", "list", "--repo", REPO, "--workflow", "pages.yml", "--branch", "main",
                            "--limit", "1", "--json", "headSha,conclusion"]))
-    if site and (not runs or runs[0]["headSha"] != site or runs[0]["conclusion"] != "success"):
-        seen = f"{runs[0]['headSha'][:7]} ({runs[0]['conclusion'] or 'running'})" if runs else "none"
-        gaps.append(f"The site's last change {site[:7]} is not deployed (newest Pages run: {seen}): "
-                    "run the Pages workflow on main and wait for it to succeed.")
-    return gaps
+    if runs and runs[0]["conclusion"] == "success":
+        try:
+            run(["git", "merge-base", "--is-ancestor", site, runs[0]["headSha"]])
+            return []
+        except RuntimeError:
+            pass
+    seen = f"{runs[0]['headSha'][:7]} ({runs[0]['conclusion'] or 'running'})" if runs else "none"
+    return [f"The site's last change {site[:7]} is not deployed (newest Pages run: {seen}): "
+            "run the Pages workflow on main and wait for it to succeed."]
 
 
 def main() -> int:
     version = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
+    sh(["git", "fetch", "--quiet", "--tags", "origin"])  # a stale origin/main reads a new tag as off main
     gaps = check(version, sh)
     for gap in gaps:
         print("FAIL ", gap)
