@@ -7,13 +7,16 @@ each gap, and exits 0 only when every public surface carries the release in pack
 - the tag v<version> exists on origin and points at a commit on main;
 - every v* tag has a published GitHub Release, and v<version> is the one marked Latest;
 - the newest Pages deploy on main succeeded at or after the last commit that pages.yml deploys on;
-- the repository social preview GitHub serves is byte for byte assets/social-preview.png.
+- the repository social preview GitHub serves is byte for byte assets/social-preview.png;
+- the newest Pi install receipt (docs/product/receipts/*-pi-install.md, kept out of git) tested the
+  pin the README's `pi install` command names, since the README sends Pi users to that pin.
 
 The marketplace pin has its own check, scripts/check_marketplace_pin.py. The skills.sh
 listing has no API this script can read, so it prints it as a manual step on every run.
 """
 import hashlib
 import json
+import re
 import subprocess
 import urllib.request
 import sys
@@ -102,6 +105,24 @@ def preview_gaps(run: Run, get: Fetch) -> list[str]:
     return []
 
 
+PI_PIN = re.compile(r"pi install git:github\.com/MrBinnacle/skills@(v[0-9.]+)")
+
+
+def pi_receipt_gaps(readme: str, receipts: list[str]) -> list[str]:
+    """The README's Pi pin must be the pin the newest receipt installed. Receipts are given oldest first."""
+    pin = PI_PIN.search(readme)
+    if not pin:
+        return []
+    fix = (f"run the Pi install receipt at {pin[1]} and save it as docs/product/receipts/<date>-pi-install.md "
+           "(see the newest receipt for the steps).")
+    tested = PI_PIN.search(receipts[-1]) if receipts else None
+    if not tested:
+        return [f"No Pi install receipt names a pin, but the README sends Pi users to {pin[1]}: {fix}"]
+    if tested[1] != pin[1]:
+        return [f"The newest Pi install receipt tested {tested[1]}, but the README sends Pi users to {pin[1]}: {fix}"]
+    return []
+
+
 def site_gaps(run: Run) -> list[str]:
     """The newest Pages run on main must succeed at, or after, the last commit it deploys on."""
     site = run(["git", "log", "-1", "--format=%H", "origin/main", "--", *PAGES_PATHS])
@@ -123,7 +144,8 @@ def site_gaps(run: Run) -> list[str]:
 def main() -> int:
     version = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
     sh(["git", "fetch", "--quiet", "--tags", "origin"])  # a stale origin/main reads a new tag as off main
-    gaps = check(version, sh, fetch)
+    receipts = [f.read_text(encoding="utf-8") for f in sorted((ROOT / "docs" / "product" / "receipts").glob("*-pi-install.md"))]
+    gaps = check(version, sh, fetch) + pi_receipt_gaps((ROOT / "README.md").read_text(encoding="utf-8"), receipts)
     for gap in gaps:
         print("FAIL ", gap)
     for step in MANUAL:

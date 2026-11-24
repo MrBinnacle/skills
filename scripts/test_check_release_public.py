@@ -16,7 +16,9 @@ tell apart:
   - GitHub serves assets/social-preview.png as the social preview: green;
   - it serves other bytes, or a generated preview: red, naming the upload as the fix;
   - the served image cannot be downloaded: red, not a traceback;
-  - PAGES_PATHS names exactly the paths pages.yml deploys on, so no deployed file escapes the check.
+  - PAGES_PATHS names exactly the paths pages.yml deploys on, so no deployed file escapes the check;
+  - the newest Pi install receipt tested the README's Pi pin: green; another pin, or no receipt: red;
+    a README with no Pi command: green.
 
 Run directly:  python scripts/test_check_release_public.py
 """
@@ -28,7 +30,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_release_public import PAGES_PATHS, PREVIEW, ROOT, check  # noqa: E402
+from check_release_public import PAGES_PATHS, PREVIEW, ROOT, check, pi_receipt_gaps  # noqa: E402
 
 OURS = PREVIEW.read_bytes()
 QUERY = 'query={repository(owner:"MrBinnacle",name:"skills"){openGraphImageUrl usesCustomOpenGraphImage}}'
@@ -83,6 +85,13 @@ def gaps(**change) -> list[str]:
     return check("1.1.0", fake(state), get)
 
 
+README_PI = "Run it:\n\n    pi install git:github.com/MrBinnacle/skills@v1.1.0\n"
+RECEIPT_OLD = "The README command: `pi install git:github.com/MrBinnacle/skills@v1.0.0`. Exit code 0."
+RECEIPT_NEW = "The README command: `pi install git:github.com/MrBinnacle/skills@v1.1.0`. Exit code 0."
+PI_FIX = ("run the Pi install receipt at v1.1.0 and save it as docs/product/receipts/<date>-pi-install.md "
+          "(see the newest receipt for the steps).")
+
+
 def path_drift() -> list[str]:
     """Each path pages.yml's on.push.paths lists that PAGES_PATHS lacks, and the reverse."""
     lines = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8").splitlines()
@@ -129,6 +138,14 @@ CASES = [
     ("a generated social preview is a gap", gaps(custom=False),
      "GitHub generates the social preview instead of serving ours: upload assets/social-preview.png in Settings, General, Social preview."),
     ("a failed download is a gap", gaps(served=None), "Could not download the social preview GitHub serves (timed out): run the check again."),
+    ("a receipt at the README's Pi pin is no gap", pi_receipt_gaps(README_PI, [RECEIPT_OLD, RECEIPT_NEW])),
+    ("a receipt at an older Pi pin is a gap", pi_receipt_gaps(README_PI, [RECEIPT_NEW, RECEIPT_OLD]),
+     "The newest Pi install receipt tested v1.0.0, but the README sends Pi users to v1.1.0: " + PI_FIX),
+    ("no Pi install receipt is a gap", pi_receipt_gaps(README_PI, []),
+     "No Pi install receipt names a pin, but the README sends Pi users to v1.1.0: " + PI_FIX),
+    ("a receipt naming no pin is a gap", pi_receipt_gaps(README_PI, ["# Receipt\nno command here"]),
+     "No Pi install receipt names a pin, but the README sends Pi users to v1.1.0: " + PI_FIX),
+    ("a README with no Pi command needs no receipt", pi_receipt_gaps("Install in Claude Code only.", [])),
 ]
 
 
