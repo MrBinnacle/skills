@@ -103,6 +103,8 @@ MUTANTS = {
     "details are cut at 2000": [("clean(v.explanation, 2000)", "clean(v.explanation, 2100)")],
     "a message that changes nothing writes nothing": [("if (!waiting.length && now.free) return next(e)", "if (false) return next(e)")],
     "a dropped message leaves notes waiting": [("    if (result.drop !== undefined) return result\n    const keys", "    const keys")],
+    "only the carried notes are marked sent": [("keys.includes(n.key) && n.how === 'waiting'", "n.how === 'waiting'")],
+    "a free turn with a note waiting still carries it": [("if (!waiting.length && now.free) return next(e)", "if (now.free) return next(e)")],
     "hidden characters go before NFKC": [(r"const once = text.replace(/\s/g, ' ').replace(HIDDEN, '')", r"const once = text.replace(/\s/g, ' ')")],
     "strip opens the Log at 2": [("st.expand === 2 ? log", "st.expand === 3 ? log")],
 }

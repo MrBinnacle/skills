@@ -46,7 +46,7 @@ const pane = (placement: 'dock' | 'inline' = 'dock') => ({
 
 type World = { store: Record<string, any>; sent: string[]; carried: string[][]; left: string[][]; writes: string[] }
 
-type Opts = { deny?: boolean; throws?: boolean; dropMessages?: boolean; written?: string[] }
+type Opts = { arrive?: boolean; deny?: boolean; throws?: boolean; dropMessages?: boolean; written?: string[] }
 const start = async ($: any, on: any, store: Record<string, any> = {}, opts: Opts = {}): Promise<World> => {
   const w: World = { store, sent: [], carried: [], left: [], writes: [] }
   const versions: Record<string, number> = {}
@@ -74,6 +74,8 @@ const start = async ($: any, on: any, store: Record<string, any> = {}, opts: Opt
       return opts.deny ? { drop: 'refused here' } : { text: e.text }
     }
     w.carried.push([...(e.context ?? [])])
+    // A note the side agent writes while the message is still being passed on.
+    if (opts.arrive) { opts.arrive = false; store.notes = { ...store.notes, list: [...store.notes.list, listed(2, 'Second note.', 'waiting')] }; versions.notes = (versions.notes ?? 0) + 1 }
     return opts.dropMessages ? { drop: 'held by a hook beneath' } : { text: e.text }
   })
   on('ui.render', { component: 'AbovePromptList' }, (_: unknown, e: any) => {
@@ -360,4 +362,14 @@ test('a message a hook beneath drops leaves its notes waiting and the turn taken
   expect(w.carried.at(-1)).toEqual([quoted({ line: 'First note.', explanation: '' })])
   expect(notes(w)).toEqual([['First note.', 'waiting']])
   expect(w.store.notes.free).toBe(false)
+})
+
+test('a note that arrives while a message is passed on still waits, and rides the next message', AGENT, async ($, on) => {
+  const w = await start($, on, { notes: { list: [listed(1, 'First note.', 'own turn')], free: false } }, { arrive: true })
+  await say($, 'hello')
+  expect(w.carried.at(-1)).toEqual([])
+  expect(notes(w)).toEqual([['First note.', 'own turn'], ['Second note.', 'waiting']])
+  await say($, 'again')
+  expect(w.carried.at(-1)).toEqual([quoted({ line: 'Second note.', explanation: '' })])
+  expect(notes(w)).toEqual([['First note.', 'own turn'], ['Second note.', 'with your message']])
 })
