@@ -19,13 +19,22 @@ WHAT IT REFUSES
         bound to the bare string "disable-model-invocation", or an import or
         attribute use of `DISABLE_MODEL_INVOCATION_RE` or `BY_HAND_RE`
                                  -> call `runs_by_hand` or `flag_set` from
-                                    scripts/check_load_mode_markers.py.
+                                    scripts/check_load_mode_markers.py;
+      - a `.read_text()` or `.read_bytes()` of a path built as `<x> / "index.html"`
+        or `<x> / "site/index.html"`, directly or through a name or attribute
+        (`self.page`) bound to it
+                                 -> call `landing_page` from
+                                    scripts/validate_site_links.py.
+        A raw read keeps the `<wbr>` tags a visitor's copy drops; #696 added
+        them and broke test_install_form.py's raw read (fixed by #706).
 
 ONLY ADDITIONS FAIL
 
     Three load-mode readers predate this check (validate_card_files.py,
-    validate_standing_costs.py, release_gate.py). Folding them into the owner
-    changes what each reads, so it is its own change. This check compares the
+    validate_standing_costs.py, release_gate.py), and so do three raw reads of
+    the landing page (test_release_model_disclosure.py,
+    test_validate_brand_kit.py, test_validate_site_links.py). Folding them into
+    the owner changes what each reads, so it is its own change. This check compares the
     readers at HEAD with the readers at the merge-base of `--base` and fails only
     on one the base did not have.
 
@@ -53,7 +62,14 @@ OWNERS = {
         "scripts/check_load_mode_markers.py",
         "call runs_by_hand or flag_set from scripts/check_load_mode_markers.py",
     ),
+    "landing page": (
+        "scripts/validate_site_links.py",
+        "call landing_page from scripts/validate_site_links.py, which drops <wbr> as a visitor's copy does",
+    ),
 }
+PAGE_TAILS = {"index.html", "site/index.html"}
+# shortcut: open() is not seen, only read_text/read_bytes; add it if a raw page read through open() appears.
+READ_METHODS = {"read_text", "read_bytes"}
 
 
 def readers(path: str, source: str) -> set[tuple[str, str, str]]:
@@ -78,7 +94,31 @@ def readers(path: str, source: str) -> set[tuple[str, str, str]]:
                     found.add((path, "load-mode flag", f"from {node.module} import {alias.name}"))
         elif isinstance(node, ast.Attribute) and node.attr in FLAG_REGEX_NAMES and isinstance(node.value, ast.Name):
             found.add((path, "load-mode flag", f"{node.value.id}.{node.attr}"))
+    if _reads_landing_page(tree):
+        found.add((path, "landing page", "a raw read of site/index.html"))
     return {r for r in found if OWNERS[r[1]][0] != path and path != SELF}
+
+
+def _is_page_path(node: ast.AST) -> bool:
+    return isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div) and isinstance(node.right, ast.Constant) \
+        and node.right.value in PAGE_TAILS
+
+
+def _reads_landing_page(tree: ast.AST) -> bool:
+    """A read_text/read_bytes call on a path to the page, or on a target bound to one; writes are not reads.
+
+    A target is matched by its source text, so `self.page` binds as `PAGE` does."""
+    bound = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and _is_page_path(node.value):
+            bound.update(ast.unparse(t) for t in node.targets)
+        elif isinstance(node, ast.AnnAssign) and node.value and _is_page_path(node.value):
+            bound.add(ast.unparse(node.target))
+    return any(
+        isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in READ_METHODS
+        and (_is_page_path(node.func.value) or ast.unparse(node.func.value) in bound)
+        for node in ast.walk(tree)
+    )
 
 
 def _is_re_compile(node: ast.Call) -> bool:

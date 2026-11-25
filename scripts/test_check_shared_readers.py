@@ -4,9 +4,13 @@
     Cases:
       - each reader shape is found outside its owner and ignored inside it;
       - a regex that only quotes the flag in an error message is not a reader;
-      - in a temp repository, a commit that adds a second `iter_skill_dirs` or a
-        load-mode regex goes red naming the owner to use, and a commit that
-        leaves an older copy in place stays green.
+      - a fixture write of the landing page, a path string in data, a path joined
+        with `+` and a read of an unbound attribute are not readers;
+      - test_install_form.py at e5e3e6d, the raw read #696 broke, is a landing-page reader;
+      - in a temp repository, a commit that adds a second `iter_skill_dirs`, a
+        load-mode regex or a raw landing-page read goes red naming the owner to
+        use, and a commit that leaves an older copy in place stays green;
+      - on the live tree, only landing-page reads that predate the owner remain.
 """
 from __future__ import annotations
 
@@ -21,6 +25,8 @@ sys.path.insert(0, str(SCRIPT_DIR))
 import check_shared_readers as csr  # noqa: E402
 
 FAILURES: list[str] = []
+# test_install_form.py's raw read at e5e3e6d, the one #696 broke and #706 fixed.
+PAGE_READ = 'SITE = ROOT / "site" / "index.html"\nsite = SITE.read_text(encoding="utf-8")\n'
 LOAD_REGEX = 're.compile(r"^disable-model-invocation:\\s*true\\s*$", re.MULTILINE)'
 
 
@@ -40,14 +46,42 @@ def case_reader_shapes() -> None:
         "from validate_standing_costs import DISABLE_MODEL_INVOCATION_RE\n": "load-mode flag",
         "from validate_card_files import BY_HAND_RE\n": "load-mode flag",
         "import validate_standing_costs as sc\nsc.DISABLE_MODEL_INVOCATION_RE.search(text)\n": "load-mode flag",
+        PAGE_READ: "landing page",
+        'html = (ROOT / "site" / "index.html").read_text(encoding="utf-8")\n': "landing page",
+        'PAGE: Path = ROOT / "site/index.html"\nPAGE.read_bytes()\n': "landing page",
+        'self.page = ROOT / "site" / "index.html"\nself.page.read_text()\n': "landing page",
+        'self.page: Path = ROOT / "index.html"\nself.page.read_bytes()\n': "landing page",
     }
     for source, kind in kinds.items():
-        found = csr.readers("scripts/other.py", source)
+        found = readers("scripts/other.py", source)
         check(f"found outside the owner: {source.splitlines()[-1].strip()}", {r[1] for r in found} == {kind}, str(found))
         owner = csr.OWNERS[kind][0]
-        check(f"ignored inside {owner}: {source.splitlines()[-1].strip()}", not csr.readers(owner, source))
+        check(f"ignored inside {owner}: {source.splitlines()[-1].strip()}", not readers(owner, source))
     quoted = 'import re\nMSG = re.compile(r"^Unexpected fields in frontmatter: disable-model-invocation\\.")\n'
     check("an error-message regex is not a reader", not csr.readers("scripts/other.py", quoted))
+    write = 'page = tmp / "site" / "index.html"\npage.write_text(html, encoding="utf-8")\n'
+    check("a fixture write of the landing page is not a reader", not csr.readers("scripts/other.py", write))
+    data = 'SURFACES = [("site/index.html", "first-person sentence")]\nMSG = f"expected {x!r} in site/index.html"\n'
+    check("a path string in data or a message is not a reader", not csr.readers("scripts/other.py", data))
+    joined = 'p = d + "index.html"\np.read_text()\n'
+    check("a path joined with + is not a reader", not readers("scripts/other.py", joined))
+    other = 'self.page = ROOT / "site" / "index.html"\nself.other.read_text()\n'
+    check("a read of a target not bound to the page is not a reader", not readers("scripts/other.py", other))
+
+
+def readers(path: str, source: str) -> set[tuple[str, str, str]]:
+    """csr.readers, with a crash returned as a finding so the case fails by name."""
+    try:
+        return csr.readers(path, source)
+    except Exception as exc:  # noqa: BLE001
+        return {(path, "crash", repr(exc))}
+
+
+def case_real_mistake() -> None:
+    source = git(SCRIPT_DIR.parent, "show", "e5e3e6d:scripts/test_install_form.py")
+    found = readers("scripts/test_install_form.py", source)
+    check("test_install_form.py at e5e3e6d is a landing-page reader", {r[1] for r in found} == {"landing page"},
+          str(found))
 
 
 def git(repo: Path, *args: str) -> str:
@@ -82,16 +116,19 @@ def case_only_additions_fail(tmp: Path) -> None:
 
     (repo / "scripts" / "new.py").write_text("def iter_skill_dirs(root):\n    return []\n", encoding="utf-8")
     (repo / "scripts" / "flag.py").write_text(f"import re\nNEW_RE = {LOAD_REGEX}\n", encoding="utf-8")
+    (repo / "scripts" / "site_read.py").write_text(PAGE_READ, encoding="utf-8")
     git(repo, "add", "-A")
-    git(repo, "commit", "-qm", "add two copies")
+    git(repo, "commit", "-qm", "add three copies")
     result = run_check(repo)
     check(
-        "an added iter_skill_dirs and an added load-mode regex go red, naming the owner",
+        "an added iter_skill_dirs, load-mode regex and landing-page read go red, naming the owner",
         result.returncode == 1
         and "scripts/new.py: a second iter_skill_dirs reader" in result.stdout
         and "import iter_skill_dirs from scripts/validate_scoreboard.py" in result.stdout
         and "scripts/flag.py: a second load-mode flag reader" in result.stdout
         and "runs_by_hand or flag_set from scripts/check_load_mode_markers.py" in result.stdout
+        and "scripts/site_read.py: a second landing page reader" in result.stdout
+        and "call landing_page from scripts/validate_site_links.py" in result.stdout
         and "old.py" not in result.stdout,
         result.stdout,
     )
@@ -104,10 +141,17 @@ def case_live_tree() -> None:
     )
     check("no iter_skill_dirs copy remains outside its owner", "iter_skill_dirs" not in result.stdout, result.stdout)
     check("the checker does not count itself", csr.SELF not in result.stdout, result.stdout)
+    check("--list exits 0", result.returncode == 0, result.stderr)
+    pages = sorted(line.split(":")[0].strip() for line in result.stdout.splitlines() if ": landing page:" in line)
+    # A subset, empty included, so migrating any or all older reads to landing_page keeps this green.
+    check("only landing-page reads that predate the owner remain", set(pages) <= {
+        "scripts/test_release_model_disclosure.py", "scripts/test_validate_brand_kit.py",
+        "scripts/test_validate_site_links.py"}, str(pages))
 
 
 def main() -> None:
     case_reader_shapes()
+    case_real_mistake()
     with tempfile.TemporaryDirectory() as tmp:
         case_only_additions_fail(Path(tmp))
     case_live_tree()
