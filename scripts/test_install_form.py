@@ -107,6 +107,7 @@ CATALOG = ROOT / "CATALOG.md"
 AGENTS = ROOT / "AGENTS.md"
 LINK_PS1 = ROOT / "scripts" / "link-skills.ps1"
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
+MARKETPLACE_NAME = "mrbinnacle-skills"  # the `name` in marketplace.json
 
 HTTPS_MARKETPLACE = "https://github.com/MrBinnacle/skills.git"
 SHORTHAND = "MrBinnacle/skills"
@@ -228,7 +229,7 @@ def published_marketplace(env: dict[str, str]) -> Path:
     """Read the snapshot fetched by this cold add, not a later remote HEAD."""
     config = Path(env["CLAUDE_CONFIG_DIR"])
     registry = json.loads((config / "plugins/known_marketplaces.json").read_text(encoding="utf-8"))
-    location = registry["mrbinnacle-skills"]["installLocation"]
+    location = registry[MARKETPLACE_NAME]["installLocation"]
     if not isinstance(location, str) or not location:
         raise ValueError("cold marketplace registry has no installLocation")
     root = Path(location).resolve()
@@ -445,6 +446,13 @@ def run_cli(
 
 
 def parse_plugin_list(stdout: str) -> dict[str, dict]:
+    """Key this marketplace's plugins by short name; skip every other source.
+
+    Claude Code 2.1.332 lists its built-in plugins (`cc-plugin-*@builtin`) in
+    `claude plugin list --json` even from an empty config, against its own
+    plugin CLI reference; 2.1.287 to 2.1.331 do not (measured 2026-11-25).
+    Keeping only `@mrbinnacle-skills` ids also survives any later source.
+    """
     try:
         data = json.loads(stdout)
     except json.JSONDecodeError:
@@ -456,8 +464,8 @@ def parse_plugin_list(stdout: str) -> dict[str, dict]:
         if not isinstance(plugin, dict):
             continue
         plugin_id = plugin.get("id", "")
-        short = plugin_id.partition("@")[0]
-        if short:
+        short, _, source = plugin_id.partition("@")
+        if short and source == MARKETPLACE_NAME:
             plugins[short] = plugin
     return plugins
 
