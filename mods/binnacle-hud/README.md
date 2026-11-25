@@ -9,7 +9,7 @@ The mod also takes the heads-ups that Claude Code's built-in side agent offers a
 The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has three sections:
 
 - **Memory** holds the lines you want Claude to keep. Send gives Claude those lines, after you confirm.
-- **Heads-ups** lists the notes the side agent offered in this session, one line each. Press `h` to open them in full.
+- **Heads-ups** lists the notes the side agent offered in this session, one line each. Press `h` to open them. In the side panel, the details of each note stop at three lines.
 - **Log** keeps thoughts for you. Type a thought in its field and press Enter, or send `/log` from the phone. The mod keeps the thought with the time and where it came from.
 
 ## Give Claude your Memory lines
@@ -17,6 +17,7 @@ The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has th
 1. Type a line in the field. Press Tab to reach the actions, then press `a` to add the line to Memory.
    If you pressed Enter by habit, the line is in the Log. Press Tab, then `p`, to copy the newest Log thought into Memory. The Log keeps it.
 2. To remove a line, press its number. With more than nine lines, `0` removes the last one.
+   Memory holds at most 20 lines. When it is full, the `a` and `p` keys are gone and the HUD says so. Remove a line to add another.
 3. Press `s` to send. Claude Code shows the lines and asks, for example, "Give Claude these 2 lines now?". Choose **Send**.
 
 The mod adds the lines to Claude Code's own memory section of the system prompt, under the heading "Memory the operator approved at HH:MM:". They go out with every request from Claude's next turn onward. The system prompt is not part of the chat that Claude Code compacts, so the lines stay through a compaction. Send adds no row to the conversation and starts no model turn.
@@ -90,6 +91,10 @@ claude --plugin-dir skills/mods/binnacle-hud
 
 `--plugin-dir` loads the mod for that session only. Pass it each time you start Claude Code.
 
+The mod's `tsconfig.json` extends `.claude-plugin/types/tsconfig.json`, which is not in git. To create it, load the mod with `claude --plugin-dir skills/mods/binnacle-hud` in an interactive session. Claude Code then writes the type declarations for the version you run ([Create a mod](https://code.claude.com/docs/en/plugins/mods/create.md), read 2026-11-17). Until then, `tsc -p` has nothing to extend.
+
+`claude plugin validate --strict skills/mods/binnacle-hud` type-checks the mod without that folder. Run it with Claude Code 2.1.326 or later. An older one does not know the three-line setting and fails the check.
+
 ## Commands
 
 | Command | What it does |
@@ -100,6 +105,8 @@ claude --plugin-dir skills/mods/binnacle-hud
 | `/log` | Asks for a thought in Claude Code's question dialog. |
 
 The side panel needs fullscreen (`/tui fullscreen`) and a window at least 110 columns wide. A click on the panel also puts the cursor in the field.
+
+If Claude Code refuses `/hud` or `/log`, for example because a later release or another plugin takes the name, the HUD still opens and a notice names the command it could not add.
 
 ## Log a thought from the phone
 
@@ -120,6 +127,9 @@ If you type text after `/log`, the mod keeps nothing and asks you to use the dia
 - Keeping a thought starts no model turn, and the mod adds nothing to the conversation or the unfinished Claude prompt.
 - The command line and the mod's reply are part of the conversation, so neither one carries the thought.
 - The Log lasts as long as the session. A new session starts with an empty Log.
+- The Log keeps the newest 100 thoughts. When a new thought arrives, the oldest one is dropped. The list of thoughts that failed to save also keeps its newest 100.
+- The mod keeps the first 2000 characters of a thought or a Memory line and drops the rest. When the mod cuts a thought it kept, `/log` says so in its reply, and the HUD says so in a notice. A thought that failed to save is cut the same way, without a notice.
+- In the side panel, a long thought, a Memory line, or the details of an opened heads-up shows at most three lines, so the field stays in view. The strip shows an opened heads-up whole, because it hides the field while the heads-ups are open. This needs Claude Code 2.1.326 or later. An older Claude Code shows the whole text, because it refuses the setting that stops a row at three lines.
 - The mod gives Memory lines to Claude only when you press Send and choose **Send** in the dialog. Keeping a thought does not add it to Memory; `p` copies it there without sending it.
 - The mod writes no file. Memory, like the Log, lasts as long as the session.
 - A heads-up is different: the mod gives each one to Claude with no key press (see above). Its text came from the side agent, not from you.
@@ -145,7 +155,7 @@ On Claude Code 2.1.325, on 2026-11-13, in headless sessions with a test mod that
 - Without the flag, or without telling Claude Code that the answer changed, the model kept reading the old text.
 - A section added through the system-prompt composition hook did not change mid-conversation, which is why the mod uses Claude Code's memory section instead.
 
-The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, the memory section before and after Send, the engine's own memory text kept ahead of the lines, the status before and after the memory section carries a Send, a memory section that is never asked for, a refused save, and state written by earlier versions. Run them with `claude plugin test mods/binnacle-hud`.
+The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, the memory section before and after Send, the engine's own memory text kept ahead of the lines, the status before and after the memory section carries a Send, a memory section that is never asked for, a refused save, and state written by earlier versions. Other tests cover a refused command name, saved state that cannot be read at start, a pane that fails to open, the limits on the Log, the failed list, Memory and the length of one thought, and the three-line rows on 2.1.326 and their absence on older versions. Run them with `claude plugin test mods/binnacle-hud` on Claude Code 2.1.326 or later. On an older version, the test of the three-line rows fails, because that version refuses the setting.
 
 On 2026-11-23 the heads-up path was checked against the Claude Code 2.1.331 binary, which writes each offer as one store write of the turn id and the note, and with the mod's tests. A dev mod built for the design, which read the row instead of the store, hid the row and sent the note as a turn of its own in a live 2.1.331 session. This mod's store route has not yet run live.
 
@@ -164,7 +174,8 @@ These are not verified:
 - Which conversation the hook ran for. Claude Code does not say whether a section was built for the main conversation or a subagent, so a subagent started after a Send could turn the status before the main conversation picks the lines up.
 - That the thought is absent from what Claude reads on a later turn. The export suggests so, but no turn was sent to check it.
 - Pasting, dictation, and long text in the phone's dialog.
-- What the dialog's **Chat about this** option does. Use **Other** instead.
+
+Choosing **Chat about this** in the `/log` dialog keeps nothing, and the reply is "Nothing kept." Claude Code's documentation says the dialog call fails on that choice, as it does when the dialog is dismissed ([events](https://code.claude.com/docs/en/plugins/mods/events.md), read 2026-11-17). The mod treats both failures the same way, and a test covers the dismissed dialog. The choice itself was not tried on a phone.
 
 ## License
 

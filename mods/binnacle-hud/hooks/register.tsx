@@ -86,6 +86,26 @@ export function headline(tree: unknown): string {
 
 const view = atom({ plugin: 'binnacle-hud', key: 'view' } as const, { ring: 0, expand: 0, failed: '' } as View)
 
+// Session state has no documented size limit, so the mod sets its own.
+// The Log and the failed list drop their oldest entry; Memory refuses a new
+// line instead, because dropping one would change what the next Send carries.
+const LOG_MAX = 100
+const FAILED_MAX = 100
+const MEMORY_MAX = 20
+const TEXT_MAX = 2000 // characters in one thought or line
+const clip = (text: string) => Array.from(text).slice(0, TEXT_MAX).join('')
+const isLong = (text: string) => Array.from(text).length > TEXT_MAX
+// A docked row stops at this many lines, so one long thought cannot push the
+// field out of the pane. Text took maxLines in 2.1.326; an older engine refuses
+// the prop and the pane draws nothing (measured on 2.1.325), so it waits for a version.
+const ROW_LINES = 3
+const MAX_LINES_SINCE = [2, 1, 326]
+export const takesMaxLines = (version: string): boolean => {
+  const have = version.split(/[.-]/).slice(0, 3).map(Number)
+  const i = MAX_LINES_SINCE.findIndex((want, n) => have[n] !== want)
+  return i === -1 || (have[i] ?? 0) > MAX_LINES_SINCE[i]!
+}
+
 // Binnacle Board palette, dark (artifact AQriRu2Xwo2ACiR981H89b, via the skills session 2026-11-08).
 // shortcut: dark values only; add the light variants once a theme read exists.
 const MARK = ['#9a9d78', '#85876a', '#70725c', '#5c5d4a', '#484838'] // olive fading to drab
@@ -136,11 +156,11 @@ export const statusOf = (lines: readonly string[], snap: Approved | null, seen: 
 async function keep($: EngineInterface, text: string, from: Thought['from']): Promise<boolean | null> {
   if (!text.trim()) return false
   try {
-    await update($, kept, items => [...items, { text, at: new Date().toISOString(), from }])
+    await update($, kept, items => [...items, { text: clip(text), at: new Date().toISOString(), from }].slice(-LOG_MAX))
     return true
   } catch {
-    const miss = entry(text)
-    await update($, failed, items => [...items, miss]).catch(() => undefined)
+    const miss = entry(clip(text))
+    await update($, failed, items => [...items, miss].slice(-FAILED_MAX)).catch(() => undefined)
     return null
   }
 }
@@ -154,21 +174,26 @@ async function clearDraft($: EngineInterface, text: string, at: number): Promise
 // not keep, so newer typing never hides the loss.
 async function submit($: EngineInterface, text: string): Promise<void> {
   const at = edits
-  if (await keep($, text, 'terminal')) await clearDraft($, text, at)
+  if (!(await keep($, text, 'terminal'))) return
+  if (isLong(text)) $.ui.toast(`binnacle-hud kept the first ${TEXT_MAX} characters. The rest was dropped.`)
+  await clearDraft($, text, at)
 }
 
-// Adds the field text the pane drew.
+// Adds the field text the pane drew. A full Memory keeps the field's text.
 async function addLine($: EngineInterface, text: string): Promise<void> {
   const at = edits
   if (!text.trim()) return
-  const line = entry(text.trim())
-  await update($, draft, lines => [...lines, line])
+  const line = entry(clip(text.trim()))
+  let added = false
+  await update($, draft, lines => (added = lines.length < MEMORY_MAX) ? [...lines, line] : lines)
+  if (!added) return
+  if (isLong(text.trim())) $.ui.toast(`binnacle-hud kept the first ${TEXT_MAX} characters. The rest was dropped.`)
   await clearDraft($, text, at)
 }
 
 async function promote($: EngineInterface, shown: string): Promise<void> {
-  const line = entry(shown)
-  await update($, draft, saved => entries(saved).at(-1)?.text === shown ? saved : [...saved, line])
+  const line = entry(clip(shown))
+  await update($, draft, saved => entries(saved).at(-1)?.text === line.text || saved.length >= MEMORY_MAX ? saved : [...saved, line])
 }
 
 // Each caller names its atom at the update call, which the hooks scan requires.
@@ -191,6 +216,11 @@ async function send($: EngineInterface): Promise<void> {
   await update($, view, v => ({ ...v, failed: refusal, refusedLines: lines }))
 }
 
+const COMMANDS = [
+  { name: 'hud', description: 'Open the Binnacle HUD. /hud narrow hide|strip sets what it does without room to dock' },
+  { name: 'log', description: 'Keep a thought in the Binnacle Log, from any surface, the phone included' },
+]
+
 export const register: Register = (on, options) => {
   const noDock = narrowOf(options.narrow)
   // rows is the inline height alone; a docked pane ignores it.
@@ -198,14 +228,23 @@ export const register: Register = (on, options) => {
   // Held from the press to the end of the Send, so a second press while
   // the question is open asks nothing.
   let sending = false
+  // Unknown until session.start reads the engine's version.
+  let rowLines: number | undefined
 
+  // A hook that throws is skipped from that point, so a refused command name
+  // and a failed migration read are caught, and the pane, the migrations and
+  // both registers come before the version read.
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'hud', description: 'Open the Binnacle HUD. /hud narrow hide|strip sets what it does without room to dock' })
-    await $.command.register({ name: 'log', description: 'Keep a thought in the Binnacle Log, from any surface, the phone included' })
     // Unasked, the pane waits undrawn below 144 columns (d.ts 2532-2533).
-    void $.ui.open(pane)
-    if ((await read($, draft)).some(s => typeof s === 'string')) await update($, draft, minted).catch(() => undefined)
-    if ((await read($, failed)).some(s => typeof s === 'string')) await update($, failed, minted).catch(() => undefined)
+    void $.ui.open(pane).catch((err: unknown) => $.ui.toast(`binnacle-hud could not open the HUD: ${err instanceof Error ? err.message : String(err)}. Run /hud to try again.`))
+    if ((await read($, draft).catch(() => [])).some(s => typeof s === 'string')) await update($, draft, minted).catch(() => undefined)
+    if ((await read($, failed).catch(() => [])).some(s => typeof s === 'string')) await update($, failed, minted).catch(() => undefined)
+    for (const command of COMMANDS) {
+      await $.command.register(command).catch(() => $.ui.toast(`binnacle-hud could not register /${command.name}: Claude Code refused the name.`))
+    }
+    rowLines = await $.session.version().then(v => takesMaxLines(v.base ?? v.version) ? ROW_LINES : undefined, () => undefined)
+    // The pane may have drawn before the version was known.
+    if (rowLines) $.ui.invalidate('ui.render')
     return next(e)
   })
 
@@ -300,7 +339,8 @@ export const register: Register = (on, options) => {
     if (answer === NOT_NOW || answer === CANCEL) return { text: 'Nothing kept.' }
     const from = e.origin.kind === 'bridge' ? 'phone' : 'terminal'
     const saved = await keep($, answer, from)
-    return { text: saved === null ? 'Not kept, the save failed. The thought is shown in the HUD.' : saved ? 'Kept in the Log.' : 'Nothing kept.' }
+    const cut = isLong(answer) ? ` Only its first ${TEXT_MAX} characters were kept.` : ''
+    return { text: saved === null ? 'Not kept, the save failed. The thought is shown in the HUD.' : saved ? `Kept in the Log.${cut}` : 'Nothing kept.' }
   })
 
   // Where the ring stands decides the key line.
@@ -323,6 +363,7 @@ export const register: Register = (on, options) => {
     const last = rows.at(-1)?.id
     const snap = await read($, approved)
     const said = statusOf(lines, snap, await read($, delivered))
+    const room = lines.length < MEMORY_MAX
     const offered = (await read($, notes)).list
     const status = said.text
     // A refusal is news only beside the lines it refused, and while they differ from the last Send.
@@ -365,9 +406,10 @@ export const register: Register = (on, options) => {
         {!(refused && !snap) && <Text wrap="wrap" color={said.tone ? TONE[said.tone] : undefined} dimColor={!said.tone}>{status}</Text>}
         {refused && <Text wrap="wrap" color={TONE.warning}>{`Not sent. ${refused}`}</Text>}
         {rows.map((r, i) => (
-          <Text key={`mem-${r.id}`} wrap={inline ? 'truncate-end' : 'wrap'}><Text dimColor>{i + 1} </Text>{r.text}</Text>
+          <Text key={`mem-${r.id}`} wrap={inline ? 'truncate-end' : 'wrap'} maxLines={inline ? undefined : rowLines}><Text dimColor>{i + 1} </Text>{r.text}</Text>
         ))}
         {lines.length === 0 && quiet('No lines yet. Write one in the field, then press a to add it.')}
+        {!room && quiet(`Memory holds ${lines.length} lines and keeps at most ${MEMORY_MAX}. Remove one to add another.`)}
       </Box>
     )
 
@@ -382,7 +424,7 @@ export const register: Register = (on, options) => {
           <Box key={`note-${i}`} flexDirection="column">
             <Text wrap={opened ? 'wrap' : 'truncate-end'}><Text dimColor>{i + 1} </Text>{n.line}</Text>
             {opened && <Text dimColor wrap="wrap">{`${hhmm(n.at)} · ${HOW[n.how]}`}</Text>}
-            {opened && n.explanation && <Text wrap="wrap">{n.explanation}</Text>}
+            {opened && n.explanation && <Text wrap="wrap" maxLines={inline ? undefined : rowLines}>{n.explanation}</Text>}
           </Box>
         ))}
       </Box>
@@ -391,7 +433,7 @@ export const register: Register = (on, options) => {
     // --- log ---------------------------------------------------------------
     const thought = (t: Thought, i: number) => (
       <Box key={`log-${i}`} flexDirection="row" justifyContent="space-between">
-        <Text wrap={inline ? 'truncate-end' : 'wrap'}><Text dimColor>{narrow ? '' : hhmm(t.at)}{t.from === 'phone' ? ' phone' : ''}  </Text>{t.text}</Text>
+        <Text wrap={inline ? 'truncate-end' : 'wrap'} maxLines={inline ? undefined : rowLines}><Text dimColor>{narrow ? '' : hhmm(t.at)}{t.from === 'phone' ? ' phone' : ''}  </Text>{t.text}</Text>
       </Box>
     )
     const shown = w - 12 // the field's width less its frame, label and Enter hint
@@ -435,8 +477,8 @@ export const register: Register = (on, options) => {
       ...(unsaved.some(f => f.id) ? [{ k: 'd', label: 'dismiss failed', run: () => void update($, failed, without(unsaved.flatMap(f => f.id ?? []))).catch(() => undefined) }] : []),
       ...(inline ? [toggle(1, 'm', 'memory'), toggle(2, 'l', 'log')] : []),
       ...(offered.length ? [toggle(4, 'h', 'heads-ups')] : []),
-      ...(writing ? [{ k: 'a', label: 'to memory', run: () => addLine($, now) }] : []),
-      ...(!writing && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
+      ...(writing && room ? [{ k: 'a', label: 'to memory', run: () => addLine($, now) }] : []),
+      ...(!writing && room && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
       ...(showsMemory && lines.length && said.send ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
       // shortcut: lines past the ninth have only 0, which removes the last one; add paging if Memory grows that long.
       ...(showsMemory && !writing ? rows.slice(0, 9).flatMap(({ id }, i) => id ? [{ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([id])).catch(() => undefined) }] : []) : []),

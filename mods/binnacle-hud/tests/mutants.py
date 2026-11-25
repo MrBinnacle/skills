@@ -23,8 +23,8 @@ MUTANTS = {
     "entry id is minted, not its text": [("({ id: crypto.randomUUID(), text })", "({ id: text, text })")],
     "bare string gets no id": [("{ id: null, text: s }", "{ id: s, text: s }")],
     "bare string keeps its text": [("{ id: null, text: s }", "{ id: null, text: '' }")],
-    "start mints a 4.1.0 Memory": [("    if ((await read($, draft)).some(s => typeof s === 'string')) await update($, draft, minted).catch(() => undefined)\n", "")],
-    "start mints 4.1.0 failed keeps": [("    if ((await read($, failed)).some(s => typeof s === 'string')) await update($, failed, minted).catch(() => undefined)\n", "")],
+    "start mints a 4.1.0 Memory": [("    if ((await read($, draft).catch(() => [])).some(s => typeof s === 'string')) await update($, draft, minted).catch(() => undefined)\n", "")],
+    "start mints 4.1.0 failed keeps": [("    if ((await read($, failed).catch(() => [])).some(s => typeof s === 'string')) await update($, failed, minted).catch(() => undefined)\n", "")],
     "remove acts on the drawn entry": [("without([id])", "without([rows[0]!.id!])")],
     "remove matches by id, not text": [("saved.filter(s => typeof s === 'string' || !ids.includes(s.id))",
                                         "saved.filter(s => typeof s === 'string' || !saved.some(x => typeof x !== 'string' && ids.includes(x.id) && x.text === s.text))")],
@@ -107,6 +107,15 @@ MUTANTS = {
     "a free turn with a note waiting still carries it": [("if (!waiting.length && now.free) return next(e)", "if (now.free) return next(e)")],
     "hidden characters go before NFKC": [(r"const once = text.replace(/\s/g, ' ').replace(HIDDEN, '')", r"const once = text.replace(/\s/g, ' ')")],
     "strip opens the Log at 2": [("st.expand === 2 ? log", "st.expand === 3 ? log")],
+    "docked heads-up details stop at three lines": [("<Text wrap=\"wrap\" maxLines={inline ? undefined : rowLines}>{n.explanation}", "<Text wrap=\"wrap\">{n.explanation}")],
+    "strip heads-up details are whole": [("maxLines={inline ? undefined : rowLines}>{n.explanation}", "maxLines={rowLines}>{n.explanation}")],
+    # PR 688 verifier rows, and the migration reads before the registers
+    "the pane redraws once the version is known": [("    if (rowLines) $.ui.invalidate('ui.render')\n", "")],
+    "the release base decides maxLines": [("takesMaxLines(v.base ?? v.version)", "takesMaxLines(v.version)")],
+    "strip Memory rows take no maxLines": [("maxLines={inline ? undefined : rowLines}><Text dimColor>{i + 1}", "maxLines={rowLines}><Text dimColor>{i + 1}")],
+    "a failed long keep shows no cut toast": [("  if (!(await keep($, text, 'terminal'))) return\n  if (isLong(text)) $.ui.toast(`binnacle-hud kept the first ${TEXT_MAX} characters. The rest was dropped.`)\n", "  const ok = await keep($, text, 'terminal')\n  if (isLong(text)) $.ui.toast(`binnacle-hud kept the first ${TEXT_MAX} characters. The rest was dropped.`)\n  if (!ok) return\n")],
+    "an unreadable Memory does not skip the registers": [("read($, draft).catch(() => [])", "read($, draft)")],
+    "an unreadable failed list does not skip the registers": [("read($, failed).catch(() => [])", "read($, failed)")],
 }
 
 
