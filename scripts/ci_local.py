@@ -24,6 +24,8 @@ this clone has full history and every remote ref, so a step that walks history o
 resolves origin/<branch> can pass here and fail there (PR #622, 2026-10-23).
 A step key the script does not model (`working-directory`, `shell`) is an error,
 so the runner fails loudly when the workflow grows one.
+The tally names the commit under test and any uncommitted changes. A run whose tree
+changed while it ran exits 1, because its result describes no single state of the code.
 
 Needs PyYAML (maintainer machine only; CI does not run this script).
 
@@ -34,6 +36,7 @@ Needs PyYAML (maintainer machine only; CI does not run this script).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import os
 import re
@@ -151,6 +154,16 @@ def remove_tree(path: Path) -> None:
         print(f"WARN could not remove {path}", file=sys.stderr)
 
 
+def tree_state() -> str:
+    """Name the code under test, so a result cannot be read as a result for other code."""
+    def git(*args: str) -> bytes:
+        return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, check=True).stdout
+
+    head = git("rev-parse", "--short", "HEAD").decode().strip()
+    diff = git("diff", "HEAD")
+    return f"{head} plus uncommitted changes {hashlib.sha256(diff).hexdigest()[:8]}" if diff else head
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Run the shell steps of the CI workflow locally.")
     parser.add_argument("--list", action="store_true", help="print the steps and exit")
@@ -175,6 +188,8 @@ def main(argv: list[str]) -> int:
         return 2
     failed, skipped, ran = [], 0, 0
     temps: dict[str, Path] = {}
+    state = tree_state()
+    changed_at = ""
     try:
         for s in steps:
             if s.skip:
@@ -188,16 +203,22 @@ def main(argv: list[str]) -> int:
                 print(f"NOTE {s.job}[{s.index}] {s.name}: {s.note}", flush=True)
             rc = run_step(s, args.bash, temp)
             ran += 1
+            # Checked after every step, so a mutant written and restored inside the run still voids it.
+            if tree_state() != state:
+                changed_at = changed_at or f"{s.job}[{s.index}] {s.name}"
             print(f"{'PASS' if rc == 0 else 'FAIL'} rc={rc} {s.job}[{s.index}] {s.name}", flush=True)
             if rc:
                 failed.append(f"{s.job}[{s.index}] {s.name}")
     finally:
         for temp in temps.values():
             remove_tree(temp)
-    print(f"\n{ran} ran, {skipped} skipped, {len(failed)} failed")
+    print(f"\n{ran} ran, {skipped} skipped, {len(failed)} failed at {state}")
     for name in failed:
         print(f"  FAILED {name}")
-    return 1 if failed or not ran else 0
+    if changed_at:
+        print(f"  VOID: the tree changed during the run, first seen after {changed_at};"
+              f" started at {state}, ended at {tree_state()}")
+    return 1 if failed or not ran or changed_at else 0
 
 
 if __name__ == "__main__":
