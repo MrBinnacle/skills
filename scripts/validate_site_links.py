@@ -38,6 +38,11 @@ BLOB_PREFIX = REPO_URL + "/blob/main/"
 PAGES_WORKFLOW = ".github/workflows/pages.yml"
 
 
+def landing_page(root: Path = Path(__file__).resolve().parent.parent) -> str:
+    """site/index.html as a visitor copies it: `<wbr>` marks where a phone may break a line and copies as nothing."""
+    return (root / "site" / "index.html").read_text(encoding="utf-8").replace("<wbr>", "")
+
+
 class _Links(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
@@ -128,7 +133,7 @@ def check_repo_link(href: str, root: Path) -> str | None:
 def check(root: Path) -> list[str]:
     site = root / "site"
     parser = _Links()
-    parser.feed((site / "index.html").read_text(encoding="utf-8"))
+    parser.feed(landing_page(root))
     copies = deploy_copies((root / PAGES_WORKFLOW).read_text(encoding="utf-8"))
     errors: list[str] = []
     for href in parser.refs:

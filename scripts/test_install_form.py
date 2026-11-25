@@ -97,12 +97,12 @@ import tempfile
 from pathlib import Path
 
 import check_marketplace_pin as pin
+from validate_site_links import landing_page
 
 ROOT = Path(__file__).resolve().parent.parent
 README = ROOT / "README.md"
 # The receipts left the front page; the commands stay in README.
 RECEIPTS = ROOT / "docs" / "product" / "runtime-delivery-matrix.md"
-SITE = ROOT / "site" / "index.html"
 CATALOG = ROOT / "CATALOG.md"
 AGENTS = ROOT / "AGENTS.md"
 LINK_PS1 = ROOT / "scripts" / "link-skills.ps1"
@@ -464,8 +464,7 @@ def parse_plugin_list(stdout: str) -> dict[str, dict]:
 
 def main() -> int:
     readme = README.read_text(encoding="utf-8")
-    # <wbr> marks where a phone may break a long command; it is invisible and copies as nothing.
-    site = SITE.read_text(encoding="utf-8").replace("<wbr>", "")
+    site = landing_page()
     catalog = CATALOG.read_text(encoding="utf-8")
     agents = AGENTS.read_text(encoding="utf-8")
     link_ps1 = LINK_PS1.read_text(encoding="utf-8")
