@@ -106,12 +106,13 @@
             font-family="&quot;IBM Plex Mono&quot;, ui-monospace, &quot;Cascadia Mono&quot;, Consolas, monospace"
             font-weight="500"> / skills</tspan></text>
       </svg>
+      <a class="head-link" href="https://github.com/MrBinnacle/skills"><svg class="icon icon-small" aria-hidden="true" focusable="false" width="16" height="16"><use href="#ph-github-logo"/></svg>GitHub</a>
     </div>
   </header>
 
   <main id="main" class="wrap">
 
-    <!-- Copy below is README.md's own wording (opening, See a guard fire, Install, How it is kept). Change it there first. -->
+    <!-- Copy below is README.md's own wording (opening, See a guard fire, Install, How it is kept, Contribute). Change it there first. -->
     <section class="hero">
       <h1>Less prompting. Better plumbing.</h1>
       <p class="incidents">
@@ -121,7 +122,7 @@
       </p>
       <p>Each of these happened in real work with a coding agent. This repository is what got built in response.</p>
       <ul class="parts">
-        <li><strong>Guards</strong> are code that runs on the agent’s action, so nothing depends on the agent remembering an instruction. <span class="runs">Runs in Pi.</span></li>
+        <li><strong>Guards</strong> are code that runs on the agent’s action, so nothing depends on the agent remembering an instruction. <span class="runs">Runs in <a href="https://pi.dev">Pi</a>.</span></li>
         <li><strong>Cards</strong> are instructions an agent loads for one specific mistake. <span class="runs">Runs in Claude Code and Pi.</span></li>
         <li><strong>Mods</strong> add to Claude Code’s own interface. <span class="runs">Runs in Claude Code.</span></li>
       </ul>
@@ -138,20 +139,23 @@
         <p>Install <code>mrbinnacle-orchestration</code>, <code>mrbinnacle-meta</code>, <code>binnacle-hud</code> and <code>tips-anywhere</code> the same way if you want them. They appear after <code>/reload-plugins</code>.</p>
       </div>
       <div class="route">
-        <h2><svg class="icon" aria-hidden="true" focusable="false" width="20" height="20"><use href="#ph-terminal-window"/></svg>Install in Pi</h2>
+        <h2>Install in Pi</h2>
         <p>Use <a href="https://github.com/MrBinnacle/skills#pi">the install command in the README</a>.</p>
       </div>
     </section>
 
     <section class="demo">
       <h2>See a guard fire</h2>
-      <p>With Pi installed, run this from the repository root. It needs no API key and takes a few seconds.</p>
+      <p>With Pi installed, clone the repository and run the demo from its root. It needs no API key and takes a few seconds.</p>
       <div class="commands">
+        <kbd>git clone https://github.com/<wbr>MrBinnacle/skills.git</kbd>
+        <kbd>cd skills</kbd>
         <kbd>node mechanisms/<wbr>verify-gate/<wbr>demo.mjs</kbd>
       </div>
       <p>An agent is asked for a 10% discount and writes a bug. In the first run it says “Done.” and the bug ships. In the second run the guard sends it back to run the tests, and it reports the failure. The agent’s replies are scripted, so you see what the guard does and not what a model makes of it.</p>
       <figure>
-        <a class="shot" href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/verify-gate/demo.svg"><img src="assets/demo.svg" width="1280" height="938" loading="lazy" decoding="async" alt="Two runs of one coding task side by side. Without the verify-gate extension, the agent edits price.mjs, says it is done, and the project’s tests fail afterwards. With it, the gate sends the agent back, the agent runs npm test, and it reports the failure."></a>
+        <a class="shot" href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/verify-gate/demo.svg" tabindex="-1" aria-hidden="true"><img src="assets/demo.svg" width="1280" height="938" loading="lazy" decoding="async" alt="Two runs of one coding task side by side. Without the verify-gate extension, the agent edits price.mjs, says it is done, and the project’s tests fail afterwards. With it, the gate sends the agent back, the agent runs npm test, and it reports the failure."></a>
+        <p class="shot-link"><a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/verify-gate/demo.svg">Open the demo picture full size</a></p>
         <figcaption>The picture is one run of that command, drawn by <a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/verify-gate/render-demo.mjs"><code>render-demo.mjs</code></a>. Pi’s agent loop, its edit and bash tools, npm test and the extension are real. The model’s replies are scripted, so the demo needs Pi and no API key; this picture is from Pi 1.5.0. It has run on Windows only.</figcaption>
       </figure>
     </section>
@@ -159,11 +163,17 @@
     <section class="kept">
       <h2>How it is kept</h2>
       <p><a href="https://github.com/MrBinnacle/skills/blob/main/ADMISSION.md">ADMISSION.md</a> is the rule for which cards get in, and <a href="https://github.com/MrBinnacle/skills/blob/main/RETIRED.md">RETIRED.md</a> lists the ones that left. The <a href="https://github.com/MrBinnacle/skills/blob/main/docs/product/runtime-delivery-matrix.md">runtime delivery matrix</a> records which installs were checked, on what, and when. The <a href="https://github.com/MrBinnacle/skills/blob/main/CHANGELOG.md">changelog</a> says what each version changed.</p>
+      <p>A version promises the install path, a card's name and the card format. The set of cards is not part of the promise: cards are added and retired in minor releases, so what you can install is expected to change. Renaming a card is a major release, because you install a card by its name. <a href="https://github.com/MrBinnacle/skills/blob/main/docs/adr/0002-a-release-is-a-delivery-event.md">The first decision record</a> says why, and <a href="https://github.com/MrBinnacle/skills/blob/main/docs/adr/0003-a-cards-name-is-part-of-the-declared-surface.md">a second one</a> says why the name is part of it.</p>
       <ul class="isnt">
         <li><a href="https://github.com/MrBinnacle/skills/blob/main/CATALOG.md#not-a-catalog"><svg class="icon" aria-hidden="true" focusable="false" width="20" height="20"><use href="#ph-prohibit"/></svg>Not a catalog</a></li>
         <li><a href="https://github.com/MrBinnacle/skills/blob/main/CATALOG.md#not-proof-that-these-skills-work"><svg class="icon" aria-hidden="true" focusable="false" width="20" height="20"><use href="#ph-prohibit"/></svg>Not proof that these skills work</a></li>
       </ul>
-      <p><a href="https://github.com/MrBinnacle/skills#readme">Read the README</a>, or start with the knowledge base behind the cards: <a href="https://github.com/MrBinnacle/skills/blob/main/docs/explanations/three-decisions.md">Three decisions, and what they share</a>.</p>
+      <p><a href="https://github.com/MrBinnacle/skills#readme">Read the README</a>.</p>
+    </section>
+
+    <section class="contribute">
+      <h2>Contribute</h2>
+      <p>If your agent keeps making a mistake that nothing here covers, <a href="https://github.com/MrBinnacle/skills/issues/new">open an issue</a> and say what happened. Fixes and new guards are welcome as pull requests. Report a security problem through <a href="https://github.com/MrBinnacle/skills/security/advisories/new">the private form</a>, not a public issue.</p>
     </section>
 
   </main>
@@ -171,7 +181,6 @@
   <footer class="foot">
     <ul class="wrap">
       <li><a href="https://github.com/MrBinnacle/skills"><svg class="icon icon-small" aria-hidden="true" focusable="false" width="16" height="16"><use href="#ph-github-logo"/></svg>Repository</a></li>
-      <li><a href="https://github.com/MrBinnacle/skill-harness">skill-harness</a></li>
       <li><a href="https://github.com/MrBinnacle/skills/blob/main/LICENSE">MIT License</a></li>
     </ul>
   </footer>

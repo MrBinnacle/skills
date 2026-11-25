@@ -95,7 +95,7 @@
   --s6: 48px;
   --s7: 96px;
 
-  --measure: 70ch;
+  --measure: 58ch;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -149,6 +149,8 @@ body {
   color: var(--ink);
   border: 1px solid var(--line);
   transform: translateY(-200%);
+  /* The base a rule's negative margin would pull the box and its focus ring above the viewport. */
+  margin-block: 0;
 }
 
 .skip:focus-visible {
@@ -246,7 +248,8 @@ code {
   vertical-align: -0.2em;
 }
 
-/* Header: the lockup, no navigation, one hairline below */
+/* Header: the lockup, one repository link at the row's end, one hairline below.
+   Below about 482px the link cannot fit beside the lockup and wraps to its own row. */
 
 .site-head {
   border-bottom: 1px solid var(--line);
@@ -255,7 +258,13 @@ code {
 .site-head-row {
   min-height: 56px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  column-gap: var(--s4);
+}
+
+.head-link {
+  margin-inline-start: auto;
 }
 
 .lockup {
@@ -263,14 +272,17 @@ code {
   color: var(--ink);
 }
 
+/* rem, so the lockup grows with text-only zoom. The margin is (56 - 28) / 2: it keeps
+   the clear space when the link wraps, whatever the viewport or scrollbar width. */
 .lockup-horizontal {
-  height: 28px;
+  height: 1.75rem;
   width: auto;
+  margin-block: 14px;
 }
 
 .lockup-stacked {
   display: none;
-  height: 61px;
+  height: 3.8125rem;
   width: auto;
 }
 
@@ -335,11 +347,16 @@ code {
   color: var(--muted);
 }
 
+.runs a {
+  color: var(--muted);
+}
+
 /* Regions: one hairline above each, more space above a heading than below */
 
 .install,
 .demo,
-.kept {
+.kept,
+.contribute {
   border-top: 1px solid var(--line);
   padding-block: var(--s6);
 }
@@ -378,6 +395,9 @@ code {
   font-size: 1rem;
   line-height: 1.6;
   overflow-wrap: anywhere;
+  /* One click selects the whole command for copying. */
+  -webkit-user-select: all;
+  user-select: all;
 }
 
 /* The demo picture: the rendered run at the column's width, its limits below it */
@@ -386,11 +406,22 @@ code {
   margin: var(--s4) 0 0;
 }
 
-/* The picture links to its full-size file: at phone width its text is too small to read. */
+/* Below 768px the picture's text is too small to read, so phones get only the
+   full-size link below it. The link shows at every width and is the one focus stop. */
 .demo .shot {
-  display: block;
+  display: none;
   padding-block: 0;
   margin-block: 0;
+}
+
+.shot-link {
+  margin-bottom: var(--s2);
+}
+
+@media (min-width: 768px) {
+  .demo .shot {
+    display: block;
+  }
 }
 
 .demo img {
@@ -431,7 +462,8 @@ code {
 }
 
 .isnt a,
-.foot li a {
+.foot li a,
+.head-link {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -467,5 +499,18 @@ code {
 @media (prefers-reduced-motion: no-preference) {
   a {
     transition: text-decoration-color 120ms linear, text-decoration-thickness 120ms linear;
+  }
+}
+
+/* Paper: print each outside link's address, and drop the dark picture and the skip link. */
+@media print {
+  .skip,
+  .demo .shot {
+    display: none;
+  }
+  main a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    overflow-wrap: anywhere;
   }
 }
