@@ -63,9 +63,9 @@ and that each entry describes its change rather than giving a command.
    ([AGENTS.md](../AGENTS.md) step 4).
 2. Refresh the install receipt in `docs/product/runtime-delivery-matrix.md`. The receipt cites
    the first passing push run of `tests.yml` on `main` at the new version. `tests.yml` and
-   `release-receipt.yml` have been untracked since #630 (2026-10-24), so no such run exists, and
-   the script below exits 1 with `no passing push run of tests.yml on main`. Record that line
-   on the release pull request until #690 brings a hosted test run back. Then run:
+   `release-receipt.yml` have been untracked since #630 (2026-10-24), so no such run exists.
+   Run the script below. Until #690 brings a hosted test run back, it exits 1 with
+   `no passing push run of tests.yml on main`. Record that line on the release pull request.
 
 ```bash
 python scripts/refresh_install_receipt.py          # print the diff

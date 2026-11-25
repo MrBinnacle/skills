@@ -41,8 +41,10 @@ result. The [card evidence](#card-evidence) table says which is which.
 
 ### Not a runtime
 
-There is nothing to import and no framework to install. The skills are Markdown. You can read one,
-use it, change it, or delete it.
+Nothing here is a framework that your code imports. The skills are Markdown files: you can read
+one, use it, change it, or delete it. The guards are small extensions that your agent loads
+beside your code, not inside it. The Pi guards in `mechanisms/` are TypeScript, and the Claude
+Code mods in `mods/` carry hooks.
 
 ## Admission method
 
