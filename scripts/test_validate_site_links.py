@@ -60,6 +60,10 @@ def src_failures() -> list[str]:
         "root asset the deploy does not copy": ('<img src="assets/banner-dark.svg" alt="">', None, [f"assets/banner-dark.svg: {UNRESOLVED}"]),
         # README.md exists one level up, but the deploy publishes nothing outside site/.
         "path that leaves site/": ('<a href="../README.md">x</a>', None, [f"../README.md: {UNRESOLVED}"]),
+        # Pages is case-sensitive; site/favicon-32.png exists, but this spelling 404s live.
+        "wrong letter case": ('<img src="FAVICON-32.PNG" alt="">', None, [f"FAVICON-32.PNG: {UNRESOLVED}"]),
+        # site/fonts is a directory, which no browser can load as an image.
+        "directory, not a file": ('<img src="fonts" alt="">', None, [f"fonts: {UNRESOLVED}"]),
         "demo src copied by pages.yml": ("", None, []),
         "demo src without its cp line": ("", _drop_demo_cp, [f"assets/demo.svg: {UNRESOLVED}"]),
         "demo src whose cp source is gone": ("", lambda tmp: (tmp / DEMO).unlink(), [f"assets/demo.svg: {UNRESOLVED}"]),

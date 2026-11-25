@@ -11,8 +11,9 @@ This script resolves each link against the working tree instead of the network:
 
 - `#id` must name an `id` on the page itself.
 - A relative `href` or `src` must resolve the way the deploy resolves it: a file
-  inside `site/` (a `../` path that leaves it is refused), or a file a
-  `cp <src> _site/<path>` line in .github/workflows/pages.yml copies there.
+  inside `site/`, or a file a `cp <src> _site/<path>` line in
+  .github/workflows/pages.yml copies there. Each path part must match the name on
+  disk exactly, the target must be a file, and a `../` path is refused.
 - `https://github.com/MrBinnacle/skills` links resolve to a file in this
   repository (`/blob/main/<path>`, or README.md for the bare repository URL),
   and a fragment must equal the GitHub slug of a heading in that file.
@@ -64,6 +65,25 @@ def deploy_copies(workflow: str) -> dict[str, str]:
         for source in words[1:-1]:
             copies[dest + Path(source).name if dest.endswith("/") else dest] = source
     return copies
+
+
+def published_file(base: Path, rel: str) -> bool:
+    """True when `rel` names a file under `base`, each part spelled exactly as on disk.
+
+    Pages serves from Linux, where `FAVICON-32.PNG` and `favicon-32.png` differ and a
+    directory is not an image, so a case-insensitive `exists()` on Windows passes a 404.
+    A `..` part is refused: the deploy publishes nothing outside `base`.
+    """
+    path = base
+    for part in Path(rel).parts:
+        if part == "..":
+            return False
+        if part == ".":
+            continue
+        if not path.is_dir() or part not in {child.name for child in path.iterdir()}:
+            return False
+        path = path / part
+    return path.is_file()
 
 
 def github_slug(heading: str) -> str:
@@ -120,8 +140,7 @@ def check(root: Path) -> list[str]:
             if error:
                 errors.append(error)
         elif not re.match(r"^[a-z]+:", href):
-            in_site = (site / href).resolve().is_relative_to(site.resolve()) and (site / href).exists()
-            if not (in_site or (href in copies and (root / copies[href]).exists())):
+            if not (published_file(site, href) or (href in copies and published_file(root, copies[href]))):
                 errors.append(f"{href}: not in site/, and no pages.yml cp line copies an existing file there")
     return errors
 
