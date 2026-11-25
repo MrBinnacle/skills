@@ -26,6 +26,7 @@ import os
 import queue
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -220,12 +221,23 @@ def run_suite(tree: Path, suite: str, timeout: float) -> tuple[int | None, str, 
     # suite printing non-cp1252 text must not crash on Windows. No case reaches either cheaply.
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")  # equivalent-mutant: see above
     start = time.monotonic()
+    p = subprocess.Popen([sys.executable, suite], cwd=tree, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                         encoding="utf-8", errors="replace",  # equivalent-mutant: see env
+                         start_new_session=os.name != "nt")
     try:
-        p = subprocess.run([sys.executable, suite], cwd=tree, env=env, capture_output=True,
-                           encoding="utf-8", errors="replace", timeout=timeout)  # equivalent-mutant: see env
+        out, _ = p.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
+        kill_tree(p.pid)  # a hung suite's children would otherwise outlive it and hold memory
+        p.communicate()  # equivalent-mutant: only reaps the killed child and closes its pipe
         return None, "", time.monotonic() - start
-    return p.returncode, p.stdout + p.stderr, time.monotonic() - start
+    return p.returncode, out, time.monotonic() - start
+
+
+def kill_tree(pid: int) -> None:
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True)
+    else:
+        os.killpg(pid, signal.SIGKILL)
 
 
 def git(root: Path, *args: str) -> str:

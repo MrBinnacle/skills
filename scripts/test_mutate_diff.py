@@ -19,6 +19,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import traceback
 from pathlib import Path
 
@@ -146,9 +148,18 @@ def case_kill_rule() -> None:
 
 
 def case_timeout(tmp: Path) -> None:
-    (tmp / "slow.py").write_text("import time\ntime.sleep(20)\n", encoding="utf-8")
-    rc, out, secs = md.run_suite(tmp, "slow.py", 1)
-    check("a suite past its timeout returns no exit code", rc is None and out == "" and 0.5 < secs < 15, (rc, out, secs))
+    beat = "import time\nfor _ in range(250):\n    open('beat', 'a').write('.')\n    time.sleep(0.1)\n"
+    (tmp / "slow.py").write_text(f"import subprocess, sys, time\nsubprocess.Popen([sys.executable, '-c', {beat!r}])\n"
+                                 "time.sleep(30)\n", encoding="utf-8")
+    got: list = []
+    worker = threading.Thread(target=lambda: got.append(md.run_suite(tmp, "slow.py", 2)), daemon=True)
+    worker.start()
+    worker.join(20)  # a child left holding the pipe would block run_suite until the heartbeat ends
+    rc, out, secs = got[0] if got else ("hung", "", 0)
+    check("a suite past its timeout returns no exit code", rc is None and out == "" and 1 < secs < 20, (rc, out, secs))
+    size = (tmp / "beat").stat().st_size
+    time.sleep(1)
+    check("a timeout kills the suite's children too", (tmp / "beat").stat().st_size == size)
 
 
 SCRIPT = "def ok(n):\n    return n > 0\n"
