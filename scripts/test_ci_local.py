@@ -133,8 +133,9 @@ def tree_state_cases() -> None:
         def git(*args: str) -> str:
             return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=True).stdout.strip()
 
-        def gate(step: str) -> subprocess.CompletedProcess[str]:
-            workflow.write_text(f"jobs:\n  a:\n    steps:\n      - name: S\n        run: {step}\n", encoding="utf-8")
+        def gate(*steps: str) -> subprocess.CompletedProcess[str]:
+            body = "".join(f"      - name: S{i}\n        run: {step}\n" for i, step in enumerate(steps, 1))
+            workflow.write_text(f"jobs:\n  a:\n    steps:\n{body}", encoding="utf-8")
             return subprocess.run([sys.executable, "scripts/ci_local.py", "--workflow", str(workflow)], cwd=root,
                                   capture_output=True, text=True, encoding="utf-8", errors="replace")
 
@@ -154,8 +155,13 @@ def tree_state_cases() -> None:
               dirty.returncode == 0 and f"failed at {head} plus uncommitted changes" in dirty.stdout
               and "VOID" not in dirty.stdout, dirty.stdout + dirty.stderr)
         restored = gate("git checkout code.py")
-        check("a mutant restored during the run voids it", restored.returncode == 1 and "VOID" in restored.stdout,
+        check("a dirty tree cleaned during the run voids it", restored.returncode == 1 and "VOID" in restored.stdout,
               restored.stdout + restored.stderr)
+        # Start and end match here; only the check after each step sees the mutant.
+        round_trip = gate("echo 'limit = None' >> code.py", "git checkout code.py")
+        check("a mutant written and restored inside a clean run voids it",
+              round_trip.returncode == 1 and "VOID: the tree changed during the run, first seen after a[0] S1"
+              in round_trip.stdout, round_trip.stdout + round_trip.stderr)
 
 
 def main() -> int:

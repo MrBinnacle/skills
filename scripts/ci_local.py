@@ -189,6 +189,7 @@ def main(argv: list[str]) -> int:
     failed, skipped, ran = [], 0, 0
     temps: dict[str, Path] = {}
     state = tree_state()
+    changed_at = ""
     print(f"Testing {state}", flush=True)
     try:
         for s in steps:
@@ -203,6 +204,9 @@ def main(argv: list[str]) -> int:
                 print(f"NOTE {s.job}[{s.index}] {s.name}: {s.note}", flush=True)
             rc = run_step(s, args.bash, temp)
             ran += 1
+            # Checked after every step, so a mutant written and restored inside the run still voids it.
+            if tree_state() != state:
+                changed_at = changed_at or f"{s.job}[{s.index}] {s.name}"
             print(f"{'PASS' if rc == 0 else 'FAIL'} rc={rc} {s.job}[{s.index}] {s.name}", flush=True)
             if rc:
                 failed.append(f"{s.job}[{s.index}] {s.name}")
@@ -213,9 +217,10 @@ def main(argv: list[str]) -> int:
     for name in failed:
         print(f"  FAILED {name}")
     after = tree_state()
-    if after != state:
-        print(f"  VOID: the tree changed during the run, from {state} to {after}")
-    return 1 if failed or not ran or after != state else 0
+    if after != state or changed_at:
+        print(f"  VOID: the tree changed during the run, first seen after {changed_at or 'the last step'};"
+              f" started at {state}, ended at {after}")
+    return 1 if failed or not ran or after != state or changed_at else 0
 
 
 if __name__ == "__main__":
