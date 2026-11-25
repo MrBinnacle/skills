@@ -149,6 +149,8 @@ body {
   color: var(--ink);
   border: 1px solid var(--line);
   transform: translateY(-200%);
+  /* The base a rule's negative margin would pull the box and its focus ring above the viewport. */
+  margin-block: 0;
 }
 
 .skip:focus-visible {
@@ -270,22 +272,18 @@ code {
   color: var(--ink);
 }
 
+/* rem, so the lockup grows with text-only zoom. The margin is (56 - 28) / 2: it keeps
+   the clear space when the link wraps, whatever the viewport or scrollbar width. */
 .lockup-horizontal {
-  height: 28px;
+  height: 1.75rem;
   width: auto;
+  margin-block: 14px;
 }
 
 .lockup-stacked {
   display: none;
-  height: 61px;
+  height: 3.8125rem;
   width: auto;
-}
-
-/* Once the link wraps, the row no longer centres the lockup in 56px; restore its clear space above. */
-@media (max-width: 481.98px) {
-  .site-head-row {
-    padding-top: var(--s3);
-  }
 }
 
 @media (max-width: 359.98px) {
@@ -408,8 +406,8 @@ code {
   margin: var(--s4) 0 0;
 }
 
-/* Below 768px the picture's text is too small to read, so phones get a link to
-   the full-size file instead of the picture. */
+/* Below 768px the picture's text is too small to read, so phones get only the
+   full-size link below it. The link shows at every width and is the one focus stop. */
 .demo .shot {
   display: none;
   padding-block: 0;
@@ -423,9 +421,6 @@ code {
 @media (min-width: 768px) {
   .demo .shot {
     display: block;
-  }
-  .shot-link {
-    display: none;
   }
 }
 
@@ -504,5 +499,18 @@ code {
 @media (prefers-reduced-motion: no-preference) {
   a {
     transition: text-decoration-color 120ms linear, text-decoration-thickness 120ms linear;
+  }
+}
+
+/* Paper: print each outside link's address, and drop the dark picture and the skip link. */
+@media print {
+  .skip,
+  .demo .shot {
+    display: none;
+  }
+  main a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    overflow-wrap: anywhere;
   }
 }

@@ -20,7 +20,7 @@ import validate_site_links as sl  # noqa: E402
 ROOT = SCRIPT_DIR.parent
 DEMO = "mechanisms/verify-gate/demo.svg"
 DEMO_CP = "cp mechanisms/verify-gate/demo.svg _site/assets/demo.svg"
-UNRESOLVED = "not in site/, not a root assets/ file, and no pages.yml cp line copies an existing file there"
+UNRESOLVED = "not in site/, and no pages.yml cp line copies an existing file there"
 
 
 def _copy_with(snippet: str) -> Path:
@@ -56,6 +56,10 @@ def src_failures() -> list[str]:
 
     cases = {
         "missing src": ('<img src="assets/no-such.svg" alt="">', None, [f"assets/no-such.svg: {UNRESOLVED}"]),
+        # Root assets/ holds files pages.yml never copies; this one would 404 on the live site.
+        "root asset the deploy does not copy": ('<img src="assets/banner-dark.svg" alt="">', None, [f"assets/banner-dark.svg: {UNRESOLVED}"]),
+        # README.md exists one level up, but the deploy publishes nothing outside site/.
+        "path that leaves site/": ('<a href="../README.md">x</a>', None, [f"../README.md: {UNRESOLVED}"]),
         "demo src copied by pages.yml": ("", None, []),
         "demo src without its cp line": ("", _drop_demo_cp, [f"assets/demo.svg: {UNRESOLVED}"]),
         "demo src whose cp source is gone": ("", lambda tmp: (tmp / DEMO).unlink(), [f"assets/demo.svg: {UNRESOLVED}"]),

@@ -11,8 +11,8 @@ This script resolves each link against the working tree instead of the network:
 
 - `#id` must name an `id` on the page itself.
 - A relative `href` or `src` must resolve the way the deploy resolves it: a file
-  under `site/`, a root `assets/` file, or a file a `cp <src> _site/<path>` line in
-  .github/workflows/pages.yml copies there.
+  inside `site/` (a `../` path that leaves it is refused), or a file a
+  `cp <src> _site/<path>` line in .github/workflows/pages.yml copies there.
 - `https://github.com/MrBinnacle/skills` links resolve to a file in this
   repository (`/blob/main/<path>`, or README.md for the bare repository URL),
   and a fragment must equal the GitHub slug of a heading in that file.
@@ -120,12 +120,9 @@ def check(root: Path) -> list[str]:
             if error:
                 errors.append(error)
         elif not re.match(r"^[a-z]+:", href):
-            if not (
-                (site / href).exists()
-                or (href.startswith("assets/") and (root / href).exists())
-                or (href in copies and (root / copies[href]).exists())
-            ):
-                errors.append(f"{href}: not in site/, not a root assets/ file, and no pages.yml cp line copies an existing file there")
+            in_site = (site / href).resolve().is_relative_to(site.resolve()) and (site / href).exists()
+            if not (in_site or (href in copies and (root / copies[href]).exists())):
+                errors.append(f"{href}: not in site/, and no pages.yml cp line copies an existing file there")
     return errors
 
 
