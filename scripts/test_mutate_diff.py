@@ -82,7 +82,8 @@ def case_operators() -> None:
 def case_regex_split() -> None:
     check("| inside a group, class or escape does not split",
           md.split_branches(r"a(b|c)[|]\|d|e") == [r"a(b|c)[|]\|d", "e"], md.split_branches(r"a(b|c)[|]\|d|e"))
-    check("a class ends at ]", md.split_branches("[a]|b") == ["[a]", "b"], md.split_branches("[a]|b"))
+    check("a class ends at ] and not before", md.split_branches("[ab|]|c") == ["[ab|]", "c"],
+          md.split_branches("[ab|]|c"))
     want = [("drops branch '^a'", "b$"), ("drops branch 'b$'", "^a"), ("drops the ^ anchor", "a|b$"),
             ("drops the $ anchor", "^a|b")]
     check("regex variants are exactly the branches and anchors", md.regex_variants("^a|b$") == want,
@@ -102,10 +103,11 @@ def case_scope() -> None:
     check("async, vararg, kwarg, return and variable annotations are left alone", got == {
         'async def f(*a: "s", **k: "t") -> "u":\n    pass\npass\n'}, got)
     src = ("import os\nfrom os import path\nclass C:\n    pass\nasync def f():\n    pass\n"
-           "def g():\n    global G\n    def h():\n        nonlocal G\n")
+           "def g():\n    global G\n    y = 1\n    def h():\n        nonlocal y\n")
+    compile(src, "", "exec")  # a source that does not compile would drop every mutant and prove nothing
     check("no def, class, import, global or nonlocal is deleted", not [t for t in labels(src) if "deletes" in t],
           labels(src))
-    check("a non-string expression statement is deleted", "pass\n" in outs("f(1)\n"))
+    check("a non-string expression statement is deleted", "pass\n" in outs("f(1)\n") and "pass\n" in outs("...\n"))
     check("a string subscript and keyword are still emptied",
           {'d[""]\n', 'f(x="")\n'} <= outs('d["k"]\n') | outs('f(x="v")\n'))
     got = outs('if __name__ == "__main__":\n    main(a and b)\n')

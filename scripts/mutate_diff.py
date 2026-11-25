@@ -40,7 +40,10 @@ FAIL_LINE = re.compile(r"\s*(FAIL|FAILED|ERROR)\b")  # match
 HUNK = re.compile(r"^@@ -\S+ \+(\d+)(?:,(\d+))? @@", re.M)
 NOT_DELETED = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Import, ast.ImportFrom,
                ast.Global, ast.Nonlocal)
-IGNORE = shutil.ignore_patterns(".git", "node_modules", "__pycache__")  # equivalent-mutant: the last two only save copy time
+IGNORE = shutil.ignore_patterns(
+    ".git",
+    "node_modules", "__pycache__",  # equivalent-mutant: these two only save copy time
+)
 
 
 @dataclass(frozen=True)
@@ -192,7 +195,7 @@ def mutants(data: bytes, added: set[int]) -> list[Mutant]:
                 continue
             seen.add(new)
             try:
-                compile(new, "<mutant>", "exec")  # equivalent-mutant: the name only labels a traceback
+                compile(new, "", "exec")
             except SyntaxError:
                 continue
             out.append(Mutant(line, label, new))
@@ -213,7 +216,9 @@ def verdict(rc: int | None, output: str, baseline: set[str]) -> str:
 
 
 def run_suite(tree: Path, suite: str, timeout: float) -> tuple[int | None, str, float]:
-    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")  # equivalent-mutant: no .pyc is copied; ASCII reads alike
+    # Not equivalent: no .pyc may outlive a mutant written in the same second at the same size, and a
+    # suite printing non-cp1252 text must not crash on Windows. No case reaches either cheaply.
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")  # equivalent-mutant: see above
     start = time.monotonic()
     try:
         p = subprocess.run([sys.executable, suite], cwd=tree, env=env, capture_output=True,
