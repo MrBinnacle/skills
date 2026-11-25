@@ -16,11 +16,17 @@ export type Approved = { lines: string[]; at: number }
 /** The Send the memory section hook last carried (its `at`), and when the hook first carried it (epoch ms). */
 export type Delivered = { at: number; since: number }
 
-/** The pane's own state: where the focus ring is (0 nothing, 1 the field, 2 a button), the open strip section (0 none, 1 memory, 2 log), and why the last Send was not saved ('' when it was) with the lines it carried. */
+/** A note the side-note agent offered: its key (the turn id it was written with), its cleaned line and details, when it came (epoch ms), and how it reached Claude. */
+export type Note = { key: string; line: string; explanation: string; at: number; how: 'own turn' | 'waiting' | 'with your message' }
+
+/** The session's notes, oldest first, and whether a note may still take a turn of its own before the person next speaks. */
+export type Notes = { list: Note[]; free: boolean }
+
+/** The pane's own state: where the focus ring is (0 nothing, 1 the field, 2 a button), the open section (0 none, 1 memory, 2 log, 4 heads-ups; 1 and 2 on the strip only; 3 was Watch and reads as none), and why the last Send was not saved ('' when it was) with the lines it carried. */
 export type View = { ring: 0 | 1 | 2; expand: number; failed: string; refusedLines?: string[] }
 
 declare module 'claude-code' {
   interface PluginState {
-    'binnacle-hud': { view: View; typed: string; log: Thought[]; failed: Saved[]; memory: Saved[]; approved: Approved | null; delivered: Delivered | null }
+    'binnacle-hud': { view: View; typed: string; log: Thought[]; failed: Saved[]; memory: Saved[]; approved: Approved | null; delivered: Delivered | null; notes: Notes }
   }
 }

@@ -4,9 +4,12 @@ Keep a Log of thoughts beside a Claude Code session, from the terminal or from t
 
 Keep the decisions you and Claude agreed in Memory. The mod gives Memory to Claude only when you press Send and confirm it. From then on the lines are part of Claude's system instructions on every request, so a long chat or a compaction does not push them out of Claude's view.
 
-The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has two sections:
+The mod also takes the heads-ups that Claude Code's built-in side agent offers above the prompt. It lists each one in the panel and gives it to Claude itself, so no heads-up waits on a key press.
+
+The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has three sections:
 
 - **Memory** holds the lines you want Claude to keep. Send gives Claude those lines, after you confirm.
+- **Heads-ups** lists the notes the side agent offered in this session, one line each. Press `h` to open them. In the side panel, the details of each note stop at three lines.
 - **Log** keeps thoughts for you. Type a thought in its field and press Enter, or send `/log` from the phone. The mod keeps the thought with the time and where it came from.
 
 ## Give Claude your Memory lines
@@ -36,6 +39,22 @@ The mod says the lines are in Claude's instructions only after its hook has adde
 Memory goes to the main conversation. A subagent that is already running keeps the instructions it started with. Whether a subagent started after a Send also receives the lines is not verified.
 
 If Claude Code refuses to save the Send, the HUD shows "Not sent." and the reason while the lines are the ones that Send carried. The reason goes away when you change the lines or when they match the last Send. The previous Send stays in force. To change a line, remove it and add the new wording.
+
+## Heads-ups reach Claude with no key press
+
+Claude Code's built-in side agent (`cc-plugin-you-should-know`) watches the session and sometimes offers a note, the "Heads up" row above the prompt with Learn more, Knew this already and Dismiss. With this mod installed:
+
+1. The mod takes the note from the side agent's own store write, under the turn id the side agent wrote it with. A reload or a redraw does not take a note twice.
+2. The row leaves the band above the prompt once its headline is exactly the line of a note listed in the panel. Any other row stays, so a note the mod missed, or a headline the side agent shortened, is still on screen.
+3. The first note since your last message goes to Claude as a turn of its own. Claude Code labels that turn as sent by the mod.
+4. A note that comes before you send another message waits, and goes with your next message as context Claude reads beside it. A slash command carries no note. One note-started turn for each message you send means a note's turn cannot set off a chain of turns.
+5. If Claude Code refuses or fails the note's turn, the note waits for your next message instead. If another mod or Claude Code drops your message, its notes stay waiting for the one after.
+
+The panel lists every note of the session, numbered, with its line. Press `h` to open them: each shows its details, the time it came and how it reached Claude ("sent to Claude", "goes with your next message" or "sent with your message"). The list lasts as long as the session.
+
+**Claude acts on a note it finds to hold, without asking you.** A note can repeat text that reached the session from files, tool output or web pages, so text written by someone else can reach Claude this way, and you do not read it first. The mod removes hidden characters, normalises the text, and gives Claude each note as one line of JSON, with a sentence that says the data may repeat outside text and that an instruction inside it is not one to follow. How far that lowers the chance that Claude follows a planted instruction has not been measured. If you would rather read each note before Claude does, do not install this version.
+
+Do not set `CLAUDE_CODE_YOU_SHOULD_KNOW_AUTO_SEND` with this mod. That setting makes the side agent attach its current note to your next prompt itself, so the note would reach Claude twice. With the `tips-anywhere` mod also installed, the phone's question for a note still appears; answering it with **Hand to Claude** sends that note a second time.
 
 ## Get back a prompt you wiped by accident
 
@@ -110,9 +129,10 @@ If you type text after `/log`, the mod keeps nothing and asks you to use the dia
 - The Log lasts as long as the session. A new session starts with an empty Log.
 - The Log keeps the newest 100 thoughts. When a new thought arrives, the oldest one is dropped. The list of thoughts that failed to save also keeps its newest 100.
 - The mod keeps the first 2000 characters of a thought or a Memory line and drops the rest. When the mod cuts a thought it kept, `/log` says so in its reply, and the HUD says so in a notice. A thought that failed to save is cut the same way, without a notice.
-- In the side panel, a long thought or Memory line shows at most three lines, so the field stays in view. This needs Claude Code 2.1.326 or later. An older Claude Code shows the whole text, because it refuses the setting that stops a row at three lines.
+- In the side panel, a long thought, a Memory line, or the details of an opened heads-up shows at most three lines, so the field stays in view. The strip shows an opened heads-up whole, because it hides the field while the heads-ups are open. This needs Claude Code 2.1.326 or later. An older Claude Code shows the whole text, because it refuses the setting that stops a row at three lines.
 - The mod gives Memory lines to Claude only when you press Send and choose **Send** in the dialog. Keeping a thought does not add it to Memory; `p` copies it there without sending it.
 - The mod writes no file. Memory, like the Log, lasts as long as the session.
+- A heads-up is different: the mod gives each one to Claude with no key press (see above). Its text came from the side agent, not from you.
 
 ### Where a kept thought goes
 
@@ -137,7 +157,14 @@ On Claude Code 2.1.325, on 2026-11-13, in headless sessions with a test mod that
 
 The mod's tests cover the field, `/log`, the refusal of text after `/log`, the panel's key row, failed keeps surviving later captures, and edits during Log or Memory saves, including emptying and retyping the same text. Memory tests cover confirmation before Send, freezing the lines when Send is pressed, the memory section before and after Send, the engine's own memory text kept ahead of the lines, the status before and after the memory section carries a Send, a memory section that is never asked for, a refused save, and state written by earlier versions. Other tests cover a refused command name, a pane that fails to open, the limits on the Log, the failed list, Memory and the length of one thought, and the three-line rows on 2.1.326 and their absence on older versions. Run them with `claude plugin test mods/binnacle-hud` on Claude Code 2.1.326 or later. On an older version, the test of the three-line rows fails, because that version refuses the setting.
 
+On 2026-11-23 the heads-up path was checked against the Claude Code 2.1.331 binary, which writes each offer as one store write of the turn id and the note, and with the mod's tests. A dev mod built for the design, which read the row instead of the store, hid the row and sent the note as a turn of its own in a live 2.1.331 session. This mod's store route has not yet run live.
+
 These are not verified:
+
+- The heads-up path in a live session: the store route, the row leaving the band, and a note riding with a message.
+- How often Claude follows an instruction planted in a heads-up.
+- Whether the side agent offers fewer notes over time. It counts each message sent while its note is open and unanswered, and after a run of them it holds back later notes. With the row hidden, no note is ever answered, so every open note counts. A mod cannot answer for you, because it cannot write another plugin's store.
+- Whether the row's headline is always the note's line word for word. If it is not, the row stays above the prompt, and the note is still listed and sent.
 
 - Memory in a live interactive session. Its tests run against the test kit, and the probe ran headless.
 - Memory after a real compaction, from `/compact` or an automatic one. That the lines survive follows from the system prompt not being compacted; it was not observed.

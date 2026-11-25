@@ -201,6 +201,20 @@ test('a docked Log thought and Memory line stop at three lines; the strip trunca
   expect(row?.props.maxLines).toBeUndefined()
 })
 
+test('opened docked heads-up details stop at three lines; the strip, which hides the field, shows them whole', { options: { narrow: 'strip' } }, async ($, on) => {
+  const long = 'detail '.repeat(280)
+  const note = { key: '00000000-0000-4000-8000-000000000001', line: 'A note.', explanation: long, at: NOW, how: 'own turn' }
+  await start($, on, { notes: { list: [note], free: false }, typed: '', view: { ring: 0, expand: 4, failed: '' } }, { version: '2.1.326' })
+  const dock = await $.ui.mount(pane())
+  const docked = await dock.find({ type: 'Text', text: /detail detail/ })
+  expect(docked?.props.maxLines).toBe(3)
+  await dock.unmount()
+  const strip = await $.ui.mount({ ...pane('inline'), props: { ...pane('inline').props, bodyColumns: 90 } })
+  const whole = await strip.find({ type: 'Text', text: /detail detail/ })
+  expect(whole?.props.wrap).toBe('wrap')
+  expect(whole?.props.maxLines).toBeUndefined()
+})
+
 for (const version of ['2.1.325', undefined]) {
   test(`an engine at ${version ?? 'an unknown version'} gets no maxLines, which it would refuse`, async ($, on) => {
     await start($, on, { log: thoughts(1), memory: lines(1), typed: '' }, { version })
