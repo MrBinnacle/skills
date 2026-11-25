@@ -232,13 +232,13 @@ export const register: Register = (on, options) => {
   let rowLines: number | undefined
 
   // A hook that throws is skipped from that point, so a refused command name
-  // is caught, and the pane, the migrations and both registers come before
-  // the version read.
+  // and a failed migration read are caught, and the pane, the migrations and
+  // both registers come before the version read.
   on('session.start', async ($, e, next) => {
     // Unasked, the pane waits undrawn below 144 columns (d.ts 2532-2533).
     void $.ui.open(pane).catch((err: unknown) => $.ui.toast(`binnacle-hud could not open the HUD: ${err instanceof Error ? err.message : String(err)}. Run /hud to try again.`))
-    if ((await read($, draft)).some(s => typeof s === 'string')) await update($, draft, minted).catch(() => undefined)
-    if ((await read($, failed)).some(s => typeof s === 'string')) await update($, failed, minted).catch(() => undefined)
+    if ((await read($, draft).catch(() => [])).some(s => typeof s === 'string')) await update($, draft, minted).catch(() => undefined)
+    if ((await read($, failed).catch(() => [])).some(s => typeof s === 'string')) await update($, failed, minted).catch(() => undefined)
     for (const command of COMMANDS) {
       await $.command.register(command).catch(() => $.ui.toast(`binnacle-hud could not register /${command.name}: Claude Code refused the name.`))
     }

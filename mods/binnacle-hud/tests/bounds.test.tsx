@@ -14,9 +14,9 @@ const pane = (placement: 'dock' | 'inline' = 'dock') => ({
 }) as const
 
 type Store = Record<string, any>
-type Start = { refuse?: string; openFails?: boolean; deny?: string[]; answer?: string; version?: string }
+type Start = { refuse?: string; openFails?: boolean; deny?: string[]; unreadable?: string; answer?: string; version?: string; base?: string }
 const start = async ($: any, on: any, store: Store, how: Start = {}) => {
-  const seen = { registered: [] as string[], toasts: [] as string[], opened: 0 }
+  const seen = { registered: [] as string[], toasts: [] as string[], opened: 0, versionReads: 0 }
   const versions: Record<string, number> = {}
   on('command.register', (_: unknown, e: { name: string }) => {
     if (e.name === how.refuse) return { deny: 'a built-in holds the name' }
@@ -32,9 +32,11 @@ const start = async ($: any, on: any, store: Store, how: Start = {}) => {
     return { value: undefined }
   })
   on('ui.focus', () => ({ value: {} }))
-  if (how.version) on('session.version', () => ({ value: { version: how.version, base: how.version } }))
+  if (how.version) on('session.version', () => (seen.versionReads++, { value: { version: how.version, base: how.base ?? how.version } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
-  on('state.get', (_: unknown, e: { key: string }) => ({ value: { value: store[e.key], version: versions[e.key] ?? 0 } }))
+  on('state.get', (_: unknown, e: { key: string }) => e.key === how.unreadable
+    ? { deny: 'injected state read failure' }
+    : { value: { value: store[e.key], version: versions[e.key] ?? 0 } })
   on('state.set', (_: unknown, e: { key: string; value: unknown }) => {
     if (how.deny?.includes(e.key)) return { deny: 'injected state write failure' }
     store[e.key] = e.value
@@ -131,6 +133,24 @@ test('a failed keep records only the first 2000 characters', async ($, on) => {
   expect(store.failed[0].text).toBe('f'.repeat(2000))
 })
 
+test('a failed keep of a long thought shows no cut toast, since nothing was kept', async ($, on) => {
+  const store: Store = { log: [], failed: [], typed: '' }
+  const seen = await start($, on, store, { deny: ['log'] })
+  const ui = await $.ui.mount(pane())
+  await ui.input({ key: 'thought', text: 'f'.repeat(2600) })
+  await ui.unmount()
+  expect(store.failed).toHaveLength(1)
+  expect(seen.toasts).toEqual([])
+})
+
+for (const key of ['memory', 'failed']) {
+  test(`an unreadable ${key} at start still registers both commands and reads the version`, async ($, on) => {
+    const seen = await start($, on, { log: thoughts(1), typed: '' }, { unreadable: key, version: '2.1.326' })
+    expect(seen.registered).toEqual(['hud', 'log'])
+    expect(seen.versionReads).toBe(1)
+  })
+}
+
 test('a Memory line from the field keeps its first 2000 characters, and a toast says so', async ($, on) => {
   const store: Store = { memory: [], log: [], typed: 'm'.repeat(3000) }
   const seen = await start($, on, store)
@@ -189,16 +209,50 @@ test('Memory below the cap still offers both add keys', async ($, on) => {
 })
 
 test('a docked Log thought and Memory line stop at three lines; the strip truncates to one', { options: { narrow: 'strip' } }, async ($, on) => {
-  const long = 'word '.repeat(400)
-  await start($, on, { log: [{ text: long, at: '2026-11-17T09:00:00.000Z', from: 'terminal' }], memory: [{ id: 'm', text: long }], typed: '', view: { ring: 0, expand: 2, failed: '' } }, { version: '2.1.326' })
+  const at = '2026-11-17T09:00:00.000Z'
+  const store: Store = { log: [{ text: 'logword '.repeat(400), at, from: 'terminal' }], memory: [{ id: 'm', text: 'memword '.repeat(400) }], typed: '', view: { ring: 0, expand: 2, failed: '' } }
+  await start($, on, store, { version: '2.1.326' })
+  const rows = { 1: /memword memword/, 2: /logword logword/ }
   const dock = await $.ui.mount(pane())
-  const tree = JSON.stringify(await dock.drawn())
-  expect(tree.split('"maxLines":3').length - 1).toBe(2)
+  for (const text of Object.values(rows)) {
+    const row = await dock.find({ type: 'Text', text })
+    expect(row).toBeDefined()
+    expect(row.props.maxLines).toBe(3)
+  }
   await dock.unmount()
-  const strip = await $.ui.mount({ ...pane('inline'), props: { ...pane('inline').props, bodyColumns: 90 } })
-  const row = await strip.find({ type: 'Text', text: /word word/ })
-  expect(row?.props.wrap).toBe('truncate-end')
-  expect(row?.props.maxLines).toBeUndefined()
+  // The strip shows one section at a time: expand 1 is Memory, 2 is the Log.
+  for (const [expand, text] of Object.entries(rows)) {
+    store.view = { ring: 0, expand: Number(expand), failed: '' }
+    const strip = await $.ui.mount({ ...pane('inline'), props: { ...pane('inline').props, bodyColumns: 90 } })
+    const row = await strip.find({ type: 'Text', text })
+    expect(row).toBeDefined()
+    expect(row.props.wrap).toBe('truncate-end')
+    expect(row.props.maxLines).toBeUndefined()
+    await strip.unmount()
+  }
+})
+
+test('a pane drawn before the version is known redraws capped once it is', async ($, on) => {
+  let release!: () => void
+  const gate = new Promise<void>(r => { release = r })
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('ui.toast', () => ({ value: undefined }))
+  on('state.get', (_: unknown, e: { key: string }) => ({ value: { value: e.key === 'log' ? [{ text: 'word '.repeat(400), at: '2026-11-17T09:00:00.000Z', from: 'terminal' }] : undefined, version: 0 } }))
+  on('session.version', async () => { await gate; return { value: { version: '2.1.326', base: '2.1.326' } } })
+  on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  const started = $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount(pane())
+  const before = JSON.stringify(await ui.drawn())
+  release()
+  await started
+  expect(before).not.toContain('maxLines')
+  expect(JSON.stringify(await ui.drawn())).toContain('"maxLines":3')
+})
+
+test('the release base, not the spelled version, decides maxLines', async ($, on) => {
+  await start($, on, { log: thoughts(1), memory: lines(1), typed: '' }, { version: '9.9.9-fork', base: '2.1.325' })
+  expect(await drawn($)).not.toContain('maxLines')
 })
 
 test('opened docked heads-up details stop at three lines; the strip, which hides the field, shows them whole', { options: { narrow: 'strip' } }, async ($, on) => {

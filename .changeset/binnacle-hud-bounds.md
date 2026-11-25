@@ -2,7 +2,7 @@
 "mrbinnacle-skills": patch
 ---
 
-The Binnacle HUD now starts even when Claude Code refuses one of its commands. Before this change, a refused `/hud` or `/log` stopped the session-start step, so the panel never opened and nothing told you why. Now the panel opens first, and a notice names the command that could not be added. A panel that fails to open also shows a notice instead of failing silently.
+The Binnacle HUD now starts even when Claude Code refuses one of its commands. Before this change, a refused `/hud` or `/log` stopped the session-start step, so the panel never opened and nothing told you why. Now the panel opens first, and a notice names the command that could not be added. A panel that fails to open also shows a notice instead of failing silently. If the HUD cannot read its saved Memory or failed list at start, it still adds both commands.
 
 The HUD's lists now have limits. The Log keeps the newest 100 thoughts, and the list of thoughts that failed to save keeps its newest 100. The oldest is dropped. Memory holds at most 20 lines. When it is full, the keys that add a line are gone and the HUD says to remove one first, so no line you chose is dropped without you. One thought or line keeps its first 2000 characters. When the mod cuts a thought it kept, `/log` says so in its reply, and the HUD says so in a notice. A thought that failed to save is cut the same way, without a notice.
 
