@@ -217,7 +217,7 @@ test('a docked Log thought and Memory line stop at three lines; the strip trunca
   for (const text of Object.values(rows)) {
     const row = await dock.find({ type: 'Text', text })
     expect(row).toBeDefined()
-    expect(row.props.maxLines).toBe(3)
+    expect(row?.props.maxLines).toBe(3)
   }
   await dock.unmount()
   // The strip shows one section at a time: expand 1 is Memory, 2 is the Log.
@@ -226,8 +226,8 @@ test('a docked Log thought and Memory line stop at three lines; the strip trunca
     const strip = await $.ui.mount({ ...pane('inline'), props: { ...pane('inline').props, bodyColumns: 90 } })
     const row = await strip.find({ type: 'Text', text })
     expect(row).toBeDefined()
-    expect(row.props.wrap).toBe('truncate-end')
-    expect(row.props.maxLines).toBeUndefined()
+    expect(row?.props.wrap).toBe('truncate-end')
+    expect(row?.props.maxLines).toBeUndefined()
     await strip.unmount()
   }
 })
@@ -235,7 +235,7 @@ test('a docked Log thought and Memory line stop at three lines; the strip trunca
 test('a pane drawn before the version is known redraws capped once it is', async ($, on) => {
   let release!: () => void
   const gate = new Promise<void>(r => { release = r })
-  on('command.register', () => ({ value: undefined }))
+  on('command.register', (_: unknown, e: { name: string }) => ({ value: { command: e.name } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.toast', () => ({ value: undefined }))
   on('state.get', (_: unknown, e: { key: string }) => ({ value: { value: e.key === 'log' ? [{ text: 'word '.repeat(400), at: '2026-11-17T09:00:00.000Z', from: 'terminal' }] : undefined, version: 0 } }))
@@ -288,7 +288,7 @@ const racing = async ($: any, on: any, initial: Store) => {
   const cells: Record<string, { value: any; version: number }> = Object.fromEntries(Object.entries(initial).map(([k, value]) => [k, { value, version: 1 }]))
   const cell = (k: string) => cells[k] ?? { value: undefined, version: 0 }
   let fill = false
-  on('command.register', () => ({ value: undefined }))
+  on('command.register', (_: unknown, e: { name: string }) => ({ value: { command: e.name } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.focus', () => ({ value: {} }))
   on('ui.toast', () => ({ value: undefined }))
