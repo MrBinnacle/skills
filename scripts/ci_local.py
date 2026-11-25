@@ -172,8 +172,14 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--workflow", type=Path, default=WORKFLOW)
     parser.add_argument("--bash", default=shutil.which("bash"), help="bash to run steps with")
     args = parser.parse_args(argv)
-    steps = [s for s in load_steps(args.workflow)
+    every = load_steps(args.workflow)
+    steps = [s for s in every
              if (not args.job or s.job in args.job) and (not args.match or args.match in s.name)]
+    if not steps:
+        jobs = sorted({s.job for s in every})
+        print(f"no step selected: --match filters step names, --job selects a job. Jobs: {', '.join(jobs)}."
+              " Step names: --list", file=sys.stderr)
+        return 1
     shallow = shallow_jobs(args.workflow)
     for job in sorted({s.job for s in steps} & shallow.keys()):
         print(f"NOTE {job}: CI checks out with fetch-depth {shallow[job]}; this clone has full history and every"

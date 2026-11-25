@@ -12,7 +12,7 @@ The states it must tell apart:
     says so, and keeps the flag when nothing was skipped;
   - git init makes master, as on the hosted runner;
   - an unmodelled step key or if: condition is refused, not run;
-  - a filter that leaves nothing to run exits non-zero;
+  - a filter that leaves nothing to run exits non-zero and names the jobs;
   - a job with a shallow CI checkout is named, and a full-history one is not;
     a checkout of another repository does not count, the last checkout of
     this one decides, and an expression depth is named as unknown;
@@ -222,6 +222,11 @@ def main() -> int:
 
     empty = run(WORKFLOW, "--match", "no such step")
     check("an empty selection is not a pass", empty.returncode == 1, f"rc={empty.returncode}")
+    # #706: a verifier passed a job name to --match and got 0 steps and no hint.
+    by_job = run(WORKFLOW, "--match", "alpha")
+    check("an empty selection names the jobs and what each flag filters",
+          by_job.returncode == 1 and "Jobs: alpha, beta." in by_job.stderr
+          and "--match filters step names, --job selects a job" in by_job.stderr, by_job.stdout + by_job.stderr)
 
     unknown_key = run(WORKFLOW.replace("        run: exit 3", "        working-directory: sub\n        run: exit 3"))
     check("an unmodelled key is refused", unknown_key.returncode != 0 and "working-directory" in unknown_key.stderr,
