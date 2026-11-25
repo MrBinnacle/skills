@@ -9,7 +9,7 @@
       - in a temp repository, a commit that adds a second `iter_skill_dirs`, a
         load-mode regex or a raw landing-page read goes red naming the owner to
         use, and a commit that leaves an older copy in place stays green;
-      - on the live tree, only the three landing-page reads that predate the owner remain.
+      - on the live tree, only landing-page reads that predate the owner remain.
 """
 from __future__ import annotations
 
@@ -127,9 +127,10 @@ def case_live_tree() -> None:
     check("no iter_skill_dirs copy remains outside its owner", "iter_skill_dirs" not in result.stdout, result.stdout)
     check("the checker does not count itself", csr.SELF not in result.stdout, result.stdout)
     pages = sorted(line.split(":")[0].strip() for line in result.stdout.splitlines() if ": landing page:" in line)
-    check("only the three landing-page reads that predate the owner remain", pages == [
+    # A subset, so migrating an older read to landing_page keeps this green.
+    check("only landing-page reads that predate the owner remain", pages and set(pages) <= {
         "scripts/test_release_model_disclosure.py", "scripts/test_validate_brand_kit.py",
-        "scripts/test_validate_site_links.py"], str(pages))
+        "scripts/test_validate_site_links.py"}, str(pages))
 
 
 def main() -> None:
