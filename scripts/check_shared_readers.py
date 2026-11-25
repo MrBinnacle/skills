@@ -21,7 +21,8 @@ WHAT IT REFUSES
                                  -> call `runs_by_hand` or `flag_set` from
                                     scripts/check_load_mode_markers.py;
       - a `.read_text()` or `.read_bytes()` of a path built as `<x> / "index.html"`
-        or `<x> / "site/index.html"`, directly or through a name bound to it
+        or `<x> / "site/index.html"`, directly or through a name or attribute
+        (`self.page`) bound to it
                                  -> call `landing_page` from
                                     scripts/validate_site_links.py.
         A raw read keeps the `<wbr>` tags a visitor's copy drops; #696 added
@@ -104,17 +105,18 @@ def _is_page_path(node: ast.AST) -> bool:
 
 
 def _reads_landing_page(tree: ast.AST) -> bool:
-    """A read_text/read_bytes call on a path to the page, or on a name bound to one; writes are not reads."""
-    names = set()
+    """A read_text/read_bytes call on a path to the page, or on a target bound to one; writes are not reads.
+
+    A target is matched by its source text, so `self.page` binds as `PAGE` does."""
+    bound = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign) and _is_page_path(node.value):
-            names.update(t.id for t in node.targets if isinstance(t, ast.Name))
-        elif isinstance(node, ast.AnnAssign) and node.value and _is_page_path(node.value) \
-                and isinstance(node.target, ast.Name):
-            names.add(node.target.id)
+            bound.update(ast.unparse(t) for t in node.targets)
+        elif isinstance(node, ast.AnnAssign) and node.value and _is_page_path(node.value):
+            bound.add(ast.unparse(node.target))
     return any(
         isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in READ_METHODS
-        and (_is_page_path(node.func.value) or isinstance(node.func.value, ast.Name) and node.func.value.id in names)
+        and (_is_page_path(node.func.value) or ast.unparse(node.func.value) in bound)
         for node in ast.walk(tree)
     )
 
