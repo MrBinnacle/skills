@@ -464,7 +464,8 @@ def parse_plugin_list(stdout: str) -> dict[str, dict]:
 
 def main() -> int:
     readme = README.read_text(encoding="utf-8")
-    site = SITE.read_text(encoding="utf-8")
+    # <wbr> marks where a phone may break a long command; it is invisible and copies as nothing.
+    site = SITE.read_text(encoding="utf-8").replace("<wbr>", "")
     catalog = CATALOG.read_text(encoding="utf-8")
     agents = AGENTS.read_text(encoding="utf-8")
     link_ps1 = LINK_PS1.read_text(encoding="utf-8")
