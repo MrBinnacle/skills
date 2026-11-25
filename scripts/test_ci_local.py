@@ -227,6 +227,9 @@ def main() -> int:
     check("an empty selection names the jobs and what each flag filters",
           by_job.returncode == 1 and "Jobs: alpha, beta." in by_job.stderr
           and "--match filters step names, --job selects a job" in by_job.stderr, by_job.stdout + by_job.stderr)
+    empty_list = run(WORKFLOW, "--list", "--match", "no such step")
+    check("--list with a filter that selects nothing exits 1", empty_list.returncode == 1,
+          f"rc={empty_list.returncode}\n{empty_list.stdout}{empty_list.stderr}")
 
     unknown_key = run(WORKFLOW.replace("        run: exit 3", "        working-directory: sub\n        run: exit 3"))
     check("an unmodelled key is refused", unknown_key.returncode != 0 and "working-directory" in unknown_key.stderr,
