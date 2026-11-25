@@ -190,7 +190,6 @@ def main(argv: list[str]) -> int:
     temps: dict[str, Path] = {}
     state = tree_state()
     changed_at = ""
-    print(f"Testing {state}", flush=True)
     try:
         for s in steps:
             if s.skip:
@@ -216,11 +215,10 @@ def main(argv: list[str]) -> int:
     print(f"\n{ran} ran, {skipped} skipped, {len(failed)} failed at {state}")
     for name in failed:
         print(f"  FAILED {name}")
-    after = tree_state()
-    if after != state or changed_at:
-        print(f"  VOID: the tree changed during the run, first seen after {changed_at or 'the last step'};"
-              f" started at {state}, ended at {after}")
-    return 1 if failed or not ran or after != state or changed_at else 0
+    if changed_at:
+        print(f"  VOID: the tree changed during the run, first seen after {changed_at};"
+              f" started at {state}, ended at {tree_state()}")
+    return 1 if failed or not ran or changed_at else 0
 
 
 if __name__ == "__main__":

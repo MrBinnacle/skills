@@ -162,6 +162,9 @@ def tree_state_cases() -> None:
         check("a mutant written and restored inside a clean run voids it",
               round_trip.returncode == 1 and "VOID: the tree changed during the run, first seen after a[0] S1"
               in round_trip.stdout, round_trip.stdout + round_trip.stderr)
+        twice = gate("echo 'limit = None' >> code.py", "echo 'limit = 0' >> code.py")
+        check("a run changed by two steps names the first", twice.returncode == 1
+              and "first seen after a[0] S1;" in twice.stdout, twice.stdout + twice.stderr)
 
 
 def main() -> int:
