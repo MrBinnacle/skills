@@ -10,6 +10,7 @@ each gap, and exits 0 only when every public surface carries the release in pack
 - the repository social preview GitHub serves is byte for byte assets/social-preview.png;
 - the newest Pi install receipt (docs/product/receipts/*-pi-install.md, kept out of git) tested the
   pin the README's `pi install` command names, since the README sends Pi users to that pin.
+  It compares pins, not whether the recorded install passed.
 
 The marketplace pin has its own check, scripts/check_marketplace_pin.py. The skills.sh
 listing has no API this script can read, so it prints it as a manual step on every run.

@@ -15,7 +15,9 @@ The states it must tell apart:
   - a filter that leaves nothing to run exits non-zero;
   - a job with a shallow CI checkout is named, and a full-history one is not;
     a checkout of another repository does not count, the last checkout of
-    this one decides, and an expression depth is named as unknown.
+    this one decides, and an expression depth is named as unknown;
+  - the tally names the commit and any uncommitted changes, and a tree that
+    changed during the run exits 1, whichever way it changed.
 
 Run directly:  python scripts/test_ci_local.py
 """
@@ -23,6 +25,7 @@ Run directly:  python scripts/test_ci_local.py
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -118,6 +121,52 @@ def leaves_nothing_in_temp() -> bool:
         return done.returncode == 0 and list(temp.iterdir()) == []
 
 
+def tree_state_cases() -> None:
+    """Run a copy of the script from a fixture repo, so its steps can edit tracked code."""
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        root = Path(tmp)
+        (root / "scripts").mkdir()
+        shutil.copy(SCRIPT, root / "scripts" / "ci_local.py")
+        (root / "code.py").write_text("limit = 5\n", encoding="utf-8")
+        workflow = root / "flow.yml"
+
+        def git(*args: str) -> str:
+            return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=True).stdout.strip()
+
+        def gate(*steps: str) -> subprocess.CompletedProcess[str]:
+            body = "".join(f"      - name: S{i}\n        run: {step}\n" for i, step in enumerate(steps, 1))
+            workflow.write_text(f"jobs:\n  a:\n    steps:\n{body}", encoding="utf-8")
+            return subprocess.run([sys.executable, "scripts/ci_local.py", "--workflow", str(workflow)], cwd=root,
+                                  capture_output=True, text=True, encoding="utf-8", errors="replace")
+
+        git("init", "-q")
+        git("add", "code.py", "scripts")
+        git("-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "fixture")
+        head = git("rev-parse", "--short", "HEAD")
+
+        clean = gate("exit 0")
+        check("a clean run names its commit", clean.returncode == 0 and f"failed at {head}\n" in clean.stdout,
+              clean.stdout + clean.stderr)
+        changed = gate("echo 'limit = None' >> code.py")
+        check("a tree changed during the run voids it", changed.returncode == 1 and "VOID" in changed.stdout,
+              changed.stdout + changed.stderr)
+        dirty = gate("exit 0")
+        check("a dirty tree is named and does not fail",
+              dirty.returncode == 0 and f"failed at {head} plus uncommitted changes" in dirty.stdout
+              and "VOID" not in dirty.stdout, dirty.stdout + dirty.stderr)
+        restored = gate("git checkout code.py")
+        check("a dirty tree cleaned during the run voids it", restored.returncode == 1 and "VOID" in restored.stdout,
+              restored.stdout + restored.stderr)
+        # Start and end match here; only the check after each step sees the mutant.
+        round_trip = gate("echo 'limit = None' >> code.py", "git checkout code.py")
+        check("a mutant written and restored inside a clean run voids it",
+              round_trip.returncode == 1 and "VOID: the tree changed during the run, first seen after a[0] S1"
+              in round_trip.stdout, round_trip.stdout + round_trip.stderr)
+        twice = gate("echo 'limit = None' >> code.py", "echo 'limit = 0' >> code.py")
+        check("a run changed by two steps names the first", twice.returncode == 1
+              and "first seen after a[0] S1;" in twice.stdout, twice.stdout + twice.stderr)
+
+
 def main() -> int:
     check("a step's temp folder goes, read-only files included", leaves_nothing_in_temp())
 
@@ -180,6 +229,8 @@ def main() -> int:
     unknown_if = run(WORKFLOW.replace("matrix.os == 'ubuntu-latest'", "runner.os == 'Windows'"))
     check("an unmodelled if: is refused", unknown_if.returncode != 0 and "runner.os" in unknown_if.stderr,
           unknown_if.stdout + unknown_if.stderr)
+
+    tree_state_cases()
 
     if FAILURES:
         print("FAIL: ci_local suite")

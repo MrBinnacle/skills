@@ -10,7 +10,10 @@ README sections to CATALOG.md and the site kept linking to all four
 This script resolves each link against the working tree instead of the network:
 
 - `#id` must name an `id` on the page itself.
-- A relative path must exist under `site/`.
+- A relative `href` or `src` must resolve the way the deploy resolves it: a file
+  inside `site/`, or a file a `cp <src> _site/<path>` line in
+  .github/workflows/pages.yml copies there. Each path part must match the name on
+  disk exactly, the target must be a file, and a `../` path is refused.
 - `https://github.com/MrBinnacle/skills` links resolve to a file in this
   repository (`/blob/main/<path>`, or README.md for the bare repository URL),
   and a fragment must equal the GitHub slug of a heading in that file.
@@ -32,10 +35,13 @@ REPO_URL = "https://github.com/MrBinnacle/skills"
 BLOB_PREFIX = REPO_URL + "/blob/main/"
 
 
+PAGES_WORKFLOW = ".github/workflows/pages.yml"
+
+
 class _Links(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
-        self.hrefs: list[str] = []
+        self.refs: list[str] = []
         self.ids: set[str] = set()
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -44,8 +50,40 @@ class _Links(HTMLParser):
                 continue
             if name == "id":
                 self.ids.add(value)
-            elif name == "href":
-                self.hrefs.append(value)
+            elif name in ("href", "src"):
+                self.refs.append(value)
+
+
+def deploy_copies(workflow: str) -> dict[str, str]:
+    """Map each published path a `cp` line in pages.yml writes into _site/ to its source."""
+    copies: dict[str, str] = {}
+    for line in workflow.splitlines():
+        words = line.split()
+        if len(words) < 3 or words[0] != "cp" or words[1].startswith("-") or not words[-1].startswith("_site/"):
+            continue
+        dest = words[-1][len("_site/"):]
+        for source in words[1:-1]:
+            copies[dest + Path(source).name if dest.endswith("/") else dest] = source
+    return copies
+
+
+def published_file(base: Path, rel: str) -> bool:
+    """True when the URL path `rel` names a file under `base`, each part spelled exactly as on disk.
+
+    `rel` is split on "/" the way a web server splits it, not parsed as a local path:
+    pathlib drops a trailing slash and splits on backslashes on Windows, and Windows
+    matches names case-insensitively, while Pages serves from a case-sensitive Linux
+    file system where `favicon-32.png/` and `FAVICON-32.PNG` both 404. Every part must
+    equal a directory entry's name, which refuses an empty part (a trailing or doubled
+    slash), `.` and `..`, and the last part must be a file.
+    """
+    path = base
+    for part in rel.split("/"):
+        # "", "." and ".." are never directory entries, so this also refuses them.
+        if not path.is_dir() or part not in {child.name for child in path.iterdir()}:
+            return False
+        path = path / part
+    return path.is_file()
 
 
 def github_slug(heading: str) -> str:
@@ -91,8 +129,9 @@ def check(root: Path) -> list[str]:
     site = root / "site"
     parser = _Links()
     parser.feed((site / "index.html").read_text(encoding="utf-8"))
+    copies = deploy_copies((root / PAGES_WORKFLOW).read_text(encoding="utf-8"))
     errors: list[str] = []
-    for href in parser.hrefs:
+    for href in parser.refs:
         if href.startswith("#"):
             if href[1:] not in parser.ids:
                 errors.append(f"{href}: no element with that id on the page")
@@ -101,9 +140,8 @@ def check(root: Path) -> list[str]:
             if error:
                 errors.append(error)
         elif not re.match(r"^[a-z]+:", href):
-            # pages.yml copies repository-root assets/ files in beside site/.
-            if not ((site / href).exists() or (href.startswith("assets/") and (root / href).exists())):
-                errors.append(f"{href}: neither site/{href} nor a root {href} exists")
+            if not (published_file(site, href) or (href in copies and published_file(root, copies[href]))):
+                errors.append(f"{href}: not in site/, and no pages.yml cp line copies an existing file there")
     return errors
 
 

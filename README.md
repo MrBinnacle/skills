@@ -21,9 +21,11 @@ Each of these happened in real work with a coding agent. This repository is what
 
 ## See a guard fire
 
-With Pi installed, run this from the repository root. It needs no API key and takes a few seconds.
+With Pi installed, clone the repository and run the demo from its root. It needs no API key and takes a few seconds.
 
 ```sh
+git clone https://github.com/MrBinnacle/skills.git
+cd skills
 node mechanisms/verify-gate/demo.mjs
 ```
 
@@ -54,7 +56,7 @@ Install `mrbinnacle-orchestration`, `mrbinnacle-meta`, `binnacle-hud` and `tips-
 ### Pi
 
 ```bash
-pi install git:github.com/MrBinnacle/skills@v4.2.0
+pi install git:github.com/MrBinnacle/skills@v4.2.1
 ```
 
 This installs the cards and the four guards. `pi list` confirms the install, and `pi remove` with the same source undoes it.
