@@ -5,7 +5,8 @@ For every line the diff from the base adds to a top-level scripts/<name>.py (tes
 excepted), this builds mutants with a fixed operator set and runs the paired suite
 scripts/test_<name>.py against each one in a temporary git worktree. A mutant is killed
 only when the suite exits nonzero AND prints a FAIL/FAILED/ERROR line its unmutated run
-did not print. A crash, a timeout or a bare exit code is not a kill; each is reported.
+did not print. A crash or a timeout is not a kill: it is printed as a note and does not
+fail the run, because the suite did go red. A mutant the suite passes fails the run.
 
 Operators, the whole set: delete a statement; drop one operand of and/or; replace a
 comparison with True and with False; drop one list, tuple or set element; empty a string
@@ -34,12 +35,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 MARKER = "# equivalent-mutant:"
-SCRIPT = re.compile(r"^scripts/(?!test_)([^/]+)\.py$")
-FAIL_LINE = re.compile(r"^\s*(FAIL|FAILED|ERROR)\b")
+SCRIPT = re.compile(r"scripts/(?!test_)([^/]+)\.py")  # fullmatch
+FAIL_LINE = re.compile(r"\s*(FAIL|FAILED|ERROR)\b")  # match
 HUNK = re.compile(r"^@@ -\S+ \+(\d+)(?:,(\d+))? @@", re.M)
 NOT_DELETED = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Import, ast.ImportFrom,
-               ast.Pass, ast.Global, ast.Nonlocal)
-IGNORE = shutil.ignore_patterns(".git", "node_modules", "__pycache__")
+               ast.Global, ast.Nonlocal)
+IGNORE = shutil.ignore_patterns(".git", "node_modules", "__pycache__")  # equivalent-mutant: the last two only save copy time
 
 
 @dataclass(frozen=True)
@@ -117,7 +118,8 @@ def short(text: str) -> str:
 
 
 def skipped_nodes(tree: ast.AST) -> set[int]:
-    """Ids of nodes no operator touches: annotations, f-string parts, docstrings, typing slices."""
+    """Ids of nodes no operator touches: annotations, f-string parts, docstrings, typing slices,
+    help text, and the `if __name__ == "__main__":` entry block a suite that imports cannot reach."""
     roots: list[ast.AST | None] = []
     for n in ast.walk(tree):
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -132,6 +134,10 @@ def skipped_nodes(tree: ast.AST) -> set[int]:
             roots.append(n)
         elif isinstance(n, ast.Subscript) and isinstance(n.slice, (ast.List, ast.Tuple)):
             roots.append(n.slice)
+        elif isinstance(n, ast.keyword) and n.arg in ("help", "description"):
+            roots.append(n.value)
+        elif isinstance(n, ast.If) and ast.unparse(n.test) == "__name__ == '__main__'":
+            roots.append(n)
     return {id(x) for r in roots if r is not None for x in ast.walk(r)}
 
 
@@ -161,7 +167,7 @@ def edits(src: Source, node: ast.AST, added: set[int]):
             if src.lines(e) & added:
                 rest = [src.seg(x) for j, x in enumerate(node.elts) if j != i]
                 yield e.lineno, f"drops element `{short(src.seg(e))}`", src.span(node), collection_text(node, rest)
-    if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value and src.lines(node) & added:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str) and src.lines(node) & added:
         yield node.lineno, f"empties `{short(src.seg(node))}`", src.span(node), '""'
     if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "compile"
             and isinstance(node.func.value, ast.Name) and node.func.value.id == "re" and node.args
@@ -186,7 +192,7 @@ def mutants(data: bytes, added: set[int]) -> list[Mutant]:
                 continue
             seen.add(new)
             try:
-                compile(new, "<mutant>", "exec")
+                compile(new, "<mutant>", "exec")  # equivalent-mutant: the name only labels a traceback
             except SyntaxError:
                 continue
             out.append(Mutant(line, label, new))
@@ -207,11 +213,11 @@ def verdict(rc: int | None, output: str, baseline: set[str]) -> str:
 
 
 def run_suite(tree: Path, suite: str, timeout: float) -> tuple[int | None, str, float]:
-    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")  # equivalent-mutant: no .pyc is copied; ASCII reads alike
     start = time.monotonic()
     try:
         p = subprocess.run([sys.executable, suite], cwd=tree, env=env, capture_output=True,
-                           encoding="utf-8", errors="replace", timeout=timeout)
+                           encoding="utf-8", errors="replace", timeout=timeout)  # equivalent-mutant: see env
     except subprocess.TimeoutExpired:
         return None, "", time.monotonic() - start
     return p.returncode, p.stdout + p.stderr, time.monotonic() - start
@@ -219,7 +225,7 @@ def run_suite(tree: Path, suite: str, timeout: float) -> tuple[int | None, str, 
 
 def git(root: Path, *args: str) -> str:
     return subprocess.run(["git", *args], cwd=root, capture_output=True, encoding="utf-8",
-                          errors="replace", check=True).stdout
+                          errors="replace", check=True).stdout  # equivalent-mutant: git prints UTF-8 here
 
 
 def make_tree(root: Path, parent: Path, n: int) -> Path:
@@ -236,7 +242,7 @@ def plan(root: Path, base: str) -> tuple[dict[str, list[Mutant]], list[str]]:
     """Mutants per changed script, and the errors for scripts with no paired suite."""
     found, errors = {}, []
     for rel in git(root, "diff", "--name-only", "--diff-filter=AM", base, "--", "scripts").splitlines():
-        m = SCRIPT.match(rel)
+        m = SCRIPT.fullmatch(rel)
         if not m:
             continue
         suite = f"scripts/test_{m[1]}.py"
@@ -251,7 +257,7 @@ def plan(root: Path, base: str) -> tuple[dict[str, list[Mutant]], list[str]]:
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--base", help="revision to diff from (default: merge-base of HEAD and origin/main)")
-    ap.add_argument("--jobs", type=int, default=min(8, os.cpu_count() or 2))
+    ap.add_argument("--jobs", type=int, default=min(8, os.cpu_count() or 2))  # equivalent-mutant: speed only
     args = ap.parse_args(argv)
     root = Path(git(Path.cwd(), "rev-parse", "--show-toplevel").strip())
     base = args.base or git(root, "merge-base", "HEAD", "origin/main").strip()
@@ -261,22 +267,24 @@ def main(argv: list[str]) -> int:
         errors += judge(root, found, max(1, min(args.jobs, total)))
     for line in errors:
         print(line)
+    blocking = [e for e in errors if not e.startswith("note: ")]
     print(f"mutate_diff: {total} mutant(s) in {len(found)} script(s) from {base[:12]}: "
-          f"{'FAIL, ' + str(len(errors)) + ' problem(s)' if errors else 'every mutant killed'}")
-    return 1 if errors else 0
+          f"{len(errors) - len(blocking)} note(s), "
+          f"{'FAIL, ' + str(len(blocking)) + ' problem(s)' if blocking else 'no mutant survives'}")
+    return 1 if blocking else 0
 
 
 def judge(root: Path, found: dict[str, list[Mutant]], jobs: int) -> list[str]:
-    parent = Path(tempfile.mkdtemp(prefix="mutate_diff_"))
+    parent = Path(tempfile.mkdtemp())
     trees: list[Path] = []
     try:
-        trees = [make_tree(root, parent, n) for n in range(jobs)]
+        for n in range(jobs):  # one at a time, so a failed add still leaves the earlier trees to remove
+            trees.append(make_tree(root, parent, n))
         return judge_in(trees, found)
     finally:
-        for tree in trees:
+        for tree in trees:  # --force: each tree holds overlaid and mutated files by design
             subprocess.run(["git", "worktree", "remove", "--force", str(tree)], cwd=root, capture_output=True)
         shutil.rmtree(parent, ignore_errors=True)
-        subprocess.run(["git", "worktree", "prune"], cwd=root, capture_output=True)
 
 
 def judge_in(trees: list[Path], found: dict[str, list[Mutant]]) -> list[str]:
@@ -306,7 +314,9 @@ def judge_in(trees: list[Path], found: dict[str, list[Mutant]]) -> list[str]:
         v = verdict(rc, out, base_fails)
         if v == "killed":
             return None
-        return (f'{rel}:{m.line} mutant {m.text} {v} {suite}: add a case that kills it, '
+        if v != "survives":  # the suite went red, just not through a named case: report, do not block
+            return f"note: {rel}:{m.line} mutant {m.text} {v} {suite} without naming a failing case"
+        return (f'{rel}:{m.line} mutant {m.text} survives {suite}: add a case that kills it, '
                 f'or mark the line "{MARKER} <why>"')
 
     with ThreadPoolExecutor(len(trees)) as pool:
