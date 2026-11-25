@@ -68,18 +68,18 @@ def deploy_copies(workflow: str) -> dict[str, str]:
 
 
 def published_file(base: Path, rel: str) -> bool:
-    """True when `rel` names a file under `base`, each part spelled exactly as on disk.
+    """True when the URL path `rel` names a file under `base`, each part spelled exactly as on disk.
 
-    Pages serves from Linux, where `FAVICON-32.PNG` and `favicon-32.png` differ and a
-    directory is not an image, so a case-insensitive `exists()` on Windows passes a 404.
-    A `..` part is refused: the deploy publishes nothing outside `base`.
+    `rel` is split on "/" the way a web server splits it, not parsed as a local path:
+    pathlib drops a trailing slash and splits on backslashes on Windows, and Windows
+    matches names case-insensitively, while Pages serves from a case-sensitive Linux
+    file system where `favicon-32.png/` and `FAVICON-32.PNG` both 404. Every part must
+    equal a directory entry's name, which refuses an empty part (a trailing or doubled
+    slash), `.` and `..`, and the last part must be a file.
     """
     path = base
-    for part in Path(rel).parts:
-        if part == "..":
-            return False
-        if part == ".":
-            continue
+    for part in rel.split("/"):
+        # "", "." and ".." are never directory entries, so this also refuses them.
         if not path.is_dir() or part not in {child.name for child in path.iterdir()}:
             return False
         path = path / part

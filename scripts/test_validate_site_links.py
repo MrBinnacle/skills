@@ -64,6 +64,16 @@ def src_failures() -> list[str]:
         "wrong letter case": ('<img src="FAVICON-32.PNG" alt="">', None, [f"FAVICON-32.PNG: {UNRESOLVED}"]),
         # site/fonts is a directory, which no browser can load as an image.
         "directory, not a file": ('<img src="fonts" alt="">', None, [f"fonts: {UNRESOLVED}"]),
+        # A trailing slash asks Pages for a directory named favicon-32.png; none exists.
+        "trailing slash": ('<img src="favicon-32.png/" alt="">', None, [f"favicon-32.png/: {UNRESOLVED}"]),
+        # The font exists, but a web server reads "\" as part of the name, not as a separator.
+        "backslash separator": (
+            r'<img src="fonts\IBMPlexMono-Regular-Latin1.woff2" alt="">',
+            None,
+            [rf"fonts\IBMPlexMono-Regular-Latin1.woff2: {UNRESOLVED}"],
+        ),
+        # "./" is legal in a URL but adds nothing; refusing it keeps one spelling per file.
+        "dot part": ('<img src="./favicon-32.png" alt="">', None, [f"./favicon-32.png: {UNRESOLVED}"]),
         "demo src copied by pages.yml": ("", None, []),
         "demo src without its cp line": ("", _drop_demo_cp, [f"assets/demo.svg: {UNRESOLVED}"]),
         "demo src whose cp source is gone": ("", lambda tmp: (tmp / DEMO).unlink(), [f"assets/demo.svg: {UNRESOLVED}"]),
