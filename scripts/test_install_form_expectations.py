@@ -96,7 +96,7 @@ def git_reader(data: dict):
 
 def exercise(label, public_sha, candidate_sha, public_installed, local_installed,
              expected_failure=None, empty_card=None, broken_registry=False,
-             broken_catalog=False, receipt="3.1.0") -> None:
+             broken_catalog=False, receipt="3.1.0", foreign_rows=()) -> None:
     CALLS.clear()
     mod.FAILURES.clear()
     with tempfile.TemporaryDirectory(prefix="install-form-fixture-") as folder:
@@ -143,6 +143,7 @@ def exercise(label, public_sha, candidate_sha, public_installed, local_installed
                         card.write_text("fixture card", encoding="utf-8")
                     rows.append({"id": name + "@mrbinnacle-skills", "version": version,
                                  "installPath": str(destination)})
+                rows.extend(foreign_rows)
                 stdout = json.dumps(rows)
             elif args == ["--version"]:
                 stdout = "2.1.319 (Claude Code)"
@@ -191,6 +192,12 @@ for side in ("published", "local"):
                  changed if side == "local" else NEW_INSTALL, expected_failure=label)
     exercise(f"reject {side} missing card content", NEW, NEW, NEW_INSTALL, NEW_INSTALL,
              expected_failure="carries cards", empty_card=(side, "mrbinnacle-engineering"))
+# Claude Code 2.1.332 lists its built-in plugins in `plugin list --json`; rows
+# from any source but this marketplace are not part of the install.
+exercise("ignore built-in plugins listed beside ours", NEW, NEW, NEW_INSTALL, NEW_INSTALL,
+         foreign_rows=[{"id": "cc-plugin-telemetry@builtin", "version": "unknown"}])
+exercise("ignore our plugin name from another marketplace", NEW, NEW, NEW_INSTALL, NEW_INSTALL,
+         foreign_rows=[{"id": "binnacle-hud@other-market", "version": "0.0.1"}])
 exercise("reject malformed published snapshot evidence", OLD, OLD, OLD_INSTALL, OLD_INSTALL,
          expected_failure="published marketplace pins can be resolved", broken_registry=True)
 exercise("reject empty candidate expectations", OLD, NEW, OLD_INSTALL, NEW_INSTALL,
@@ -249,4 +256,4 @@ with tempfile.TemporaryDirectory(prefix="install-form-metadata-") as folder:
         assert any("ref" in error for error in result.errors), result
     print("PASS separate pin checker still rejects stale candidate pins")
 
-print("PASS offline regression: 33 cases; no CLI install, Git write, network, or model call")
+print("PASS offline regression: 35 cases; no CLI install, Git write, network, or model call")
