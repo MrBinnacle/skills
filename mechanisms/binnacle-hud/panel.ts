@@ -131,7 +131,8 @@ export class Panel {
       if (is("enter")) {
         this.open = this.open === item.note.key ? null : item.note.key;
         if (this.open) this.act.mark(item.note.key, "read");
-      } else if (is("k")) this.act.mark(item.note.key, "known");
+      } else if (is("u")) this.act.mark(item.note.key, "useful");
+      else if (is("k")) this.act.mark(item.note.key, "known");
       else if (is("w")) this.act.mark(item.note.key, "wrong");
       else if (remove) this.act.mark(item.note.key, "dismissed");
       else return;
@@ -196,7 +197,7 @@ export class Panel {
     if (!this._focused) return "alt+h to type here";
     if (item?.kind === "memory") return "x remove · ↑↓ move · esc field";
     if (item?.kind === "thought") return "x forget · ↑↓ move · esc field";
-    if (item?.kind === "note") return "enter details · k I knew this · w wrong · x dismiss · esc field";
+    if (item?.kind === "note") return "enter details · u useful · k I knew this · w wrong · x dismiss · esc field";
     const keep = this.target === "log" ? "enter keep" : "enter add to Memory";
     const send = statusOf(this.state()).send ? " · ctrl+s send Memory" : "";
     return `${keep} · tab ${this.target === "log" ? "Memory" : "Log"} · ↑ items${send} · esc prompt`;

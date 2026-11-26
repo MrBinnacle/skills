@@ -59,7 +59,7 @@ Install `mrbinnacle-orchestration`, `mrbinnacle-meta`, `binnacle-hud` and `tips-
 pi install git:github.com/MrBinnacle/skills@v4.3.0
 ```
 
-This installs the cards and the four guards. `pi list` confirms the install, and `pi remove` with the same source undoes it.
+This installs the cards, the four guards and the Binnacle HUD. `pi list` confirms the install, and `pi remove` with the same source undoes it.
 
 ## What is here
 
@@ -69,6 +69,7 @@ This installs the cards and the four guards. `pi list` confirms the install, and
 | [`eol-guard`](mechanisms/eol-guard/) | Tells the agent when it has converted a file's line endings. | Pi |
 | [`reviewer`](mechanisms/reviewer/) | Reviews a diff in a fresh read-only session. | Pi |
 | [`session-packet`](mechanisms/session-packet/) | Hands a session's state to the next one. | Pi |
+| [`binnacle-hud`](mechanisms/binnacle-hud/) | A panel for your own notes, the lines you want the agent to keep, and an observer that reads the session and raises at most one note; a note reaches the agent only in `forward` mode. | Pi |
 | [`binnacle-hud`](mods/binnacle-hud/README.md) | A side panel for your own notes, and for the lines you want Claude to keep. | Claude Code |
 | [`tips-anywhere`](mods/tips-anywhere/README.md) | Brings Claude Code's "You should know" notes to the phone app. | Claude Code |
 | [Cards](CATALOG.md) | A card for each mistake, grouped by subject. | Claude Code, Pi |

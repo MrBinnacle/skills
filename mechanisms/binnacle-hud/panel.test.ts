@@ -61,8 +61,8 @@ describe("panel keys", () => {
     const { p, calls, type } = setup({ notes: [note] });
     type("up", "enter");
     expect(p.render(60).join("\n")).toContain("steered into the run");
-    type("k", "w", "x");
-    expect(calls).toEqual(["mark:n1:read", "mark:n1:known", "mark:n1:wrong", "mark:n1:dismissed"]);
+    type("u", "k", "w", "x");
+    expect(calls).toEqual(["mark:n1:read", "mark:n1:useful", "mark:n1:known", "mark:n1:wrong", "mark:n1:dismissed"]);
   });
   test("ctrl+s asks first; enter sends, esc does not", () => {
     const a = setup({ draft: ["a"] });

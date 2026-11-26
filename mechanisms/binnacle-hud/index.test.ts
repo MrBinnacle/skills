@@ -209,6 +209,19 @@ describe("observer", () => {
     expect(h.requests.length).toBe(3);
     expect(h.entries.filter((e) => e.data?.k === "note").length).toBe(1);
   });
+  test("the cursor moves on a reply it could read, including null, and stays on one it could not", async () => {
+    const h = harness(["not json", '{"note": null}']);
+    await h.emit("session_start");
+    await h.turns(REVIEW_EVERY);
+    expect(h.requests.length).toBe(1);
+    expect(h.entries.filter((e) => e.data?.k === "reviewed")).toHaveLength(0);
+    await h.turns(REVIEW_EVERY);
+    const reviewed = h.entries.filter((e) => e.data?.k === "reviewed");
+    expect(reviewed).toHaveLength(1);
+    expect(reviewed[0]!.data.upTo).toBe(h.entries.filter((e) => e.type === "message").at(-1)!.id);
+    // The second look covered the turns the failed one did not.
+    expect(h.requests[1].messages[0].content[0].text).toContain("step 0.");
+  });
   test("a note whose quote is not in the record is dropped", async () => {
     const h = harness([NOTE({ evidence: "the agent deleted the production database" })], { idle: false });
     await h.emit("session_start");

@@ -30,7 +30,7 @@ sets the section to null, so the test folds those patches the way a provider rea
 | `/hud close` | Closes the panel. |
 
 In the panel: Enter keeps a thought, Tab switches between Log and Memory, ↑ reaches the items,
-`x` removes or dismisses, `k` marks a note known, `w` marks it wrong, Enter on a note opens its
+`x` removes or dismisses, `u` marks a note useful, `k` marks it known, `w` marks it wrong, Enter on a note opens its
 details and the quoted evidence, `ctrl+s` sends Memory, and Esc returns to the prompt. The line
 above the editor shows the newest open note until you have sent two more prompts.
 
@@ -45,7 +45,9 @@ with at least 3 turns unread. It runs one look at a time, and never starts an ag
 
 Two dismissals in a row double the wait between looks; reading a note resets it. A note whose
 quote is not in what the observer was shown is dropped. Each note records the prompt version that
-produced it, so your `k`, `w` and `x` marks are labels for that version.
+produced it, so your `u`, `k`, `w` and `x` marks are labels for that version. A look whose reply
+the HUD could not read moves no cursor, so the next look reads those turns again; a reply of
+`{"note": null}` is a review that found nothing and does move it.
 
 ## What the observer prompt measures
 
@@ -54,7 +56,11 @@ from 32 recorded Claude Code sessions (private data, outside every repository) a
 judged in hindsight by the same model against the next 40 turns: is the note true, new to both
 the person and the agent, and consequential, each with a quote from the record. Worth it means
 all three hold. Result: 20 notes raised, 4 worth it, 0 not true. The earlier prompt
-`observer-2026-11-25` raised 44 on the same checkpoints: 10 worth it, 13 not true. Re-judging
+`observer-2026-11-25` raised 44 on the same checkpoints: 10 worth it, 13 not true. Fourteen of
+the checkpoints are moments where Claude Code's own side agent had raised a note; the new prompt
+raised one at 1 of the 14, the old at 2. That is detection coverage against another observer's
+notes, not recall: the incumbent is a comparator, not ground truth, and no one has counted the
+consequential errors in sessions where both stayed silent. Re-judging
 those 44 notes once more gave the same worth-it verdict on 43, so the judge is stable; the
 difference between prompts is real, not judge noise. Sonnet 5.5 and Haiku 5.5 running the new
 prompt raised 3 and 13 notes, 1 and 2 worth it, so the observer stays on the session's model.
@@ -68,8 +74,12 @@ something.
 
 So the default is `panel`: a note costs you a glance, not an agent turn. `forward` becomes the
 default when the shipped prompt measures at least 50% worth it and at most 10% not true on
-**delivered** notes. Each note records its prompt version, and your `k`, `w` and `x` marks are
-the labels; that is the measurement, not another replay.
+**delivered** notes. Each note records its prompt version, and your marks are the labels: `u`
+is "worth receiving", not merely correct; `w` is not true; `k` and `x` are not worth it. The
+rates are computed over notes marked `u`, `k`, `w` or `x`; a note only opened (`read`) or never
+touched is unclassified. Report the delivered, classified and unclassified counts beside the
+rates, because the notes you bother to mark are not a random sample of the notes you receive.
+That is the measurement, not another replay.
 
 [`eval/`](eval/) replays the shipped prompt on recorded sessions with
 [Inspect AI](https://inspect.aisi.org.uk/) and judges the notes in hindsight:
