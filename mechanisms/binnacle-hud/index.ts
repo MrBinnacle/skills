@@ -148,7 +148,7 @@ export default function (pi: ExtensionAPI) {
   function markNote(key: string, mark: Mark) {
     add({ k: "mark", key, mark });
     if (mark === "dismissed" || mark === "wrong") watch.dismissed();
-    if (mark === "read") watch.valued();
+    if (mark === "read" || mark === "useful") watch.valued();
   }
 
   // --- the observer ---------------------------------------------------------------------------
@@ -180,9 +180,8 @@ export default function (pi: ExtensionAPI) {
     const look = lookAt(branch);
     if (!look.upTo || !look.turns.trim()) return;
     watch.reviewed();
-    add({ k: "reviewed", upTo: look.upTo });
     const by = (m?: Mark) => state.notes.filter((n) => n.mark === m).map((n) => n.line);
-    const text = userMessage({ ...look, raised: state.notes.filter((n) => !n.mark || n.mark === "read").map((n) => n.line), known: by("known"), dismissed: by("dismissed") });
+    const text = userMessage({ ...look, raised: state.notes.filter((n) => !n.mark || n.mark === "read").map((n) => n.line), known: [...by("known"), ...by("useful")], dismissed: by("dismissed") });
     const ac = (looking = new AbortController());
     try {
       const reply = await c.modelRegistry.complete(
@@ -194,10 +193,12 @@ export default function (pi: ExtensionAPI) {
       if (ac.signal.aborted || reply.stopReason === "error" || reply.stopReason === "aborted") return;
       const said = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
       const r = parseReply(said);
+      if (r.kind === "bad") return; // not a review: the cursor stays, so these turns are looked at again
+      add({ k: "reviewed", upTo: look.upTo });
       if (r.kind !== "note" || !grounded(r.evidence, recordOf(text)) || repeats(r.line, state.notes.map((n) => n.line))) return;
       deliver(c, { key: `${Date.now().toString(36)}`, tag: r.tag, line: r.line, details: r.details, evidence: r.evidence, agentKnows: r.agentKnows, at: Date.now(), how: "for you only", version: PROMPT_VERSION });
     } catch {
-      // A failed look shows nothing; the next one covers these turns' successors.
+      // A failed look shows nothing and moves no cursor; the next look reads these turns again.
     } finally {
       if (looking === ac) looking = undefined;
     }

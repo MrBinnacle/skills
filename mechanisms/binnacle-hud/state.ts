@@ -13,10 +13,10 @@ export type Thought = { text: string; at: number };
 export type Approved = { lines: string[]; at: number };
 /** How a note reached the agent, or that it did not. */
 export type How = "for you only" | "steered into the run" | "waits for your next message" | "sent with your message";
-export type Mark = "known" | "dismissed" | "read" | "wrong";
+export type Mark = "known" | "dismissed" | "read" | "wrong" | "useful";
 export type Note = { key: string; tag: Tag; line: string; details: string; evidence?: string; agentKnows: boolean; at: number; how: How; mark?: Mark; version?: string };
 /** Marks that take a note off the panel. */
-export const CLOSED: ReadonlySet<Mark | undefined> = new Set(["known", "dismissed", "wrong"]);
+export const CLOSED: ReadonlySet<Mark | undefined> = new Set(["known", "dismissed", "wrong", "useful"]);
 
 export type Rec =
   | { k: "thought"; text: string; at: number }
