@@ -4,6 +4,12 @@ All notable changes to the collection. A release is a delivery event: changed ca
 installed users when a version is released, not on every merge to `main`. See
 [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
+## v4.3.1 - 2026-11-26
+
+### Patch Changes
+
+- [`fcbe9bd`](https://github.com/MrBinnacle/skills/commit/fcbe9bd46f9fe2847b1f08c0c26be6400c1cf299) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Binnacle HUD for Pi: `u` marks a note useful, the positive label the README's bar needs, which the panel had no key for. The observer's review cursor now moves only after a reply the HUD could read, a `{"note": null}` included; a failed request or a malformed reply leaves it, so the next look reads those turns again instead of skipping them. The HUD README states the detection-coverage figure against the incumbent observer (1 of 14) and how to compute the rates from marks. The root README lists the Pi HUD.
+
 ## v4.3.0 - 2026-11-26
 
 ### Minor Changes
