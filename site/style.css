@@ -406,22 +406,16 @@ code {
   margin: var(--s4) 0 0;
 }
 
-/* Below 768px the picture's text is too small to read, so phones get only the
-   full-size link below it. The link shows at every width and is the one focus stop. */
+/* Below 768px the <picture> swaps in the one-column variant. The link below the picture
+   shows at every width and is the one focus stop. */
 .demo .shot {
-  display: none;
+  display: block;
   padding-block: 0;
   margin-block: 0;
 }
 
 .shot-link {
   margin-bottom: var(--s2);
-}
-
-@media (min-width: 768px) {
-  .demo .shot {
-    display: block;
-  }
 }
 
 .demo img {

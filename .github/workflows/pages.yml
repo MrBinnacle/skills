@@ -7,7 +7,7 @@ name: pages
 # and archived README drafts that are working documents, not site pages.
 # The artifact is assembled from site/ plus the three files the page reaches
 # by reference (assets/favicon.svg, the icon link, assets/social-preview.png,
-# the og:image, and mechanisms/verify-gate/demo.svg, the demo picture), copied
+# the og:image, and mechanisms/verify-gate/demo-*.svg, the demo pictures), copied
 # under assets/ so the page's relative paths and its absolute image URL
 # resolve. No other file reaches the artifact.
 #
@@ -25,7 +25,7 @@ on:
       - "site/**"
       - "assets/favicon.svg"
       - "assets/social-preview.png"
-      - "mechanisms/verify-gate/demo.svg"
+      - "mechanisms/verify-gate/demo-*.svg"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -48,7 +48,7 @@ jobs:
           mkdir -p _site/assets
           cp -r site/. _site/
           cp assets/favicon.svg assets/social-preview.png _site/assets/
-          cp mechanisms/verify-gate/demo.svg _site/assets/demo.svg
+          cp mechanisms/verify-gate/demo-dark.svg mechanisms/verify-gate/demo-light.svg mechanisms/verify-gate/demo-dark-narrow.svg mechanisms/verify-gate/demo-light-narrow.svg _site/assets/
           find _site -type f | sort
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

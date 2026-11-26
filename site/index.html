@@ -154,9 +154,14 @@
       </div>
       <p>An agent is asked for a 10% discount and writes a bug. In the first run it says “Done.” and the bug ships. In the second run the guard sends it back to run the tests, and it reports the failure. The agent’s replies are scripted, so you see what the guard does and not what a model makes of it.</p>
       <figure>
-        <a class="shot" href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/verify-gate/demo.svg" tabindex="-1" aria-hidden="true"><img src="assets/demo.svg" width="1280" height="938" loading="lazy" decoding="async" alt="Two runs of one coding task side by side. Without the verify-gate extension, the agent edits price.mjs, says it is done, and the project’s tests fail afterwards. With it, the gate sends the agent back, the agent runs npm test, and it reports the failure."></a>
-        <p class="shot-link"><a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/verify-gate/demo.svg">Open the demo picture full size</a></p>
-        <figcaption>The picture is one run of that command, drawn by <a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/verify-gate/render-demo.mjs"><code>render-demo.mjs</code></a>. Pi’s agent loop, its edit and bash tools, npm test and the extension are real. The model’s replies are scripted, so the demo needs Pi and no API key; this picture is from Pi 1.5.0. It has run on Windows only.</figcaption>
+        <a class="shot" href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/verify-gate/demo-dark.svg" tabindex="-1" aria-hidden="true"><picture>
+          <source media="(max-width: 767.98px) and (prefers-color-scheme: dark)" srcset="assets/demo-dark-narrow.svg" width="480" height="1488">
+          <source media="(max-width: 767.98px)" srcset="assets/demo-light-narrow.svg" width="480" height="1488">
+          <source media="(prefers-color-scheme: dark)" srcset="assets/demo-dark.svg" width="1280" height="876">
+          <img src="assets/demo-light.svg" width="1280" height="876" loading="lazy" decoding="async" alt="Two runs of one coding task side by side. Without the verify-gate extension, the agent edits price.mjs, says it is done, and the project’s tests fail afterwards. With it, the gate sends the agent back, the agent runs npm test, and it reports the failure.">
+        </picture></a>
+        <p class="shot-link"><a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/verify-gate/demo-dark.svg">Open the demo picture full size</a></p>
+        <figcaption>The pictures are one run of that command, drawn by <a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/verify-gate/render-demo.mjs"><code>render-demo.mjs</code></a>. Pi’s agent loop, its edit and bash tools, npm test and the extension are real. The model’s replies are scripted, so the demo needs Pi and no API key; this picture is from Pi 1.5.0. It has run on Windows only.</figcaption>
       </figure>
     </section>
 

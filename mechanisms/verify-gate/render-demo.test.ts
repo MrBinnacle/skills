@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 // @ts-expect-error plain ESM script with no type declarations
-import { parse, render } from "./render-demo.mjs";
+import { VARIANTS, parse, render } from "./render-demo.mjs";
 
 const OUTPUT = [
   "verify-gate demo: Pi 1.5.0's real agent loop, edit and bash tools, scripted model replies.",
@@ -48,10 +48,30 @@ describe("render-demo", () => {
     expect(() => parse(OUTPUT.replace(cut, ""))).toThrow("expected shape");
   });
 
-  test("the committed picture is what this code draws from the saved demo output", () => {
+  test("the committed pictures are what this code draws from the saved demo output", () => {
     const read = (f: string) => readFileSync(join(import.meta.dir, f), "utf-8").replace(/\r\n/g, "\n");
-    expect(render(read("demo-output.txt"))).toBe(read("demo.svg"));
+    expect(VARIANTS.map((v: { file: string }) => v.file)).toEqual(["demo-dark.svg", "demo-light.svg", "demo-dark-narrow.svg", "demo-light-narrow.svg"]);
+    for (const v of VARIANTS) expect(render(read("demo-output.txt"), v)).toBe(read(v.file));
     expect(read("demo-output.txt")).not.toContain("Guard: ");
+  });
+
+  test("colours come from tokens.json, red is for FAIL only, and no font, plank or grain travels in the file", () => {
+    const tokens = JSON.parse(readFileSync(join(import.meta.dir, "..", "..", "assets", "tokens.json"), "utf-8"));
+    const dark = render(OUTPUT, { scheme: "dark" });
+    const light = render(OUTPUT, { scheme: "light" });
+    expect(dark).toContain(tokens.color.structural.bg.value);
+    expect(light).toContain(tokens.color.structural_light.bg.value);
+    expect(dark).not.toContain(tokens.color.structural_light.bg.value);
+    for (const [svg, set] of [[dark, "structural"], [light, "structural_light"]] as const) {
+      const known = new Set(Object.values(tokens.color[set]).map((t: any) => t.value));
+      const extra = [...new Set(svg.match(/#[0-9A-Fa-f]{6}/g))].filter((h) => !known.has(h));
+      expect(extra).toHaveLength(1); // the red
+      expect(svg.split(extra[0]!).length - 1).toBe(2); // the FAILED tool line and the FAIL note
+      expect(svg).toContain("IBM Plex");
+      expect(svg).not.toMatch(/@font-face|feTurbulence|Barlow|Overpass/);
+    }
+    const passing = render(OUTPUT.replace("bash FAILED", "bash ok").replace("itself: FAIL. The bug would have shipped.", "itself: ok."));
+    expect([...new Set(passing.match(/#[0-9A-Fa-f]{6}/g))].every((h) => Object.values(tokens.color.structural).some((t: any) => t.value === h))).toBe(true);
   });
 
   test("escapes XML in demo text", () => {

@@ -18,14 +18,17 @@ sys.path.insert(0, str(SCRIPT_DIR))
 import validate_site_links as sl  # noqa: E402
 
 ROOT = SCRIPT_DIR.parent
-DEMO = "mechanisms/verify-gate/demo.svg"
-DEMO_CP = "cp mechanisms/verify-gate/demo.svg _site/assets/demo.svg"
+DEMOS = [f"mechanisms/verify-gate/demo-{v}.svg" for v in ("dark", "light", "dark-narrow", "light-narrow")]
+DEMO = DEMOS[1]
+DEMO_CP = "cp mechanisms/verify-gate/demo-dark.svg mechanisms/verify-gate/demo-light.svg mechanisms/verify-gate/demo-dark-narrow.svg mechanisms/verify-gate/demo-light-narrow.svg _site/assets/"
 UNRESOLVED = "not in site/, and no pages.yml cp line copies an existing file there"
+# The order the page lists them: the two narrow sources, the dark source, the img src.
+DEMO_UNRESOLVED = [f"assets/demo-{v}.svg: {UNRESOLVED}" for v in ("dark-narrow", "light-narrow", "dark", "light")]
 
 
 def _copy_with(snippet: str) -> Path:
     tmp = Path(tempfile.mkdtemp())
-    for name in ("README.md", "CATALOG.md", sl.PAGES_WORKFLOW, DEMO):
+    for name in ("README.md", "CATALOG.md", sl.PAGES_WORKFLOW, *DEMOS):
         (tmp / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / name, tmp / name)
     shutil.copytree(ROOT / "site", tmp / "site")
@@ -49,7 +52,7 @@ def _drop_demo_cp(tmp: Path) -> None:
 def src_failures() -> list[str]:
     """Each src form resolves the way pages.yml deploys it, and each unresolved form is refused whole."""
     failures: list[str] = []
-    if 'src="assets/demo.svg"' not in (ROOT / "site" / "index.html").read_text(encoding="utf-8"):
+    if 'src="assets/demo-light.svg"' not in (ROOT / "site" / "index.html").read_text(encoding="utf-8"):
         failures.append("live page no longer carries the demo src; the demo cases prove nothing")
     if DEMO_CP not in (ROOT / sl.PAGES_WORKFLOW).read_text(encoding="utf-8"):
         failures.append("pages.yml no longer carries the demo cp line; the demo cases prove nothing")
@@ -75,8 +78,9 @@ def src_failures() -> list[str]:
         # "./" is legal in a URL but adds nothing; refusing it keeps one spelling per file.
         "dot part": ('<img src="./favicon-32.png" alt="">', None, [f"./favicon-32.png: {UNRESOLVED}"]),
         "demo src copied by pages.yml": ("", None, []),
-        "demo src without its cp line": ("", _drop_demo_cp, [f"assets/demo.svg: {UNRESOLVED}"]),
-        "demo src whose cp source is gone": ("", lambda tmp: (tmp / DEMO).unlink(), [f"assets/demo.svg: {UNRESOLVED}"]),
+        "a srcset is checked like a src": ('<picture><source srcset="assets/nope.svg"><img src="assets/favicon.svg" alt=""></picture>', None, [f"assets/nope.svg: {UNRESOLVED}"]),
+        "demo srcs without their cp line": ("", _drop_demo_cp, DEMO_UNRESOLVED),
+        "demo src whose cp source is gone": ("", lambda tmp: (tmp / DEMO).unlink(), [f"assets/demo-light.svg: {UNRESOLVED}"]),
     }
     for label, (snippet, mutate, want) in cases.items():
         tmp = _copy_with(snippet)

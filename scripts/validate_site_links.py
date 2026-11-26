@@ -10,7 +10,7 @@ README sections to CATALOG.md and the site kept linking to all four
 This script resolves each link against the working tree instead of the network:
 
 - `#id` must name an `id` on the page itself.
-- A relative `href` or `src` must resolve the way the deploy resolves it: a file
+- A relative `href`, `src` or `srcset` (one URL, no descriptors) must resolve the way the deploy resolves it: a file
   inside `site/`, or a file a `cp <src> _site/<path>` line in
   .github/workflows/pages.yml copies there. Each path part must match the name on
   disk exactly, the target must be a file, and a `../` path is refused.
@@ -55,7 +55,7 @@ class _Links(HTMLParser):
                 continue
             if name == "id":
                 self.ids.add(value)
-            elif name in ("href", "src"):
+            elif name in ("href", "src", "srcset"):
                 self.refs.append(value)
 
 
