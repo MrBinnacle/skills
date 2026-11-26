@@ -4,6 +4,34 @@ All notable changes to the collection. A release is a delivery event: changed ca
 installed users when a version is released, not on every merge to `main`. See
 [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
+## v4.3.0 - 2026-11-26
+
+### Minor Changes
+
+- [#719](https://github.com/MrBinnacle/skills/pull/719) [`6630ebb`](https://github.com/MrBinnacle/skills/commit/6630ebb08e6b72e13c39305343a70dc16f0dd788) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The Binnacle HUD observer prompt is now `observer-2026-11-27`, and notes stay in the panel by default. On a replay of 199 checkpoints from 32 recorded sessions, judged in hindsight against the next 40 turns, the previous prompt raised 44 notes of which 13 were not true; this one raised 20 and none were not true, with 4 worth an interruption against 10. Because four in five notes are still not worth an interruption, `/hud observer` defaults to `panel`; `/hud observer forward` sets it back. The README states the numbers and the bar for returning to `forward`. `mechanisms/binnacle-hud/eval/hindsight.ts` builds and scores the hindsight judge. `bun test mechanisms` passed on Linux.
+
+- [#718](https://github.com/MrBinnacle/skills/pull/718) [`d6a6416`](https://github.com/MrBinnacle/skills/commit/d6a6416a0a275e7ee46f9c10d16ea32c87f3a952) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Pi now has the Binnacle HUD, as the extension `mechanisms/binnacle-hud/`. It loads with this package's other Pi extensions. `alt+h` opens the panel. `/log` keeps a thought that never reaches the model. `/hud add` and `/hud send` give the agent Memory lines once you confirm them, and those lines stay in its system prompt through `/compact`. An observer reads new turns at pauses, on the session's model, and raises at most one note. It drops any note whose quoted evidence is not in what it read. `/hud observer off|panel|forward` decides whether notes stay with you or also go to the agent; the default is forward.
+  
+  A test runs Pi 1.6.1's real agent loop with scripted model replies and checks every request: the Log and an unsent Memory never leave, sent Memory reaches the agent and not the observer, and a note reaches the agent only in forward mode and only when the agent did not already know it. Whether the observer's notes are worth an interruption is unmeasured; `mechanisms/binnacle-hud/eval/` holds the replay used to measure it.
+
+### Patch Changes
+
+- [#688](https://github.com/MrBinnacle/skills/pull/688) [`39c423e`](https://github.com/MrBinnacle/skills/commit/39c423ec7ff06f3a6458a9bc344bf9e46050e8bc) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The Binnacle HUD now starts even when Claude Code refuses one of its commands. Before this change, a refused `/hud` or `/log` stopped the session-start step, so the panel never opened and nothing told you why. Now the panel opens first, and a notice names the command that could not be added. A panel that fails to open also shows a notice instead of failing silently. If the HUD cannot read its saved Memory or failed list at start, it still adds both commands.
+  
+  The HUD's lists now have limits. The Log keeps the newest 100 thoughts, and the list of thoughts that failed to save keeps its newest 100. The oldest is dropped. Memory holds at most 20 lines. When it is full, the keys that add a line are gone and the HUD says to remove one first, so no line you chose is dropped without you. One thought or line keeps its first 2000 characters. When the mod cuts a thought it kept, `/log` says so in its reply, and the HUD says so in a notice. A thought that failed to save is cut the same way, without a notice.
+  
+  On Claude Code 2.1.326 or later, a long thought, a Memory line, or the details of an opened heads-up in the side panel stops at three lines, so the field stays in view. An older Claude Code refuses that setting and would draw an empty panel, so the HUD uses it only after reading the version. The README now names the command that writes the type files. The mod's `tsconfig.json` extends them. The README also says what the dialog's "Chat about this" choice does.
+  
+  This was tested with the Claude Code test kit on 2.1.326, where every test passes, and on 2.1.325, where only the test of the three-line rows fails, as expected. It was not tested in a live interactive session.
+
+- [#713](https://github.com/MrBinnacle/skills/pull/713) [`f7bbedd`](https://github.com/MrBinnacle/skills/commit/f7bbedd94992880c96c431613cc5701f6c46843c) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `scripts/ci_local.py` now explains a filter that selects no step. It still exits 1, and it prints the job names and says that `--match` filters step names and `--job` selects a job. Repository tooling only; installed users need do nothing.
+
+- [#716](https://github.com/MrBinnacle/skills/pull/716) [`72fb3e5`](https://github.com/MrBinnacle/skills/commit/72fb3e50bef406e998c69a7f2b04d11ee954c810) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `scripts/test_install_form.py` now counts only plugins from the `mrbinnacle-skills` marketplace when it reads `claude plugin list --json`. Claude Code 2.1.332 lists its four built-in plugins (`cc-plugin-*@builtin`, version `unknown`) in that output even from an empty config, which its plugin CLI reference says it never does; 2.1.287 to 2.1.331 list none (measured 2026-11-25). The extra rows failed the cold-install check's exact plugin set. Two offline cases cover a built-in row and our plugin name from another marketplace. Repository tooling only; installed users need do nothing.
+
+- [#717](https://github.com/MrBinnacle/skills/pull/717) [`1a2a614`](https://github.com/MrBinnacle/skills/commit/1a2a6148c9368cecd1c11a800ae549a478241aa8) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The runtime delivery matrix records the [#672](https://github.com/MrBinnacle/skills/issues/672) decision: Pi is delivered as a package installed from git at a release tag, and Codex CLI installs the cards from the existing `.claude-plugin/marketplace.json` unchanged. It adds a clean Pi 1.6.1 install of v4.2.1, a filtered settings entry that loads chosen cards with all four guards, and a Codex CLI 0.167.0 marketplace install. Documentation only; installed users need do nothing.
+
+- [#714](https://github.com/MrBinnacle/skills/pull/714) [`366143f`](https://github.com/MrBinnacle/skills/commit/366143ff2ad1c46319711fd0a962aba980a35fd5) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `scripts/check_shared_readers.py` now refuses a new raw read of `site/index.html` in a script and names the owner to call instead: `landing_page` in `scripts/validate_site_links.py`, which drops the `<wbr>` tags a visitor's copy drops. Repository tooling only; installed users need do nothing.
+
 ## v4.2.1 - 2026-11-25
 
 ### Patch Changes
