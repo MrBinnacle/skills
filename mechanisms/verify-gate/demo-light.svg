@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="966" viewBox="0 0 1280 966" role="img" aria-label="verify-gate demo. Run 1, without the gate: the agent edits price.mjs, says done, and the run ends with the tests failing. Run 2, same script with the gate: the gate sends the agent back, it runs npm test, and reports the failure.">
+<title>verify-gate demo. Run 1, without the gate: the agent edits price.mjs, says done, and the run ends with the tests failing. Run 2, same script with the gate: the gate sends the agent back, it runs npm test, and reports the failure.</title>
+<rect width="1280" height="966" fill="#F2F4EF"/>
+<rect x="32" y="32" width="1216" height="902" fill="#E6E9E2" stroke="#B4B8A6"/>
+<text x="68" y="98" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="700" font-size="36" fill="#1E2020">verify-gate</text>
+<text x="68" y="122" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" fill="#5F614A">Pi 1.5.0's real agent loop, edit and bash tools, scripted model replies.</text>
+<rect x="68" y="144" width="1144" height="1" fill="#B4B8A6"/>
+<text x="68" y="188" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="600" font-size="22" fill="#1E2020">Run 1: verify-gate not loaded</text>
+<text x="68" y="230" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-weight="500" font-size="12" letter-spacing="1" fill="#5F614A">USER</text>
+<text x="132" y="230" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">Give every order a 10% discount.</text>
+<text x="68" y="258" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-weight="500" font-size="12" letter-spacing="1" fill="#5F614A">AGENT</text>
+<text x="132" y="258" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">calls edit {&quot;path&quot;:&quot;price.mjs&quot;,</text>
+<text x="132" y="278" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">&quot;edits&quot;:[{&quot;oldText&quot;:&quot;return subtotal;&quot;,&quot;newText&quot;:&quot;return</text>
+<text x="132" y="298" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">subtotal * 0.1;&quot;}]}</text>
+<text x="68" y="326" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-weight="500" font-size="12" letter-spacing="1" fill="#5F614A">TOOL</text>
+<text x="132" y="326" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">edit ok</text>
+<text x="68" y="354" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-weight="500" font-size="12" letter-spacing="1" fill="#5F614A">AGENT</text>
+<text x="132" y="354" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">Done. Every order now gets a 10% discount.</text>
+<text x="660" y="188" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="600" font-size="22" fill="#1E2020">Run 2: verify-gate loaded from</text>
+<text x="660" y="216" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="600" font-size="22" fill="#1E2020">mechanisms/verify-gate/, same script</text>
+<text x="660" y="258" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-weight="500" font-size="12" letter-spacing="1" fill="#5F614A">USER</text>
+<text x="724" y="258" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">Give every order a 10% discount.</text>
+<text x="660" y="286" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-weight="500" font-size="12" letter-spacing="1" fill="#5F614A">AGENT</text>
+<text x="724" y="286" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">calls edit {&quot;path&quot;:&quot;price.mjs&quot;,</text>
+<text x="724" y="306" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">&quot;edits&quot;:[{&quot;oldText&quot;:&quot;return subtotal;&quot;,&quot;newText&quot;:&quot;return</text>
+<text x="724" y="326" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">subtotal * 0.1;&quot;}]}</text>
+<text x="660" y="354" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-weight="500" font-size="12" letter-spacing="1" fill="#5F614A">TOOL</text>
+<text x="724" y="354" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">edit ok</text>
+<text x="660" y="382" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-weight="500" font-size="12" letter-spacing="1" fill="#5F614A">AGENT</text>
+<text x="724" y="382" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">Done. Every order now gets a 10% discount.</text>
+<rect x="660" y="395" width="552" height="114" fill="#F2F4EF"/>
+<rect x="660" y="395" width="3" height="114" fill="#1E2020"/>
+<text x="672" y="410" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-weight="500" font-size="12" letter-spacing="1" fill="#5F614A">GATE</text>
+<text x="732" y="410" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">Verification gate: these files changed after the last</text>
+<text x="732" y="430" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">check command in this run: price.mjs. Run the project's</text>
+<text x="732" y="450" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">test or check command now and report the result. If no</text>
+<text x="732" y="470" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">check applies to this change, say so in one sentence and</text>
+<text x="732" y="490" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">why.</text>
+<text x="660" y="524" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-weight="500" font-size="12" letter-spacing="1" fill="#5F614A">AGENT</text>
+<text x="724" y="524" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">calls bash {&quot;command&quot;:&quot;npm test&quot;}</text>
+<text x="660" y="552" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-weight="500" font-size="12" letter-spacing="1" fill="#5F614A">TOOL</text>
+<text x="724" y="552" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#A6362A">bash FAILED</text>
+<text x="660" y="580" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-weight="500" font-size="12" letter-spacing="1" fill="#5F614A">AGENT</text>
+<text x="724" y="580" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">I ran npm test and it failed, so the discount is not</text>
+<text x="724" y="600" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#1E2020">done:</text>
+<text x="724" y="620" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#5F614A">  AssertionError [ERR_ASSERTION]: Expected values to be</text>
+<text x="724" y="640" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#5F614A">strictly equal:</text>
+<text x="724" y="660" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#5F614A">  actual: 10,</text>
+<text x="724" y="680" font-family="'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13.5" fill="#5F614A">  expected: 90,</text>
+<rect x="68" y="716" width="552" height="1" fill="#B4B8A6"/>
+<text x="68" y="746" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" fill="#5F614A">The run settled after 2 model calls and 0 checks.</text>
+<text x="68" y="772" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" fill="#5F614A">The demo now runs the project's tests itself: </text>
+<text x="68" y="798" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="600" font-size="26" fill="#A6362A">FAIL. The bug would have shipped.</text>
+<rect x="660" y="716" width="552" height="1" fill="#B4B8A6"/>
+<text x="660" y="746" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" fill="#5F614A">The run settled after 4 model calls.</text>
+<text x="660" y="772" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="600" font-size="26" fill="#1E2020">The gate sent the agent back to</text>
+<text x="660" y="804" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="600" font-size="26" fill="#1E2020">check.</text>
+<rect x="68" y="840" width="1144" height="1" fill="#B4B8A6"/>
+<text x="68" y="868" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="14" fill="#5F614A">Real: Pi's agent loop, its edit and bash tools, npm test, and the verify-gate extension as shipped.</text>
+<text x="68" y="890" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="14" fill="#5F614A">Scripted: the model's replies. The last one reads the real test output from the transcript.</text>
+</svg>

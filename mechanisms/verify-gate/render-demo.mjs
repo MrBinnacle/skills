@@ -1,5 +1,5 @@
-// Renders demo.svg from a real run of demo.mjs and saves that run's output as demo-output.txt,
-// which the tests render again to prove the committed picture matches this code. Every piece of
+// Renders the demo pictures (VARIANTS) from a real run of demo.mjs and saves that run's output as demo-output.txt,
+// which the tests render again to prove the committed pictures match this code. Every piece of
 // visible text in the picture is taken from a line the demo printed.
 // Usage: node mechanisms/verify-gate/render-demo.mjs
 import { spawnSync } from "node:child_process";
@@ -8,20 +8,36 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SVG_PATH = join(HERE, "demo.svg");
 
-// The Binnacle Board palette: dark plank, matte camo panel, one fluorescent light.
-const C = {
-  night: "#0c0c0b", panel: "#151712", raise: "#1f231b", drab: "#484838", olive: "#9a9d78",
-  ink: "#dcddcf", soft: "#b4b5a6", muted: "#8e8f84", light: "#e2e0ae", red: "#d0493a",
-};
-const DISPLAY = `'Barlow Condensed','Arial Narrow','Roboto Condensed',sans-serif`;
-const SANS = `Barlow,'Segoe UI',Helvetica,Arial,sans-serif`;
-const MONO = `'Overpass Mono',ui-monospace,'Cascadia Mono',Consolas,Menlo,monospace`;
+// Colours come from assets/tokens.json, one scheme each, so the picture is drawn in the site's
+// own system. The red is the one colour the tokens do not have: FAIL only, and nothing else.
+// Contrast on the panel (WCAG 2, measured 2026-11-27): dark red 4.87, light red 5.38.
+const TOKENS = JSON.parse(readFileSync(join(HERE, "..", "..", "assets", "tokens.json"), "utf-8"));
+const RED = { dark: "#EC7868", light: "#A6362A" };
+function palette(scheme) {
+  const t = TOKENS.color[scheme === "light" ? "structural_light" : "structural"];
+  const v = (k) => t[k].value;
+  return { bg: v("bg"), surface: v("surface"), ink: v("ink"), muted: v("muted"), line: v("line"), red: RED[scheme] };
+}
+// An SVG behind <img> cannot load the site's @font-face; tokens.json names the system fallback.
+const SANS = TOKENS.type["font.body"].replace(/"/g, "'");
+const MONO = TOKENS.type["font.mono"].replace(/"/g, "'");
 
-const W = 1280, PAD = 32, IN = 36, GAP = 40;
-const COL = (W - 2 * PAD - 2 * IN - GAP) / 2;
-const LABEL = 64, WRAP = 56, LINE = 20;
+export const VARIANTS = [
+  { file: "demo-dark.svg", scheme: "dark", narrow: false },
+  { file: "demo-light.svg", scheme: "light", narrow: false },
+  { file: "demo-dark-narrow.svg", scheme: "dark", narrow: true },
+  { file: "demo-light-narrow.svg", scheme: "light", narrow: true },
+];
+
+// Wide: two columns at 1280. Narrow: one column at 480, drawn larger so a phone can read it.
+function layout(narrow) {
+  const W = narrow ? 480 : 1280, PAD = narrow ? 20 : 32, IN = narrow ? 20 : 36, GAP = 40;
+  const COL = narrow ? W - 2 * (PAD + IN) : (W - 2 * PAD - 2 * IN - GAP) / 2;
+  const mono = narrow ? 15 : 13.5;
+  return { W, PAD, IN, GAP, COL, LABEL: narrow ? 60 : 64, LINE: narrow ? 22 : 20, mono,
+    wrap: Math.floor((COL - (narrow ? 60 : 64) - 12) / (mono * 0.62)), title: narrow ? 20 : 22, big: narrow ? 20 : 26 };
+}
 
 export function parse(stdout) {
   const lines = stdout.replace(/\r/g, "").split("\n");
@@ -63,127 +79,105 @@ function wrap(text, width) {
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const text = (x, y, s, attrs) => `<text x="${x}" y="${y}" ${attrs}>${esc(s)}</text>`;
 
-// Wooden planks behind the board, drawn from a fixed seed so every render is identical.
-function planks(height) {
-  let seed = 7;
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const out = [];
-  for (let y = 0; y < height; y += 22) {
-    let x = -Math.floor(rnd() * 300);
-    while (x < W) {
-      const w = 260 + Math.floor(rnd() * 420);
-      const g = 10 + Math.floor(rnd() * 22);
-      out.push(`<rect x="${x}" y="${y}" width="${w - 2}" height="20" fill="rgb(${g},${g},${g - 1})"/>`);
-      x += w;
-    }
-  }
-  return out.join("");
-}
-
-// An SVG shown through <img> cannot fetch web fonts, so Barlow travels inside the file. The
-// subsets in fonts/ keep the font's name table, which carries its SIL Open Font License.
-function fontFaces() {
-  const face = (family, weight, file) => {
-    const data = readFileSync(join(HERE, "fonts", file)).toString("base64");
-    return `@font-face{font-family:'${family}';font-weight:${weight};src:url(data:font/ttf;base64,${data}) format('truetype')}`;
-  };
-  return `<style>${face("Barlow", 400, "Barlow-Regular-subset.ttf")}${face("Barlow Condensed", 600, "BarlowCondensed-SemiBold-subset.ttf")}${face("Overpass Mono", 400, "OverpassMono-Regular-subset.ttf")}</style>`;
-}
-
-function renderRows(run, x, y0) {
+function renderRows(run, x, y0, L, C) {
   const out = [];
   let y = y0;
-  for (const part of wrap(run.title, 58)) {
-    out.push(text(x, y, part, `font-family="${DISPLAY}" font-weight="600" font-size="22" fill="${C.soft}"`));
-    y += 26;
+  for (const part of wrap(run.title, Math.floor(L.COL / (L.title * 0.62)))) {
+    out.push(text(x, y, part, `font-family="${SANS}" font-weight="600" font-size="${L.title}" fill="${C.ink}"`));
+    y += L.title + 6;
   }
   y += 14;
   for (const row of run.rows) {
     const isGate = row.who === "gate";
-    const body = row.lines.flatMap((l, i) => wrap(l, WRAP).map((w) => ({ w, quote: i > 0 })));
-    const h = body.length * LINE;
+    const body = row.lines.flatMap((l, i) => wrap(l, L.wrap).map((w) => ({ w, quote: i > 0 })));
+    const h = body.length * L.LINE;
     if (isGate) {
-      out.push(`<rect x="${x}" y="${y - 15}" width="${COL}" height="${h + 14}" fill="${C.raise}"/>`);
-      out.push(`<rect x="${x}" y="${y - 15}" width="4" height="${h + 14}" fill="${C.light}"/>`);
+      out.push(`<rect x="${x}" y="${y - 15}" width="${L.COL}" height="${h + 14}" fill="${C.bg}"/>`);
+      out.push(`<rect x="${x}" y="${y - 15}" width="3" height="${h + 14}" fill="${C.ink}"/>`);
     }
-    const labelFill = isGate ? C.light : C.olive;
-    out.push(text(x + (isGate ? 14 : 0), y, row.who.toUpperCase(), `font-family="${DISPLAY}" font-weight="600" font-size="14" letter-spacing="1.4" fill="${labelFill}"`));
+    out.push(text(x + (isGate ? 12 : 0), y, row.who.toUpperCase(), `font-family="${MONO}" font-weight="500" font-size="${L.mono - 1.5}" letter-spacing="1" fill="${C.muted}"`));
     body.forEach(({ w, quote }, i) => {
       const failed = row.who === "tool" && / FAILED$/.test(w);
-      const fill = isGate ? C.light : failed ? C.red : quote ? C.soft : C.ink;
-      out.push(text(x + LABEL + (isGate ? 8 : 0), y + i * LINE, w, `font-family="${MONO}" font-size="13.5" fill="${fill}"`));
+      const fill = failed ? C.red : quote ? C.muted : C.ink;
+      out.push(text(x + L.LABEL + (isGate ? 8 : 0), y + i * L.LINE, w, `font-family="${MONO}" font-size="${L.mono}" fill="${fill}"`));
     });
     y += h + (isGate ? 14 : 8);
   }
   return { svg: out.join("\n"), bottom: y + 8 };
 }
 
-function renderNotes(run, x, y0) {
+function renderNotes(run, x, y0, L, C) {
   const out = [];
   let y = y0;
-  out.push(`<rect x="${x}" y="${y}" width="${COL}" height="1" fill="${C.drab}"/>`);
+  out.push(`<rect x="${x}" y="${y}" width="${L.COL}" height="1" fill="${C.line}"/>`);
   y += 30;
+  const small = (s) => { out.push(text(x, y, s, `font-family="${SANS}" font-size="15" fill="${C.muted}"`)); y += 26; };
+  const big = (s, fill) => {
+    for (const part of wrap(s, Math.floor(L.COL / (L.big * 0.62)))) {
+      out.push(text(x, y, part, `font-family="${SANS}" font-weight="600" font-size="${L.big}" fill="${fill}"`));
+      y += L.big + 6;
+    }
+  };
   for (const note of run.notes) {
     const m = note.match(/^(.*?: )(FAIL\. .*)$/);
     if (m) {
-      out.push(text(x, y, m[1], `font-family="${SANS}" font-size="15" fill="${C.soft}"`));
-      y += 30;
-      out.push(text(x, y, m[2], `font-family="${DISPLAY}" font-weight="600" font-size="26" fill="${C.red}"`));
-      y += 30;
+      small(m[1]);
+      big(m[2], C.red);
       continue;
     }
     const [settled, ...rest] = note.split(/(?<=\.) /);
-    out.push(text(x, y, settled, `font-family="${SANS}" font-size="15" fill="${C.soft}"`));
-    y += 30;
-    if (rest.length) {
-      out.push(text(x, y, rest.join(" "), `font-family="${DISPLAY}" font-weight="600" font-size="26" fill="${C.ink}"`));
-      y += 30;
-    }
+    small(settled);
+    if (rest.length) big(rest.join(" "), C.ink);
   }
   return { svg: out.join("\n"), bottom: y };
 }
 
-export function render(stdout) {
+export function render(stdout, { scheme = "dark", narrow = false } = {}) {
   const { head, runs, tail } = parse(stdout);
-  const left = PAD + IN, right = left + COL + GAP, top = PAD + 16 + 40;
-  const header = [
-    text(left, top + 10, "verify-gate", `font-family="${DISPLAY}" font-weight="600" font-size="38" fill="${C.ink}"`),
-    text(left + 190, top + 8, head, `font-family="${SANS}" font-size="16" fill="${C.muted}"`),
-    `<rect x="${left}" y="${top + 32}" width="${W - 2 * left}" height="1" fill="${C.drab}"/>`,
-  ];
-  const rows = [renderRows(runs[0], left, top + 76), renderRows(runs[1], right, top + 76)];
-  const notesY = Math.max(rows[0].bottom, rows[1].bottom);
-  const r1 = renderNotes(runs[0], left, notesY);
-  const r2 = renderNotes(runs[1], right, notesY);
-  let y = Math.max(r1.bottom, r2.bottom) + 4;
-  const foot = [`<rect x="${left}" y="${y}" width="${W - 2 * left}" height="1" fill="${C.drab}"/>`];
+  const L = layout(narrow), C = palette(scheme);
+  const left = L.PAD + L.IN, right = left + L.COL + L.GAP;
+  let top = L.PAD + L.IN + 30;
+  const header = [text(left, top, "verify-gate", `font-family="${SANS}" font-weight="700" font-size="${narrow ? 30 : 36}" fill="${C.ink}"`)];
+  for (const part of wrap(head, Math.floor((L.W - 2 * left) / (15 * 0.58)))) {
+    top += 24;
+    header.push(text(left, top, part, `font-family="${SANS}" font-size="15" fill="${C.muted}"`));
+  }
+  top += 22;
+  header.push(`<rect x="${left}" y="${top}" width="${L.W - 2 * left}" height="1" fill="${C.line}"/>`);
+  const r0 = renderRows(runs[0], left, top + 44, L, C);
+  const parts = [r0.svg];
+  let y;
+  if (narrow) {
+    const n0 = renderNotes(runs[0], left, r0.bottom, L, C);
+    const r1 = renderRows(runs[1], left, n0.bottom + 36, L, C);
+    const n1 = renderNotes(runs[1], left, r1.bottom, L, C);
+    parts.push(n0.svg, r1.svg, n1.svg);
+    y = n1.bottom + 4;
+  } else {
+    const r1 = renderRows(runs[1], right, top + 44, L, C);
+    const notesY = Math.max(r0.bottom, r1.bottom);
+    const n0 = renderNotes(runs[0], left, notesY, L, C);
+    const n1 = renderNotes(runs[1], right, notesY, L, C);
+    parts.push(r1.svg, n0.svg, n1.svg);
+    y = Math.max(n0.bottom, n1.bottom) + 4;
+  }
+  const foot = [`<rect x="${left}" y="${y}" width="${L.W - 2 * left}" height="1" fill="${C.line}"/>`];
   y += 28;
   for (const line of tail) {
-    foot.push(text(left, y, line, `font-family="${SANS}" font-size="14" fill="${C.muted}"`));
-    y += 22;
+    for (const part of wrap(line, Math.floor((L.W - 2 * left) / (14 * 0.58)))) {
+      foot.push(text(left, y, part, `font-family="${SANS}" font-size="14" fill="${C.muted}"`));
+      y += 22;
+    }
   }
-  const panelBottom = y + IN - 14;
-  const H = panelBottom + PAD;
+  const panelBottom = y + L.IN - 14;
+  const H = panelBottom + L.PAD;
   const alt = `verify-gate demo. Run 1, without the gate: the agent edits price.mjs, says done, and the run ends with the tests failing. Run 2, same script with the gate: the gate sends the agent back, it runs npm test, and reports the failure.`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(alt)}">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${L.W}" height="${H}" viewBox="0 0 ${L.W} ${H}" role="img" aria-label="${esc(alt)}">
 <title>${esc(alt)}</title>
-<defs>
-${fontFaces()}
-<filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.004 0.35" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.48  0 0 0 0.3 0"/></filter>
-<filter id="camo" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.011 0.05" numOctaves="2" seed="11"/><feColorMatrix values="1 0 0 0 0  1 0 0 0 0  1 0 0 0 0  0 0 0 0 1"/><feComponentTransfer><feFuncR type="discrete" tableValues="0.05 0.11 0.2 0.29"/><feFuncG type="discrete" tableValues="0.055 0.13 0.22 0.3"/><feFuncB type="discrete" tableValues="0.045 0.09 0.16 0.21"/></feComponentTransfer></filter>
-</defs>
-<rect width="${W}" height="${H}" fill="${C.night}"/>
-${planks(H)}
-<rect width="${W}" height="${H}" filter="url(#grain)"/>
-<rect x="${PAD - 1}" y="${PAD - 1}" width="${W - 2 * PAD + 2}" height="${panelBottom - PAD + 2}" fill="#000"/>
-<rect x="${PAD}" y="${PAD}" width="${W - 2 * PAD}" height="${panelBottom - PAD}" fill="${C.panel}" fill-opacity="0.94"/>
-<rect x="${PAD}" y="${PAD}" width="${W - 2 * PAD}" height="16" filter="url(#camo)"/>
-<rect x="${PAD}" y="${PAD + 16}" width="${W - 2 * PAD}" height="1" fill="#000"/>
+<rect width="${L.W}" height="${H}" fill="${C.bg}"/>
+<rect x="${L.PAD}" y="${L.PAD}" width="${L.W - 2 * L.PAD}" height="${panelBottom - L.PAD}" fill="${C.surface}" stroke="${C.line}"/>
 ${header.join("\n")}
-${rows[0].svg}
-${rows[1].svg}
-${r1.svg}
-${r2.svg}
+${parts.join("\n")}
 ${foot.join("\n")}
 </svg>
 `;
@@ -202,8 +196,7 @@ function runDemo() {
 if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
   // The Guard line carries the run time, which the picture leaves out and every run changes.
   const output = runDemo().replace(/^Guard: .*\n?/m, "");
-  const svg = render(output);
   writeFileSync(join(HERE, "demo-output.txt"), output);
-  writeFileSync(SVG_PATH, svg);
-  console.log(`wrote ${SVG_PATH} and demo-output.txt`);
+  for (const v of VARIANTS) writeFileSync(join(HERE, v.file), render(output, v));
+  console.log(`wrote ${VARIANTS.map((v) => v.file).join(", ")} and demo-output.txt`);
 }
