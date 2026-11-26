@@ -13,7 +13,7 @@ type LogSample = {
   output?: { completion?: string };
   error?: unknown;
 };
-type Log = { eval?: { model?: string; task?: string }; stats?: { model_usage?: Record<string, { input_tokens?: number; output_tokens?: number }> }; samples?: LogSample[] };
+export type Log = { eval?: { model?: string; task?: string }; stats?: { model_usage?: Record<string, { input_tokens?: number; output_tokens?: number }> }; samples?: LogSample[] };
 
 const text = (c: unknown) => (typeof c === "string" ? c : Array.isArray(c) ? c.map((b) => (b as { text?: string }).text ?? "").join("") : "");
 
