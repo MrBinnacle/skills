@@ -168,6 +168,7 @@ describe("observer", () => {
   test("while the agent works, a note steers into the run", async () => {
     const h = harness([NOTE()], { idle: false });
     await h.emit("session_start");
+    await h.run("hud", "observer forward");
     await h.turns(REVIEW_EVERY);
     expect(h.sent).toHaveLength(1);
     expect(h.sent[0]!.options).toEqual({ deliverAs: "steer" });
@@ -176,6 +177,7 @@ describe("observer", () => {
   test("when idle, a note waits and rides with the next message, once", async () => {
     const h = harness([NOTE()]);
     await h.emit("session_start");
+    await h.run("hud", "observer forward");
     await h.turns(REVIEW_EVERY);
     expect(h.sent).toHaveLength(0);
     expect((await h.start("custom")).result).toBeUndefined();
@@ -244,14 +246,14 @@ describe("observer", () => {
 });
 
 describe("observer setting", () => {
-  test("defaults to forward, and /hud observer writes one setting for every session", async () => {
-    expect(readMode(join(agentDir, "missing.json"))).toBe("forward");
+  test("defaults to panel, and /hud observer writes one setting for every session", async () => {
+    expect(readMode(join(agentDir, "missing.json"))).toBe("panel");
     const h = harness();
     await h.emit("session_start");
-    await h.run("hud", "observer panel");
-    expect(readMode(settingsPath())).toBe("panel");
+    await h.run("hud", "observer forward");
+    expect(readMode(settingsPath())).toBe("forward");
     await h.run("hud", "observer loud");
-    expect(readMode(settingsPath())).toBe("panel");
+    expect(readMode(settingsPath())).toBe("forward");
   });
   test("panel keeps notes with the person: nothing steers, nothing rides along", async () => {
     const h = harness([NOTE(), NOTE({ note: "A second, different note about cost." })], { idle: false });

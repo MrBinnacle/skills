@@ -9,6 +9,8 @@ import { CLOSED, clip, fold, type How, type Mark, MEMORY_MAX, memoryText, type N
 /** off: no looks. panel: notes stay with the person. forward: notes also reach the agent. */
 export type Mode = "off" | "panel" | "forward";
 const MODES: readonly Mode[] = ["off", "panel", "forward"];
+// panel until the prompt measures >=50% worth-it and <=10% not-true on delivered notes (README).
+export const DEFAULT_MODE: Mode = "panel";
 /** A strip headline clears after this many of the person's prompts, read or not. */
 export const STRIP_PROMPTS = 2;
 
@@ -17,9 +19,9 @@ export const settingsPath = () => join(process.env.PI_CODING_AGENT_DIR ?? join(h
 export function readMode(path = settingsPath()): Mode {
   try {
     const v = (JSON.parse(readFileSync(path, "utf-8")) as { observer?: unknown }).observer;
-    return MODES.find((m) => m === v) ?? "forward";
+    return MODES.find((m) => m === v) ?? DEFAULT_MODE;
   } catch {
-    return "forward";
+    return DEFAULT_MODE;
   }
 }
 function writeMode(mode: Mode, path = settingsPath()) {
@@ -41,7 +43,7 @@ export default function (pi: ExtensionAPI) {
   let panel: { view: Panel; handle?: { focus(): void; unfocus(): void; isFocused(): boolean; setHidden(h: boolean): void }; done: () => void } | undefined;
   let watch = new Watch();
   let looking: AbortController | undefined;
-  let mode: Mode = "forward";
+  let mode: Mode = DEFAULT_MODE;
   let prompts: number[] = []; // when the person sent each prompt this session
 
   const refold = () => {
