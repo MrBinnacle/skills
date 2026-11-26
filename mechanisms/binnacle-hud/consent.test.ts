@@ -120,6 +120,7 @@ afterAll(() => {
 
 test.skipIf(!found)("consent holds across Pi's real agent loop", async () => {
   // 1. A thought in the Log and an unsent Memory line, then a run long enough for a look at settle.
+  await session.prompt("/hud observer forward"); // the default is panel; the forwarding rule is what this test checks
   await session.prompt(`/log ${LOG}`);
   await session.prompt(`/hud add ${DRAFT}`);
   observerReplies = [note("The agent is mid-migration with no backup taken.", false)];
