@@ -149,7 +149,9 @@ def main() -> int:
     for label, href in broken.items():
         tmp = _copy_with_href(href)
         try:
-            if not sl.check(tmp):
+            # The fixture copies a few files, so check() reports other links too; only the
+            # injected link's own diagnostic proves it was refused (#704).
+            if not any(error.startswith(f"{href}: ") for error in sl.check(tmp)):
                 failures.append(f"{label} ({href}) was accepted")
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
