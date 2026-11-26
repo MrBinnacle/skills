@@ -214,6 +214,15 @@ describe("observer", () => {
     expect(h.entries.some((e) => e.data?.k === "note")).toBe(false);
     expect(h.sent).toHaveLength(0);
   });
+  test("a note cannot ground itself on an earlier note", async () => {
+    const first = "The agent skipped the migration test.";
+    const h = harness([NOTE(), NOTE({ note: "Another thing entirely happened here.", evidence: first })]);
+    await h.emit("session_start");
+    await h.turns(REVIEW_EVERY * 2);
+    expect(h.requests).toHaveLength(2);
+    expect(JSON.stringify(h.requests[1])).toContain(first); // it is in <already_raised>, which is not the record
+    expect(h.entries.filter((e) => e.data?.k === "note")).toHaveLength(1);
+  });
   test("each note carries the prompt version and its evidence", async () => {
     const h = harness([NOTE()]);
     await h.emit("session_start");

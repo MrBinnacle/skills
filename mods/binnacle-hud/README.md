@@ -1,5 +1,7 @@
 # binnacle-hud
 
+For Pi, use [`mechanisms/binnacle-hud/`](../../mechanisms/binnacle-hud/README.md) instead. It loads with the rest of this package's Pi extensions.
+
 Keep a Log of thoughts beside a Claude Code session, from the terminal or from the Claude app on your phone. The mod keeps each thought in session state. It does not send a thought to Claude or add it to the conversation. Whether a thought stays out of a later model request has not been verified.
 
 Keep the decisions you and Claude agreed in Memory. The mod gives Memory to Claude only when you press Send and confirm it. From then on the lines are part of Claude's system instructions on every request, so a long chat or a compaction does not push them out of Claude's view.

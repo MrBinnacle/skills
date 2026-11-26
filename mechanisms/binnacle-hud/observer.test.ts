@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { clean, cleanBlock, grounded, MAX_INTERVAL, newest, normal, parseReply, quoted, repeats, REVIEW_EVERY, serialize, SETTLE_MIN, userMessage, Watch } from "./observer";
+import { clean, cleanBlock, grounded, MAX_INTERVAL, newest, normal, parseReply, quoted, recordOf, repeats, REVIEW_EVERY, serialize, SETTLE_MIN, userMessage, Watch } from "./observer";
 
 describe("cleaning", () => {
   test("hidden characters go, NFKC folds, length is cut", () => {
@@ -125,5 +125,18 @@ describe("grounded", () => {
   test("a quote that is not there, or too short to check, is not grounded", () => {
     expect(grounded("merged PR #697 without tests", shown)).toBe(false);
     expect(grounded("3 failed", shown)).toBe(false);
+  });
+  test("a short part of an elided quote must appear too", () => {
+    expect(grounded("I merged PR #696 … 3 failed", shown)).toBe(true);
+    expect(grounded("I merged PR #696 … on prod", shown)).toBe(false);
+  });
+  test("recordOf keeps the record and drops the observer's own lists", () => {
+    const m = userMessage({ request: "fix login", summary: "earlier work", turns: shown, raised: ["The tests never ran on CI before the merge."], known: [], dismissed: [] });
+    const r = recordOf(m);
+    expect(r).toContain("fix login");
+    expect(r).toContain("earlier work");
+    expect(r).toContain("3 failed");
+    expect(grounded("The tests never ran on CI before the merge.", m)).toBe(true);
+    expect(grounded("The tests never ran on CI before the merge.", r)).toBe(false);
   });
 });

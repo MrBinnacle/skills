@@ -187,13 +187,19 @@ export function parseReply(text: string): Reply {
 const flat = (s: string) => s.normalize("NFKC").replace(/\s+/g, " ").toLowerCase();
 /**
  * True when the quote appears in what the observer was shown. A quote with an ellipsis counts
- * when each part of 12 or more characters appears. An ungrounded note is dropped: the model
+ * when every part appears and one has 12 or more characters. An ungrounded note is dropped: the model
  * could not point at the record.
  */
 export function grounded(evidence: string, shown: string): boolean {
   const hay = flat(shown);
-  const parts = flat(evidence).split(/\s*(?:…|\.\.\.)\s*/).map((p) => p.replace(/^["'“”]+|["'“”]+$/g, "").trim()).filter((p) => p.length >= 12);
-  return parts.length > 0 && parts.every((p) => hay.includes(p));
+  const parts = flat(evidence).split(/\s*(?:…|\.\.\.)\s*/).map((p) => p.replace(/^["'“”]+|["'“”]+$/g, "").trim()).filter(Boolean);
+  return parts.some((p) => p.length >= 12) && parts.every((p) => hay.includes(p));
+}
+
+/** The record inside a `userMessage`: request, summary and new turns, without the observer's own
+ * earlier notes, so a note cannot ground itself by quoting one. */
+export function recordOf(message: string): string {
+  return [...message.matchAll(/<(request|earlier_summary|new_turns)>\n([\s\S]*?)\n<\/\1>/g)].map((m) => m[2]).join("\n");
 }
 
 /** True when `line` repeats a note already raised, known or dismissed. */

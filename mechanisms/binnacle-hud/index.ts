@@ -2,7 +2,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { grounded, newest, OUTPUT_TOKENS, parseReply, PROMPT_VERSION, quoted, repeats, serialize, SYSTEM, TRANSCRIPT_CHARS, userMessage, Watch, type Msg } from "./observer";
+import { grounded, newest, recordOf, OUTPUT_TOKENS, parseReply, PROMPT_VERSION, quoted, repeats, serialize, SYSTEM, TRANSCRIPT_CHARS, userMessage, Watch, type Msg } from "./observer";
 import { type Kit, Panel } from "./panel";
 import { CLOSED, clip, fold, type How, type Mark, MEMORY_MAX, memoryText, type Note, type Rec, SECTION, type State, TYPE } from "./state";
 
@@ -192,7 +192,7 @@ export default function (pi: ExtensionAPI) {
       if (ac.signal.aborted || reply.stopReason === "error" || reply.stopReason === "aborted") return;
       const said = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
       const r = parseReply(said);
-      if (r.kind !== "note" || !grounded(r.evidence, text) || repeats(r.line, state.notes.map((n) => n.line))) return;
+      if (r.kind !== "note" || !grounded(r.evidence, recordOf(text)) || repeats(r.line, state.notes.map((n) => n.line))) return;
       deliver(c, { key: `${Date.now().toString(36)}`, tag: r.tag, line: r.line, details: r.details, evidence: r.evidence, agentKnows: r.agentKnows, at: Date.now(), how: "for you only", version: PROMPT_VERSION });
     } catch {
       // A failed look shows nothing; the next one covers these turns' successors.
@@ -309,6 +309,8 @@ export default function (pi: ExtensionAPI) {
         if (!want) return c.ui.notify(`Observer is ${mode}. /hud observer off stops it; panel keeps notes with you; forward also gives them to the agent.`, "info");
         mode = want;
         writeMode(want);
+        // A note queued for the agent stays with the person once forwarding stops.
+        if (want !== "forward") for (const n of state.notes.filter((x) => x.how === "waits for your next message")) add({ k: "how", key: n.key, how: "for you only" });
         return c.ui.notify(`Observer ${want === "off" ? "off" : want === "panel" ? "on, notes stay with you" : "on, notes also go to the agent"}. This applies to every session.`, "info");
       }
       if (word === "add") {

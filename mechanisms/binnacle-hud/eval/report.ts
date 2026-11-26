@@ -4,7 +4,7 @@
 //
 //   bun mechanisms/binnacle-hud/eval/report.ts <log.json> <labels.md>
 import { readFileSync, writeFileSync } from "node:fs";
-import { grounded, parseReply, type Reply } from "../observer";
+import { grounded, parseReply, recordOf, type Reply } from "../observer";
 
 type LogSample = {
   id: string;
@@ -23,7 +23,7 @@ export function rows(log: Log): Row[] {
   return (log.samples ?? []).map((s) => {
     const shown = Array.isArray(s.input) ? text(s.input.find((m) => m.role === "user")?.content) : s.input;
     const reply = s.error ? ({ kind: "bad", why: "sample error" } as Reply) : parseReply(s.output?.completion ?? "");
-    return { id: s.id, meta: s.metadata, reply, grounded: reply.kind === "note" && grounded(reply.evidence, shown), error: !!s.error };
+    return { id: s.id, meta: s.metadata, reply, grounded: reply.kind === "note" && grounded(reply.evidence, recordOf(shown)), error: !!s.error };
   });
 }
 

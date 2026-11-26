@@ -3,7 +3,7 @@ import { rows, sheet } from "./report";
 
 const sample = (id: string, kind: string, completion: string, extra = {}) => ({
   id, metadata: { kind, split: "dev", at: "t", prompt: "observer-x", ...extra },
-  input: [{ role: "system", content: "S" }, { role: "user", content: "[Agent]: I merged PR #696 without the full suite." }],
+  input: [{ role: "system", content: "S" }, { role: "user", content: "<new_turns>\n[Agent]: I merged PR #696 without the full suite.\n</new_turns>\n\n<already_raised>\n- deleted the production database\n</already_raised>" }],
   output: { completion },
 });
 const note = (evidence: string) => JSON.stringify({ tag: "heads-up", note: "PR #696 merged untested.", details: "**T**", evidence, agentKnows: false });
