@@ -276,7 +276,8 @@ def case_none_stdout_is_no_figure() -> None:
     try:
         got = (_with_fake(v, _FakeRun(None), v.installed_harness),
                _with_fake(v, _FakeRun(None), lambda: v.audit_calibrated(["h"], card)))
-        check("validate_standing_costs: None stdout is no figure", got == (None, None), repr(got))
+        check("validate_standing_costs: None stdout is no figure",
+              got[0] is None and isinstance(got[1], str) and "no 'calibrated' line" in got[1], repr(got))
     except TypeError as exc:
         check("validate_standing_costs: None stdout is no figure", False, repr(exc))
     r = _load("refresh_standing_costs")
@@ -290,6 +291,18 @@ def case_none_stdout_is_no_figure() -> None:
         except TypeError as exc:
             ok, detail = False, repr(exc)
         check(f"refresh_standing_costs.{label}: None stdout raises RuntimeError", ok, detail)
+
+
+def case_failed_audit_names_its_cause() -> None:
+    """A non-zero audit exit carries its code and stderr into the message (#710)."""
+    v = _load("validate_standing_costs")
+
+    def failing(args, **kwargs):
+        return subprocess.CompletedProcess(args, 3, stdout="", stderr="Traceback\nModuleNotFoundError: No module named 'pydantic'\n")
+
+    got = _with_fake(v, failing, lambda: v.audit_calibrated(["h"], Path("SKILL.md")))
+    check("validate_standing_costs: a failed audit names its exit code and stderr",
+          isinstance(got, str) and "exit 3" in got and "No module named 'pydantic'" in got, repr(got))
 
 
 DATE_POISON = SCRIPT_DIR / "fixtures" / "standing-cost-date-drift"
@@ -372,6 +385,7 @@ case_in_progress_card_is_skipped()
 case_snapshot_version_is_pinned()
 case_subprocess_decodes_utf8()
 case_none_stdout_is_no_figure()
+case_failed_audit_names_its_cause()
 case_stale_prose_date_is_red()
 case_matching_prose_date_is_green()
 case_undated_prose_surface_is_red()

@@ -108,8 +108,12 @@ def installed_harness() -> tuple[list[str], str] | None:
     return None
 
 
-def audit_calibrated(command: list[str], skill_md: Path) -> int | None:
-    """Run skill-harness skill audit and extract the calibrated figure."""
+def audit_calibrated(command: list[str], skill_md: Path) -> int | str:
+    """Run skill-harness skill audit and extract the calibrated figure.
+
+    Returns the figure, or a string saying why there is none: the exit code and the
+    audit's stderr, so a red run names its cause (#710).
+    """
     try:
         result = subprocess.run(
             [*command, "skill", "audit", str(skill_md)],
@@ -119,14 +123,17 @@ def audit_calibrated(command: list[str], skill_md: Path) -> int | None:
             errors="replace",
             timeout=30,
         )
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        return None
+    except subprocess.TimeoutExpired:
+        return "timed out after 30s"
+    except FileNotFoundError as exc:
+        return f"not found: {exc}"
+    tail = " ".join((result.stderr or "").split())[-300:]
     if result.returncode != 0:
-        return None
+        return f"exit {result.returncode}; stderr: {tail or '(empty)'}"
     m = AUDIT_RE.search(result.stdout or "")
     if m:
         return int(m.group(1))
-    return None
+    return f"exit 0 but no 'calibrated' line in stdout; stderr: {tail or '(empty)'}"
 
 
 def load_standing_costs(root: Path) -> dict:
@@ -217,9 +224,9 @@ def validate(root: Path, *, use_snapshot: bool = False) -> None:
 
         if harness is not None:
             calibrated = audit_calibrated(command, skill_md)
-            if calibrated is None:
+            if not isinstance(calibrated, int):
                 blocking.append(
-                    f"  - {card}: skill-harness audit failed to return a figure"
+                    f"  - {card}: skill-harness audit failed to return a figure ({calibrated})"
                 )
                 continue
             if stated != calibrated:
