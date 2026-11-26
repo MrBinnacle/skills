@@ -10,27 +10,27 @@
   "plugins": [
     {
       "name": "mrbinnacle-engineering",
-      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/engineering", "ref": "v4.3.0", "sha": "e45ae99a6a0ec09a42f5312140300677f08c92d6"},
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/engineering", "ref": "v4.3.1", "sha": "5ca094dfe2c89d7414b4cd5ccb08e35cbe680878"},
       "description": "Workflow disciplines for shipping software: mistakes that report success, guards and gates that stop your work, and the rituals at phase and session boundaries."
     },
     {
       "name": "mrbinnacle-orchestration",
-      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/orchestration", "ref": "v4.3.0", "sha": "e45ae99a6a0ec09a42f5312140300677f08c92d6"},
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/orchestration", "ref": "v4.3.1", "sha": "5ca094dfe2c89d7414b4cd5ccb08e35cbe680878"},
       "description": "Disciplines for multi-agent work - dispatch, joinability, and synthesis across parallel agents."
     },
     {
       "name": "mrbinnacle-meta",
-      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/meta", "ref": "v4.3.0", "sha": "e45ae99a6a0ec09a42f5312140300677f08c92d6"},
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "skills/meta", "ref": "v4.3.1", "sha": "5ca094dfe2c89d7414b4cd5ccb08e35cbe680878"},
       "description": "Skills about the skill system itself: whether a skill can be reached."
     },
     {
       "name": "tips-anywhere",
-      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "mods/tips-anywhere", "ref": "v4.3.0", "sha": "e45ae99a6a0ec09a42f5312140300677f08c92d6"},
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "mods/tips-anywhere", "ref": "v4.3.1", "sha": "5ca094dfe2c89d7414b4cd5ccb08e35cbe680878"},
       "description": "A Claude Code mod, not a skill: brings the You should know side agent's heads-up notes to the phone and tablet apps as a question with buttons."
     },
     {
       "name": "binnacle-hud",
-      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "mods/binnacle-hud", "ref": "v4.3.0", "sha": "e45ae99a6a0ec09a42f5312140300677f08c92d6"},
+      "source": {"source": "git-subdir", "url": "https://github.com/MrBinnacle/skills.git", "path": "mods/binnacle-hud", "ref": "v4.3.1", "sha": "5ca094dfe2c89d7414b4cd5ccb08e35cbe680878"},
       "description": "A Claude Code mod, not a skill. A side panel with Memory lines that join Claude's system instructions on every request after you confirm a Send, and a Log the mod does not send to Claude. Absence of the Log from later model requests is unverified."
     }
   ]
