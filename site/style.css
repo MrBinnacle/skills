@@ -227,6 +227,22 @@ code {
   white-space: nowrap;
 }
 
+/* Below 768px a code name breaks only when it cannot fit: as an inline-block it keeps
+   its full width while the column has room, moves to the next line whole, and wraps inside
+   only once capped at the column. At 200% text-only zoom `mrbinnacle-orchestration` is
+   wider than a 390px screen (#702, WCAG 1.4.4). The h1 line is for the same zoom at 320. */
+@media (max-width: 767.98px) {
+  code {
+    display: inline-block;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  h1 {
+    overflow-wrap: anywhere;
+  }
+}
+
 /* Icons: currentColor of the enclosing text, centred on the x-height with a
    1px optical nudge, one family, one weight (Phosphor regular) */
 
