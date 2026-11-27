@@ -1,7 +1,7 @@
 // The panel: a Pi overlay that only displays. It never takes the keys, so the prompt is the one
 // place to type; alt+h opens a menu to act on a heads-up (index.ts). The TUI kit is passed in,
 // so this file has no Pi runtime import and bun tests drive it.
-import { CLOSED, MEMORY_MAX, type Note, type State, statusOf } from "./state";
+import { CLOSED, MEMORY_MAX, type Note, type State, same, statusOf } from "./state";
 
 export type Kit = {
   truncateToWidth(text: string, width: number, ellipsis?: string, pad?: boolean): string;
@@ -50,6 +50,11 @@ export class Panel {
     const status = statusOf(s);
     head("Memory", s.draft.length ? `${s.draft.length} of ${MEMORY_MAX} lines` : "");
     put(status.tone ? t.fg(status.tone, status.text) : t.fg("dim", status.text));
+    if (s.approved && !same(s.approved.lines, s.draft)) {
+      put("Approved snapshot");
+      s.approved.lines.forEach(line => put(line, "  "));
+      put("Working draft");
+    }
     s.draft.forEach((text, n) => put(`${t.fg("dim", `${n + 1}`)} ${text}`, "  "));
 
     return out.map((l) => kit.truncateToWidth(` ${l}`, width, "…", true));

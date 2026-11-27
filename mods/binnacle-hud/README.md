@@ -26,6 +26,10 @@ The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has th
 
 The mod adds the lines to Claude Code's own memory section of the system prompt, under the heading "Memory the operator approved at HH:MM:". They go out with every request from Claude's next turn onward. The system prompt is not part of the chat that Claude Code compacts, so the lines stay through a compaction. Send adds no row to the conversation and starts no model turn.
 
+Press **l** to review the Log. With the HUD field empty, choose **edit copy** beside an older thought. Edit the copy in the field, Tab to the actions, then press **a** to add the edited text to your Memory draft. The original stays in the Log. If the draft differs from the approved snapshot, the Memory view shows both.
+
+Press **w** to withdraw approved Memory. The dialog shows the instructions being withdrawn. Confirm **Withdraw** to clear them from future instructions while retaining the working draft. The status distinguishes a saved withdrawal from a subsequent section build. Previous messages remain in the conversation.
+
 A Send changes the system prompt, so Claude Code rewrites its prompt cache once. The next request writes the whole conversation to the cache again, which costs more and takes longer than a cached request. Claude also loses its earlier thinking blocks, and Claude Code shows a dim line naming the mod. Requests after that use the cache again.
 
 The line under the Memory heading says where things stand:

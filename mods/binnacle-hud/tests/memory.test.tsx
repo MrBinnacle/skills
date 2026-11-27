@@ -199,3 +199,37 @@ test('two approvals in the same clock tick cannot share a delivery receipt', asy
   expect(store.approved.at).toBeGreaterThan(store.delivered.at)
   expect(await shown(await redraw($, ui))).toContain("Not yet in Claude's instructions")
 })
+
+test('withdraw clears only HUD instructions and keeps the working draft', async ($, on) => {
+  const store: Store = { approved: { at: NOW - 1, lines: ['approved wording'] }, memory: ['later draft'] }
+  const asked: string[] = []
+  await start($, on, store, () => 'Withdraw', asked)
+  const ui = await $.ui.mount(pane())
+  await ui.press({ key: 'k-w' })
+  expect(asked[0]).toContain('approved wording')
+  expect(store.approved.lines).toEqual([])
+  expect(store.memory.map((r: any) => r.text)).toEqual(['later draft'])
+})
+
+test('editing an older Log thought leaves the original and approves only the edited wording', async ($, on) => {
+  const store: Store = {}
+  await start($, on, store)
+  let ui = await $.ui.mount(pane())
+  for (const text of ['original thought', 'newer thought']) {
+    await ui.input({ key: 'thought', text })
+    ui = await redraw($, ui)
+  }
+  await ui.press({ key: 'k-l' })
+  ui = await redraw($, ui)
+  await ui.press({ key: 'edit-log-0' })
+  expect(store.typed).toBe('original thought')
+  ui = await redraw($, ui)
+  await ui.input({ key: 'thought', text: 'edited instruction', kind: 'change' })
+  ui = await redraw($, ui)
+  await ui.press({ key: 'k-a' })
+  expect(store.approved ?? null).toBeNull()
+  ui = await redraw($, ui)
+  await ui.press({ key: 'k-s' })
+  expect(store.approved.lines).toEqual(['edited instruction'])
+  expect(store.log.map((row: any) => row.text)).toEqual(['original thought', 'newer thought'])
+})

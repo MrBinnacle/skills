@@ -12,7 +12,7 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { SYSTEM } from "./observer";
-import { SECTION } from "./state";
+import { fold, SECTION } from "./state";
 
 const HUD_DIR = import.meta.dir;
 const SCOPE = "@earendil-works";
@@ -47,7 +47,7 @@ const work = (n: number) => (ai: any) => ai.fauxAssistantMessage(ai.fauxToolCall
 const say = (text: string) => (ai: any) => ai.fauxAssistantMessage(text);
 const run = (steps: number) => [...Array.from({ length: steps }, (_, i) => work(i)), say("Done; still working on the migration.")];
 
-const notes = () => entries().filter((e) => e.type === "custom" && e.customType === "binnacle-hud" && e.data?.k === "note").map((e) => e.data.note);
+const notes = () => fold(entries(), []).notes;
 async function until(ok: () => boolean, what: string) {
   for (let i = 0; i < 200 && !ok(); i++) await Bun.sleep(10);
   if (!ok()) throw new Error(`timed out waiting for ${what}`);
@@ -120,23 +120,20 @@ afterAll(() => {
 
 test.skipIf(!found)("consent holds across Pi's real agent loop", async () => {
   // 1. A thought in the Log and an unsent Memory line, then a run long enough for a look at settle.
-  await session.prompt("/hud observer forward"); // the default is panel; the forwarding rule is what this test checks
+  // A clean install routes guidance to the agent.
   await session.prompt(`/log ${LOG}`);
   await session.prompt(`/hud add ${DRAFT}`);
   observerReplies = [note("The agent is mid-migration with no backup taken.", false)];
   agentScript = run(3);
   await session.prompt("Start the migration.");
   await until(() => notes().length === 1, "the first note");
-  expect(notes()[0].how).toBe("waits for your next message");
+  expect(notes()[0].how).toBe("started an agent turn");
+  await until(() => agentCalls().some(c => c.text.includes("The agent is mid-migration with no backup taken.")), "the automatic agent request");
   expect(observerCalls()).toHaveLength(1);
   expect(observerCalls()[0]!.text).toContain("working on the migration");
   expect(observerCalls()[0]!.text).toContain("Start the migration.");
-
-  // 2. The idle agent gets that note with the person's next message.
+  await session.agent.waitForIdle();
   let mark = calls.length;
-  agentScript = [say("Noted.")];
-  await session.prompt("Carry on.");
-  expect(agentCalls(mark)[0]!.text).toContain("The agent is mid-migration with no backup taken.");
 
   // 3. A note the agent already stated stays with the person.
   observerReplies = [note("The agent said it skipped the dry run.", true)];
@@ -149,26 +146,13 @@ test.skipIf(!found)("consent holds across Pi's real agent loop", async () => {
   await session.prompt("Go on.");
   expect(agentCalls(mark).some((c) => c.text.includes("skipped the dry run"))).toBe(false);
 
-  // 4. A note waiting for the next message stays with the person once forwarding stops.
-  observerReplies = [note("The agent left a lock file behind.", false)];
-  agentScript = run(3);
-  await session.prompt("Clean up.");
-  await until(() => notes().length === 3, "the waiting note");
-  expect(notes()[2].how).toBe("waits for your next message");
-  await session.prompt("/hud observer panel");
-  await session.prompt("/hud observer forward");
-  mark = calls.length;
-  agentScript = [say("Ok.")];
-  await session.prompt("Status?");
-  expect(agentCalls(mark).some((c) => c.text.includes("lock file"))).toBe(false);
-
   // 5. Panel mode: a new note stays with the person too.
   await session.prompt("/hud observer panel");
   observerReplies = [note("The agent dropped an index the app still reads.", false)];
   agentScript = run(3);
   await session.prompt("Last table.");
-  await until(() => notes().length === 4, "the panel-mode note");
-  expect(notes()[3].how).toBe("for you only");
+  await until(() => notes().length === 3, "the panel-mode note");
+  expect(notes()[2].how).toBe("for you only");
   mark = calls.length;
   agentScript = [say("Ok.")];
   await session.prompt("Thanks.");
@@ -190,8 +174,21 @@ test.skipIf(!found)("consent holds across Pi's real agent loop", async () => {
   agentScript = [say("Ok.")];
   await session.prompt("After compaction.");
   // That run left 3 unread turns, so the observer looks once more, now with Memory sent.
-  await until(() => observerCalls().length === 5, "the look after /compact");
+  await until(() => observerCalls().length === 4, "the look after /compact");
   expect(memoryIn(agentCalls(mark)[0]!)).toContain("MEMORY-4be0");
+
+  await session.prompt("/hud withdraw");
+  mark = calls.length;
+  agentScript = [say("Ok.")];
+  await session.prompt("After withdrawal.");
+  expect(agentCalls(mark).length).toBeGreaterThan(0);
+  for (const call of agentCalls(mark)) expect(memoryIn(call)).toBe("");
+  await session.compact();
+  mark = calls.length;
+  agentScript = [say("Ok.")];
+  await session.prompt("After withdrawal and compaction.");
+  expect(agentCalls(mark).length).toBeGreaterThan(0);
+  for (const call of agentCalls(mark)) expect(memoryIn(call)).toBe("");
 
   // Across every request of the session: the Log never left, the observer never saw Memory.
   expect(calls.length).toBeGreaterThan(10);
