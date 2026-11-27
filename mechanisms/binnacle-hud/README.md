@@ -19,6 +19,8 @@ it, it goes red on each of eleven faults planted in `index.ts` and `observer.ts`
 after `/compact` even with Memory removed. Pi keeps the old system message and adds a patch that
 sets the section to null, so the test folds those patches the way a provider reads them.
 
+[Inspect the Memory and heads-up transitions](transitions/README.md).
+
 ## Use
 
 | You do | What happens |

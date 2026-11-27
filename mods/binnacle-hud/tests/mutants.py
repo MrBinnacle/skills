@@ -84,7 +84,8 @@ MUTANTS = {
     "one own turn until the person speaks": [("free: now.free && !own }", "free: now.free }")],
     "the person's message frees the turn": [("cur => ({ free: true, list:", "cur => ({ free: cur.free, list:")],
     "a slash command carries nothing": [(" || e.text.startsWith('/')) return next(e)", ") return next(e)")],
-    "a refused turn leaves the note waiting": [("if (sent.drop !== undefined) {", "if (false) {")],
+    "a refused turn leaves the note waiting": [("sent.drop === undefined ? 'own turn' : 'waiting'", "'own turn'")],
+    "a pending turn has no receipt": [("how: own ? 'unconfirmed' : 'waiting'", "how: own ? 'own turn' : 'waiting'")],
     "waiting notes ride as context": [("...waiting.map(quoted)] } : e)", "] } : e)")],
     "only a listed note's row leaves the band": [("r.plugin === SIDE && lines.includes(headline(r.tree))", "r.plugin === SIDE")],
     "brackets and separators are escaped": [(r"/[<>&`\u0085\u2028\u2029]/g", "/[&]/g")],
@@ -113,7 +114,7 @@ MUTANTS = {
     "the pane redraws once the version is known": [("    if (rowLines) $.ui.invalidate('ui.render')\n", "")],
     "the release base decides maxLines": [("takesMaxLines(v.base ?? v.version)", "takesMaxLines(v.version)")],
     "strip Memory rows take no maxLines": [("maxLines={inline ? undefined : rowLines}><Text dimColor>{i + 1}", "maxLines={rowLines}><Text dimColor>{i + 1}")],
-    "a failed long keep shows no cut toast": [("  if (!(await keep($, text, 'terminal'))) return\n  if (isLong(text)) $.ui.toast(`binnacle-hud kept the first ${TEXT_MAX} characters. The rest was dropped.`)\n", "  const ok = await keep($, text, 'terminal')\n  if (isLong(text)) $.ui.toast(`binnacle-hud kept the first ${TEXT_MAX} characters. The rest was dropped.`)\n  if (!ok) return\n")],
+    "a failed long keep shows no cut toast": [("  if (saved !== 'kept') return\n  if (isLong(text))", "  if (isLong(text)) $.ui.toast('binnacle-hud kept the first 2000 characters. The rest was dropped.')\n  if (saved !== 'kept') return\n  if (false)")],
     "an unreadable Memory does not skip the registers": [("read($, draft).catch(() => [])", "read($, draft)")],
     "an unreadable failed list does not skip the registers": [("read($, failed).catch(() => [])", "read($, failed)")],
 }

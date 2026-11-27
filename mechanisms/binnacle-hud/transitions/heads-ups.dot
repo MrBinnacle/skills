@@ -1,0 +1,17 @@
+// Claude Code store.set / prompt.submit hooks
+digraph HeadsUps {
+  graph [rankdir=TB, bgcolor="#F2F4EF", pad=.35, nodesep=.35, ranksep=.43, fontname="IBM Plex Sans", labelloc=t, labeljust=l, label="Claude Code   /   Heads-up delivery\n ", fontsize=23, fontcolor="#1E2020"];
+  node [shape=box, style=filled, color="#5F614A", fillcolor="#E6E9E2", fontname="IBM Plex Sans", fontsize=14, margin=".18,.12"];
+  edge [color="#5F614A", fontcolor="#1E2020", fontname="IBM Plex Sans", fontsize=11, arrowsize=.7];
+  offer [label="New session offer"];
+  pending [label="Delivery unconfirmed"];
+  waiting [label="Waiting for a user message"];
+  accepted [label="Sent to Claude"];
+  carried [label="Sent with your message"];
+  offer -> pending [label="  Own turn available"];
+  offer -> waiting [label="  Turn already used"];
+  pending -> accepted [label="  Submit accepted"];
+  pending -> waiting [label="  Submit refused or throws"];
+  waiting -> waiting [label="  Slash command\n  or dropped message", style=dashed];
+  waiting -> carried [label="  User message accepted"];
+}

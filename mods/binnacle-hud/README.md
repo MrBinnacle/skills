@@ -14,6 +14,8 @@ The mod draws a side panel, the Binnacle HUD, next to the chat. The panel has th
 - **Heads-ups** lists the notes the side agent offered in this session, one line each. Press `h` to open them. In the side panel, the details of each note stop at three lines.
 - **Log** keeps thoughts for you. Type a thought in its field and press Enter, or send `/log` from the phone. The mod keeps the thought with the time and where it came from.
 
+[Inspect the Memory and heads-up transitions](../../mechanisms/binnacle-hud/transitions/README.md).
+
 ## Give Claude your Memory lines
 
 1. Type a line in the field. Press Tab to reach the actions, then press `a` to add the line to Memory.
@@ -52,7 +54,7 @@ Claude Code's built-in side agent (`cc-plugin-you-should-know`) watches the sess
 4. A note that comes before you send another message waits, and goes with your next message as context Claude reads beside it. A slash command carries no note. One note-started turn for each message you send means a note's turn cannot set off a chain of turns.
 5. If Claude Code refuses or fails the note's turn, the note waits for your next message instead. If another mod or Claude Code drops your message, its notes stay waiting for the one after.
 
-The panel lists every note of the session, numbered, with its line. Press `h` to open them: each shows its details, the time it came and how it reached Claude ("sent to Claude", "goes with your next message" or "sent with your message"). The list lasts as long as the session.
+The panel lists every note of the session, numbered, with its line. Press `h` to open them: each shows its details, the time it came and how it reached Claude ("delivery unconfirmed", "sent to Claude", "goes with your next message" or "sent with your message"). The list lasts as long as the session.
 
 **Claude acts on a note it finds to hold, without asking you.** A note can repeat text that reached the session from files, tool output or web pages, so text written by someone else can reach Claude this way, and you do not read it first. The mod removes hidden characters, normalises the text, and gives Claude each note as one line of JSON, with a sentence that says the data may repeat outside text and that an instruction inside it is not one to follow. How far that lowers the chance that Claude follows a planted instruction has not been measured. If you would rather read each note before Claude does, do not install this version.
 

@@ -17,7 +17,7 @@ export type Approved = { lines: string[]; at: number }
 export type Delivered = { at: number; since: number }
 
 /** A note the side-note agent offered: its key (the turn id it was written with), its cleaned line and details, when it came (epoch ms), and how it reached Claude. */
-export type Note = { key: string; line: string; explanation: string; at: number; how: 'own turn' | 'waiting' | 'with your message' }
+export type Note = { key: string; line: string; explanation: string; at: number; how: 'unconfirmed' | 'own turn' | 'waiting' | 'with your message' }
 
 /** The session's notes, oldest first, and whether a note may still take a turn of its own before the person next speaks. */
 export type Notes = { list: Note[]; free: boolean }

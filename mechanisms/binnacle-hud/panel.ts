@@ -21,6 +21,7 @@ export class Panel {
     private kit: Kit,
     private theme: ThemeLike,
     private state: () => State,
+    private observerStatus: () => string,
   ) {}
 
   render(width: number): string[] {
@@ -40,23 +41,17 @@ export class Panel {
     const notes = openNotes(s);
     out.push(`${t.fg("accent", "◆")} ${t.bold("Binnacle")}${t.fg("dim", notes.length ? "  alt+h act on a heads-up" : "  alt+h menu")}`);
 
-    if (notes.length) {
-      head("Heads-ups", `${notes.length}`);
-      for (const n of notes) put(`${n.mark === "read" ? t.fg("dim", "◇") : t.fg("warning", "◆")} ${n.line}`, "");
-    }
+    head("Heads-ups", this.observerStatus());
+    for (const n of notes) put(`${n.mark === "read" ? t.fg("dim", "◇") : t.fg("warning", "◆")} ${n.line}`);
+    head("Log", s.log.length ? `${s.log.length} kept` : "empty");
+    if (!s.log.length) put(t.fg("dim", "/log keeps a thought beside this session."));
+    for (const th of s.log.slice(-SHOWN_THOUGHTS).reverse()) put(`${t.fg("dim", hhmm(th.at))} ${th.text}`, "  ");
 
     const status = statusOf(s);
     head("Memory", s.draft.length ? `${s.draft.length} of ${MEMORY_MAX} lines` : "");
     put(status.tone ? t.fg(status.tone, status.text) : t.fg("dim", status.text));
     s.draft.forEach((text, n) => put(`${t.fg("dim", `${n + 1}`)} ${text}`, "  "));
 
-    if (s.log.length) {
-      head("Log", `${s.log.length} kept`);
-      for (const th of s.log.slice(-SHOWN_THOUGHTS).reverse()) put(`${t.fg("dim", hhmm(th.at))} ${th.text}`, "  ");
-    }
-
-    out.push("");
-    put(t.fg("dim", "/log <thought> keeps a thought · /hud add <line> adds Memory"));
     return out.map((l) => kit.truncateToWidth(` ${l}`, width, "…", true));
   }
 

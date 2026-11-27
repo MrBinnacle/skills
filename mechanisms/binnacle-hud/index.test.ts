@@ -14,7 +14,7 @@ import { SECTION, TYPE } from "./state";
 type Handler = (...args: any[]) => any;
 
 /** Pi's extension surface, faked: entries land in one branch, and the model answers from `replies`. */
-function harness(replies: string[] = [], opts: { idle?: boolean; hasUI?: boolean; picks?: string[]; duringCall?: (call: number) => void } = {}) {
+function harness(replies: string[] = [], opts: { idle?: boolean; refuseSteer?: boolean; hasUI?: boolean; picks?: string[]; duringCall?: (call: number) => void } = {}) {
   const picks = opts.picks ?? [];
   const asked: string[][] = [];
   const on = new Map<string, Handler[]>();
@@ -32,7 +32,10 @@ function harness(replies: string[] = [], opts: { idle?: boolean; hasUI?: boolean
     registerShortcut: () => {},
     registerMessageRenderer: () => {},
     appendEntry: (customType: string, data: unknown) => entries.push({ type: "custom", customType, data, id: `c${++n}` }),
-    sendMessage: (message: any, options: any) => sent.push({ message, options }),
+    sendMessage: (message: any, options: any) => {
+      if (opts.refuseSteer) throw new Error("steer unavailable");
+      sent.push({ message, options });
+    },
   };
   extension(pi as any);
   const ctx = {
@@ -328,7 +331,7 @@ describe("alt+h menu: the person acts on a heads-up without leaving the prompt",
     expect(marks(h)).toEqual(["read"]);
   });
   test("Log and Memory are typed through prompts, not a panel field", async () => {
-    const h = harness([], { picks: ["Keep a thought", "buy milk", "Add a Memory", "use pnpm", "Remove a Memory", "use pnpm"] });
+    const h = harness([], { picks: ["Keep a thought", "buy milk", "Add a Memory", "use pnpm", "Remove a Memory", "1. use pnpm"] });
     await h.emit("session_start");
     await h.run("hud", "");
     await h.run("hud", "");
@@ -375,4 +378,113 @@ describe("a note is reread against turns that came while the observer worked", (
     const { notes } = await run([NOTE({ stakes: "Private repo; only collaborators see it.", decision: "Purge the commit or leave it." })], false);
     expect(notes[0].data.note).toMatchObject({ stakes: "Private repo; only collaborators see it.", decision: "Purge the commit or leave it." });
   });
+});
+
+test("Send approves the preview even when another line arrives during confirmation", async () => {
+  const h = harness();
+  await h.emit("session_start");
+  await h.run("hud", "add reviewed");
+  h.ctx.ui.confirm = async () => {
+    await h.run("hud", "add still drafting");
+    return true;
+  };
+  await h.run("hud", "send");
+  expect(h.entries.at(-1).data.lines).toEqual(["reviewed"]);
+  expect(h.widgets.at(-1)?.[0]).toContain("draft changed");
+  expect((await h.start()).sections[SECTION]).not.toContain("still drafting");
+});
+
+test("a branch change retires an open confirmation", async () => {
+  const h = harness();
+  await h.emit("session_start");
+  await h.run("hud", "add on branch A");
+  h.ctx.ui.confirm = async () => {
+    await h.emit("session_tree");
+    return true;
+  };
+  await h.run("hud", "send");
+  expect(h.entries.some(e => e.data?.k === "approve")).toBe(false);
+});
+
+test("removing one of two identical Memory lines preserves its sibling", async () => {
+  const h = harness([], { picks: ["Remove a Memory line", "2."] });
+  await h.emit("session_start");
+  await h.run("hud", "add duplicate");
+  await h.run("hud", "add duplicate");
+  await h.run("hud", "");
+  expect(h.entries.at(-1).data.lines).toEqual(["duplicate"]);
+});
+
+test("a delayed observer reply after off leaves no note or cursor", async () => {
+  const h = harness([NOTE()], { duringCall: () => { void h.run("hud", "observer off"); } });
+  await h.emit("session_start");
+  await h.run("hud", "observer panel");
+  await h.turns(REVIEW_EVERY);
+  expect(h.requests).toHaveLength(1);
+  expect(h.entries.filter(e => ["reviewed", "note"].includes(e.data?.k))).toHaveLength(0);
+});
+
+test("an old longer snapshot cannot receipt a newly approved prefix", async () => {
+  const h = harness();
+  await h.emit("session_start");
+  await h.run("hud", "add task");
+  await h.run("hud", "send");
+  const { sections } = await h.start();
+  sections[SECTION] += " that was superseded";
+  await h.emit("context_with_system", { messages: [{ role: "system", sections }] });
+  expect(h.entries.some(e => e.data?.k === "delivered")).toBe(false);
+});
+
+test("a failed observer settings write keeps the effective mode and reports it", async () => {
+  const h = harness();
+  await h.emit("session_start");
+  await h.run("hud", "observer off");
+  const dir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = settingsPath(); // a file cannot contain another settings file
+  try {
+    await h.run("hud", "observer forward");
+    expect(h.notes.at(-1)).toContain("Still off");
+    await h.turns(REVIEW_EVERY);
+    expect(h.requests).toHaveLength(0);
+  } finally {
+    process.env.PI_CODING_AGENT_DIR = dir;
+  }
+});
+
+test("a heads-up delivered while its menu is open cannot start a second turn", async () => {
+  const h = harness([NOTE()]);
+  await h.emit("session_start");
+  await h.run("hud", "observer forward");
+  await h.turns(REVIEW_EVERY);
+  h.ctx.ui.select = async (_title, options) => {
+    if (options.some(o => o.startsWith("1."))) return options[0];
+    await h.start();
+    return "Send to the agent now";
+  };
+  await h.run("hud", "");
+  expect(h.entries.some(e => e.data?.how === "sent with your message")).toBe(true);
+  expect(h.sent).toHaveLength(0);
+});
+
+test("a rejected busy steer preserves the note for the next user message", async () => {
+  const h = harness([NOTE()], { idle: false, refuseSteer: true });
+  await h.emit("session_start");
+  await h.run("hud", "observer forward");
+  await h.turns(REVIEW_EVERY);
+  expect(h.entries.find(e => e.data?.k === "note").data.note.how).toBe("waits for your next message");
+  expect((await h.start()).result.message.content).toContain("skipped the migration test");
+});
+
+test("switching branch during the recheck discards its note and review cursor", async () => {
+  const h = harness([NOTE(), '{"holds":true}'], {
+    duringCall: count => {
+      if (count === 1) h.say("assistant", "new work since the first look");
+      if (count === 2) void h.emit("session_tree");
+    },
+  });
+  await h.emit("session_start");
+  await h.run("hud", "observer panel");
+  await h.turns(REVIEW_EVERY);
+  expect(h.requests).toHaveLength(2);
+  expect(h.entries.filter(e => ["reviewed", "note", "stale"].includes(e.data?.k))).toHaveLength(0);
 });
