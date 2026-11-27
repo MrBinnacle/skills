@@ -225,3 +225,15 @@ test('lines changed since Send are drawn in the board\'s light, not the success 
   await start($, on, { approved: { lines: LINES, at: NOW }, memory: [...LINES, 'added later'] })
   expect((await statusProps($, 'Changed since Send.')).color).toBe('#e2e0ae')
 })
+
+for (const answer of ['Withdraw', 'Not now']) {
+  test(`withdraw answered ${answer} preserves the host section and draft`, async ($, on) => {
+    const store: Store = { memory: ['new draft'], approved: { lines: LINES, at: NOW } }
+    const run = await start($, on, store, { answer })
+    const ui = await $.ui.mount(pane())
+    await ui.press({ key: 'k-w' })
+    const result = await section($)
+    expect(result.text).toBe(answer === 'Withdraw' ? CORE : CORE + '\n\n' + MEMORY)
+    expect(run.invalidated).toEqual(answer === 'Withdraw' ? ['prompt.section'] : [])
+  })
+}

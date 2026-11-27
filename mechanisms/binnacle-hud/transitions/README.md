@@ -8,7 +8,7 @@ Keeping a thought appends a Log record. Sending Memory replaces a session instru
 | --- | --- |
 | Edit during confirmation | Both hosts retain the previewed lines for this Send. Later edits stay in the draft. Pi discards an open decision when its session or tree changes. |
 | Confirm and persist | The snapshot becomes eligible for instructions. Claude invalidates its prompt-section cache. Pi supplies its section at agent start. |
-| Confirm an empty draft | Pi withdraws the section from future prompts. Claude’s pane offers Send for a nonempty draft. |
+| Withdraw approved Memory | Both hosts confirm the approved snapshot before removing it from future instructions, preserving the draft. Pi also permits Send on an empty draft. |
 | Application receipt | Claude records the snapshot while composing its memory section. Pi reads system section patches in order and records a receipt when the final value of its section equals the approved text. Neither hook observes a provider acknowledgment. |
 | Capture fails | Claude tries to preserve a failed keep in the pane. If that save also fails, the phone command reports both failures without echoing the thought. |
 

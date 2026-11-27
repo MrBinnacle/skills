@@ -57,7 +57,7 @@ test('dock, unsent memory: send and one remove key per line are drawn', async ($
 test('dock, memory already in Claude\'s context: no send key', async ($, on) => {
   await start($, on, { view: view(2), memory: ['ship slice 1'], approved: { lines: ['ship slice 1'], at: 0 } })
   const ui = await $.ui.mount(pane('dock', true))
-  expect(await keys(ui)).toEqual(['k-1'])
+  expect(await keys(ui)).toEqual(['k-1', 'k-w'])
 })
 
 test('dock, text in the field: a adds it to memory, and no remove key competes', async ($, on) => {

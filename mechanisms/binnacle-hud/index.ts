@@ -144,6 +144,20 @@ export default function (pi: ExtensionAPI) {
     const rows = new Map<string, () => Promise<unknown> | unknown>();
     notes.forEach((n, i) => rows.set(`${i + 1}. ${n.line}`, () => noteMenu(c, n)));
     rows.set("Keep a thought in the Log", () => logPrompt(c));
+    if (state.log.length) rows.set("Review Log and draft Memory", async () => {
+      const recent = [...state.log].reverse();
+      const options = recent.map((item, i) => `${i + 1}. ${item.text}`);
+      const pick = await c.ui.select("Choose a thought to edit into Memory", options);
+      if (!pick || epoch !== branchEpoch) return;
+      const selected = recent[options.indexOf(pick)];
+      if (!selected) return;
+      const text = clip((await c.ui.editor("Edit Memory draft · original thought stays in Log", selected.text)) ?? "");
+      if (!text || epoch !== branchEpoch) return;
+      if (state.draft.length >= MEMORY_MAX) return c.ui.notify("Memory is full. Nothing added.", "warning");
+      add({ k: "draft", lines: [...state.draft, text] });
+      c.ui.notify("Added to the Memory draft. Send to approve.", "info");
+    });
+    if (state.approved) rows.set("Withdraw approved Memory", () => sendMemory(c, true));
     rows.set("Add a Memory line", async () => {
       if (state.draft.length >= MEMORY_MAX) return c.ui.notify(`Memory keeps at most ${MEMORY_MAX} lines.`, "warning");
       const text = clip((await c.ui.input("Add a Memory line", "a fact the agent should keep")) ?? "");
@@ -219,16 +233,17 @@ export default function (pi: ExtensionAPI) {
     if (epoch === branchEpoch && text && keep(text)) c.ui.notify("Kept in the Log.", "info");
   }
 
-  async function sendMemory(c: ExtensionContext) {
+  async function sendMemory(c: ExtensionContext, withdraw = false) {
+    if (withdraw && !state.approved) return c.ui.notify("No approved Memory to withdraw.", "info");
     if (!state.draft.length && !state.approved) return c.ui.notify("Memory is empty.", "info");
     if (!c.hasUI || confirming) return;
-    const lines = [...state.draft];
+    const lines = withdraw ? [] : [...state.draft];
     const ticket = (confirming = Symbol());
     try {
       const question = lines.length
         ? `Give these lines to the agent’s instructions?\n\n${lines.map(l => `- ${l}`).join("\n")}`
-        : "Remove approved Memory from future prompts?";
-      if (!(await c.ui.confirm("Send Memory", question)) || confirming !== ticket) return;
+        : `Remove approved Memory from future prompts? Your draft stays.\n\n${state.approved?.lines.join("\n") ?? ""}`;
+      if (!(await c.ui.confirm(lines.length ? "Send Memory" : "Withdraw Memory", question)) || confirming !== ticket) return;
       const at = Math.max(Date.now(), (state.approved?.at ?? 0) + 1, (state.delivered?.at ?? 0) + 1);
       add({ k: "approve", lines, at });
       c.ui.notify(lines.length ? "Sent. Waiting for a request carrying these lines." : "Memory withdrawn from future prompts.", "info");
@@ -447,7 +462,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.registerCommand("hud", {
     description: "Binnacle panel: /hud, /hud add <Memory line>, /hud send, /hud observer off|panel|forward, /hud close",
-    getArgumentCompletions: (p) => ["add ", "send", "close", "observer off", "observer panel", "observer forward"].filter((x) => x.startsWith(p)).map((x) => ({ value: x, label: x.trim() })),
+    getArgumentCompletions: (p) => ["add ", "send", "withdraw", "close", "observer off", "observer panel", "observer forward"].filter((x) => x.startsWith(p)).map((x) => ({ value: x, label: x.trim() })),
     handler: async (args, c) => {
       ctx = c;
       const [word = "", ...rest] = args.trim().split(/\s+/);
@@ -473,6 +488,7 @@ export default function (pi: ExtensionAPI) {
         add({ k: "draft", lines: [...state.draft, text] });
         return c.ui.notify(`Added to Memory. Not sent: /hud send gives it to the agent.`, "info");
       }
+      if (word === "withdraw") return sendMemory(c, true);
       if (word === "send") return sendMemory(c);
       return menu(c);
     },

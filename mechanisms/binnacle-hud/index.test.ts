@@ -488,3 +488,24 @@ test("switching branch during the recheck discards its note and review cursor", 
   expect(h.requests).toHaveLength(2);
   expect(h.entries.filter(e => ["reviewed", "note", "stale"].includes(e.data?.k))).toHaveLength(0);
 });
+
+test("an older thought can become edited Memory and be withdrawn with its draft retained", async () => {
+  const h = harness([], { picks: ["Review Log", "2.", "Send Memory", "Withdraw approved Memory"] });
+  await h.emit("session_start");
+  await h.run("log", "private thought");
+  await h.run("log", "newer thought");
+  let initial = "";
+  Object.assign(h.ctx.ui, { editor: async (_title: string, text: string) => {
+    initial = text;
+    return "approved wording";
+  } });
+  await h.run("hud", "");
+  expect(initial).toBe("private thought");
+  expect((await h.start()).sections[SECTION]).toBeUndefined();
+  await h.run("hud", "");
+  expect((await h.start()).sections[SECTION]).toContain("approved wording");
+  expect((await h.start()).sections[SECTION]).not.toContain("private thought");
+  await h.run("hud", "");
+  expect((await h.start()).sections[SECTION]).toBeUndefined();
+  expect(h.entries.filter(e => e.data.k === "draft").at(-1).data.lines).toEqual(["approved wording"]);
+});

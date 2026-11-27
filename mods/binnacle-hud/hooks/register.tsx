@@ -144,6 +144,10 @@ type Status = { text: string; tone: keyof typeof TONE | null; send: boolean }
 export const statusOf = (lines: readonly string[], snap: Approved | null, seen: Delivered | null): Status => {
   if (!snap) return { text: 'Not sent.', tone: null, send: true }
   const arrived = seen?.at === snap.at
+  if (!snap.lines.length) return {
+    text: arrived ? "Withdrawn from Claude's instructions." : "Withdrawal saved. Waiting for the next instructions.",
+    tone: null, send: lines.length > 0,
+  }
   if (!same(lines, snap.lines)) return arrived
     ? { text: `Changed since Send. Claude has the ${hhmm(snap.at)} version.`, tone: 'claude', send: true }
     : { text: `Changed since Send. The ${hhmm(snap.at)} version is not yet in Claude's instructions.`, tone: 'claude', send: true }
@@ -203,16 +207,20 @@ const without = (ids: readonly string[]) => (saved: readonly Saved[]) => saved.f
 // The lines are frozen when Send is pressed: the question and the snapshot
 // carry that one value, whatever the draft becomes meanwhile. The prompt
 // section reads the snapshot, so writing it is the Send.
-async function send($: EngineInterface): Promise<void> {
+async function send($: EngineInterface, withdraw = false): Promise<void> {
   const lines = entries(await read($, draft)).map(l => l.text)
-  if (!lines.length) return
-  const question = `Memory for Claude:\n${lines.map(l => `- ${l}`).join('\n')}\n\nGive Claude these ${lines.length} lines now?`
-  const answer = await $.ui.ask(question, [SEND, NOT_NOW]).catch(() => NOT_NOW)
-  if (answer !== SEND) return
+  const prior = withdraw ? await read($, approved) : null
+  if (withdraw && !prior?.lines.length) return
+  if (!withdraw && !lines.length) return
+  const action = withdraw ? 'Withdraw' : SEND
+  const question = withdraw ? `Withdraw these instructions from future prompts? Your draft stays.\n\n${prior?.lines.join('\n')}` : `Memory for Claude:\n${lines.map(l => `- ${l}`).join('\n')}\n\nGive Claude these ${lines.length} lines now?`
+  const answer = await $.ui.ask(question, [action, NOT_NOW]).catch(() => NOT_NOW)
+  if (answer !== action) return
   const at = await $.clock.now()
-  const refusal = await update($, approved, previous => ({ lines, at: Math.max(at, (previous?.at ?? 0) + 1) })) // overwrite: the newest Send replaces what Claude reads
+  const refusal = await update($, approved, previous => ({ lines: withdraw ? [] : lines, at: Math.max(at, (previous?.at ?? 0) + 1) })) // overwrite: the newest Send replaces what Claude reads
     .then(() => '', (err: unknown) => err instanceof Error ? err.message : String(err))
   // The engine caches a section answer for the thread; dropping it makes the next turn ask again.
+  if (withdraw && refusal) $.ui.toast(`Withdrawal failed. Previously approved Memory remains in force: ${refusal}`)
   if (!refusal) $.ui.invalidate('prompt.section')
   await update($, view, v => ({ ...v, failed: refusal, refusedLines: lines }))
 }
@@ -309,6 +317,7 @@ export const register: Register = (on, options) => {
     const since = await $.clock.now()
     // A failed write must not fail the hook: a failed hook passes through and drops the lines.
     await update($, delivered, now => now && now.at >= snap.at ? now : { at: snap.at, since }).catch(() => undefined)
+    if (!snap.lines.length) return { ...out, breakPromptCache: true }
     return { text: [out.text, memoryText(snap)].filter(Boolean).join('\n\n'), breakPromptCache: true }
   })
 
@@ -405,6 +414,7 @@ export const register: Register = (on, options) => {
         {header('Memory', lines.length ? `${lines.length} lines` : 'empty')}
         {!(refused && !snap) && <Text wrap="wrap" color={said.tone ? TONE[said.tone] : undefined} dimColor={!said.tone}>{status}</Text>}
         {refused && <Text wrap="wrap" color={TONE.warning}>{`Not sent. ${refused}`}</Text>}
+        {!!snap?.lines.length && !same(lines, snap.lines) && quiet(`Approved snapshot:\n${snap.lines.join('\n')}\nWorking draft:`)}
         {rows.map((r, i) => (
           <Text key={`mem-${r.id}`} wrap={inline ? 'truncate-end' : 'wrap'} maxLines={inline ? undefined : rowLines}><Text dimColor>{i + 1} </Text>{r.text}</Text>
         ))}
@@ -431,9 +441,14 @@ export const register: Register = (on, options) => {
     )
 
     // --- log ---------------------------------------------------------------
+    const loadThought = async (text: string) => {
+      const at = edits
+      await update($, typed, value => value === '' && edits === at ? text : value)
+    }
     const thought = (t: Thought, i: number) => (
       <Box key={`log-${i}`} flexDirection="row" justifyContent="space-between">
         <Text wrap={inline ? 'truncate-end' : 'wrap'} maxLines={inline ? undefined : rowLines}><Text dimColor>{narrow ? '' : hhmm(t.at)}{t.from === 'phone' ? ' phone' : ''}  </Text>{t.text}</Text>
+        {focused && st.expand === 2 && !now && <Button key={`edit-log-${i}`} plain onPress={() => loadThought(t.text)}>edit copy</Button>}
       </Box>
     )
     const shown = w - 12 // the field's width less its frame, label and Enter hint
@@ -468,18 +483,20 @@ export const register: Register = (on, options) => {
     const newest = thoughts.at(-1)?.text
     const toggle = (n: number, k: string, label: string): Act => ({ k, label,
       run: () => void update($, view, v => ({ ...v, expand: v.expand === n ? 0 : n })) })
-    const press = () => {
+    const press = (withdraw = false) => {
       if (sending) return
       sending = true
-      return send($).finally(() => { sending = false })
+      return send($, withdraw).finally(() => { sending = false })
     }
     const acts: Act[] = [
       ...(unsaved.some(f => f.id) ? [{ k: 'd', label: 'dismiss failed', run: () => void update($, failed, without(unsaved.flatMap(f => f.id ?? []))).catch(() => undefined) }] : []),
-      ...(inline ? [toggle(1, 'm', 'memory'), toggle(2, 'l', 'log')] : []),
+      ...(inline ? [toggle(1, 'm', 'memory')] : []),
+      ...(inline || thoughts.length ? [toggle(2, 'l', 'review log')] : []),
       ...(offered.length ? [toggle(4, 'h', 'heads-ups')] : []),
       ...(writing && room ? [{ k: 'a', label: 'to memory', run: () => addLine($, now) }] : []),
       ...(!writing && room && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
-      ...(showsMemory && lines.length && said.send ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
+      ...(showsMemory && lines.length && said.send ? [{ k: 's', label: 'send', run: () => press(), primary: true }] : []),
+      ...(showsMemory && snap?.lines.length ? [{ k: 'w', label: 'withdraw approved memory', run: () => press(true) }] : []),
       // shortcut: lines past the ninth have only 0, which removes the last one; add paging if Memory grows that long.
       ...(showsMemory && !writing ? rows.slice(0, 9).flatMap(({ id }, i) => id ? [{ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([id])).catch(() => undefined) }] : []) : []),
       ...(showsMemory && !writing && rows.length > 9 && last ? [{ k: '0', label: 'remove last', run: () => void update($, draft, without([last])).catch(() => undefined) }] : []),

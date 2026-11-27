@@ -28,6 +28,8 @@ sets the section to null, so the test folds those patches the way a provider rea
 | `alt+h` or `/hud` | Shows the panel and opens one menu: each open heads-up, then keep a thought, add, send or remove a Memory line, forget a thought, hide the panel. |
 | `/log <text>`, `/log` | Keeps a thought in the Log; with no text, asks for it. |
 | `/hud add <line>`, `/hud send` | Adds a Memory line; sends Memory after you confirm the lines. Sending an empty Memory withdraws it. |
+| **Review Log and draft Memory** in the menu | Select any retained thought and edit a copy. Saving adds it to the draft. The original stays in the Log. |
+| **Withdraw approved Memory** or `/hud withdraw` | Review the currently approved lines and confirm removal from future instructions. The working draft stays available. |
 | `/hud observer off\|panel\|forward` | Sets the observer for every session. `off` makes no call. `panel`, the default, keeps notes with you. `forward` also gives a note to the agent. Stored in `binnacle-hud.json` in Pi's agent directory; another running Pi reads it when its next session starts. Leaving `forward` keeps any note still waiting for your next message with you. |
 | `/hud close` | Closes the panel. |
 

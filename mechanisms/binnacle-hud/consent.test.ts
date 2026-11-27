@@ -193,6 +193,19 @@ test.skipIf(!found)("consent holds across Pi's real agent loop", async () => {
   await until(() => observerCalls().length === 5, "the look after /compact");
   expect(memoryIn(agentCalls(mark)[0]!)).toContain("MEMORY-4be0");
 
+  await session.prompt("/hud withdraw");
+  mark = calls.length;
+  agentScript = [say("Ok.")];
+  await session.prompt("After withdrawal.");
+  expect(agentCalls(mark).length).toBeGreaterThan(0);
+  for (const call of agentCalls(mark)) expect(memoryIn(call)).toBe("");
+  await session.compact();
+  mark = calls.length;
+  agentScript = [say("Ok.")];
+  await session.prompt("After withdrawal and compaction.");
+  expect(agentCalls(mark).length).toBeGreaterThan(0);
+  for (const call of agentCalls(mark)) expect(memoryIn(call)).toBe("");
+
   // Across every request of the session: the Log never left, the observer never saw Memory.
   expect(calls.length).toBeGreaterThan(10);
   expect(calls.filter((c) => c.text.includes("LOG-7f3a"))).toHaveLength(0);
