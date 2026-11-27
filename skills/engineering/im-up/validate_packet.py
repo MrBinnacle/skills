@@ -61,6 +61,12 @@ def run(cmd: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     except subprocess.TimeoutExpired:
         kill_tree(proc)
         return subprocess.CompletedProcess(cmd, 124, "", f"timed out after {CHECK_TIMEOUT_S}s")
+    except BaseException:
+        # The caller was interrupted (SIGINT, or SIGTERM via main's handler). The check
+        # runs in its own session, so nothing else ends it; a hung check outlived the
+        # validator with no limit on POSIX (#647).
+        kill_tree(proc)
+        raise
     return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
 
 
@@ -677,6 +683,9 @@ def rerun_checks(config: dict, repo_root: Path) -> tuple[list[dict], list[str]]:
 
 
 def main() -> int:
+    if os.name != "nt":
+        # SIGTERM would end the validator with no cleanup; as SystemExit it unwinds run().
+        signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
     parser = argparse.ArgumentParser()
     parser.add_argument("packet", type=Path)
     parser.add_argument("--repo-root", type=Path)
