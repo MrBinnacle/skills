@@ -190,3 +190,12 @@ test('p is not offered when the newest Log thought is already a Memory line', as
   expect(await shown(ui)).not.toContain('"k-p"')
 })
 
+
+test('two approvals in the same clock tick cannot share a delivery receipt', async ($, on) => {
+  const store: Store = { memory: ['new'], approved: { lines: ['old'], at: NOW }, delivered: { at: NOW, since: NOW } }
+  await start($, on, store)
+  const ui = await $.ui.mount(pane())
+  await ui.press({ key: 'k-s' })
+  expect(store.approved.at).toBeGreaterThan(store.delivered.at)
+  expect(await shown(await redraw($, ui))).toContain("Not yet in Claude's instructions")
+})

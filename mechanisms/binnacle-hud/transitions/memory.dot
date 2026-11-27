@@ -1,0 +1,17 @@
+// Pi sendMemory / context_with_system, Claude send / prompt.section
+digraph Memory {
+  graph [rankdir=TB, bgcolor="#F2F4EF", pad=.35, nodesep=.4, ranksep=.43, fontname="IBM Plex Sans", labelloc=t, labeljust=l, label="Memory   /   Approval and application\n ", fontsize=23, fontcolor="#1E2020"];
+  node [shape=box, style=filled, color="#5F614A", fillcolor="#E6E9E2", fontname="IBM Plex Sans", fontsize=14, margin=".18,.12"];
+  edge [color="#5F614A", fontcolor="#1E2020", fontname="IBM Plex Sans", fontsize=11, arrowsize=.7];
+  draft [label="Editable draft"];
+  preview [label="Frozen preview"];
+  previous [label="Prior instructions stand"];
+  sent [label="Approved snapshot"];
+  cc [label="Claude Code\nMemory section assembled"];
+  pi [label="Pi\nEffective section observed"];
+  draft -> preview [label="  Send"];
+  preview -> previous [label="  Cancel", style=dashed];
+  preview -> sent [label="  Confirm and save"];
+  sent -> cc [label="  prompt.section"];
+  sent -> pi [label="  context_with_system\n  exact section match"];
+}

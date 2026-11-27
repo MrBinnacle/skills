@@ -109,5 +109,5 @@ export function statusOf(s: Pick<State, "draft" | "approved" | "delivered">): { 
   }
   return arrived
     ? { text: `In the agent's instructions since ${hhmm(s.delivered!.since)}.`, tone: "success", send: false }
-    : { text: `Sent at ${hhmm(snap.at)}. Reaches the agent with its next request.`, tone: null, send: false };
+    : { text: `Sent at ${hhmm(snap.at)}. Waiting for a request carrying these lines.`, tone: null, send: false };
 }

@@ -8,7 +8,7 @@ const kit: Kit = {
 };
 const theme = { fg: (_: string, t: string) => t, bold: (t: string) => t };
 const note = { key: "n1", tag: "heads-up" as const, line: "Skipped test " + "z".repeat(200), details: "**Why**", agentKnows: false, at: 1, how: "for you only" as const };
-const panel = (state: Partial<State>) => new Panel(kit, theme, () => ({ ...fold([], []), ...state }));
+const panel = (state: Partial<State>) => new Panel(kit, theme, () => ({ ...fold([], []), ...state }), () => "panel only");
 
 test("every rendered line fits the width", () => {
   const p = panel({ draft: ["x".repeat(300)], notes: [note], log: [{ text: "y".repeat(300), at: 1 }] });
@@ -24,4 +24,9 @@ test("a closed heads-up leaves the panel", () => {
 });
 test("the panel takes no keys: it has no input handler", () => {
   expect("handleInput" in panel({})).toBe(false);
+});
+
+test("an empty panel names all three paths and the active observer policy", () => {
+  const rows = panel({}).render(40).join("\n");
+  for (const label of ["Log", "/log", "Memory", "Heads-ups", "panel only", "alt+h"]) expect(rows).toContain(label);
 });

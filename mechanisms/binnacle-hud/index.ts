@@ -1,10 +1,11 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { grounded, newest, recordOf, OUTPUT_TOKENS, parseRecheck, parseReply, PROMPT_VERSION, quoted, RECHECK, recheckMessage, repeats, serialize, SYSTEM, TRANSCRIPT_CHARS, userMessage, Watch, type Msg } from "./observer";
 import { type Kit, openNotes, Panel } from "./panel";
-import { CLOSED, clip, fold, type How, type Mark, MEMORY_MAX, memoryText, type Note, type Rec, SECTION, type State, statusOf, TYPE } from "./state";
+import { CLOSED, clip, fold, type How, type Mark, MEMORY_MAX, memoryText, type Note, type Rec, SECTION, same, type State, statusOf, TYPE } from "./state";
 
 /** off: no looks. panel: notes stay with the person. forward: notes also reach the agent. */
 export type Mode = "off" | "panel" | "forward";
@@ -28,8 +29,13 @@ export function readMode(path = settingsPath()): Mode {
 }
 function writeMode(mode: Mode, path = settingsPath()) {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify({ observer: mode }, null, 2)}
-`);
+  const temp = `${path}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(temp, JSON.stringify({ observer: mode }) + "\n", { mode: 0o600 });
+    renameSync(temp, path);
+  } finally {
+    rmSync(temp, { force: true });
+  }
 }
 
 /**
@@ -46,6 +52,9 @@ export default function (pi: ExtensionAPI) {
   let watch = new Watch();
   let looking: AbortController | undefined;
   let mode: Mode = DEFAULT_MODE;
+  let branchEpoch = 0;
+  let menuEpoch: number | undefined;
+  let confirming: symbol | undefined;
   let prompts: number[] = []; // when the person sent each prompt this session
 
   const refold = () => {
@@ -64,7 +73,8 @@ export default function (pi: ExtensionAPI) {
     const t = ctx.ui.theme;
     const fresh = state.notes.filter((n) => !n.mark && prompts.filter((p) => p > n.at).length < STRIP_PROMPTS).at(-1);
     const parts: string[] = [];
-    if (state.approved) parts.push(state.delivered?.at === state.approved.at ? "Memory in instructions" : "Memory sent");
+    if (state.approved && !same(state.draft, state.approved.lines)) parts.push("Memory draft changed");
+    else if (state.approved) parts.push(state.delivered?.at === state.approved.at ? "Memory in instructions" : "Memory sent");
     else if (state.draft.length) parts.push("Memory not sent");
     const open = state.notes.filter((n) => !CLOSED.has(n.mark)).length;
     if (open) parts.push(`${open} heads-up${open === 1 ? "" : "s"}`);
@@ -73,8 +83,8 @@ export default function (pi: ExtensionAPI) {
       ? `${t.fg("warning", "◆")} ${t.bold(fresh.tag === "heads-up" ? "Heads up" : "Worth knowing")} ${t.fg("dim", "·")} ${fresh.line} ${t.fg("dim", "· alt+h")}`
       : parts.length
         ? `${t.fg("accent", "◆")} ${t.fg("dim", `Binnacle · ${parts.join(" · ")} · alt+h`)}`
-        : undefined;
-    ctx.ui.setWidget(TYPE, line ? [line] : undefined);
+        : t.fg("dim", "Binnacle · alt+h menu");
+    ctx.ui.setWidget(TYPE, [line]);
   }
 
   async function loadKit(): Promise<Kit | undefined> {
@@ -90,12 +100,14 @@ export default function (pi: ExtensionAPI) {
   // The panel only displays; it never takes the keys, so the prompt stays the one place to type.
   async function show(c: ExtensionContext) {
     if (panel || c.mode !== "tui") return;
+    const epoch = branchEpoch;
     const k = await loadKit();
+    if (epoch !== branchEpoch) return;
     if (!k) return c.ui.notify("Binnacle: the TUI kit did not load.", "error");
     void c.ui.custom<void>(
       (_tui, theme, _keys, done) => {
         panel = { done: () => done() };
-        return Object.assign(new Panel(k, theme, () => state), { dispose: () => (panel = undefined) });
+        return Object.assign(new Panel(k, theme, () => state, () => mode === "off" ? "observer off" : mode === "panel" ? "panel only" : "forwarding enabled"), { dispose: () => (panel = undefined) });
       },
       {
         overlay: true,
@@ -116,8 +128,18 @@ export default function (pi: ExtensionAPI) {
   const SENT: ReadonlySet<How> = new Set(["steered into the run", "sent with your message", "you sent it"]);
 
   async function menu(c: ExtensionContext) {
-    if (!c.hasUI) return;
+    if (!c.hasUI || menuEpoch === branchEpoch) return;
+    const epoch = (menuEpoch = branchEpoch);
+    try {
+      await chooseAction(c, epoch);
+    } finally {
+      if (menuEpoch === epoch) menuEpoch = undefined;
+    }
+  }
+
+  async function chooseAction(c: ExtensionContext, epoch: number) {
     await show(c);
+    if (epoch !== branchEpoch) return;
     const notes = openNotes(state);
     const rows = new Map<string, () => Promise<unknown> | unknown>();
     notes.forEach((n, i) => rows.set(`${i + 1}. ${n.line}`, () => noteMenu(c, n)));
@@ -125,34 +147,55 @@ export default function (pi: ExtensionAPI) {
     rows.set("Add a Memory line", async () => {
       if (state.draft.length >= MEMORY_MAX) return c.ui.notify(`Memory keeps at most ${MEMORY_MAX} lines.`, "warning");
       const text = clip((await c.ui.input("Add a Memory line", "a fact the agent should keep")) ?? "");
-      if (text) add({ k: "draft", lines: [...state.draft, text] });
+      if (!text || epoch !== branchEpoch) return;
+      if (state.draft.length >= MEMORY_MAX) return c.ui.notify("Memory filled while you were typing. Nothing added.", "warning");
+      add({ k: "draft", lines: [...state.draft, text] });
     });
     if (statusOf(state).send) rows.set("Send Memory to the agent", () => sendMemory(c));
     if (state.draft.length) rows.set("Remove a Memory line", async () => {
-      const pick = await c.ui.select("Remove which Memory line?", state.draft);
-      if (pick !== undefined) add({ k: "draft", lines: state.draft.filter((l) => l !== pick) });
+      const lines = [...state.draft];
+      const options = lines.map((line, i) => `${i + 1}. ${line}`);
+      const pick = await c.ui.select("Remove which Memory line?", options);
+      if (pick === undefined || epoch !== branchEpoch) return;
+      if (!same(lines, state.draft)) return c.ui.notify("Memory changed. Choose the line again.", "warning");
+      const index = options.indexOf(pick);
+      if (index >= 0) add({ k: "draft", lines: lines.filter((_, i) => i !== index) });
     });
     if (state.log.length) rows.set("Forget a thought", async () => {
       const recent = state.log.slice(-10).reverse();
-      const pick = await c.ui.select("Forget which thought?", recent.map((t) => t.text));
-      const hit = recent.find((t) => t.text === pick);
-      if (hit) add({ k: "forget", at: hit.at });
+      const options = recent.map((t, i) => `${i + 1}. ${t.text}`);
+      const pick = await c.ui.select("Forget which thought?", options);
+      const hit = pick === undefined ? undefined : recent[options.indexOf(pick)];
+      if (hit && epoch === branchEpoch) add({ k: "forget", at: hit.at });
     });
     rows.set("Hide the panel", () => panel?.done());
     const title = notes.length ? `Binnacle · ${notes.length} heads-up${notes.length === 1 ? "" : "s"}` : "Binnacle · no heads-ups";
     const pick = await c.ui.select(title, [...rows.keys()]);
-    if (pick !== undefined) await rows.get(pick)?.();
+    if (epoch === branchEpoch && pick !== undefined) await rows.get(pick)?.();
   }
 
   async function noteMenu(c: ExtensionContext, n: Note) {
+    const epoch = branchEpoch;
+    const current = () => state.notes.find(note => note.key === n.key);
+    const opened = current();
+    if (!opened || CLOSED.has(opened.mark)) return;
+    n = opened;
     if (!n.mark) markNote(n.key, "read");
     const head = [n.line, n.stakes && `Why it matters: ${n.stakes}`, n.decision && `Your call: ${n.decision}`].filter(Boolean);
     const body = [...head, "", n.details, n.evidence ? `\nFrom the record: “${n.evidence}”` : "", `\n${n.how}`].join("\n");
     const options = [...(SENT.has(n.how) ? [] : [SEND]), COPY, ...NOTE_MARKS.map(([label]) => label)];
     const pick = await c.ui.select(body, options);
+    if (epoch !== branchEpoch) return;
+    const latest = current();
+    if (!latest || CLOSED.has(latest.mark)) return;
     if (pick === SEND) {
+      if (SENT.has(latest.how)) return c.ui.notify("This note was already sent.", "info");
       // Steer a busy agent before its next model call; start a turn on an idle one.
-      pi.sendMessage({ customType: TYPE, content: quoted(n), display: true, details: { key: n.key } }, { deliverAs: "steer", triggerTurn: true });
+      try {
+        pi.sendMessage({ customType: TYPE, content: quoted(n), display: true, details: { key: n.key } }, { deliverAs: "steer", triggerTurn: true });
+      } catch {
+        return c.ui.notify("Could not send the heads-up. It remains in the panel.", "error");
+      }
       add({ k: "how", key: n.key, how: "you sent it" });
       markNote(n.key, "useful"); // sending it says it was worth receiving
     } else if (pick === COPY) {
@@ -171,28 +214,35 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function logPrompt(c: ExtensionContext) {
+    const epoch = branchEpoch;
     const text = await c.ui.input("Keep a thought in the Log", "never reaches the model");
-    if (text && keep(text)) c.ui.notify("Kept in the Log.", "info");
+    if (epoch === branchEpoch && text && keep(text)) c.ui.notify("Kept in the Log.", "info");
   }
 
   async function sendMemory(c: ExtensionContext) {
     if (!state.draft.length && !state.approved) return c.ui.notify("Memory is empty.", "info");
-    const ok = await c.ui.confirm("Send Memory", `Give these ${state.draft.length} lines to the agent's instructions? It keeps them until you send again.\n\n${state.draft.map((l) => `- ${l}`).join("\n")}`);
-    if (!ok) return;
-    approve();
-    c.ui.notify("Sent. It reaches the agent with its next request.", "info");
+    if (!c.hasUI || confirming) return;
+    const lines = [...state.draft];
+    const ticket = (confirming = Symbol());
+    try {
+      const question = lines.length
+        ? `Give these lines to the agent’s instructions?\n\n${lines.map(l => `- ${l}`).join("\n")}`
+        : "Remove approved Memory from future prompts?";
+      if (!(await c.ui.confirm("Send Memory", question)) || confirming !== ticket) return;
+      const at = Math.max(Date.now(), (state.approved?.at ?? 0) + 1, (state.delivered?.at ?? 0) + 1);
+      add({ k: "approve", lines, at });
+      c.ui.notify(lines.length ? "Sent. Waiting for a request carrying these lines." : "Memory withdrawn from future prompts.", "info");
+    } finally {
+      if (confirming === ticket) confirming = undefined;
+    }
   }
 
   // --- Log and Memory -------------------------------------------------------------------------
   function keep(text: string) {
     const t = clip(text);
     if (!t) return false;
-    add({ k: "thought", text: t, at: Date.now() });
+    add({ k: "thought", text: t, at: Math.max(Date.now(), (state.log.at(-1)?.at ?? 0) + 1) });
     return true;
-  }
-
-  function approve() {
-    add({ k: "approve", lines: [...state.draft], at: Date.now() });
   }
 
   function markNote(key: string, mark: Mark) {
@@ -245,10 +295,12 @@ export default function (pi: ExtensionAPI) {
       const said = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
       const r = parseReply(said);
       if (r.kind === "bad") return; // not a review: the cursor stays, so these turns are looked at again
+      if (r.kind === "note" && grounded(r.evidence, recordOf(text)) && !repeats(r.line, state.notes.map(n => n.line))) {
+        const holds = await stillHolds(c, r, look.upTo, ac.signal);
+        if (ac.signal.aborted) return;
+        if (holds) deliver(c, { key: randomUUID(), tag: r.tag, line: r.line, details: r.details, evidence: r.evidence, agentKnows: r.agentKnows, at: Date.now(), how: "for you only", version: PROMPT_VERSION, ...(r.stakes && { stakes: r.stakes }), ...(r.decision && { decision: r.decision }) });
+      }
       add({ k: "reviewed", upTo: look.upTo });
-      if (r.kind !== "note" || !grounded(r.evidence, recordOf(text)) || repeats(r.line, state.notes.map((n) => n.line))) return;
-      if (!(await stillHolds(c, r, look.upTo, ac.signal))) return;
-      deliver(c, { key: `${Date.now().toString(36)}`, tag: r.tag, line: r.line, details: r.details, evidence: r.evidence, agentKnows: r.agentKnows, at: Date.now(), how: "for you only", version: PROMPT_VERSION, ...(r.stakes && { stakes: r.stakes }), ...(r.decision && { decision: r.decision }) });
     } catch {
       // A failed look shows nothing and moves no cursor; the next look reads these turns again.
     } finally {
@@ -289,28 +341,43 @@ export default function (pi: ExtensionAPI) {
     if (!note.agentKnows && mode === "forward") {
       if (c.isIdle()) how = "waits for your next message";
       else {
-        pi.sendMessage({ customType: TYPE, content: quoted(note), display: true, details: { key: note.key } }, { deliverAs: "steer" });
-        how = "steered into the run";
+        try {
+          pi.sendMessage({ customType: TYPE, content: quoted(note), display: true, details: { key: note.key } }, { deliverAs: "steer" });
+          how = "steered into the run";
+        } catch {
+          how = "waits for your next message";
+        }
       }
     }
     add({ k: "note", note: { ...note, how } });
   }
 
   // --- events ---------------------------------------------------------------------------------
-  pi.on("session_start", async (_e, c) => {
-    ctx = c;
+  function cancelReview() {
+    looking?.abort();
+    looking = undefined;
+  }
+  function leaveBranch() {
+    branchEpoch++;
+    confirming = undefined;
+    cancelReview();
     watch = new Watch();
+  }
+  pi.on("session_start", async (_e, c) => {
+    leaveBranch();
+    ctx = c;
     prompts = [];
     mode = readMode();
     refold();
     void loadKit();
   });
   pi.on("session_tree", async (_e, c) => {
+    leaveBranch();
     ctx = c;
     refold();
   });
   pi.on("session_shutdown", async () => {
-    looking?.abort();
+    leaveBranch();
     panel?.done();
     ctx = undefined;
   });
@@ -337,7 +404,7 @@ export default function (pi: ExtensionAPI) {
     for (const m of event.messages as Array<{ role: string; sections?: Record<string, string | null> }>) {
       if (m.role === "system" && m.sections && SECTION in m.sections) carried = m.sections[SECTION];
     }
-    if (carried?.includes(memoryText(snap))) add({ k: "delivered", at: snap.at, since: Date.now() });
+    if (carried === memoryText(snap)) add({ k: "delivered", at: snap.at, since: Date.now() });
   });
 
   pi.on("turn_end", async (_e, c) => {
@@ -388,8 +455,13 @@ export default function (pi: ExtensionAPI) {
       if (word === "observer") {
         const want = MODES.find((m) => m === rest[0]);
         if (!want) return c.ui.notify(`Observer is ${mode}. /hud observer off stops it; panel keeps notes with you; forward also gives them to the agent.`, "info");
+        try {
+          writeMode(want);
+        } catch {
+          return c.ui.notify(`Could not save observer settings. Still ${mode}.`, "error");
+        }
+        if (mode !== want) cancelReview();
         mode = want;
-        writeMode(want);
         // A note queued for the agent stays with the person once forwarding stops.
         if (want !== "forward") for (const n of state.notes.filter((x) => x.how === "waits for your next message")) add({ k: "how", key: n.key, how: "for you only" });
         return c.ui.notify(`Observer ${want === "off" ? "off" : want === "panel" ? "on, notes stay with you" : "on, notes also go to the agent"}. This applies to every session.`, "info");

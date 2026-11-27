@@ -39,7 +39,7 @@ const notes = atom({ plugin: 'binnacle-hud', key: 'notes' } as const, { list: []
 const SIDE = 'cc-plugin-you-should-know'
 const KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAX_NOTES = 50
-const HOW: Record<Note['how'], string> = { 'own turn': 'sent to Claude', waiting: 'goes with your next message', 'with your message': 'sent with your message' }
+const HOW: Record<Note['how'], string> = { unconfirmed: 'delivery unconfirmed', 'own turn': 'sent to Claude', waiting: 'goes with your next message', 'with your message': 'sent with your message' }
 
 // Note text repeats whatever reached the session, files and web pages included, so it is cleaned before any sink:
 // hidden characters out, NFKC, hidden characters out again (one between a letter and its mark blocks NFKC), then cut.
@@ -153,15 +153,14 @@ export const statusOf = (lines: readonly string[], snap: Approved | null, seen: 
 }
 
 // Appends in one update, so two quick keeps cannot overwrite each other.
-async function keep($: EngineInterface, text: string, from: Thought['from']): Promise<boolean | null> {
-  if (!text.trim()) return false
+async function keep($: EngineInterface, text: string, from: Thought['from']): Promise<'empty' | 'kept' | 'recoverable' | 'lost'> {
+  if (!text.trim()) return 'empty'
   try {
     await update($, kept, items => [...items, { text: clip(text), at: new Date().toISOString(), from }].slice(-LOG_MAX))
-    return true
+    return 'kept'
   } catch {
     const miss = entry(clip(text))
-    await update($, failed, items => [...items, miss].slice(-FAILED_MAX)).catch(() => undefined)
-    return null
+    return update($, failed, items => [...items, miss].slice(-FAILED_MAX)).then(() => 'recoverable' as const, () => 'lost' as const)
   }
 }
 
@@ -174,7 +173,9 @@ async function clearDraft($: EngineInterface, text: string, at: number): Promise
 // not keep, so newer typing never hides the loss.
 async function submit($: EngineInterface, text: string): Promise<void> {
   const at = edits
-  if (!(await keep($, text, 'terminal'))) return
+  const saved = await keep($, text, 'terminal')
+  if (saved === 'lost') $.ui.toast('Log save failed. No recovery copy was saved.')
+  if (saved !== 'kept') return
   if (isLong(text)) $.ui.toast(`binnacle-hud kept the first ${TEXT_MAX} characters. The rest was dropped.`)
   await clearDraft($, text, at)
 }
@@ -209,7 +210,7 @@ async function send($: EngineInterface): Promise<void> {
   const answer = await $.ui.ask(question, [SEND, NOT_NOW]).catch(() => NOT_NOW)
   if (answer !== SEND) return
   const at = await $.clock.now()
-  const refusal = await update($, approved, () => ({ lines, at })) // overwrite: the newest Send replaces what Claude reads
+  const refusal = await update($, approved, previous => ({ lines, at: Math.max(at, (previous?.at ?? 0) + 1) })) // overwrite: the newest Send replaces what Claude reads
     .then(() => '', (err: unknown) => err instanceof Error ? err.message : String(err))
   // The engine caches a section answer for the thread; dropping it makes the next turn ask again.
   if (!refusal) $.ui.invalidate('prompt.section')
@@ -261,14 +262,13 @@ export const register: Register = (on, options) => {
         own = false
         if (now.list.some(n => n.key === found.key)) return now
         own = now.free
-        const note: Note = { ...found, at: Date.now(), how: own ? 'own turn' : 'waiting' }
+        const note: Note = { ...found, at: Date.now(), how: own ? 'unconfirmed' : 'waiting' }
         return { list: [...now.list, note].slice(-MAX_NOTES), free: now.free && !own }
       })
       if (!own) return
       const sent = await $.prompt.submit({ text: quoted(found) }).catch(() => ({ drop: 'failed' }))
-      if (sent.drop !== undefined) {
-        await update($, notes, now => ({ ...now, list: now.list.map(n => n.key === found.key ? { ...n, how: 'waiting' as const } : n) }))
-      }
+      const how: Note['how'] = sent.drop === undefined ? 'own turn' : 'waiting'
+      await update($, notes, now => ({ ...now, list: now.list.map(n => n.key === found.key && n.how === 'unconfirmed' ? { ...n, how } : n) }))
     })().catch(() => undefined)
     return result
   })
@@ -340,7 +340,7 @@ export const register: Register = (on, options) => {
     const from = e.origin.kind === 'bridge' ? 'phone' : 'terminal'
     const saved = await keep($, answer, from)
     const cut = isLong(answer) ? ` Only its first ${TEXT_MAX} characters were kept.` : ''
-    return { text: saved === null ? 'Not kept, the save failed. The thought is shown in the HUD.' : saved ? `Kept in the Log.${cut}` : 'Nothing kept.' }
+    return { text: saved === 'lost' ? 'Not kept. Both the Log and recovery save failed. Run /log to try again.' : saved === 'recoverable' ? 'Not kept, the save failed. The thought is shown in the HUD.' : saved === 'kept' ? `Kept in the Log.${cut}` : 'Nothing kept.' }
   })
 
   // Where the ring stands decides the key line.
@@ -408,7 +408,7 @@ export const register: Register = (on, options) => {
         {rows.map((r, i) => (
           <Text key={`mem-${r.id}`} wrap={inline ? 'truncate-end' : 'wrap'} maxLines={inline ? undefined : rowLines}><Text dimColor>{i + 1} </Text>{r.text}</Text>
         ))}
-        {lines.length === 0 && quiet('No lines yet. Write one in the field, then press a to add it.')}
+        {lines.length === 0 && quiet('Write in the Log field, then Tab to the actions. Press a to draft a Memory line.')}
         {!room && quiet(`Memory holds ${lines.length} lines and keeps at most ${MEMORY_MAX}. Remove one to add another.`)}
       </Box>
     )
@@ -490,7 +490,7 @@ export const register: Register = (on, options) => {
         <Text dimColor>esc prompt</Text>
       </Box>
     )
-    const hint = !focused ? '/hud or a click to write' : st.ring === 1 ? 'enter keeps it · tab to the actions' : undefined
+    const hint = !focused ? '/hud or a click to write' : st.ring === 1 ? 'enter keeps it in Log · tab to the actions' : undefined
     const keyline = hint && <Text dimColor wrap="truncate-end">{hint}</Text>
 
     // --- inline, hide: one line saying how to get the side panel ----------

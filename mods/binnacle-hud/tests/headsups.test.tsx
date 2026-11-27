@@ -46,7 +46,7 @@ const pane = (placement: 'dock' | 'inline' = 'dock') => ({
 
 type World = { store: Record<string, any>; sent: string[]; carried: string[][]; left: string[][]; writes: string[] }
 
-type Opts = { arrive?: boolean; deny?: boolean; throws?: boolean; dropMessages?: boolean; written?: string[] }
+type Opts = { submitGate?: Promise<void>; arrive?: boolean; deny?: boolean; throws?: boolean; dropMessages?: boolean; written?: string[] }
 const start = async ($: any, on: any, store: Record<string, any> = {}, opts: Opts = {}): Promise<World> => {
   const w: World = { store, sent: [], carried: [], left: [], writes: [] }
   const versions: Record<string, number> = {}
@@ -67,9 +67,10 @@ const start = async ($: any, on: any, store: Record<string, any> = {}, opts: Opt
     versions[e.key] = (versions[e.key] ?? 0) + 1
     return { value: { isSet: true, version: versions[e.key] } }
   })
-  on('prompt.submit', (_: unknown, e: any) => {
+  on('prompt.submit', async (_: unknown, e: any) => {
     if (e.origin?.kind === 'plugin') {
       w.sent.push(e.text)
+      await opts.submitGate
       if (opts.throws) throw new Error('the engine failed')
       return opts.deny ? { drop: 'refused here' } : { text: e.text }
     }
@@ -372,4 +373,20 @@ test('a note that arrives while a message is passed on still waits, and rides th
   await say($, 'again')
   expect(w.carried.at(-1)).toEqual([quoted({ line: 'Second note.', explanation: '' })])
   expect(notes(w)).toEqual([['First note.', 'own turn'], ['Second note.', 'with your message']])
+})
+
+test('a pending own turn has no delivery receipt until submit returns', AGENT, async ($, on) => {
+  let release!: () => void
+  const submitGate = new Promise<void>(resolve => { release = resolve })
+  const w = await start($, on, {}, { submitGate })
+  try {
+    await raise($, 1, 'Check the migration.')
+    await settle($)
+    expect(w.sent.length).toBe(1)
+    expect(notes(w)).toEqual([['Check the migration.', 'unconfirmed']])
+  } finally {
+    release()
+  }
+  await settle($)
+  expect(notes(w)).toEqual([['Check the migration.', 'own turn']])
 })
