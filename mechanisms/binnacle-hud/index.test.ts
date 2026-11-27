@@ -14,7 +14,9 @@ import { SECTION, TYPE } from "./state";
 type Handler = (...args: any[]) => any;
 
 /** Pi's extension surface, faked: entries land in one branch, and the model answers from `replies`. */
-function harness(replies: string[] = [], opts: { idle?: boolean; hasUI?: boolean } = {}) {
+function harness(replies: string[] = [], opts: { idle?: boolean; hasUI?: boolean; picks?: string[]; duringCall?: (call: number) => void } = {}) {
+  const picks = opts.picks ?? [];
+  const asked: string[][] = [];
   const on = new Map<string, Handler[]>();
   const commands = new Map<string, Handler>();
   const entries: any[] = [];
@@ -39,10 +41,11 @@ function harness(replies: string[] = [], opts: { idle?: boolean; hasUI?: boolean
     model: { id: "m", provider: "p" },
     isIdle: () => opts.idle ?? true,
     sessionManager: { getEntries: () => entries, getBranch: () => entries },
-    ui: { notify: (m: string) => notes.push(m), setWidget: (_: string, lines?: string[]) => widgets.push(lines), theme: { fg: (_: string, t: string) => t, bold: (t: string) => t }, confirm: async () => true },
+    ui: { notify: (m: string) => notes.push(m), setWidget: (_: string, lines?: string[]) => widgets.push(lines), theme: { fg: (_: string, t: string) => t, bold: (t: string) => t }, confirm: async () => true, select: async (_t: string, o: string[]) => { asked.push(o); const p = picks.shift(); return p === undefined ? undefined : o.find((x) => x.startsWith(p)); }, input: async () => picks.shift() },
     modelRegistry: {
       complete: async (_model: unknown, context: any) => {
         requests.push(context);
+        opts.duringCall?.(requests.length);
         return { stopReason: "stop", content: [{ type: "text", text: replies.shift() ?? '{"note": null}' }] };
       },
     },
@@ -65,7 +68,7 @@ function harness(replies: string[] = [], opts: { idle?: boolean; hasUI?: boolean
     const event = { messageType, systemPromptOptions: { sections: {} as Record<string, string> } };
     return emit("before_agent_start", event).then((result) => ({ result, sections: event.systemPromptOptions.sections }));
   };
-  return { emit, run, say, turns, start, entries, sent, requests, notes, widgets, ctx };
+  return { emit, run, say, turns, start, entries, sent, requests, notes, widgets, ctx, asked };
 }
 
 const NOTE = (extra = {}) => JSON.stringify({ tag: "heads-up", note: "The agent skipped the migration test.", details: "**Skipped**\n- why", evidence: "working on the migration", agentKnows: false, ...extra });
@@ -284,5 +287,92 @@ describe("observer setting", () => {
     await h.turns(REVIEW_EVERY * 2);
     expect(h.requests).toHaveLength(0);
     await h.run("hud", "observer forward");
+  });
+});
+
+describe("alt+h menu: the person acts on a heads-up without leaving the prompt", () => {
+  const raise = async (picks: string[], idle = true) => {
+    const h = harness([NOTE()], { picks, idle });
+    await h.emit("session_start");
+    await h.run("hud", "observer panel");
+    await h.turns(REVIEW_EVERY);
+    await h.run("hud", "");
+    await h.run("hud", "observer forward");
+    return h;
+  };
+  const how = (h: any) => h.entries.filter((e: any) => e.data?.k === "how").map((e: any) => e.data.how);
+  const marks = (h: any) => h.entries.filter((e: any) => e.data?.k === "mark").map((e: any) => e.data.mark);
+
+  test("send reaches the agent now: steers a busy run, starts a turn on an idle one", async () => {
+    const h = await raise(["1.", "Send"]);
+    expect(h.sent).toHaveLength(1);
+    expect(h.sent[0]!.options).toEqual({ deliverAs: "steer", triggerTurn: true });
+    expect(h.sent[0]!.message.content).toContain("The agent skipped the migration test.");
+    expect(how(h)).toEqual(["you sent it"]);
+    expect(marks(h)).toEqual(["read", "useful"]);
+  });
+  test("a sent note offers no second send", async () => {
+    const h = await raise(["1.", "Send"]);
+    // a sent note is closed (marked useful), so the menu no longer lists it
+    await h.run("hud", "");
+    expect(h.asked.at(-1)!.some((o: string) => o.startsWith("1."))).toBe(false);
+  });
+  test("marking from the menu closes the note and sends nothing", async () => {
+    const h = await raise(["1.", "Wrong"]);
+    expect(h.sent).toHaveLength(0);
+    expect(marks(h)).toEqual(["read", "wrong"]);
+  });
+  test("cancelling leaves the note open and only read", async () => {
+    const h = await raise(["1."]);
+    expect(h.sent).toHaveLength(0);
+    expect(marks(h)).toEqual(["read"]);
+  });
+  test("Log and Memory are typed through prompts, not a panel field", async () => {
+    const h = harness([], { picks: ["Keep a thought", "buy milk", "Add a Memory", "use pnpm", "Remove a Memory", "use pnpm"] });
+    await h.emit("session_start");
+    await h.run("hud", "");
+    await h.run("hud", "");
+    await h.run("hud", "");
+    const ks = h.entries.map((e: any) => e.data?.k);
+    expect(h.entries.find((e: any) => e.data?.k === "thought").data.text).toBe("buy milk");
+    expect(ks.filter((k: string) => k === "draft")).toHaveLength(2);
+    expect(h.entries.filter((e: any) => e.data?.k === "draft").at(-1).data.lines).toEqual([]);
+  });
+});
+
+// The paths TLC checked in the README statechart (HudNote.tla), replayed on the real code.
+describe("a note is reread against turns that came while the observer worked", () => {
+  const run = async (replies: string[], agentActs: boolean) => {
+    let h: any;
+    h = harness(replies, { duringCall: (call) => { if (agentActs && call === 1) h.say("assistant", [{ type: "text", text: "Fixed it: the test no longer names the county." }]); } });
+    await h.emit("session_start");
+    await h.run("hud", "observer panel");
+    await h.turns(REVIEW_EVERY);
+    await h.run("hud", "observer forward");
+    return { h, notes: h.entries.filter((e: any) => e.data?.k === "note"), stale: h.entries.filter((e: any) => e.data?.k === "stale") };
+  };
+  test("no later turns: shown with no second call", async () => {
+    const { h, notes } = await run([NOTE()], false);
+    expect(h.requests).toHaveLength(1);
+    expect(notes).toHaveLength(1);
+  });
+  test("the agent fixed it meanwhile: dropped, recorded stale, never shown (the BERGEN path)", async () => {
+    const { h, notes, stale } = await run([NOTE(), '{"holds": false, "why": "Fixed it: the test no longer names the county."}'], true);
+    expect(h.requests).toHaveLength(2);
+    expect(h.requests[1].messages[0].content[0].text).toContain("Fixed it");
+    expect(notes).toHaveLength(0);
+    expect(stale[0].data.why).toContain("Fixed it");
+  });
+  test("later turns that leave it open: shown", async () => {
+    const { notes } = await run([NOTE(), '{"holds": true}'], true);
+    expect(notes).toHaveLength(1);
+  });
+  test("an unreadable recheck keeps the grounded note", async () => {
+    const { notes } = await run([NOTE(), "no json"], true);
+    expect(notes).toHaveLength(1);
+  });
+  test("stakes and decision ride on the note", async () => {
+    const { notes } = await run([NOTE({ stakes: "Private repo; only collaborators see it.", decision: "Purge the commit or leave it." })], false);
+    expect(notes[0].data.note).toMatchObject({ stakes: "Private repo; only collaborators see it.", decision: "Purge the commit or leave it." });
   });
 });

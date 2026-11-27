@@ -23,21 +23,30 @@ sets the section to null, so the test folds those patches the way a provider rea
 
 | You do | What happens |
 | --- | --- |
-| `alt+h` | Opens the panel as an overlay that does not take the keyboard. Press again to move the keys between the panel and the prompt. |
-| `/log <text>` | Keeps a thought in the Log. |
+| `alt+h` or `/hud` | Shows the panel and opens one menu: each open heads-up, then keep a thought, add, send or remove a Memory line, forget a thought, hide the panel. |
+| `/log <text>`, `/log` | Keeps a thought in the Log; with no text, asks for it. |
 | `/hud add <line>`, `/hud send` | Adds a Memory line; sends Memory after you confirm the lines. Sending an empty Memory withdraws it. |
 | `/hud observer off\|panel\|forward` | Sets the observer for every session. `off` makes no call. `panel`, the default, keeps notes with you. `forward` also gives a note to the agent. Stored in `binnacle-hud.json` in Pi's agent directory; another running Pi reads it when its next session starts. Leaving `forward` keeps any note still waiting for your next message with you. |
 | `/hud close` | Closes the panel. |
 
-In the panel: Enter keeps a thought, Tab switches between Log and Memory, ↑ reaches the items,
-`x` removes or dismisses, `u` marks a note useful, `k` marks it known, `w` marks it wrong, Enter on a note opens its
-details and the quoted evidence, `ctrl+s` sends Memory, and Esc returns to the prompt. The line
-above the editor shows the newest open note until you have sent two more prompts.
+The panel only displays. It never takes the keyboard, so the prompt is the one place you type,
+and every line wraps inside the panel. Pick a heads-up in the menu to read it: the line, why it
+matters, the call it needs from you, the details and the quoted evidence. Then:
+
+- **Send to the agent now.** Steers a running agent before its next model call, or starts a turn
+  on an idle one. Sending marks the note `u`, worth receiving. A sent note offers no second send.
+- **Copy to the clipboard.** The note's text alone; a terminal's mouse selection copies whole
+  screen rows, the session behind the panel included.
+- **Useful, I knew this, Wrong, Dismiss.** The marks `u`, `k`, `w`, `x` below; each closes the
+  note.
+
+The line above the editor shows the newest open note until you have sent two more prompts.
 
 ## When a note reaches the agent
 
 The observer runs on the session's model, after every 6 agent turns, or when the agent hands back
-with at least 3 turns unread. It runs one look at a time, and never starts an agent turn. In
+with at least 3 turns unread. It runs one look at a time, and never starts an agent turn on its
+own; only your Send does. In
 `forward` mode a note goes to the agent unless the observer judged the agent already knows it:
 
 - **Agent busy:** the note is steered into the run before its next model call.
@@ -49,9 +58,66 @@ produced it, so your `u`, `k`, `w` and `x` marks are labels for that version. A 
 the HUD could not read moves no cursor, so the next look reads those turns again; a reply of
 `{"note": null}` is a review that found nothing and does move it.
 
+### A note's life, checked
+
+The agent keeps working while the observer answers. On 2026-11-27 a note that a test file still
+named a county arrived two seconds after the agent's own edit had removed the name. So before a
+note is shown, the HUD sends the turns that came after the observer's read, with the note, in
+one more call: does it still hold? A note those turns settled is recorded as `stale` and never
+shown; an unreadable answer keeps the note, which already passed the quote check. If more turns
+arrive during that call it reads again, up to 3 times, then shows the note as last read.
+
+[`model/HudNote.tla`](model/HudNote.tla) is the lifecycle as a TLA+ model, checked with TLC and
+drawn by pstack's `statechart` skill (0.9.147, 2026-11-27). Three rules: a note is never shown
+after the agent already fixed it; a note reaches the agent at most once; a dropped note was
+really settled. With the recheck off (`off.cfg`) TLC breaks the first rule in 3 steps (the
+observer looks, the agent fixes it, the reply arrives), which is the county note. With it on
+(`on.cfg`) all three hold over 20 states. The model leaves out `forward` mode, the 3-read cap
+and more than one problem at a time. `index.test.ts` replays each path on the real code.
+
+```mermaid
+stateDiagram-v2
+  direction LR
+  state "Problem" as r0 {
+    s0: Problem open
+    s1: Agent fixed it
+    [*] --> s0
+    s0 --> s1: the agent fixes it
+  }
+  --
+  state "Note" as r1 {
+    s2: Watching
+    s3: Observer reading
+    s4: Note on the panel
+    s5: Marked and closed
+    s6: Note opened
+    s7: Sent to the agent
+    s8: Rereading later turns
+    s9: Dropped, already fixed
+    [*] --> s2
+    s2 --> s3: the observer looks [when Problem open]
+    s3 --> s4: the reply arrives [when Problem open]
+    s3 --> s8: the agent moved on [read the new turns]
+    s8 --> s4: it still holds [when Problem open]
+    s8 --> s9: the new turns fixed it [when Agent fixed it]
+    s4 --> s6: you open it
+    s4 --> s7: you send it
+    s4 --> s5: you mark it
+    s6 --> s7: you send it
+    s6 --> s5: you mark it
+  }
+```
+
+To draw it again: `node <statechart skill>/scripts/statechart.ts model/HudNote.tla --config
+model/on.cfg --view model/view.mjs --out <new dir>`, and `off.cfg` for the broken path.
+
 ## What the observer prompt measures
 
-The prompt that ships is `observer-2026-11-27`. On 2026-11-27 it was replayed on 199 checkpoints
+The prompt that ships is `observer-2026-11-28`. It is `observer-2026-11-27` with two more
+fields in each note, `stakes` (who it reaches or what it costs, with the facts that bound it)
+and `decision` (the call only you can make, or none). Both came from marks on two live notes on
+2026-11-27, not from a replay; the numbers below are for `observer-2026-11-27`, and live marks
+restart at the new version. On 2026-11-27 `observer-2026-11-27` was replayed on 199 checkpoints
 from 32 recorded Claude Code sessions (private data, outside every repository) and each note was
 judged in hindsight by the same model against the next 40 turns: is the note true, new to both
 the person and the agent, and consequential, each with a quote from the record. Worth it means
@@ -100,5 +166,7 @@ record is refused. Transcripts hold private work: keep `<out>` outside every rep
 
 ## Not checked
 
-The overlay was not driven in a live terminal; `panel.test.ts` renders it with Pi's TUI kit.
+The overlay and the menu were not driven in a live terminal; `panel.test.ts` renders the panel
+with a stand-in kit and `index.test.ts` answers the menu with scripted picks. The recheck prompt
+was not measured on recorded sessions; one county note is its only evidence.
 `bun test mechanisms` passed on Linux in a Debian container (`oven/bun:1`, bun 1.4.5, 2026-11-27): 350 pass, 0 fail; the consent test skips there because Pi's dist is not installed. Nothing ran on macOS.

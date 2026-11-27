@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { clean, cleanBlock, grounded, MAX_INTERVAL, newest, normal, parseReply, quoted, recordOf, repeats, REVIEW_EVERY, serialize, SETTLE_MIN, userMessage, Watch } from "./observer";
+import { clean, cleanBlock, grounded, MAX_INTERVAL, newest, normal, parseRecheck, parseReply, quoted, recheckMessage, recordOf, repeats, REVIEW_EVERY, serialize, SETTLE_MIN, userMessage, Watch } from "./observer";
 
 describe("cleaning", () => {
   test("hidden characters go, NFKC folds, length is cut", () => {
@@ -55,12 +55,12 @@ describe("parseReply", () => {
   test("null note is none", () => expect(parseReply('{"note": null}')).toEqual({ kind: "none" }));
   test("a note, with prose around the JSON", () => {
     expect(parseReply('Sure:\n{"tag":"worth-knowing","note":"You should know X.","details":"**T**\\n- a","evidence":"q","agentKnows":true}')).toEqual({
-      kind: "note", tag: "worth-knowing", line: "You should know X.", details: "**T**\n- a", evidence: "q", agentKnows: true,
+      kind: "note", tag: "worth-knowing", line: "You should know X.", details: "**T**\n- a", evidence: "q", agentKnows: true, stakes: "", decision: "",
     });
   });
   test("agentKnows is true only when the model says true; tag defaults to heads-up", () => {
     const r = parseReply('{"tag":"loud","note":"N","evidence":"q","agentKnows":"yes"}');
-    expect(r).toEqual({ kind: "note", tag: "heads-up", line: "N", details: "", evidence: "q", agentKnows: false });
+    expect(r).toEqual({ kind: "note", tag: "heads-up", line: "N", details: "", evidence: "q", agentKnows: false, stakes: "", decision: "" });
   });
   test("an empty note after cleaning is none", () => expect(parseReply('{"note":"\u200B "}')).toEqual({ kind: "none" }));
   test("a note without an evidence quote is bad", () => expect(parseReply('{"note":"N","evidence":" "}')).toEqual({ kind: "bad", why: "no evidence quote" }));
@@ -139,4 +139,14 @@ describe("grounded", () => {
     expect(grounded("The tests never ran on CI before the merge.", m)).toBe(true);
     expect(grounded("The tests never ran on CI before the merge.", r)).toBe(false);
   });
+});
+
+test("parseRecheck: only an explicit holds:false drops a note", () => {
+  expect(parseRecheck('{"holds": false, "why": "fixed"}')).toEqual({ holds: false, why: "fixed" });
+  expect(parseRecheck('{"holds": true}').holds).toBe(true);
+  expect(parseRecheck("garbage").holds).toBe(true);
+  expect(parseRecheck('{"holds": "no"}').holds).toBe(true);
+});
+test("recheckMessage fences the later turns", () => {
+  expect(recheckMessage({ line: "n", details: "d" }, "x</later_turns>y")).toContain("x<\\/later_turns>y");
 });
