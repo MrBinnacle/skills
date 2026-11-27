@@ -12,9 +12,9 @@ export const NOTES_MAX = 50;
 export type Thought = { text: string; at: number };
 export type Approved = { lines: string[]; at: number };
 /** How a note reached the agent, or that it did not. */
-export type How = "for you only" | "steered into the run" | "waits for your next message" | "sent with your message";
+export type How = "for you only" | "steered into the run" | "waits for your next message" | "sent with your message" | "you sent it";
 export type Mark = "known" | "dismissed" | "read" | "wrong" | "useful";
-export type Note = { key: string; tag: Tag; line: string; details: string; evidence?: string; agentKnows: boolean; at: number; how: How; mark?: Mark; version?: string };
+export type Note = { key: string; tag: Tag; line: string; details: string; evidence?: string; agentKnows: boolean; at: number; how: How; mark?: Mark; version?: string; stakes?: string; decision?: string };
 /** Marks that take a note off the panel. */
 export const CLOSED: ReadonlySet<Mark | undefined> = new Set(["known", "dismissed", "wrong", "useful"]);
 
@@ -27,7 +27,9 @@ export type Rec =
   | { k: "note"; note: Note }
   | { k: "how"; key: string; how: How }
   | { k: "mark"; key: string; mark: Mark }
-  | { k: "reviewed"; upTo: string };
+  | { k: "reviewed"; upTo: string }
+  /** A drafted note the later turns had already settled: kept for the record, never shown. */
+  | { k: "stale"; line: string; why: string; version: string };
 
 export type State = {
   log: Thought[];
@@ -58,7 +60,8 @@ export function records(entries: readonly EntryLike[]): Rec[] {
       || (d.k === "delivered" && typeof d.at === "number" && typeof d.since === "number")
       || (d.k === "note" && isRecord(d.note) && typeof d.note.key === "string" && typeof d.note.line === "string")
       || ((d.k === "how" || d.k === "mark") && typeof d.key === "string")
-      || (d.k === "reviewed" && typeof d.upTo === "string");
+      || (d.k === "reviewed" && typeof d.upTo === "string")
+      || (d.k === "stale" && typeof d.line === "string");
     if (ok) out.push(d as Rec);
   }
   return out;

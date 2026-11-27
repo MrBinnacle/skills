@@ -2,9 +2,9 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { grounded, newest, recordOf, OUTPUT_TOKENS, parseReply, PROMPT_VERSION, quoted, repeats, serialize, SYSTEM, TRANSCRIPT_CHARS, userMessage, Watch, type Msg } from "./observer";
-import { type Kit, Panel } from "./panel";
-import { CLOSED, clip, fold, type How, type Mark, MEMORY_MAX, memoryText, type Note, type Rec, SECTION, type State, TYPE } from "./state";
+import { grounded, newest, recordOf, OUTPUT_TOKENS, parseRecheck, parseReply, PROMPT_VERSION, quoted, RECHECK, recheckMessage, repeats, serialize, SYSTEM, TRANSCRIPT_CHARS, userMessage, Watch, type Msg } from "./observer";
+import { type Kit, openNotes, Panel } from "./panel";
+import { CLOSED, clip, fold, type How, type Mark, MEMORY_MAX, memoryText, type Note, type Rec, SECTION, type State, statusOf, TYPE } from "./state";
 
 /** off: no looks. panel: notes stay with the person. forward: notes also reach the agent. */
 export type Mode = "off" | "panel" | "forward";
@@ -13,6 +13,8 @@ const MODES: readonly Mode[] = ["off", "panel", "forward"];
 export const DEFAULT_MODE: Mode = "panel";
 /** A strip headline clears after this many of the person's prompts, read or not. */
 export const STRIP_PROMPTS = 2;
+/** Rereads of later turns before a note is shown; see stillHolds. */
+export const RECHECKS_MAX = 3;
 
 // One setting for every session (HAX guideline 17, global controls), beside Pi's own settings.
 export const settingsPath = () => join(process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent"), "binnacle-hud.json");
@@ -40,7 +42,7 @@ export default function (pi: ExtensionAPI) {
   let ctx: ExtensionContext | undefined;
   let state: State = fold([], []);
   let kit: Kit | undefined;
-  let panel: { view: Panel; handle?: { focus(): void; unfocus(): void; isFocused(): boolean; setHidden(h: boolean): void }; done: () => void } | undefined;
+  let panel: { done: () => void } | undefined;
   let watch = new Watch();
   let looking: AbortController | undefined;
   let mode: Mode = DEFAULT_MODE;
@@ -85,37 +87,15 @@ export default function (pi: ExtensionAPI) {
     return kit;
   }
 
-  async function show(c: ExtensionContext, focus: boolean, target?: "log" | "memory") {
-    if (c.mode !== "tui") {
-      if (c.hasUI) c.ui.notify("The Binnacle panel needs the terminal UI. /log <text> keeps a thought from here.", "info");
-      return;
-    }
-    if (panel) {
-      if (target) panel.view.target = target;
-      if (focus) panel.handle?.focus();
-      return;
-    }
+  // The panel only displays; it never takes the keys, so the prompt stays the one place to type.
+  async function show(c: ExtensionContext) {
+    if (panel || c.mode !== "tui") return;
     const k = await loadKit();
     if (!k) return c.ui.notify("Binnacle: the TUI kit did not load.", "error");
     void c.ui.custom<void>(
-      (tui, theme, _keys, done) => {
-        const view = new Panel(k, theme, () => state, {
-          keep: (text) => keep(text),
-          addMemory: (text) => add({ k: "draft", lines: [...state.draft, clip(text)].slice(0, MEMORY_MAX) }),
-          removeMemory: (i) => add({ k: "draft", lines: state.draft.filter((_, n) => n !== i) }),
-          send: () => approve(),
-          mark: (key, mark) => markNote(key, mark),
-          forget: (at) => add({ k: "forget", at }),
-          escape: () => panel?.handle?.unfocus(),
-          close: () => done(),
-        });
-        if (target) view.target = target;
-        panel = { view, done: () => done() };
-        const render = tui.requestRender.bind(tui);
-        return Object.assign(view, {
-          handleInput: (d: string) => (Panel.prototype.handleInput.call(view, d), render()),
-          dispose: () => (panel = undefined),
-        });
+      (_tui, theme, _keys, done) => {
+        panel = { done: () => done() };
+        return Object.assign(new Panel(k, theme, () => state), { dispose: () => (panel = undefined) });
       },
       {
         overlay: true,
@@ -125,12 +105,82 @@ export default function (pi: ExtensionAPI) {
             ? { anchor: "top-right", width: "36%", minWidth: 40, maxHeight: "85%", margin: { top: 1, right: 1 }, nonCapturing: true }
             : { anchor: "top-center", width: "94%", maxHeight: "70%", margin: { top: 1 }, nonCapturing: true };
         },
-        onHandle: (handle) => {
-          if (panel) panel.handle = handle;
-          if (focus) handle.focus();
-        },
       },
     ).finally(() => (panel = undefined));
+  }
+
+  // --- alt+h: one menu for every action -----------------------------------------------------
+  const SEND = "Send to the agent now";
+  const COPY = "Copy to the clipboard";
+  const NOTE_MARKS: Array<[string, Mark]> = [["Useful: worth receiving", "useful"], ["I knew this", "known"], ["Wrong", "wrong"], ["Dismiss", "dismissed"]];
+  const SENT: ReadonlySet<How> = new Set(["steered into the run", "sent with your message", "you sent it"]);
+
+  async function menu(c: ExtensionContext) {
+    if (!c.hasUI) return;
+    await show(c);
+    const notes = openNotes(state);
+    const rows = new Map<string, () => Promise<unknown> | unknown>();
+    notes.forEach((n, i) => rows.set(`${i + 1}. ${n.line}`, () => noteMenu(c, n)));
+    rows.set("Keep a thought in the Log", () => logPrompt(c));
+    rows.set("Add a Memory line", async () => {
+      if (state.draft.length >= MEMORY_MAX) return c.ui.notify(`Memory keeps at most ${MEMORY_MAX} lines.`, "warning");
+      const text = clip((await c.ui.input("Add a Memory line", "a fact the agent should keep")) ?? "");
+      if (text) add({ k: "draft", lines: [...state.draft, text] });
+    });
+    if (statusOf(state).send) rows.set("Send Memory to the agent", () => sendMemory(c));
+    if (state.draft.length) rows.set("Remove a Memory line", async () => {
+      const pick = await c.ui.select("Remove which Memory line?", state.draft);
+      if (pick !== undefined) add({ k: "draft", lines: state.draft.filter((l) => l !== pick) });
+    });
+    if (state.log.length) rows.set("Forget a thought", async () => {
+      const recent = state.log.slice(-10).reverse();
+      const pick = await c.ui.select("Forget which thought?", recent.map((t) => t.text));
+      const hit = recent.find((t) => t.text === pick);
+      if (hit) add({ k: "forget", at: hit.at });
+    });
+    rows.set("Hide the panel", () => panel?.done());
+    const title = notes.length ? `Binnacle · ${notes.length} heads-up${notes.length === 1 ? "" : "s"}` : "Binnacle · no heads-ups";
+    const pick = await c.ui.select(title, [...rows.keys()]);
+    if (pick !== undefined) await rows.get(pick)?.();
+  }
+
+  async function noteMenu(c: ExtensionContext, n: Note) {
+    if (!n.mark) markNote(n.key, "read");
+    const head = [n.line, n.stakes && `Why it matters: ${n.stakes}`, n.decision && `Your call: ${n.decision}`].filter(Boolean);
+    const body = [...head, "", n.details, n.evidence ? `\nFrom the record: “${n.evidence}”` : "", `\n${n.how}`].join("\n");
+    const options = [...(SENT.has(n.how) ? [] : [SEND]), COPY, ...NOTE_MARKS.map(([label]) => label)];
+    const pick = await c.ui.select(body, options);
+    if (pick === SEND) {
+      // Steer a busy agent before its next model call; start a turn on an idle one.
+      pi.sendMessage({ customType: TYPE, content: quoted(n), display: true, details: { key: n.key } }, { deliverAs: "steer", triggerTurn: true });
+      add({ k: "how", key: n.key, how: "you sent it" });
+      markNote(n.key, "useful"); // sending it says it was worth receiving
+    } else if (pick === COPY) {
+      const text = [n.line, "", n.details, n.evidence ? `\nFrom the record: "${n.evidence}"` : ""].join("\n").trim();
+      try {
+        const { copyToClipboard } = await import("@earendil-works/pi-coding-agent");
+        await copyToClipboard(text);
+        c.ui.notify("Heads-up copied.", "info");
+      } catch {
+        c.ui.notify("Could not reach the clipboard.", "error");
+      }
+    } else {
+      const mark = NOTE_MARKS.find(([label]) => label === pick)?.[1];
+      if (mark) markNote(n.key, mark);
+    }
+  }
+
+  async function logPrompt(c: ExtensionContext) {
+    const text = await c.ui.input("Keep a thought in the Log", "never reaches the model");
+    if (text && keep(text)) c.ui.notify("Kept in the Log.", "info");
+  }
+
+  async function sendMemory(c: ExtensionContext) {
+    if (!state.draft.length && !state.approved) return c.ui.notify("Memory is empty.", "info");
+    const ok = await c.ui.confirm("Send Memory", `Give these ${state.draft.length} lines to the agent's instructions? It keeps them until you send again.\n\n${state.draft.map((l) => `- ${l}`).join("\n")}`);
+    if (!ok) return;
+    approve();
+    c.ui.notify("Sent. It reaches the agent with its next request.", "info");
   }
 
   // --- Log and Memory -------------------------------------------------------------------------
@@ -154,15 +204,16 @@ export default function (pi: ExtensionAPI) {
   // --- the observer ---------------------------------------------------------------------------
   type EntryLike = { id: string; type: string; message?: Msg; summary?: string; customType?: string; content?: unknown };
 
+  const msgs = (es: readonly EntryLike[]): Msg[] =>
+    es.flatMap((e): Msg[] =>
+      e.type === "message" && e.message ? [e.message]
+      : e.type === "custom_message" ? [{ role: "custom", customType: e.customType, content: e.content }]
+      : []);
+
   function lookAt(branch: readonly EntryLike[]) {
     const from = state.reviewedUpTo ? branch.findIndex((e) => e.id === state.reviewedUpTo) + 1 : 0;
     const lastCompaction = branch.findLastIndex((e) => e.type === "compaction");
     const start = Math.max(from, lastCompaction + 1);
-    const msgs = (es: readonly EntryLike[]): Msg[] =>
-      es.flatMap((e): Msg[] =>
-        e.type === "message" && e.message ? [e.message]
-        : e.type === "custom_message" ? [{ role: "custom", customType: e.customType, content: e.content }]
-        : []);
     const fresh = msgs(branch.slice(start));
     const hasRequest = fresh.some((m) => m.role === "user");
     const before = hasRequest ? undefined : msgs(branch.slice(0, start)).findLast((m) => m.role === "user");
@@ -196,12 +247,39 @@ export default function (pi: ExtensionAPI) {
       if (r.kind === "bad") return; // not a review: the cursor stays, so these turns are looked at again
       add({ k: "reviewed", upTo: look.upTo });
       if (r.kind !== "note" || !grounded(r.evidence, recordOf(text)) || repeats(r.line, state.notes.map((n) => n.line))) return;
-      deliver(c, { key: `${Date.now().toString(36)}`, tag: r.tag, line: r.line, details: r.details, evidence: r.evidence, agentKnows: r.agentKnows, at: Date.now(), how: "for you only", version: PROMPT_VERSION });
+      if (!(await stillHolds(c, r, look.upTo, ac.signal))) return;
+      deliver(c, { key: `${Date.now().toString(36)}`, tag: r.tag, line: r.line, details: r.details, evidence: r.evidence, agentKnows: r.agentKnows, at: Date.now(), how: "for you only", version: PROMPT_VERSION, ...(r.stakes && { stakes: r.stakes }), ...(r.decision && { decision: r.decision }) });
     } catch {
       // A failed look shows nothing and moves no cursor; the next look reads these turns again.
     } finally {
       if (looking === ac) looking = undefined;
     }
+  }
+
+  // The statechart in the README: the agent keeps working while the observer answers, so turns
+  // that arrived meanwhile are read before a note is shown, and again if more arrive during that
+  // read. A note they settled is recorded as stale and never shown.
+  async function stillHolds(c: ExtensionContext, note: { line: string; details: string }, readUpTo: string, signal: AbortSignal): Promise<boolean> {
+    for (let pass = 0; pass < RECHECKS_MAX; pass++) {
+      const branch = c.sessionManager.getBranch() as unknown as EntryLike[];
+      const turns = serialize(msgs(branch.slice(branch.findIndex((e) => e.id === readUpTo) + 1)), TYPE);
+      if (!turns.trim()) return true;
+      readUpTo = branch.at(-1)!.id;
+      const reply = await c.modelRegistry.complete(
+        c.model!,
+        { systemPrompt: RECHECK, messages: [{ role: "user", content: [{ type: "text", text: recheckMessage(note, newest(turns, TRANSCRIPT_CHARS)) }], timestamp: Date.now() }] },
+        { signal, maxTokens: OUTPUT_TOKENS, cacheRetention: "none", sessionId: `${TYPE}-recheck-${Date.now()}` },
+      );
+      if (signal.aborted) return false;
+      if (reply.stopReason === "error" || reply.stopReason === "aborted") return true; // the note was grounded; a failed check keeps it
+      const v = parseRecheck(reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n"));
+      if (!v.holds) {
+        add({ k: "stale", line: note.line, why: v.why, version: PROMPT_VERSION });
+        return false;
+      }
+    }
+    // shortcut: an agent still moving after RECHECKS_MAX rereads gets the note as last read; holding it until agent_end would close this.
+    return true;
   }
 
   // A note the agent already stated is for the person only. Otherwise a busy agent gets it
@@ -294,7 +372,7 @@ export default function (pi: ExtensionAPI) {
     description: "Keep a thought in the Binnacle Log. It never reaches the model.",
     handler: async (args, c) => {
       ctx = c;
-      if (!args.trim()) return show(c, true, "log");
+      if (!args.trim()) return logPrompt(c);
       keep(args);
       if (c.hasUI) c.ui.notify("Kept in the Log.", "info");
     },
@@ -323,24 +401,16 @@ export default function (pi: ExtensionAPI) {
         add({ k: "draft", lines: [...state.draft, text] });
         return c.ui.notify(`Added to Memory. Not sent: /hud send gives it to the agent.`, "info");
       }
-      if (word === "send") {
-        if (!state.draft.length && !state.approved) return c.ui.notify("Memory is empty.", "info");
-        const ok = c.hasUI && (await c.ui.confirm("Send Memory", `Give these ${state.draft.length} lines to the agent's instructions? It keeps them until you send again.\n\n${state.draft.map((l) => `- ${l}`).join("\n")}`));
-        if (!ok) return;
-        approve();
-        return c.ui.notify("Sent. It reaches the agent with its next request.", "info");
-      }
-      return show(c, true);
+      if (word === "send") return sendMemory(c);
+      return menu(c);
     },
   });
 
   pi.registerShortcut("alt+h", {
-    description: "Binnacle: open the panel, or move the keys between it and the prompt",
+    description: "Binnacle: act on a heads-up, or manage Memory and the Log",
     handler: async (c) => {
       ctx = c;
-      if (!panel) return show(c, true);
-      if (panel.handle?.isFocused()) panel.handle.unfocus();
-      else panel.handle?.focus();
+      await menu(c);
     },
   });
 }
