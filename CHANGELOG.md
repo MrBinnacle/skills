@@ -4,6 +4,14 @@ All notable changes to the collection. A release is a delivery event: changed ca
 installed users when a version is released, not on every merge to `main`. See
 [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
+## v4.3.2 - 2026-11-26
+
+### Patch Changes
+
+- [#725](https://github.com/MrBinnacle/skills/pull/725) [`8534aad`](https://github.com/MrBinnacle/skills/commit/8534aad76cd9e4c3d1e430f98284ee8a2b7ee8cc) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - The verify-gate demo picture is drawn in the site's own tokens and type ([#699](https://github.com/MrBinnacle/skills/issues/699)): colours from `assets/tokens.json`, the IBM Plex stacks with their system fallbacks, no embedded fonts, planks or grain, and red for FAIL only. It now ships as four files, `demo-dark.svg`, `demo-light.svg` and a one-column `-narrow` pair for phones, served through `<picture>` by scheme and width on the README and the landing page; phones see the picture again instead of a link. Each file is 10 KB instead of 78 KB. The Barlow and Overpass Mono subsets are gone. The site link check now resolves `srcset` as it does `src`.
+
+- [#729](https://github.com/MrBinnacle/skills/pull/729) [`c75a0c7`](https://github.com/MrBinnacle/skills/commit/c75a0c7d53a79ae55f2f563c9f96e0ab3c580226) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - `validate_packet.py` in `im-down` and `im-up`: a validator that is interrupted (SIGINT, or SIGTERM on POSIX) now ends the check it was running, session and all. Since the check moved into its own session the signal no longer reached it, so a hung check outlived the validator with no limit ([#647](https://github.com/MrBinnacle/skills/issues/647), part 1). Measured on Linux: without the fix the check's child survives the interruption; with it, it does not. Part 2 of [#647](https://github.com/MrBinnacle/skills/issues/647) is Pi's own time limit and stays open there.
+
 ## v4.3.1 - 2026-11-26
 
 ### Patch Changes
