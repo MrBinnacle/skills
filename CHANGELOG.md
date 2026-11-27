@@ -4,6 +4,12 @@ All notable changes to the collection. A release is a delivery event: changed ca
 installed users when a version is released, not on every merge to `main`. See
 [ADR 0002](docs/adr/0002-a-release-is-a-delivery-event.md) for what a version promises.
 
+## v4.3.4 - 2026-11-26
+
+### Patch Changes
+
+- [#735](https://github.com/MrBinnacle/skills/pull/735) [`f47e4b5`](https://github.com/MrBinnacle/skills/commit/f47e4b5526b23b5025600eb07d4c574fb7a5d59f) Thanks [@MrBinnacle](https://github.com/MrBinnacle)! - Binnacle HUD on Pi sends the Memory lines shown for confirmation, retires open decisions when the branch changes, and removes one selected Memory line even when two lines match. The panel shows the observer’s routing mode. On Claude Code, heads-ups show unconfirmed delivery until the host accepts them, and a failed Log recovery save gives the operator an accurate retry message.
+
 ## v4.3.3 - 2026-11-26
 
 ### Patch Changes

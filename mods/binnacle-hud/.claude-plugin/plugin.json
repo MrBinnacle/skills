@@ -1,6 +1,6 @@
 {
   "name": "binnacle-hud",
-  "version": "4.3.3",
+  "version": "4.3.4",
   "description": "A side panel with Memory lines that join Claude's system instructions on every request after you confirm a Send, and a Log the mod does not send to Claude. Absence of the Log from later model requests is unverified.",
   "types": "./types/index.d.ts",
   "userConfig": {
