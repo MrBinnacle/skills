@@ -10,8 +10,7 @@ import { CLOSED, clip, fold, type How, type Mark, MEMORY_MAX, memoryText, type N
 /** off: no looks. panel: notes stay with the person. forward: notes also reach the agent. */
 export type Mode = "off" | "panel" | "forward";
 const MODES: readonly Mode[] = ["off", "panel", "forward"];
-// panel until the prompt measures >=50% worth-it and <=10% not-true on delivered notes (README).
-export const DEFAULT_MODE: Mode = "panel";
+export const DEFAULT_MODE: Mode = "forward";
 /** A strip headline clears after this many of the person's prompts, read or not. */
 export const STRIP_PROMPTS = 2;
 /** Rereads of later turns before a note is shown; see stillHolds. */
@@ -22,9 +21,9 @@ export const settingsPath = () => join(process.env.PI_CODING_AGENT_DIR ?? join(h
 export function readMode(path = settingsPath()): Mode {
   try {
     const v = (JSON.parse(readFileSync(path, "utf-8")) as { observer?: unknown }).observer;
-    return MODES.find((m) => m === v) ?? DEFAULT_MODE;
-  } catch {
-    return DEFAULT_MODE;
+    return MODES.find((m) => m === v) ?? "panel";
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT" ? DEFAULT_MODE : "panel";
   }
 }
 function writeMode(mode: Mode, path = settingsPath()) {
@@ -52,6 +51,7 @@ export default function (pi: ExtensionAPI) {
   let watch = new Watch();
   let looking: AbortController | undefined;
   let mode: Mode = DEFAULT_MODE;
+  let observerStartedTurn = false;
   let branchEpoch = 0;
   let menuEpoch: number | undefined;
   let confirming: symbol | undefined;
@@ -125,7 +125,7 @@ export default function (pi: ExtensionAPI) {
   const SEND = "Send to the agent now";
   const COPY = "Copy to the clipboard";
   const NOTE_MARKS: Array<[string, Mark]> = [["Useful: worth receiving", "useful"], ["I knew this", "known"], ["Wrong", "wrong"], ["Dismiss", "dismissed"]];
-  const SENT: ReadonlySet<How> = new Set(["steered into the run", "sent with your message", "you sent it"]);
+  const SENT: ReadonlySet<How> = new Set(["handoff unconfirmed", "started an agent turn", "steered into the run", "sent with your message", "you sent it"]);
 
   async function menu(c: ExtensionContext) {
     if (!c.hasUI || menuEpoch === branchEpoch) return;
@@ -203,6 +203,7 @@ export default function (pi: ExtensionAPI) {
     const latest = current();
     if (!latest || CLOSED.has(latest.mark)) return;
     if (pick === SEND) {
+      if (latest.how === "handoff unconfirmed") return c.ui.notify("Handoff unconfirmed. Check the conversation before retrying.", "info");
       if (SENT.has(latest.how)) return c.ui.notify("This note was already sent.", "info");
       // Steer a busy agent before its next model call; start a turn on an idle one.
       try {
@@ -291,7 +292,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function review(c: ExtensionContext) {
-    if (looking || mode === "off" || !c.hasUI || !c.model) return;
+    if (observerStartedTurn || looking || mode === "off" || !c.hasUI || !c.model) return;
     const branch = c.sessionManager.getBranch() as unknown as EntryLike[];
     const look = lookAt(branch);
     if (!look.upTo || !look.turns.trim()) return;
@@ -349,22 +350,25 @@ export default function (pi: ExtensionAPI) {
     return true;
   }
 
-  // A note the agent already stated is for the person only. Otherwise a busy agent gets it
-  // before its next model call; an idle one gets it with the person's next message.
+  // Persist an attempt before transport. After interruption an ambiguous attempt must not replay.
   function deliver(c: ExtensionContext, note: Note) {
-    let how: How = "for you only";
-    if (!note.agentKnows && mode === "forward") {
-      if (c.isIdle()) how = "waits for your next message";
-      else {
-        try {
-          pi.sendMessage({ customType: TYPE, content: quoted(note), display: true, details: { key: note.key } }, { deliverAs: "steer" });
-          how = "steered into the run";
-        } catch {
-          how = "waits for your next message";
-        }
-      }
+    if (note.agentKnows || mode !== "forward") {
+      add({ k: "note", note });
+      return;
     }
-    add({ k: "note", note: { ...note, how } });
+    const idle = c.isIdle();
+    add({ k: "note", note: { ...note, how: "handoff unconfirmed" } });
+    if (idle) observerStartedTurn = true;
+    let how: How;
+    try {
+      pi.sendMessage({ customType: TYPE, content: quoted(note), display: true, details: { key: note.key } },
+        idle ? { deliverAs: "steer", triggerTurn: true } : { deliverAs: "steer" });
+      how = idle ? "started an agent turn" : "steered into the run";
+    } catch {
+      if (idle) observerStartedTurn = false;
+      how = "waits for your next message";
+    }
+    add({ k: "how", key: note.key, how });
   }
 
   // --- events ---------------------------------------------------------------------------------
@@ -374,6 +378,7 @@ export default function (pi: ExtensionAPI) {
   }
   function leaveBranch() {
     branchEpoch++;
+    observerStartedTurn = false;
     confirming = undefined;
     cancelReview();
     watch = new Watch();
@@ -403,6 +408,7 @@ export default function (pi: ExtensionAPI) {
     if (state.approved?.lines.length) sections[SECTION] = memoryText(state.approved);
     else delete sections[SECTION];
     if (event.messageType !== "user") return;
+    observerStartedTurn = false;
     prompts.push(Date.now());
     paint();
     const waiting = mode === "forward" ? state.notes.filter((n) => n.how === "waits for your next message" && !CLOSED.has(n.mark)) : [];

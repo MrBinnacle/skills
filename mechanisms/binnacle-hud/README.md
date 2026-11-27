@@ -30,7 +30,7 @@ sets the section to null, so the test folds those patches the way a provider rea
 | `/hud add <line>`, `/hud send` | Adds a Memory line; sends Memory after you confirm the lines. Sending an empty Memory withdraws it. |
 | **Review Log and draft Memory** in the menu | Select any retained thought and edit a copy. Saving adds it to the draft. The original stays in the Log. |
 | **Withdraw approved Memory** or `/hud withdraw` | Review the currently approved lines and confirm removal from future instructions. The working draft stays available. |
-| `/hud observer off\|panel\|forward` | Sets the observer for every session. `off` makes no call. `panel`, the default, keeps notes with you. `forward` also gives a note to the agent. Stored in `binnacle-hud.json` in Pi's agent directory; another running Pi reads it when its next session starts. Leaving `forward` keeps any note still waiting for your next message with you. |
+| `/hud observer off\|panel\|forward` | Sets the observer for every session. `off` makes no call. `panel` keeps notes with you. The default, `forward`, routes eligible findings straight to the main agent. Explicit settings survive upgrades. Stored in `binnacle-hud.json` in Pi's agent directory; another running Pi reads it when its next session starts. Leaving `forward` keeps any note still waiting for your next message with you. |
 | `/hud close` | Closes the panel. |
 
 The panel only displays. It never takes the keyboard, so the prompt is the one place you type,
@@ -49,12 +49,11 @@ The line above the editor shows the newest open note until you have sent two mor
 ## When a note reaches the agent
 
 The observer runs on the session's model, after every 6 agent turns, or when the agent hands back
-with at least 3 turns unread. It runs one look at a time, and never starts an agent turn on its
-own; only your Send does. In
+with at least 3 turns unread. It runs one look at a time. In
 `forward` mode a note goes to the agent unless the observer judged the agent already knows it:
 
 - **Agent busy:** the note is steered into the run before its next model call.
-- **Agent idle:** the note goes out with your next message.
+- **Agent idle:** HUD immediately requests a turn carrying the finding, quoted evidence and any decision. The observer pauses during that follow-up until the next human prompt. A refused submission waits for the next eligible user message.
 
 Two dismissals in a row double the wait between looks; reading a note resets it. A note whose
 quote is not in what the observer was shown is dropped. Each note records the prompt version that
@@ -142,9 +141,7 @@ sessions cannot settle it. A replayed note was never delivered, so it counts as 
 only when the problem went wrong on its own; that undercounts notes that would have prevented
 something.
 
-So the default is `panel`: a note costs you a glance, not an agent turn. `forward` becomes the
-default when the shipped prompt measures at least 50% worth it and at most 10% not true on
-**delivered** notes. Each note records its prompt version, and your marks are the labels: `u`
+The default sends guidance to the main agent. The agent evaluates the evidence within the existing task and asks you only for a decision it cannot make. Use panel mode for a human-only review. Track usefulness and error rates on **delivered** notes to tune quality. Each note records its prompt version, and your marks are the labels: `u`
 is "worth receiving", not merely correct; `w` is not true; `k` and `x` are not worth it. The
 rates are computed over notes marked `u`, `k`, `w` or `x`; a note only opened (`read`) or never
 touched is unclassified. Report the delivered, classified and unclassified counts beside the

@@ -12,7 +12,7 @@ export const NOTES_MAX = 50;
 export type Thought = { text: string; at: number };
 export type Approved = { lines: string[]; at: number };
 /** How a note reached the agent, or that it did not. */
-export type How = "for you only" | "steered into the run" | "waits for your next message" | "sent with your message" | "you sent it";
+export type How = "handoff unconfirmed" | "started an agent turn" | "for you only" | "steered into the run" | "waits for your next message" | "sent with your message" | "you sent it";
 export type Mark = "known" | "dismissed" | "read" | "wrong" | "useful";
 export type Note = { key: string; tag: Tag; line: string; details: string; evidence?: string; agentKnows: boolean; at: number; how: How; mark?: Mark; version?: string; stakes?: string; decision?: string };
 /** Marks that take a note off the panel. */

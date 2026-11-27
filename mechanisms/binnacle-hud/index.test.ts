@@ -180,16 +180,20 @@ describe("observer", () => {
     expect(h.sent[0]!.options).toEqual({ deliverAs: "steer" });
     expect(h.sent[0]!.message.content).toContain("The agent skipped the migration test.");
   });
-  test("when idle, a note waits and rides with the next message, once", async () => {
+  test("an idle agent receives the note immediately without an observer-driven feedback loop", async () => {
     const h = harness([NOTE()]);
     await h.emit("session_start");
     await h.run("hud", "observer forward");
     await h.turns(REVIEW_EVERY);
-    expect(h.sent).toHaveLength(0);
-    expect((await h.start("custom")).result).toBeUndefined();
-    const { result } = await h.start();
-    expect(result.message.content).toContain("The agent skipped the migration test.");
+    expect(h.sent).toHaveLength(1);
+    expect(h.sent[0].options.triggerTurn).toBe(true);
+    expect(h.sent[0].message.content).toContain("working on the migration");
+    await h.start("custom");
+    await h.turns(REVIEW_EVERY);
+    expect(h.requests).toHaveLength(1);
     expect((await h.start()).result).toBeUndefined();
+    await h.turns(REVIEW_EVERY);
+    expect(h.requests).toHaveLength(2);
   });
   test("a note the agent already stated is for the person only", async () => {
     const h = harness([NOTE({ agentKnows: true })], { idle: false });
@@ -200,7 +204,7 @@ describe("observer", () => {
     expect(h.entries.find((e) => e.data?.k === "note")?.data.note.how).toBe("for you only");
   });
   test("a dismissed waiting note is not sent", async () => {
-    const h = harness([NOTE()]);
+    const h = harness([NOTE()], { refuseSteer: true });
     await h.emit("session_start");
     await h.turns(REVIEW_EVERY);
     const key = h.entries.find((e) => e.data?.k === "note").data.note.key;
@@ -209,7 +213,7 @@ describe("observer", () => {
     expect((await h.start()).result).toBeUndefined();
   });
   test("a repeated note and a bad reply show nothing", async () => {
-    const h = harness([NOTE(), NOTE({ note: "the agent SKIPPED the migration test" }), "not json"]);
+    const h = harness([NOTE(), NOTE({ note: "the agent SKIPPED the migration test" }), "not json"], { idle: false });
     await h.emit("session_start");
     await h.turns(REVIEW_EVERY * 3);
     expect(h.requests.length).toBe(3);
@@ -237,7 +241,7 @@ describe("observer", () => {
   });
   test("a note cannot ground itself on an earlier note", async () => {
     const first = "The agent skipped the migration test.";
-    const h = harness([NOTE(), NOTE({ note: "Another thing entirely happened here.", evidence: first })]);
+    const h = harness([NOTE(), NOTE({ note: "Another thing entirely happened here.", evidence: first })], { idle: false });
     await h.emit("session_start");
     await h.turns(REVIEW_EVERY * 2);
     expect(h.requests).toHaveLength(2);
@@ -265,8 +269,8 @@ describe("observer", () => {
 });
 
 describe("observer setting", () => {
-  test("defaults to panel, and /hud observer writes one setting for every session", async () => {
-    expect(readMode(join(agentDir, "missing.json"))).toBe("panel");
+  test("defaults to forward, and /hud observer writes one setting for every session", async () => {
+    expect(readMode(join(agentDir, "missing.json"))).toBe("forward");
     const h = harness();
     await h.emit("session_start");
     await h.run("hud", "observer forward");
@@ -452,7 +456,7 @@ test("a failed observer settings write keeps the effective mode and reports it",
 });
 
 test("a heads-up delivered while its menu is open cannot start a second turn", async () => {
-  const h = harness([NOTE()]);
+  const h = harness([NOTE()], { refuseSteer: true });
   await h.emit("session_start");
   await h.run("hud", "observer forward");
   await h.turns(REVIEW_EVERY);
@@ -471,7 +475,7 @@ test("a rejected busy steer preserves the note for the next user message", async
   await h.emit("session_start");
   await h.run("hud", "observer forward");
   await h.turns(REVIEW_EVERY);
-  expect(h.entries.find(e => e.data?.k === "note").data.note.how).toBe("waits for your next message");
+  expect(h.entries.find(e => e.data?.k === "how").data.how).toBe("waits for your next message");
   expect((await h.start()).result.message.content).toContain("skipped the migration test");
 });
 
