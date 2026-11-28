@@ -10,7 +10,8 @@ digraph Memory {
   cc [label="Claude Code\nMemory section assembled"];
   pi [label="Pi\nEffective section observed"];
   draft -> preview [label="  Send"];
-  preview -> previous [label="  Cancel", style=dashed];
+  preview -> previous [label="  Cancel / Not now", style=dashed];
+  preview -> previous [label="  Claude Code: save refused\n  Pi: session or tree changes", style=dashed];
   preview -> sent [label="  Confirm and save"];
   sent -> cc [label="  prompt.section"];
   sent -> pi [label="  context_with_system\n  exact section match"];

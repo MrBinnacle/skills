@@ -51,7 +51,9 @@ with at least 3 turns unread. It runs one look at a time, and never starts an ag
 own; only your Send does. In
 `forward` mode a note goes to the agent unless the observer judged the agent already knows it:
 
-- **Agent busy:** the note is steered into the run before its next model call.
+- **Agent busy:** the note is steered into the run before its next model call. A note that
+  arrives while the run's last model call is still open makes Pi run one more model call to read
+  it, so that run costs one extra request (`consent.test.ts`, step 7).
 - **Agent idle:** the note goes out with your next message.
 
 Two dismissals in a row double the wait between looks; reading a note resets it. A note whose
