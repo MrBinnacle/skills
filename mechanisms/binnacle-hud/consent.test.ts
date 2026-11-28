@@ -11,7 +11,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { SYSTEM } from "./observer";
+import { RECHECK, SYSTEM } from "./observer";
 import { SECTION } from "./state";
 
 const HUD_DIR = import.meta.dir;
@@ -29,7 +29,7 @@ const found = !!PI && existsSync(join(PI, "dist", "index.js")) && existsSync(joi
 const LOG = "LOG-7f3a never send this";
 const DRAFT = "DRAFT-91c2 unsent memory line";
 const MEMORY = "MEMORY-4be0 the person approved this line";
-const OBSERVER_MARK = SYSTEM.slice(0, 80);
+const OBSERVER_MARKS = [SYSTEM, RECHECK].map((p) => JSON.stringify(p.slice(0, 80)).slice(1, -1));
 
 type Call = { observer: boolean; text: string };
 const calls: Call[] = [];
@@ -40,6 +40,8 @@ let dir = "";
 // What the observer says next, and the agent's script, consumed in order.
 let observerReplies: string[] = [];
 let agentScript: Array<(ai: any) => any> = [];
+// While set, the observer answers only once this settles, so a test can time its note.
+let observerGate: Promise<void> | undefined;
 
 const note = (line: string, agentKnows: boolean) =>
   JSON.stringify({ tag: "heads-up", note: line, details: "**What happened:** see the record.", evidence: "working on the migration", agentKnows });
@@ -71,11 +73,14 @@ beforeAll(async () => {
   process.env.PI_CODING_AGENT_DIR = join(dir, "agent"); // the observer setting file lands here, not in the real ~/.pi
 
   const faux = ai.fauxProvider();
-  const respond = (context: unknown) => {
+  const respond = async (context: unknown) => {
     const text = JSON.stringify(context);
-    const observer = text.includes(JSON.stringify(OBSERVER_MARK).slice(1, -1));
+    const observer = OBSERVER_MARKS.some((m) => text.includes(m));
     calls.push({ observer, text });
-    if (observer) return ai.fauxAssistantMessage(observerReplies.shift() ?? '{"note": null}');
+    if (observer) {
+      await observerGate;
+      return ai.fauxAssistantMessage(observerReplies.shift() ?? '{"note": null}');
+    }
     if (text.includes("summar")) { if (!agentScript.length) return ai.fauxAssistantMessage("## Goal\nMigration summary."); }
     const next = agentScript.shift();
     return next ? next(ai) : ai.fauxAssistantMessage("Done; still working on the migration.");
@@ -200,4 +205,27 @@ test.skipIf(!found)("consent holds across Pi's real agent loop", async () => {
   const sentAt = calls.findIndex((c) => c.text.includes("MEMORY-4be0"));
   expect(calls.slice(0, sentAt).filter((c) => c.text.includes("DRAFT-91c2"))).toHaveLength(0);
   expect(observerCalls().filter((c) => c.text.includes("MEMORY-4be0") || c.text.includes("DRAFT-91c2"))).toHaveLength(0);
+
+  // 7. A busy agent: a look fires mid-run, and its note is steered in while the run's last model
+  //    call is still open. The steer requests no turn, but Pi 1.7.0 reads a queued steer before
+  //    the run ends, so the run makes exactly one more model call, and that call carries the note.
+  const steps = 7; // a look fires at the 6th turn_end, with the run still going
+  let release = () => {};
+  observerGate = new Promise((r) => (release = r));
+  observerReplies = [note("The agent is rewriting a table with no backup.", false)];
+  const last = async (ai: any) => {
+    release();
+    await until(() => notes().length === 5, "the steered note");
+    return say("Done; still working on the migration.")(ai);
+  };
+  agentScript = [...run(steps).slice(0, -1), last];
+  mark = calls.length;
+  await session.prompt("One more table; keep working on the migration.");
+  observerGate = undefined;
+  await session.agent.waitForIdle?.();
+  expect(notes()[4].how).toBe("steered into the run");
+  const run7 = agentCalls(mark);
+  expect(run7).toHaveLength(steps + 2);
+  expect(run7.slice(0, -1).some((c) => c.text.includes("rewriting a table"))).toBe(false);
+  expect(run7.at(-1)!.text).toContain("rewriting a table");
 }, 30_000);

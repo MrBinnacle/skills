@@ -12,6 +12,6 @@ digraph HeadsUps {
   offer -> waiting [label="  Turn already used"];
   pending -> accepted [label="  Submit accepted"];
   pending -> waiting [label="  Submit refused or throws"];
-  waiting -> waiting [label="  Slash command\n  or dropped message", style=dashed];
+  waiting -> waiting [label="  Slash command, a message\n  you did not type,\n  or a dropped message", style=dashed];
   waiting -> carried [label="  User message accepted"];
 }
