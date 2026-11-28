@@ -131,10 +131,20 @@ def check_repo_link(href: str, root: Path) -> str | None:
 
 
 def check(root: Path) -> list[str]:
+    """Every page in site/; a page other than index.html names itself at the end of each error."""
     site = root / "site"
-    parser = _Links()
-    parser.feed(landing_page(root))
     copies = deploy_copies((root / PAGES_WORKFLOW).read_text(encoding="utf-8"))
+    errors: list[str] = []
+    for page in sorted(site.glob("*.html")):
+        html = landing_page(root) if page.name == "index.html" else page.read_text(encoding="utf-8").replace("<wbr>", "")
+        where = "" if page.name == "index.html" else f" ({page.name})"
+        errors += [error + where for error in _check_page(html, root, site, copies)]
+    return errors
+
+
+def _check_page(html: str, root: Path, site: Path, copies: dict[str, str]) -> list[str]:
+    parser = _Links()
+    parser.feed(html)
     errors: list[str] = []
     for href in parser.refs:
         if href.startswith("#"):

@@ -504,6 +504,277 @@ code {
   color: var(--muted);
 }
 
+/* Binnacle HUD page (hud.html). Same tokens, rules and type as the landing page.
+   Figures are inline SVG so they take the page's Plex and its two schemes: every
+   stroke and fill below is a custom property, so light and dark are each composed
+   from their own token set, not inverted. Meaning never rides on colour alone:
+   solid = always, dashed = conditional, double box = a confirmation you answer. */
+
+.home {
+  padding-block: 0;
+  margin-block: 0;
+  text-decoration: none;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  color: var(--muted);
+  margin-bottom: var(--s3);
+}
+
+.lede {
+  font-size: 1.375rem;
+  line-height: 1.4;
+  margin-bottom: var(--s4);
+}
+
+.lanes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  margin-top: var(--s5);
+}
+
+.lane {
+  margin: 0;
+  padding: var(--s3);
+}
+
+.lane + .lane {
+  border-left: 1px solid var(--line);
+}
+
+.lane figcaption {
+  min-height: 6.6em;
+  font-size: 0.9375rem;
+  color: var(--muted);
+}
+
+.lane-name {
+  display: block;
+  font-weight: 700;
+  font-size: 1.0625rem;
+  color: var(--ink);
+}
+
+@media (max-width: 767.98px) {
+  .lanes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lane + .lane {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .lane figcaption {
+    min-height: 0;
+  }
+  .lane .fig {
+    max-width: 340px;
+  }
+}
+
+.fig {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.fig text {
+  font-family: var(--font-body);
+  fill: var(--ink);
+  font-size: 15px;
+}
+
+.fig .label {
+  text-anchor: middle;
+}
+
+.fig .sub,
+.fig .note {
+  fill: var(--muted);
+  font-size: 13px;
+  text-anchor: middle;
+}
+
+.fig .event,
+.fig .zone {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.fig .zone {
+  fill: var(--muted);
+}
+
+.fig .end {
+  text-anchor: end;
+}
+
+.fig .box {
+  fill: var(--surface);
+  stroke: var(--muted);
+}
+
+.fig .gate {
+  fill: none;
+  stroke: var(--ink);
+}
+
+.fig .flow {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.fig .cond {
+  stroke-dasharray: 6 4;
+}
+
+.fig .stop {
+  stroke: var(--ink);
+  stroke-width: 2.5;
+}
+
+.fig .rule {
+  stroke: var(--ink);
+}
+
+.fig .head {
+  fill: var(--ink);
+}
+
+.key {
+  font-size: 0.9375rem;
+  color: var(--muted);
+  margin-top: var(--s3);
+}
+
+.paths,
+.checked,
+.inspect {
+  border-top: 1px solid var(--line);
+  padding-block: var(--s6);
+}
+
+.path + .path {
+  margin-top: var(--s5);
+}
+
+.path h3,
+.plate h3 {
+  font-size: 1.125rem;
+  margin: 0 0 var(--s2);
+}
+
+.rule-line {
+  font-weight: 600;
+}
+
+.path dl {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: var(--s2) var(--s4);
+  margin: 0;
+  max-width: calc(var(--measure) + 13rem);
+}
+
+.path dt {
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  color: var(--muted);
+  padding-top: 0.15em;
+}
+
+.path dd {
+  margin: 0;
+}
+
+@media (max-width: 767.98px) {
+  .path dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .path dd {
+    margin-bottom: var(--s3);
+  }
+}
+
+.checked ul {
+  padding-left: var(--s4);
+  max-width: var(--measure);
+}
+
+.checked li + li {
+  margin-top: var(--s2);
+}
+
+.plate {
+  margin: var(--s5) 0 0;
+}
+
+.plate + .plate {
+  border-top: 1px solid var(--line);
+  padding-top: var(--s5);
+}
+
+.plate-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  padding: var(--s2);
+  margin-bottom: var(--s3);
+}
+
+.plate .wide {
+  min-width: 720px;
+}
+
+.plate table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  margin-bottom: var(--s3);
+}
+
+.plate th,
+.plate td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--s2) var(--s3) var(--s2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.plate th {
+  font-weight: 600;
+}
+
+.plate code {
+  white-space: normal;
+}
+
+@media (max-width: 767.98px) {
+  .plate thead {
+    display: none;
+  }
+  .plate tr {
+    display: block;
+    padding-block: var(--s2);
+    border-bottom: 1px solid var(--line);
+  }
+  .plate td {
+    display: block;
+    border: 0;
+    padding: 0;
+  }
+  .plate td:nth-child(3)::before {
+    content: "\2192\00a0";
+  }
+}
+
+.src {
+  font-size: 0.9375rem;
+}
+
 /* Motion: hover and focus only, colour and thickness, gated */
 
 @media (prefers-reduced-motion: no-preference) {

@@ -1,0 +1,23 @@
+// Pi index.ts deliver / before_agent_start / recheck / /hud observer / menu Send
+digraph Observer {
+  graph [rankdir=LR, bgcolor="#F2F4EF", pad=.35, nodesep=.4, ranksep=.6, splines=ortho, fontname="IBM Plex Sans", labelloc=t, labeljust=l, label="Pi   /   Where an observer note goes\n ", fontsize=23, fontcolor="#1E2020"];
+  node [shape=box, style=filled, color="#5F614A", fillcolor="#E6E9E2", fontname="IBM Plex Sans", fontsize=14, margin=".18,.12"];
+  edge [color="#5F614A", fontcolor="#1E2020", fontname="IBM Plex Mono", fontsize=11, arrowsize=.7];
+  grounded [label="Grounded note"];
+  stale [label="Stale, never shown"];
+  dropped [label="Dropped, read again"];
+  mine [label="For you only"];
+  waits [label="Waits for your next message"];
+  steered [label="Steered into the run\n(no turn requested)"];
+  carried [label="Sent with your message"];
+  sent [label="You sent it"];
+  grounded -> dropped [xlabel="look cancelled [mode change, tree change, shutdown]", style=dashed];
+  grounded -> stale [xlabel="later turns settled it", style=dashed];
+  grounded -> mine [xlabel="[panel mode, or observer judged agent knows it]"];
+  grounded -> waits [xlabel="[forward, agent idle] or steer refused"];
+  grounded -> steered [xlabel="[forward, agent busy]"];
+  waits -> carried [xlabel="your next message [still forward, note not closed]"];
+  waits -> mine [xlabel="leave forward with /hud observer", style=dashed];
+  mine -> sent [xlabel="Send"];
+  waits -> sent [xlabel="Send"];
+}
