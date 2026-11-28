@@ -131,7 +131,23 @@ test("the person's message frees the next note to take a turn of its own", AGENT
   expect(w.sent[1]).toContain('Third note.')
 })
 
-for (const [what, text, kind] of [['a slash command', '/hud', 'composer'], ['a task notification', 'done', 'task-notification']] as const) {
+for (const text of ['/usr/local/bin has no node, why?', '/review the diff']) {
+  test(`a message that starts with a slash carries the waiting note and frees the turn: ${text}`, AGENT, async ($, on) => {
+    const w = await start($, on)
+    await raise($, 1, 'First note.')
+    await settle($)
+    await raise($, 2, 'Second note.')
+    await settle($)
+    await say($, text)
+    expect(w.carried.at(-1)).toEqual([quoted({ line: 'Second note.', explanation: '' })])
+    expect(notes(w)[1]).toEqual(['Second note.', 'with your message'])
+    await raise($, 3, 'Third note.')
+    await settle($)
+    expect(w.sent.length).toBe(2)
+  })
+}
+
+for (const [what, text, kind] of [['a task notification', 'done', 'task-notification']] as const) {
   test(`${what} carries no waiting note and frees no turn`, AGENT, async ($, on) => {
     const w = await start($, on)
     await raise($, 1, 'First note.')

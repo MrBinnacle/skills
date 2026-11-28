@@ -281,12 +281,13 @@ export const register: Register = (on, options) => {
     return next({ ...e, props: { ...e.props, rows: e.props.rows.filter(r => !listed(r)) } })
   })
 
-  // A note that could not take a turn of its own goes with the person's next message. A slash command starts no
-  // model turn, so it carries nothing. The notes are marked sent, and the turn freed, only once the message entered:
+  // A note that could not take a turn of its own goes with the person's next message. A command that starts no
+  // model turn (/hud, /clear) raises no prompt.submit; a skill command raises one and starts a turn (2.1.332), so
+  // text that begins with "/" is not skipped. The notes are marked sent, and the turn freed, only once the message entered:
   // a message a hook beneath drops leaves them waiting. A message that changes nothing writes nothing.
   on('prompt.submit', async ($, e, next) => {
     const from = e.origin?.kind
-    if ((from !== 'composer' && from !== 'bridge') || e.text.startsWith('/')) return next(e)
+    if (from !== 'composer' && from !== 'bridge') return next(e)
     const now = await read($, notes)
     const waiting = now.list.filter(n => n.how === 'waiting')
     if (!waiting.length && now.free) return next(e)
