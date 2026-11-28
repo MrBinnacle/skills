@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-label="Binnacle HUD. A thought is not a prompt. For Claude Code and Pi.">
+  <style>
+    .mono { font-family: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace; }
+    .body { font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  </style>
+  <!-- Link preview for site/hud.html. Built on assets/social-preview.svg: same palette
+       (color.structural), safe area (96px) and block structure (tokens.json > social_preview).
+       Exported to hud-social.png at 1280x640 with the site's self-hosted Plex loaded. -->
+  <rect width="1280" height="640" fill="#1e2020"/>
+  <!-- Block 1: the receipt glyph, as in the repository lockup, with the product name. -->
+  <g transform="translate(99,110) scale(1.5)">
+    <path d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"
+          fill="none" stroke="#e3e6dd" stroke-width="3" stroke-linejoin="round"/>
+    <line x1="14" y1="24" x2="58" y2="24" stroke="#e3e6dd" stroke-width="3" stroke-linecap="round"/>
+    <line x1="14" y1="40" x2="58" y2="40" stroke="#e3e6dd" stroke-width="3" stroke-linecap="round"/>
+    <line x1="14" y1="56" x2="40" y2="56" stroke="#a9ae9b" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="53" cy="56" r="6.5" fill="none" stroke="#a9ae9b" stroke-width="2.5"/>
+    <circle cx="53" cy="56" r="2" fill="#a9ae9b"/>
+  </g>
+  <text x="248" y="196" class="body" font-size="48" font-weight="700" letter-spacing="-0.48" fill="#e3e6dd">Binnacle HUD</text>
+  <!-- Block 2: the statement, the largest type. -->
+  <text x="96" y="400" class="body" font-size="72" font-weight="600" letter-spacing="-0.72" fill="#e3e6dd">A thought is not a prompt.</text>
+  <!-- Block 3: the platforms, in the muted neutral (7.18:1 on the background). -->
+  <text x="96" y="520" class="mono" font-size="28" fill="#a9ae9b">For Claude Code and Pi</text>
+</svg>

@@ -128,6 +128,26 @@ def footer_column_failures() -> list[str]:
     return failures
 
 
+def second_page_failures() -> list[str]:
+    """A page beside index.html is checked too, and its errors name it (site/hud.html, MRB-288)."""
+    failures: list[str] = []
+    good = '<a href="index.html">home</a><a href="#top" id="top">top</a><img src="assets/favicon.svg" alt="">'
+    bad = '<a href="missing.html">x</a><a href="#nowhere">y</a>'
+    for label, body, want in (
+        ("well-linked second page", good, []),
+        ("broken second page", bad, [f"missing.html: {UNRESOLVED} (zz.html)", "#nowhere: no element with that id on the page (zz.html)"]),
+    ):
+        tmp = _copy_with("")
+        try:
+            (tmp / "site" / "zz.html").write_text(f"<!doctype html><body>{body}</body>", encoding="utf-8")
+            got = [error for error in sl.check(tmp) if error.endswith("(zz.html)")]
+            if got != want:
+                failures.append(f"{label}: want {want}, got {got}")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    return failures
+
+
 def main() -> int:
     failures: list[str] = footer_column_failures() + src_failures()
 
@@ -156,11 +176,13 @@ def main() -> int:
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+    failures += second_page_failures()
+
     for failure in failures:
         print(f"FAIL: {failure}")
     if failures:
         return 1
-    print(f"PASS: site link suite, {len(broken) + 10} checks")
+    print(f"PASS: site link suite, {len(broken) + 12} checks")
     return 0
 
 

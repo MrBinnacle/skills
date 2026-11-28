@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Binnacle HUD: a thought is not a prompt</title>
+  <meta name="description" content="Binnacle HUD is a heads-up display for Claude Code and Pi. Keep thoughts in a Log, send the Memory you confirm, and see what surfaces from the session.">
+  <meta property="og:description" content="A heads-up display for Claude Code and Pi. Keep your thoughts. Choose what becomes context. See what surfaces.">
+  <meta name="twitter:description" content="A heads-up display for Claude Code and Pi. Keep your thoughts. Choose what becomes context. See what surfaces.">
+  <meta property="og:title" content="Binnacle HUD: a thought is not a prompt">
+  <meta name="twitter:title" content="Binnacle HUD: a thought is not a prompt">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mrbinnacle.github.io/skills/hud.html">
+  <link rel="canonical" href="https://mrbinnacle.github.io/skills/hud.html">
+  <meta property="og:image" content="https://mrbinnacle.github.io/skills/hud-social.png">
+  <meta name="twitter:image" content="https://mrbinnacle.github.io/skills/hud-social.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="Binnacle HUD. A thought is not a prompt. Log, Memory, Heads-ups and Observer. For Claude Code and Pi.">
+  <meta name="twitter:image:alt" content="Binnacle HUD. A thought is not a prompt. Log, Memory, Heads-ups and Observer. For Claude Code and Pi.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F2F4EF">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1E2020">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="hud">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-head">
+    <div class="wrap site-head-row">
+      <!-- Inlined from assets/lockup-horizontal.svg, as on site/index.html. -->
+      <a class="home" href="index.html" aria-label="MRBINNACLE / skills home">
+      <svg class="lockup lockup-horizontal" xmlns="http://www.w3.org/2000/svg" viewBox="22 22 332.4 28" height="28" role="img" aria-label="MRBINNACLE / skills">
+        <g transform="translate(22 22) scale(0.3111111)" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"/>
+          <line x1="14" y1="24" x2="58" y2="24"/>
+          <line x1="14" y1="40" x2="58" y2="40"/>
+          <line x1="14" y1="56" x2="40" y2="56" stroke-opacity="0.55"/>
+          <circle cx="53" cy="56" r="6.5" stroke-width="2.5" stroke-opacity="0.55"/>
+          <circle cx="53" cy="56" r="2" fill="currentColor" fill-opacity="0.55" stroke="none"/>
+        </g>
+        <text x="60.4" y="44.7" fill="currentColor" font-size="24" xml:space="preserve"><tspan
+            font-family="&quot;IBM Plex Sans&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif"
+            font-weight="700" letter-spacing="-0.24">MRBINNACLE</tspan><tspan
+            font-family="&quot;IBM Plex Mono&quot;, ui-monospace, &quot;Cascadia Mono&quot;, Consolas, monospace"
+            font-weight="500"> / skills</tspan></text>
+      </svg>
+      <!-- Inlined from assets/lockup-stacked.svg, as on site/index.html; shown below 360px only. -->
+      <svg class="lockup lockup-stacked" xmlns="http://www.w3.org/2000/svg" viewBox="22 22 294 61" height="61" role="img" aria-label="MRBINNACLE / skills">
+        <g transform="translate(157.8 22) scale(0.3111111)" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M0 4 h72 v78 l-9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 -9 8 -9 -8 z"/>
+          <line x1="14" y1="24" x2="58" y2="24"/>
+          <line x1="14" y1="40" x2="58" y2="40"/>
+          <line x1="14" y1="56" x2="40" y2="56" stroke-opacity="0.55"/>
+          <circle cx="53" cy="56" r="6.5" stroke-width="2.5" stroke-opacity="0.55"/>
+          <circle cx="53" cy="56" r="2" fill="currentColor" fill-opacity="0.55" stroke="none"/>
+        </g>
+        <text x="169" y="83.4" fill="currentColor" font-size="24" text-anchor="middle" xml:space="preserve"><tspan
+            font-family="&quot;IBM Plex Sans&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif"
+            font-weight="700" letter-spacing="-0.24">MRBINNACLE</tspan><tspan
+            font-family="&quot;IBM Plex Mono&quot;, ui-monospace, &quot;Cascadia Mono&quot;, Consolas, monospace"
+            font-weight="500"> / skills</tspan></text>
+      </svg>
+      </a>
+      <a class="head-link" href="#install">Install</a>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+
+    <!--
+      Every behaviour claim on this page restates mods/binnacle-hud/README.md (Claude Code) or
+      mechanisms/binnacle-hud/README.md (Pi) at v4.3.4. Change those first. The figures are
+      drawn from mechanisms/binnacle-hud/transitions/*.dot and the code each table names.
+    -->
+    <section class="hero">
+      <p class="eyebrow">Binnacle HUD: a heads-up display for Claude Code and Pi</p>
+      <h1>A thought is not a prompt.</h1>
+      <p class="lede">Keep your thoughts. Choose what becomes context. See what surfaces.</p>
+      <p>Your coding agent is working, and you have a thought. A concern about the design. Something to revisit. A decision you have not made yet. It does not need to become the next prompt.</p>
+      <p>Binnacle HUD gives those thoughts a place beside the session. Keep them in the Log. Send the Memory you want the agent to keep. See observations from the session as they surface.</p>
+
+      <div class="lanes" role="group" aria-label="Three paths, side by side. Each starts in a different place and has its own rule for reaching the agent.">
+        <figure class="lane">
+          <figcaption><span class="lane-name">Log</span> Your thoughts. They stay beside the session.</figcaption>
+          <svg class="fig" viewBox="0 0 300 400" role="img" aria-labelledby="lane-log-t">
+            <title id="lane-log-t">Log. Your thought goes into the Log. The path stops above the line where the agent's context begins: keeping a thought starts no turn, and HUD does not send it.</title>
+            <defs><marker id="ah-log" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+            <text class="zone" x="8" y="18">beside the session</text>
+            <rect class="box" x="50" y="40" width="200" height="44"/><text class="label" x="150" y="67">Your thought</text>
+            <path class="flow" d="M150 84 V136" marker-end="url(#ah-log)"/><text class="event" x="160" y="114">keep</text>
+            <rect class="box" x="50" y="140" width="200" height="44"/><text class="label" x="150" y="167">Log</text>
+            <path class="flow" d="M150 184 V232"/><path class="stop" d="M134 232 H166"/>
+            <text class="event" x="160" y="212">starts no turn</text>
+            <path class="rule" d="M0 262 H300"/>
+            <text class="zone" x="8" y="284">agent context</text>
+            <text class="note" x="150" y="340">not sent by HUD</text>
+          </svg>
+        </figure>
+        <figure class="lane">
+          <figcaption><span class="lane-name">Memory</span> Lines you choose. They cross only after you confirm.</figcaption>
+          <svg class="fig" viewBox="0 0 300 400" role="img" aria-labelledby="lane-mem-t">
+            <title id="lane-mem-t">Memory. Draft lines go to a confirmation that shows the exact lines. Only a confirmed Send crosses the line into the agent's system instructions.</title>
+            <defs><marker id="ah-mem" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+            <text class="zone" x="8" y="18">beside the session</text>
+            <rect class="box" x="50" y="40" width="200" height="44"/><text class="label" x="150" y="67">Draft lines</text>
+            <path class="flow" d="M150 84 V136" marker-end="url(#ah-mem)"/><text class="event" x="160" y="114">Send</text>
+            <rect class="box" x="50" y="140" width="200" height="44"/><rect class="gate" x="54" y="144" width="192" height="36"/><text class="label" x="150" y="167">You confirm these lines</text>
+            <path class="flow" d="M150 184 V316" marker-end="url(#ah-mem)"/><text class="event" x="160" y="226">confirmed</text>
+            <path class="rule" d="M0 262 H300"/>
+            <text class="zone" x="8" y="284">agent context</text>
+            <rect class="box" x="50" y="320" width="200" height="44"/><text class="label" x="150" y="347">System instructions</text>
+          </svg>
+        </figure>
+        <figure class="lane">
+          <figcaption><span class="lane-name">Heads-ups / Observer</span> Notes that start in the session. Each host routes them its own way.</figcaption>
+          <svg class="fig" viewBox="0 0 300 400" role="img" aria-labelledby="lane-obs-t">
+            <title id="lane-obs-t">Heads-ups in Claude Code, Observer in Pi. A note starts in the session and comes up to the HUD. A dashed path back to the agent depends on the host's rule.</title>
+            <defs><marker id="ah-obs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+            <text class="zone" x="8" y="18">beside the session</text>
+            <rect class="box" x="50" y="140" width="200" height="44"/><text class="label" x="150" y="167">Note on the HUD</text>
+            <path class="flow" d="M118 320 V188" marker-end="url(#ah-obs)"/><text class="event end" x="110" y="226">observed</text>
+            <path class="flow cond" d="M190 184 V316" marker-end="url(#ah-obs)"/><text class="event" x="198" y="226">host rule</text>
+            <path class="rule" d="M0 262 H300"/>
+            <text class="zone" x="8" y="284">agent context</text>
+            <rect class="box" x="50" y="320" width="200" height="44"/><text class="label" x="150" y="347">The session</text>
+          </svg>
+        </figure>
+      </div>
+      <p class="key">Boxes are places a thought, a line or a note can be. A solid arrow always happens. A dashed arrow depends on a rule. The double box is a confirmation you answer. The horizontal line is where the agent’s context begins. These are diagrams, not screenshots.</p>
+    </section>
+
+    <section class="paths" aria-labelledby="paths-h">
+      <h2 id="paths-h">Three paths, three rules</h2>
+      <p>The paths run side by side. A Log thought can stay a Log thought. A Memory line does not have to start in the Log. A note starts in the session, not with you. Each host keeps its own wording, so the limits below are per host.</p>
+
+      <div class="path" id="log">
+        <h3>Log</h3>
+        <p class="rule-line">Keeping a thought starts no agent turn.</p>
+        <dl>
+          <dt>Claude Code</dt>
+          <dd>Type in the HUD’s field and press Enter. From the Claude app on your phone, send <code>/log</code> alone and type the thought in the dialog under Other; text typed after <code>/log</code> goes into the conversation. The mod keeps the thought in session state and does not send it to Claude. Whether a thought stays out of a later model request has not been verified. Other plugins in the session can read the Log.</dd>
+          <dt>Pi</dt>
+          <dd><code>/log &lt;text&gt;</code> or the HUD menu. A test that runs Pi’s real agent loop with scripted model replies captures every request and checks that no Log thought reaches one.</dd>
+        </dl>
+      </div>
+
+      <div class="path" id="memory">
+        <h3>Memory</h3>
+        <p class="rule-line">You see the exact lines before they go. Sending is not the same as arriving.</p>
+        <dl>
+          <dt>Both</dt>
+          <dd>Edits you make while the question is open stay in the draft and do not change this Send. Memory lasts for the session; a new session starts empty.</dd>
+          <dt>Claude Code</dt>
+          <dd>After Send the panel says “Sent at HH:MM. Not yet in Claude’s instructions.” It says “In Claude’s instructions since HH:MM.” only after its hook has added exactly those lines to Claude Code’s memory section. Another plugin could still change that section, and the hook cannot tell whether the prompt was built for a subagent. A Send makes Claude Code rewrite its prompt cache once. That the lines survive a real compaction follows from where they sit; it has not been observed.</dd>
+          <dt>Pi</dt>
+          <dd>The line above the editor says “Memory sent”, then “Memory in instructions” once a request’s system section equals the approved text. The end-to-end test checks that sent Memory reaches the agent after <code>/compact</code>. Sending an empty Memory withdraws it.</dd>
+        </dl>
+      </div>
+
+      <div class="path" id="notes">
+        <h3>Heads-ups and Observer</h3>
+        <p class="rule-line">A note can reach the agent without you pressing anything. Whether it does depends on the host.</p>
+        <dl>
+          <dt>Claude Code</dt>
+          <dd>The mod takes the heads-ups that Claude Code’s built-in side agent offers and gives each one to Claude with no key press. At most one note starts a turn for each message you send; later notes go with your next message. The mod tells Claude to weigh each note and act on it if it holds; nothing asks you first. A note can repeat text that reached the session from files, tool output or web pages, and how far the mod’s framing lowers the chance that Claude follows a planted instruction has not been measured. This mod’s route has not yet run in a live session.</dd>
+          <dt>Pi</dt>
+          <dd id="pi-observer">A second model call reads the new turns after every 6 agent turns, or when the agent hands back with at least 3 unread, and raises a note only when it can quote the record. Until you change it, the observer runs in <code>panel</code> mode: the note stays with you, and the observer never starts a turn on its own. Your Send from the menu can. In <code>forward</code> mode a note also goes to a busy agent before its next model call, or to an idle one with your next message, unless the observer judged the agent already knows it.</dd>
+        </dl>
+      </div>
+    </section>
+
+    <section class="checked" aria-labelledby="checked-h">
+      <h2 id="checked-h">What was checked</h2>
+      <p>This page has no screenshots yet. The figures are diagrams drawn from the code, not captures of a session.</p>
+      <ul>
+        <li><strong>Pi.</strong> The consent rules run end to end against Pi’s real agent loop, session store and extension loader, with only the model’s replies scripted. With the unit tests beside it, the suite fails on each of eleven faults planted in the code (Pi 1.6.1, 2026-11-26).</li>
+        <li><strong>Claude Code.</strong> On 2.1.319, a thought kept from the phone left the session at 0 turns, and a conversation export held the <code>/log</code> command and its reply but not the thought. The Memory mechanism reached the model on the next turn in a headless probe on 2.1.325.</li>
+        <li><strong>Not checked.</strong> The Claude Code heads-up route in a live session, Claude Code Memory after a real compaction, and the Pi overlay in a live terminal. Each README lists the rest.</li>
+      </ul>
+      <p><a href="https://github.com/MrBinnacle/skills/blob/main/mods/binnacle-hud/README.md">Claude Code README</a> · <a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/binnacle-hud/README.md">Pi README</a></p>
+    </section>
+
+    <section class="inspect" aria-labelledby="inspect-h">
+      <h2 id="inspect-h">Inspect the transitions</h2>
+      <p>Boxes are states. Monospace labels on arrows are events; text in brackets is the condition. Each table names the code that makes the move.</p>
+
+      <figure class="plate" id="plate-memory">
+        <figcaption><h3>Memory: approval and application</h3></figcaption>
+        <div class="plate-scroll" tabindex="0" role="region" aria-label="Memory transition figure, scrolls sideways on a narrow screen">
+        <svg class="fig wide" viewBox="0 0 940 330" role="img" aria-labelledby="pm-t">
+          <title id="pm-t">Memory. An editable draft becomes a frozen preview on Send. Cancel, Not now, a refused save in Claude Code, or a tree change in Pi leaves the prior instructions standing. Confirm and save makes an approved snapshot. In Claude Code the snapshot goes into the memory section when the prompt is assembled. In Pi the receipt is recorded when a request's effective system section matches it exactly.</title>
+          <defs><marker id="ah-pm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+          <rect class="box" x="20" y="120" width="180" height="52"/><text class="label" x="110" y="151">Editable draft</text>
+          <rect class="box" x="260" y="120" width="180" height="52"/><text class="label" x="350" y="151">Frozen preview</text>
+          <rect class="box" x="260" y="250" width="180" height="52"/><text class="label" x="350" y="281">Prior instructions stand</text>
+          <rect class="box" x="500" y="120" width="180" height="52"/><text class="label" x="590" y="151">Approved snapshot</text>
+          <rect class="box" x="740" y="40" width="180" height="60"/><text class="label" x="830" y="65">Claude Code</text><text class="label sub" x="830" y="86">Memory section assembled</text>
+          <rect class="box" x="740" y="190" width="180" height="60"/><text class="label" x="830" y="215">Pi</text><text class="label sub" x="830" y="236">Effective section observed</text>
+          <path class="flow" d="M200 146 H256" marker-end="url(#ah-pm)"/><text class="event" x="228" y="138" text-anchor="middle">Send</text>
+          <path class="flow cond" d="M350 172 V246" marker-end="url(#ah-pm)"/><text class="event" x="360" y="200">Cancel / Not now</text><text class="event" x="360" y="216">[Claude Code: save refused]</text><text class="event" x="360" y="232">[Pi: /tree change]</text>
+          <path class="flow" d="M440 146 H496" marker-end="url(#ah-pm)"/><text class="event" x="470" y="110" text-anchor="middle">Confirm</text><text class="event" x="470" y="124" text-anchor="middle">and save</text>
+          <path class="flow" d="M680 146 H710 V70 H736" marker-end="url(#ah-pm)"/><text class="event end" x="704" y="62">prompt.section</text>
+          <path class="flow" d="M710 146 V220 H736" marker-end="url(#ah-pm)"/><text class="event end" x="704" y="276">context_with_system</text><text class="event end" x="704" y="292">[exact section match]</text>
+        </svg>
+        </div>
+        <table>
+          <thead><tr><th scope="col">From</th><th scope="col">Event [condition]</th><th scope="col">To</th><th scope="col">Effect</th></tr></thead>
+          <tbody>
+            <tr><td>Editable draft</td><td><code>Send</code></td><td>Frozen preview</td><td>The confirmation shows the exact lines. Edits made while it is open stay in the draft.</td></tr>
+            <tr><td>Frozen preview</td><td><code>Cancel</code> (Claude Code: <code>Not now</code>, or the dialog dismissed)</td><td>Prior instructions stand</td><td>Nothing changes for the agent.</td></tr><tr><td>Frozen preview</td><td>Confirm [save refused] (Claude Code)</td><td>Prior instructions stand</td><td>The panel shows “Not sent.” and the reason. The previous Send stays in force.</td></tr><tr><td>Frozen preview</td><td>[session or tree changes while the question is open] (Pi)</td><td>Prior instructions stand</td><td>The open decision is discarded.</td></tr>
+            <tr><td>Frozen preview</td><td><code>Confirm and save</code></td><td>Approved snapshot</td><td>The snapshot becomes eligible for instructions. Pi withdraws the section when the confirmed draft is empty.</td></tr>
+            <tr><td>Approved snapshot</td><td><code>prompt.section</code></td><td>Claude Code: memory section assembled</td><td>The hook records the snapshot while composing the memory section. It does not observe a provider acknowledgment.</td></tr>
+            <tr><td>Approved snapshot</td><td><code>context_with_system</code> [exact section match]</td><td>Pi: effective section observed</td><td>The receipt is recorded when the final value of the section equals the approved text.</td></tr>
+          </tbody>
+        </table>
+        <p class="src"><a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/binnacle-hud/transitions/memory.dot">Diagram source</a> · <a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/binnacle-hud/index.ts">Pi code</a> · <a href="https://github.com/MrBinnacle/skills/blob/main/mods/binnacle-hud/hooks/register.tsx">Claude Code code</a> · <a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/binnacle-hud/consent.test.ts">Pi request-capture test</a> · <a href="https://github.com/MrBinnacle/skills/blob/main/mods/binnacle-hud/tests/memory.test.tsx">Claude Code Memory tests</a></p>
+      </figure>
+
+      <figure class="plate" id="plate-headsups">
+        <figcaption><h3>Claude Code: heads-up delivery</h3></figcaption>
+        <div class="plate-scroll" tabindex="0" role="region" aria-label="Claude Code heads-up figure, scrolls sideways on a narrow screen">
+        <svg class="fig wide" viewBox="0 0 940 360" role="img" aria-labelledby="ph-t">
+          <title id="ph-t">Claude Code heads-ups. A new offer becomes delivery unconfirmed when the note's own turn is available, or waiting for a user message when this message's turn is already used. An accepted submit means sent to Claude. A refused or failed submit moves the note to waiting. A slash command, a message you did not type, or a dropped message leaves it waiting. An accepted user message carries it: sent with your message.</title>
+          <defs><marker id="ah-ph" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+          <rect class="box" x="20" y="130" width="200" height="52"/><text class="label" x="120" y="161">New session offer</text>
+          <rect class="box" x="330" y="40" width="230" height="52"/><text class="label" x="445" y="71">Delivery unconfirmed</text>
+          <rect class="box" x="330" y="220" width="230" height="52"/><text class="label" x="445" y="251">Waiting for a user message</text>
+          <rect class="box" x="690" y="40" width="230" height="52"/><text class="label" x="805" y="71">Sent to Claude</text>
+          <rect class="box" x="690" y="220" width="230" height="52"/><text class="label" x="805" y="251">Sent with your message</text>
+          <path class="flow" d="M220 156 H270 V66 H326" marker-end="url(#ah-ph)"/><text class="event end" x="262" y="104">[own turn</text><text class="event end" x="262" y="120">available]</text>
+          <path class="flow" d="M270 156 V246 H326" marker-end="url(#ah-ph)"/><text class="event end" x="262" y="200">[turn already</text><text class="event end" x="262" y="216">used]</text>
+          <path class="flow" d="M560 66 H686" marker-end="url(#ah-ph)"/><text class="event" x="623" y="58" text-anchor="middle">submit accepted</text>
+          <path class="flow" d="M445 92 V216" marker-end="url(#ah-ph)"/><text class="event" x="455" y="150">submit refused</text><text class="event" x="455" y="166">or throws</text>
+          <path class="flow" d="M560 246 H686" marker-end="url(#ah-ph)"/><text class="event" x="623" y="222" text-anchor="middle">user message</text><text class="event" x="623" y="238" text-anchor="middle">accepted</text>
+          <path class="flow cond" d="M400 272 V318 H490 V276" marker-end="url(#ah-ph)"/><text class="event" x="445" y="340" text-anchor="middle">slash command, a message you did not type, or a dropped message</text>
+        </svg>
+        </div>
+        <table>
+          <thead><tr><th scope="col">From</th><th scope="col">Event [condition]</th><th scope="col">To</th><th scope="col">Panel says</th></tr></thead>
+          <tbody>
+            <tr><td>New session offer</td><td>[own turn available]</td><td>Delivery unconfirmed</td><td>“delivery unconfirmed”</td></tr>
+            <tr><td>New session offer</td><td>[turn already used]</td><td>Waiting for a user message</td><td>“goes with your next message”</td></tr>
+            <tr><td>Delivery unconfirmed</td><td><code>submit accepted</code></td><td>Sent to Claude</td><td>“sent to Claude”</td></tr>
+            <tr><td>Delivery unconfirmed</td><td><code>submit refused or throws</code></td><td>Waiting for a user message</td><td>“goes with your next message”</td></tr>
+            <tr><td>Waiting for a user message</td><td><code>slash command, a message you did not type, or a dropped message</code></td><td>Waiting for a user message</td><td>No change</td></tr>
+            <tr><td>Waiting for a user message</td><td><code>user message accepted</code></td><td>Sent with your message</td><td>“sent with your message”</td></tr>
+          </tbody>
+        </table>
+        <p>A hook accepting the submit and a provider seeing a request are different observations; the panel reports the first. If Claude Code stops between the submit and the receipt write, “delivery unconfirmed” can stay. HUD does not replay it, because a replay could start a second turn.</p>
+        <p class="src"><a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/binnacle-hud/transitions/heads-ups.dot">Diagram source</a> · <a href="https://github.com/MrBinnacle/skills/blob/main/mods/binnacle-hud/hooks/register.tsx">Code</a> · <a href="https://github.com/MrBinnacle/skills/blob/main/mods/binnacle-hud/tests/headsups.test.tsx">Routing tests</a></p>
+      </figure>
+
+      <figure class="plate" id="plate-observer">
+        <figcaption><h3>Pi: where an observer note goes</h3></figcaption>
+        <div class="plate-scroll" tabindex="0" role="region" aria-label="Pi observer figure, scrolls sideways on a narrow screen">
+        <svg class="fig wide" viewBox="0 0 940 400" role="img" aria-labelledby="po-t">
+          <title id="po-t">Pi observer notes. A grounded note whose later turns settled it is recorded as stale and never shown. A look cancelled by an observer mode change, a tree change or shutdown drops its note, and the next look reads those turns again. Otherwise the note is for you only in panel mode or when the observer judged the agent already knows it. In forward mode it is steered into a busy run, or waits for your next message when the agent is idle or the steer is refused. A waiting note that is still open is sent with your next message, or returns to you when you leave forward with /hud observer in this Pi. Send from the menu sends any of the four newest open notes not yet sent.</title>
+          <defs><marker id="ah-po" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+          <rect class="box" x="20" y="160" width="190" height="52"/><text class="label" x="115" y="191">Grounded note</text>
+          <rect class="box" x="20" y="320" width="190" height="52"/><text class="label" x="115" y="351">Stale, never shown</text>
+          <rect class="box" x="20" y="40" width="190" height="52"/><text class="label" x="115" y="71">Dropped, read again</text>
+          <rect class="box" x="400" y="40" width="230" height="52"/><text class="label" x="515" y="71">For you only</text>
+          <rect class="box" x="400" y="160" width="230" height="52"/><text class="label" x="515" y="191">Waits for your next message</text>
+          <rect class="box" x="400" y="300" width="230" height="52"/><text class="label" x="515" y="331">Steered into the run</text>
+          <rect class="box" x="740" y="40" width="180" height="52"/><text class="label" x="830" y="71">You sent it</text>
+          <rect class="box" x="740" y="160" width="180" height="52"/><text class="label" x="830" y="191">Sent with your message</text>
+          <path class="flow cond" d="M115 160 V96" marker-end="url(#ah-po)"/><text class="event end" x="107" y="124">look</text><text class="event end" x="107" y="140">cancelled</text>
+          <path class="flow cond" d="M115 212 V316" marker-end="url(#ah-po)"/><text class="event" x="125" y="262">later turns</text><text class="event" x="125" y="278">settled it</text>
+          <path class="flow" d="M210 186 H260 V66 H396" marker-end="url(#ah-po)"/><text class="event" x="268" y="92">[panel mode, or</text><text class="event" x="268" y="108">observer judged</text><text class="event" x="268" y="124">agent knows it]</text>
+          <path class="flow" d="M260 186 H396" marker-end="url(#ah-po)"/><text class="event" x="268" y="162">[forward, idle]</text><text class="event" x="268" y="178">or steer refused</text>
+          <path class="flow" d="M260 186 V326 H396" marker-end="url(#ah-po)"/><text class="event" x="268" y="290">[forward,</text><text class="event" x="268" y="306">agent busy]</text>
+          <path class="flow" d="M630 186 H736" marker-end="url(#ah-po)"/><text class="event" x="683" y="162" text-anchor="middle">your next</text><text class="event" x="683" y="178" text-anchor="middle">message</text>
+          <path class="flow cond" d="M545 160 V96" marker-end="url(#ah-po)"/><text class="event end" x="537" y="124">/hud observer</text><text class="event end" x="537" y="140">leave forward</text>
+          <path class="flow" d="M630 60 H736" marker-end="url(#ah-po)"/><text class="event" x="683" y="52" text-anchor="middle">Send</text>
+          <path class="flow" d="M615 160 V124 H800 V96" marker-end="url(#ah-po)"/><text class="event" x="708" y="116">Send</text>
+          <text class="note" x="515" y="378">a late note adds one model call</text>
+        </svg>
+        </div>
+        <table>
+          <thead><tr><th scope="col">From</th><th scope="col">Event [condition]</th><th scope="col">To</th><th scope="col">What the agent gets</th></tr></thead>
+          <tbody>
+            <tr><td>Grounded note</td><td><code>later turns settled it</code> (recheck, up to 3 reads)</td><td>Stale, never shown</td><td>Nothing</td></tr>
+            <tr><td>Grounded note</td><td><code>look cancelled</code> [observer mode change, tree change or shutdown]</td><td>Dropped, read again</td><td>Nothing. The cursor stays, so the next look reads those turns again.</td></tr><tr><td>Grounded note</td><td>[panel mode, or the observer judged the agent already knows it]</td><td>For you only</td><td>Nothing</td></tr>
+            <tr><td>Grounded note</td><td>[forward, agent busy]</td><td>Steered into the run</td><td>The note, before its next model call. A note that arrives during the run's last model call makes Pi run one more model call to read it (measured on Pi 1.7.0).</td></tr>
+            <tr><td>Grounded note</td><td>[forward, agent idle], or the steer is refused</td><td>Waits for your next message</td><td>Nothing yet</td></tr>
+            <tr><td>Waits for your next message</td><td><code>your next message</code> [still forward, note not closed]</td><td>Sent with your message</td><td>The note beside your message</td></tr>
+            <tr><td>Waits for your next message</td><td><code>leave forward</code> with <code>/hud observer</code> in this Pi</td><td>For you only</td><td>Nothing</td></tr>
+            <tr><td>An open note not yet sent (the menu lists the four newest)</td><td><code>Send</code> from the menu</td><td>You sent it</td><td>The note. It steers a busy agent or starts a turn on an idle one.</td></tr>
+          </tbody>
+        </table>
+        <p>Marking a note Useful, I knew this, Wrong or Dismiss closes it. A reply the HUD cannot read moves no cursor, so the next look reads those turns again; a valid empty reply is a review that found nothing and does move it.</p>
+        <p class="src"><a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/binnacle-hud/transitions/observer.dot">Diagram source</a> · <a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/binnacle-hud/index.ts">Code</a> · <a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/binnacle-hud/index.test.ts">Tests</a> · <a href="https://github.com/MrBinnacle/skills/blob/main/mechanisms/binnacle-hud/README.md#a-notes-life-checked">The note’s lifecycle, model-checked</a></p>
+      </figure>
+    </section>
+
+    <section class="install" id="install">
+      <div class="route">
+        <h2>Install in Claude Code</h2>
+        <p>On Claude Code 2.1.275 or later, run this at the prompt:</p>
+        <div class="commands">
+          <kbd>/plugin install binnacle-hud --marketplace MrBinnacle/<wbr>skills</kbd>
+        </div>
+        <p>On an older Claude Code, run <code>/plugin marketplace add https://github.com/<wbr>MrBinnacle/skills.git</code>, then <code>/plugin install binnacle-hud</code>, one at a time. If the marketplace is already added, run <code>claude plugin marketplace update mrbinnacle-skills</code> in a shell first. Then run <code>/reload-plugins</code> or start a new session.</p>
+        <p>First use: turn on <code>/tui fullscreen</code> in a window at least 110 columns wide and run <code>/hud</code>. Type a thought and press Enter: it is in the Log, and no turn starts. Type a line, press Tab, then <kbd>a</kbd> to add it to Memory, and <kbd>s</kbd> to send it. Claude Code shows the lines and asks before they go; choose Send.</p>
+      </div>
+      <div class="route">
+        <h2>Install in Pi</h2>
+        <p>The HUD installs with the rest of the package. Use <a href="https://github.com/MrBinnacle/skills#pi">the install command in the README</a>.</p>
+        <p>First use: press <kbd>alt+h</kbd> or run <code>/hud</code>. <code>/log &lt;text&gt;</code> keeps a thought. <code>/hud add &lt;line&gt;</code> adds a Memory line, and <code>/hud send</code> sends Memory after you confirm the lines.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="foot">
+    <ul class="wrap">
+      <li><a href="index.html">MRBINNACLE / skills</a></li>
+      <li><a href="https://github.com/MrBinnacle/skills">Repository</a></li>
+      <li><a href="https://github.com/MrBinnacle/skills/blob/main/LICENSE">MIT License</a></li>
+    </ul>
+  </footer>
+</body>
+</html>
