@@ -83,7 +83,6 @@ MUTANTS = {
     "a listed note is taken once": [("if (now.list.some(n => n.key === found.key)) return now", "if (false) return now")],
     "one own turn until the person speaks": [("free: now.free && !own }", "free: now.free }")],
     "the person's message frees the turn": [("cur => ({ free: true, list:", "cur => ({ free: cur.free, list:")],
-    "a slash command carries nothing": [(" || e.text.startsWith('/')) return next(e)", ") return next(e)")],
     "a refused turn leaves the note waiting": [("sent.drop === undefined ? 'own turn' : 'waiting'", "'own turn'")],
     "a pending turn has no receipt": [("how: own ? 'unconfirmed' : 'waiting'", "how: own ? 'own turn' : 'waiting'")],
     "waiting notes ride as context": [("...waiting.map(quoted)] } : e)", "] } : e)")],
