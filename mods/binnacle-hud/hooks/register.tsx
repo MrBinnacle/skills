@@ -248,6 +248,9 @@ export const register: Register = (on, options) => {
   })
 
   on('session.start', async ($, e, next) => {
+    // A reload runs this module again while the state stands, so what is stored is held from the start.
+    heldLog = await read($, kept).catch(() => heldLog)
+    heldDraft = await read($, draft).catch(() => heldDraft)
     // Unasked, the pane waits undrawn below 144 columns (d.ts 2532-2533).
     void $.ui.open(pane).catch((err: unknown) => $.ui.toast(`binnacle-hud could not open the HUD: ${err instanceof Error ? err.message : String(err)}. Run /hud to try again.`))
     if ((await read($, draft).catch(() => [])).some(s => typeof s === 'string')) await update($, draft, minted).catch(() => undefined)

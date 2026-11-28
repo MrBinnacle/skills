@@ -19,6 +19,8 @@ MUTANTS = {
     "a reset puts the Log back": [("    await update($, kept, now => now.length ? now : heldLog).catch(() => undefined)\n", "")],
     "a reset puts the Memory draft back": [("    await update($, draft, now => now.length ? now : heldDraft).catch(() => undefined)\n", "")],
     "a reset leaves a Log that was not emptied": [("now => now.length ? now : heldLog", "now => now.length < 0 ? now : heldLog")],
+    "a start holds the stored Log": [("    heldLog = await read($, kept).catch(() => heldLog)\n", "")],
+    "a start holds the stored draft": [("    heldDraft = await read($, draft).catch(() => heldDraft)\n", "")],
     "a kept thought is held": [("    heldLog = await update($, kept, items =>", "    await update($, kept, items =>")],
     "an added line is held": [("  heldDraft = await update($, draft, lines => (added =", "  await update($, draft, lines => (added =")],
     "a removal is held": [("without([id])).then(v => { heldDraft = v }, () => undefined)", "without([id])).catch(() => undefined)")],

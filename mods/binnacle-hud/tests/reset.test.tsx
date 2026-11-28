@@ -54,6 +54,18 @@ test('a /clear keeps the Log and the Memory draft, and drops the Send record', a
   expect(store.delivered).toBeUndefined()
 })
 
+test('a /clear after a reload keeps what was stored before the reload', async ($, on) => {
+  const store: Record<string, any> = {
+    log: [{ text: 'kept before the reload', at: '2026-11-28T09:00:00.000Z', from: 'terminal' }],
+    memory: [{ id: 'id-0', text: 'drafted before the reload' }],
+  }
+  await start($, on, store)
+  wipe(store)
+  await $.classic.SessionStart({ source: 'clear' })
+  expect(store.log.map((t: any) => t.text)).toEqual(['kept before the reload'])
+  expect(store.memory.map((l: any) => l.text)).toEqual(['drafted before the reload'])
+})
+
 test('a removed Memory line stays removed after a /clear', async ($, on) => {
   const store: Record<string, any> = { typed: 'ship slice 1' }
   await start($, on, store)
