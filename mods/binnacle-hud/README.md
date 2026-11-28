@@ -130,12 +130,12 @@ If you type text after `/log`, the mod keeps nothing and asks you to use the dia
 
 - Keeping a thought starts no model turn, and the mod adds nothing to the conversation or the unfinished Claude prompt.
 - The command line and the mod's reply are part of the conversation, so neither one carries the thought.
-- The Log lasts as long as the session. A new session starts with an empty Log.
+- The Log lasts as long as the session. A new session starts with an empty Log. `/clear` keeps the Log (seen on Claude Code 2.1.332, 2026-11-28).
 - The Log keeps the newest 100 thoughts. When a new thought arrives, the oldest one is dropped. The list of thoughts that failed to save also keeps its newest 100.
 - The mod keeps the first 2000 characters of a thought or a Memory line and drops the rest. When the mod cuts a thought it kept, `/log` says so in its reply, and the HUD says so in a notice. A thought that failed to save is cut the same way, without a notice.
 - In the side panel, a long thought, a Memory line, or the details of an opened heads-up shows at most three lines, so the field stays in view. The strip shows an opened heads-up whole, because it hides the field while the heads-ups are open. This needs Claude Code 2.1.326 or later. An older Claude Code shows the whole text, because it refuses the setting that stops a row at three lines.
 - The mod gives Memory lines to Claude only when you press Send and choose **Send** in the dialog. Keeping a thought does not add it to Memory; `p` copies it there without sending it.
-- The mod writes no file. Memory, like the Log, lasts as long as the session.
+- The mod writes no file. Memory, like the Log, lasts as long as the session. After `/clear` the draft lines stay and the panel says "Not sent.", because the new conversation was given nothing. Send them again to give them to Claude.
 - A heads-up is different: the mod gives each one to Claude with no key press (see above). Its text came from the side agent, not from you.
 
 ### Where a kept thought goes
