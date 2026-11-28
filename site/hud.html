@@ -278,7 +278,7 @@
           <path class="flow cond" d="M545 160 V96" marker-end="url(#ah-po)"/><text class="event end" x="537" y="124">/hud observer</text><text class="event end" x="537" y="140">leave forward</text>
           <path class="flow" d="M630 60 H736" marker-end="url(#ah-po)"/><text class="event" x="683" y="52" text-anchor="middle">Send</text>
           <path class="flow" d="M615 160 V124 H800 V96" marker-end="url(#ah-po)"/><text class="event" x="708" y="116">Send</text>
-          <text class="note" x="515" y="378">no turn requested</text>
+          <text class="note" x="515" y="378">a late note adds one model call</text>
         </svg>
         </div>
         <table>
@@ -286,7 +286,7 @@
           <tbody>
             <tr><td>Grounded note</td><td><code>later turns settled it</code> (recheck, up to 3 reads)</td><td>Stale, never shown</td><td>Nothing</td></tr>
             <tr><td>Grounded note</td><td><code>look cancelled</code> [observer mode change, tree change or shutdown]</td><td>Dropped, read again</td><td>Nothing. The cursor stays, so the next look reads those turns again.</td></tr><tr><td>Grounded note</td><td>[panel mode, or the observer judged the agent already knows it]</td><td>For you only</td><td>Nothing</td></tr>
-            <tr><td>Grounded note</td><td>[forward, agent busy]</td><td>Steered into the run</td><td>The note, before its next model call. The steer requests no turn; the real Pi loop was checked only with an idle agent.</td></tr>
+            <tr><td>Grounded note</td><td>[forward, agent busy]</td><td>Steered into the run</td><td>The note, before its next model call. A note that arrives during the run's last model call makes Pi run one more model call to read it (measured on Pi 1.7.0).</td></tr>
             <tr><td>Grounded note</td><td>[forward, agent idle], or the steer is refused</td><td>Waits for your next message</td><td>Nothing yet</td></tr>
             <tr><td>Waits for your next message</td><td><code>your next message</code> [still forward, note not closed]</td><td>Sent with your message</td><td>The note beside your message</td></tr>
             <tr><td>Waits for your next message</td><td><code>leave forward</code> with <code>/hud observer</code> in this Pi</td><td>For you only</td><td>Nothing</td></tr>

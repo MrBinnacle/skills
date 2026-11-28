@@ -8,7 +8,7 @@ digraph Observer {
   dropped [label="Dropped, read again"];
   mine [label="For you only"];
   waits [label="Waits for your next message"];
-  steered [label="Steered into the run\n(no turn requested)"];
+  steered [label="Steered into the run\n(a late note adds one model call)"];
   carried [label="Sent with your message"];
   sent [label="You sent it"];
   grounded -> dropped [xlabel="look cancelled [mode change, tree change, shutdown]", style=dashed];
