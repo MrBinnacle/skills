@@ -15,6 +15,15 @@ SOURCE = ROOT / "hooks" / "register.tsx"
 
 # name -> list of (find, replace); each find must occur exactly once.
 MUTANTS = {
+    # The Log and the Memory draft across /clear
+    "a reset puts the Log back": [("    await update($, kept, now => now.length ? now : heldLog).catch(() => undefined)\n", "")],
+    "a reset puts the Memory draft back": [("    await update($, draft, now => now.length ? now : heldDraft).catch(() => undefined)\n", "")],
+    "a reset leaves a Log that was not emptied": [("now => now.length ? now : heldLog", "now => now.length < 0 ? now : heldLog")],
+    "a start holds the stored Log": [("    heldLog = await read($, kept).catch(() => heldLog)\n", "")],
+    "a start holds the stored draft": [("    heldDraft = await read($, draft).catch(() => heldDraft)\n", "")],
+    "a kept thought is held": [("    heldLog = await update($, kept, items =>", "    await update($, kept, items =>")],
+    "an added line is held": [("  heldDraft = await update($, draft, lines => (added =", "  await update($, draft, lines => (added =")],
+    "a removal is held": [("without([id])).then(v => { heldDraft = v }, () => undefined)", "without([id])).catch(() => undefined)")],
     # Send record and failed keeps (#665)
     "a refused snapshot write is reported": [(".then(() => '', (err: unknown) => err instanceof Error ? err.message : String(err))", ".then(() => '')")],
     "dismiss drops only the drawn ids": [("without(unsaved.flatMap(f => f.id ?? []))", "() => []")],

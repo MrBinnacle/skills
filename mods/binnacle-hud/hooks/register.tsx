@@ -28,6 +28,11 @@ const kept = atom({ plugin: 'binnacle-hud', key: 'log' } as const, [] as Thought
 const failed = atom({ plugin: 'binnacle-hud', key: 'failed' } as const, [] as Saved[])
 // Counts edits for both capture actions: equality cannot identify a retyped draft.
 let edits = 0
+// What the Log and the Memory draft last held. /clear, /resume and /branch empty every state value and keep this
+// module (2.1.332), so the classic.SessionStart hook puts both back from here.
+// shortcut: two sessions in one process would share these; key them by session when a host runs two.
+let heldLog: Thought[] = []
+let heldDraft: Saved[] = []
 const draft = atom({ plugin: 'binnacle-hud', key: 'memory' } as const, [] as Saved[])
 const approved = atom({ plugin: 'binnacle-hud', key: 'approved' } as const, null as Approved | null)
 const delivered = atom({ plugin: 'binnacle-hud', key: 'delivered' } as const, null as Delivered | null)
@@ -156,7 +161,7 @@ export const statusOf = (lines: readonly string[], snap: Approved | null, seen: 
 async function keep($: EngineInterface, text: string, from: Thought['from']): Promise<'empty' | 'kept' | 'recoverable' | 'lost'> {
   if (!text.trim()) return 'empty'
   try {
-    await update($, kept, items => [...items, { text: clip(text), at: new Date().toISOString(), from }].slice(-LOG_MAX))
+    heldLog = await update($, kept, items => [...items, { text: clip(text), at: new Date().toISOString(), from }].slice(-LOG_MAX))
     return 'kept'
   } catch {
     const miss = entry(clip(text))
@@ -186,7 +191,7 @@ async function addLine($: EngineInterface, text: string): Promise<void> {
   if (!text.trim()) return
   const line = entry(clip(text.trim()))
   let added = false
-  await update($, draft, lines => (added = lines.length < MEMORY_MAX) ? [...lines, line] : lines)
+  heldDraft = await update($, draft, lines => (added = lines.length < MEMORY_MAX) ? [...lines, line] : lines)
   if (!added) return
   if (isLong(text.trim())) $.ui.toast(`binnacle-hud kept the first ${TEXT_MAX} characters. The rest was dropped.`)
   await clearDraft($, text, at)
@@ -194,7 +199,7 @@ async function addLine($: EngineInterface, text: string): Promise<void> {
 
 async function promote($: EngineInterface, shown: string): Promise<void> {
   const line = entry(clip(shown))
-  await update($, draft, saved => entries(saved).at(-1)?.text === line.text || saved.length >= MEMORY_MAX ? saved : [...saved, line])
+  heldDraft = await update($, draft, saved => entries(saved).at(-1)?.text === line.text || saved.length >= MEMORY_MAX ? saved : [...saved, line])
 }
 
 // Each caller names its atom at the update call, which the hooks scan requires.
@@ -235,7 +240,17 @@ export const register: Register = (on, options) => {
   // A hook that throws is skipped from that point, so a refused command name
   // and a failed migration read are caught, and the pane, the migrations and
   // both registers come before the version read.
+  // The Send record is not put back: the new conversation was given nothing, so the pane says "Not sent."
+  on('classic.SessionStart', async ($, e, next) => {
+    await update($, kept, now => now.length ? now : heldLog).catch(() => undefined)
+    await update($, draft, now => now.length ? now : heldDraft).catch(() => undefined)
+    return next(e)
+  })
+
   on('session.start', async ($, e, next) => {
+    // A reload runs this module again while the state stands, so what is stored is held from the start.
+    heldLog = await read($, kept).catch(() => heldLog)
+    heldDraft = await read($, draft).catch(() => heldDraft)
     // Unasked, the pane waits undrawn below 144 columns (d.ts 2532-2533).
     void $.ui.open(pane).catch((err: unknown) => $.ui.toast(`binnacle-hud could not open the HUD: ${err instanceof Error ? err.message : String(err)}. Run /hud to try again.`))
     if ((await read($, draft).catch(() => [])).some(s => typeof s === 'string')) await update($, draft, minted).catch(() => undefined)
@@ -481,8 +496,8 @@ export const register: Register = (on, options) => {
       ...(!writing && room && newest && lines.at(-1) !== newest ? [{ k: 'p', label: 'last thought to memory', run: () => void promote($, newest) }] : []),
       ...(showsMemory && lines.length && said.send ? [{ k: 's', label: 'send', run: press, primary: true }] : []),
       // shortcut: lines past the ninth have only 0, which removes the last one; add paging if Memory grows that long.
-      ...(showsMemory && !writing ? rows.slice(0, 9).flatMap(({ id }, i) => id ? [{ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([id])).catch(() => undefined) }] : []) : []),
-      ...(showsMemory && !writing && rows.length > 9 && last ? [{ k: '0', label: 'remove last', run: () => void update($, draft, without([last])).catch(() => undefined) }] : []),
+      ...(showsMemory && !writing ? rows.slice(0, 9).flatMap(({ id }, i) => id ? [{ k: String(i + 1), label: 'remove', run: () => void update($, draft, without([id])).then(v => { heldDraft = v }, () => undefined) }] : []) : []),
+      ...(showsMemory && !writing && rows.length > 9 && last ? [{ k: '0', label: 'remove last', run: () => void update($, draft, without([last])).then(v => { heldDraft = v }, () => undefined) }] : []),
     ]
     const rail = focused && (
       <Box flexDirection="row" flexWrap="wrap" gap={1}>
